@@ -1,3 +1,5 @@
+# ================================================================================
+
 import logging
 logger = logging.getLogger("UIE_CORE")
 logger.setLevel(logging.DEBUG)
@@ -11,3 +13,5 @@ class UIECoreAgent:
         logger.debug("UIE Core initialized.")
     def health_check(self):
         return {"agent":"UIE_CORE","status":"ok","version":"0.1.0"}
+
+# ================================================================================

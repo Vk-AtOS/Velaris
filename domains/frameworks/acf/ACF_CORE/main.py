@@ -1,3 +1,5 @@
+# ================================================================================
+
 import logging
 logger = logging.getLogger("ACF_CORE")
 logger.setLevel(logging.DEBUG)
@@ -11,3 +13,5 @@ class ACFCoreAgent:
         logger.debug("ACF Core initialized.")
     def health_check(self):
         return {"agent":"ACF_CORE","status":"ok","version":"0.1.0"}
+
+# ================================================================================

@@ -1,3 +1,5 @@
+# ================================================================================
+
 import logging
 logger = logging.getLogger("MCFE_ROUTER")
 logger.setLevel(logging.DEBUG)
@@ -13,3 +15,5 @@ class MCFERouterAgent:
         return {"route":"ok","domain":domain}
     def health_check(self):
         return {"agent":"MCFE_ROUTER","status":"ok","version":"0.1.0"}
+
+# ================================================================================

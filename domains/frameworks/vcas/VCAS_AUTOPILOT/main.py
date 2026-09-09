@@ -1,3 +1,5 @@
+# ================================================================================
+
 import logging
 logger = logging.getLogger("VCAS_AUTOPILOT")
 logger.setLevel(logging.DEBUG)
@@ -13,3 +15,5 @@ class VCASAutopilotAgent:
         return {"executed":True,"task":task}
     def health_check(self):
         return {"agent":"VCAS_AUTOPILOT","status":"ok","version":"0.1.0"}
+
+# ================================================================================

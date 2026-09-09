@@ -1,3 +1,5 @@
+# ================================================================================
+
 import logging
 logger = logging.getLogger("VCAS_CORE")
 logger.setLevel(logging.DEBUG)
@@ -11,3 +13,5 @@ class VCASCoreAgent:
         logger.debug("VCAS Core initialized.")
     def health_check(self):
         return {"agent":"VCAS_CORE","status":"ok","version":"0.1.0"}
+
+# ================================================================================

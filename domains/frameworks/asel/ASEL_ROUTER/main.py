@@ -1,3 +1,5 @@
+# ================================================================================
+
 import logging
 logger=logging.getLogger("ASEL_ROUTER")
 logger.setLevel(logging.DEBUG)
@@ -13,3 +15,5 @@ class ASEL_ROUTERAgent:
 
     def health_check(self):
         return {"agent":self.name,"status":"ok","version":"0.1.0"}
+
+# ================================================================================

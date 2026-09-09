@@ -1,3 +1,5 @@
+# ================================================================================
+
 import logging
 
 logger=logging.getLogger("CRK_INTENT")
@@ -14,3 +16,5 @@ class CRK_INTENTAgent:
 
     def health_check(self):
         return {"agent":self.name,"status":"ok","version":"0.1.0"}
+
+# ================================================================================

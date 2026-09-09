@@ -1,6 +1,6 @@
 # Velaris BOS — Organisational Brain
 
-**243 domain-classified agents. One unified intelligence layer for AI-native enterprises.**
+**343 domain-classified agents. One unified intelligence layer for AI-native enterprises.**
 
 Velaris BOS (Business Operating System) is a modular multi-agent framework designed to give organisations a structured, auditable, and extensible AI brain. Every business function — from cash flow forecasting to zero-trust security — is represented as an independently deployable agent. Together, they form a connected organisational intelligence layer.
 
@@ -67,23 +67,26 @@ Velaris BOS (Business Operating System) is a modular multi-agent framework desig
 
 | Domain | Agents | Purpose |
 |--------|--------|---------|
-| **core_brain** | 8 | Central orchestration — PRIME, ENGINE, ORCHESTRIX, SOUL_VELARIS |
-| **security** | 13 | Zero-trust, audit trails, threat detection, access control |
-| **ethics_governance** | 6 | Policy enforcement, ethical assessment, compliance alignment |
-| **finance** | 13 | Cash flow, forecasting, treasury, pricing, economic modelling |
+| **core_brain** | 14 | Central orchestration — PRIME, ENGINE, ORCHESTRIX, SOUL_VELARIS, AUTONOMOUS_PATCH/RESEARCH |
+| **security** | 29 | Zero-trust, audit trails, threat detection, lockdown modes, secrets, biometrics |
+| **ethics_governance** | 8 | Policy enforcement, ethical assessment, compliance alignment, legal intelligence |
+| **finance** | 23 | Banking, credit risk, insurance, portfolio sim, macro econ, claims, pricing |
 | **business_intelligence** | 12 | Strategic insights, competitive scanning, forecasting, analytics |
 | **sales_crm** | 12 | Lead conversion, churn prediction, pipeline management |
-| **marketing_brand** | 5 | Brand narrative, creative generation, adaptive messaging |
-| **operations** | 31 | Business autopilot, scheduling, logistics, feasibility + catchall agents |
-| **memory_knowledge** | 11 | Short/long-term memory, schema normalisation, knowledge mesh |
-| **infrastructure** | 15 | Distributed compute, scaling, cloud handoff, network optimisation |
-| **cognition** | 10 | Reasoning, planning, decision graphs, causal inference |
-| **neural_ai** | 13 | Neural alignment, embeddings, adaptive learning, behaviour shaping |
+| **marketing_brand** | 12 | Brand narrative, creative generation, autonomous marketing, sales navigator |
+| **operations** | 40 | Supply chain, fleet, quality, logistics, ITSM, IT infra, HR talent, multi-tenant |
+| **memory_knowledge** | 13 | Short/long-term memory, drift detection, temporal snapshots, knowledge mesh |
+| **infrastructure** | 18 | Distributed compute, scaling, telemetry spine, offline runtime packager |
+| **cognition** | 18 | Reasoning, planning, coherence sync, human approval, inter-agent cohesion |
+| **neural_ai** | 22 | LYRA voice, multilingual brain, model registry canary, local biometrics |
 | **self_management** | 5 | Self-consistency, correction loops, identity, introspection |
 | **local_offline** | 6 | Local execution, offline registry, autonomous local ops |
-| **research_simulation** | 10 | Quantum circuits, probability waves, simulation environments |
-| **frameworks/** | ~63 | Cross-domain sub-frameworks (ACF, AAE, ASEL, CLBPP, CRK, VCAS, VHOE, VPSE, MCFE, MPC, UIE, DSS, EAC, Coherence) |
-| **TOTAL** | **243** | |
+| **research_simulation** | 13 | Digital twin XR, military strategy cortex, quantum, simulation environments |
+| **healthcare** | 5 | Clinical protocols, diagnostics, pharma trials, medical knowledge, heartline |
+| **agri_environment** | 8 | Agri pest, crop model, plant sim, renewable yield, grid balance, sustainability |
+| **real_estate** | 2 | Property valuation, rental flow |
+| **frameworks/** | 83 | ACF, AAE, ASEL, CLBPP, CRK, VCAS, VHOE, VPSE, MCFE, MPC, UIE, DSS, EAC, EOF, CSM, CSG, MRF, RCI, Coherence |
+| **TOTAL** | **343** | |
 
 ---
 
@@ -109,7 +112,7 @@ python main.py
 - **Scaffold** — Structure complete, domain logic pending
 - **Research** — Experimental, not for production
 
-~25% of agents are fully implemented. The remaining 75% are well-structured scaffolds ready for domain logic to be wired in.
+~60% of agents are fully implemented (>40 lines of business logic). The remaining 40% are well-structured scaffolds ready for domain logic to be wired in.
 
 ---
 
@@ -135,7 +138,7 @@ velaris/
 │   ├── memory/              # MemoryMesh (in-process KV store)
 │   ├── security/            # Security stubs
 │   └── agents/router.py    # Dynamic agent discovery
-├── domains/                 # All 243 agents, domain-classified
+├── domains/                 # All 343 agents, domain-classified
 │   ├── core_brain/
 │   ├── security/
 │   ├── ethics_governance/
@@ -151,11 +154,15 @@ velaris/
 │   ├── self_management/
 │   ├── local_offline/
 │   ├── research_simulation/
+│   ├── healthcare/
+│   ├── agri_environment/
+│   ├── real_estate/
 │   └── frameworks/
 │       ├── acf/   ├── aae/   ├── asel/  ├── clbpp/
 │       ├── crk/   ├── vcas/  ├── vhoe/  ├── vpse/
 │       ├── mcfe/  ├── mpc/   ├── uie/   ├── dss/
-│       ├── eac/   └── coherence/
+│       ├── eac/   ├── eof/   ├── csm/   ├── csg/
+│       ├── mrf/   ├── rci/   └── coherence/
 └── docs/
     └── domain_map.md
 ```

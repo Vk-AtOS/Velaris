@@ -1,0 +1,62 @@
+# ================================================================================
+
+import os
+import json
+from typing import Dict, List, Any
+
+class AutonomousPatchEngine:
+    """
+    Velaris Autonomous Patch Engine
+    - Applies offline-safe JSON-based patches to internal modules
+    - Stores patch history
+    - Validates and simulates patches before applying
+    """
+
+    AGENT_DIR = "/live/agents/AUTONOMOUS_PATCH_ENGINE"
+    PATCH_LOG = os.path.join(AGENT_DIR, "patch_history.json")
+
+    def __init__(self):
+        os.makedirs(self.AGENT_DIR, exist_ok=True)
+        if not os.path.exists(self.PATCH_LOG):
+            with open(self.PATCH_LOG, "w") as f:
+                f.write("[]")
+        self._load_log()
+
+    def _load_log(self):
+        try:
+            with open(self.PATCH_LOG, "r") as f:
+                self.history = json.load(f)
+        except:
+            self.history = []
+
+    def _save_log(self):
+        with open(self.PATCH_LOG, "w") as f:
+            json.dump(self.history, f, indent=2)
+
+    def validate_patch(self, patch: Dict[str, Any]) -> bool:
+        # A valid patch must contain a target and changes
+        if "target" not in patch or "changes" not in patch:
+            return False
+        if not isinstance(patch["changes"], dict):
+            return False
+        return True
+
+    def simulate_patch(self, original: Dict[str, Any], patch: Dict[str, Any]) -> Dict[str, Any]:
+        result = dict(original)
+        for k, v in patch["changes"].items():
+            result[k] = v
+        return result
+
+    def apply_patch(self, original: Dict[str, Any], patch: Dict[str, Any]) -> Dict[str, Any]:
+        if not self.validate_patch(patch):
+            raise ValueError("Invalid patch structure")
+
+        updated = self.simulate_patch(original, patch)
+        self.history.append({"patch": patch, "status": "APPLIED"})
+        self._save_log()
+        return updated
+
+    def get_history(self) -> List[Dict[str, Any]]:
+        return list(self.history)
+
+# ================================================================================

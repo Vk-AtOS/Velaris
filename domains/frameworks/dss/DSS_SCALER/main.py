@@ -1,3 +1,5 @@
+# ================================================================================
+
 import logging
 
 logger = logging.getLogger("DSS_SCALER")
@@ -15,3 +17,5 @@ class DSS_SCALERAgent:
     def health_check(self):
         return {"agent": self.name, "status": "ok", "version": "0.1.0"}
 
+
+# ================================================================================

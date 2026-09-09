@@ -1,3 +1,5 @@
+# ================================================================================
+
 import logging
 logger = logging.getLogger("UIE_SIGNAL")
 logger.setLevel(logging.DEBUG)
@@ -13,3 +15,5 @@ class UIESignalAgent:
         return {"processed":True,"signal":signal}
     def health_check(self):
         return {"agent":"UIE_SIGNAL","status":"ok","version":"0.1.0"}
+
+# ================================================================================

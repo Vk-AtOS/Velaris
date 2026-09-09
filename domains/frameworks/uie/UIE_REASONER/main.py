@@ -1,3 +1,5 @@
+# ================================================================================
+
 import logging
 logger = logging.getLogger("UIE_REASONER")
 logger.setLevel(logging.DEBUG)
@@ -13,3 +15,5 @@ class UIEReasonerAgent:
         return {"reasoned":True,"input":x}
     def health_check(self):
         return {"agent":"UIE_REASONER","status":"ok","version":"0.1.0"}
+
+# ================================================================================

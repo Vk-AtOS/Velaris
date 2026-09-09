@@ -1,3 +1,5 @@
+# ================================================================================
+
 import logging
 
 logger = logging.getLogger("DSS_FAILOVER")
@@ -15,3 +17,5 @@ class DSS_FAILOVERAgent:
     def health_check(self):
         return {"agent": self.name, "status": "ok", "version": "0.1.0"}
 
+
+# ================================================================================

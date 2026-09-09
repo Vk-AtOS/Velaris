@@ -1,3 +1,5 @@
+# ================================================================================
+
 import logging
 logger = logging.getLogger("EOF_CORE")
 logger.setLevel(logging.DEBUG)
@@ -13,3 +15,5 @@ class EOF_COREAgent:
     def orchestrate(self, plan: dict):
         logger.debug("Orchestrating plan: %s", plan)
         return {"result":"ok","plan":plan}
+
+# ================================================================================

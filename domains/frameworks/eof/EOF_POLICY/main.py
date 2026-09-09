@@ -1,3 +1,5 @@
+# ================================================================================
+
 import logging
 logger = logging.getLogger("EOF_POLICY")
 logger.setLevel(logging.DEBUG)
@@ -13,3 +15,5 @@ class EOF_POLICYAgent:
     def evaluate(self, policy: dict):
         logger.debug("Evaluating policy: %s", policy)
         return {"compliant": True, "policy": policy}
+
+# ================================================================================

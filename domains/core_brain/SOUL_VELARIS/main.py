@@ -1,3 +1,5 @@
+# ================================================================================
+
 import logging
 from typing import Dict, Any
 
@@ -26,3 +28,5 @@ class Soul:
     def get_intent(self) -> Dict[str, Any]:
         # returns top-level system intent/mission (stub)
         return {"mission": "Assist, Optimize, Simulate", "guidelines": ["safe", "auditable", "controllable"]}
+
+# ================================================================================

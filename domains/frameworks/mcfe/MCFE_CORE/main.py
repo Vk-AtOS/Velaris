@@ -1,3 +1,5 @@
+# ================================================================================
+
 import logging
 logger = logging.getLogger("MCFE_CORE")
 logger.setLevel(logging.DEBUG)
@@ -11,3 +13,5 @@ class MCFECoreAgent:
         logger.debug("MCFE Core initialized.")
     def health_check(self):
         return {"agent":"MCFE_CORE","status":"ok","version":"0.1.0"}
+
+# ================================================================================

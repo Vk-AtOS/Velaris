@@ -1,3 +1,5 @@
+# ================================================================================
+
 import logging
 logger = logging.getLogger("MCFE_FIELDGEN")
 logger.setLevel(logging.DEBUG)
@@ -13,3 +15,5 @@ class MCFEFieldGenAgent:
         return {"field":"generated","domain":domain}
     def health_check(self):
         return {"agent":"MCFE_FIELDGEN","status":"ok","version":"0.1.0"}
+
+# ================================================================================

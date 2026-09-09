@@ -1,3 +1,5 @@
+# ================================================================================
+
 import logging
 logger = logging.getLogger("ACF_CONTEXT")
 logger.setLevel(logging.DEBUG)
@@ -13,3 +15,5 @@ class ACFContextAgent:
         return {"contextualized":True,"input":x}
     def health_check(self):
         return {"agent":"ACF_CONTEXT","status":"ok","version":"0.1.0"}
+
+# ================================================================================

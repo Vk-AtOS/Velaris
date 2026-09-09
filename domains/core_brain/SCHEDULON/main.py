@@ -1,3 +1,5 @@
+# ================================================================================
+
 import logging
 from typing import List, Dict, Any
 
@@ -45,3 +47,5 @@ class SchedulonAgent:
         best = min(schedule, key=lambda k: schedule[k])
         logger.debug("Next available slot: %s", best)
         return best
+
+# ================================================================================

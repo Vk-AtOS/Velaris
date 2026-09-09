@@ -1,3 +1,5 @@
+# ================================================================================
+
 import logging
 logger = logging.getLogger("UIE_SEMANTICS")
 logger.setLevel(logging.DEBUG)
@@ -13,3 +15,5 @@ class UIESemanticsAgent:
         return {"interpreted":True,"content":x}
     def health_check(self):
         return {"agent":"UIE_SEMANTICS","status":"ok","version":"0.1.0"}
+
+# ================================================================================

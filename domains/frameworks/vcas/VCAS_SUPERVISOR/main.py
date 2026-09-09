@@ -1,3 +1,5 @@
+# ================================================================================
+
 import logging
 logger = logging.getLogger("VCAS_SUPERVISOR")
 logger.setLevel(logging.DEBUG)
@@ -13,3 +15,5 @@ class VCASSupervisorAgent:
         return {"approved":True,"task":task}
     def health_check(self):
         return {"agent":"VCAS_SUPERVISOR","status":"ok","version":"0.1.0"}
+
+# ================================================================================

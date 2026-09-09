@@ -1,3 +1,5 @@
+# ================================================================================
+
 import os
 import pkgutil
 import importlib
@@ -67,7 +69,7 @@ class AgentRegistry:
         entry = self.registry[agent_name]["manifest"]["entrypoint"]
         module_path, cls_name = entry.split(":")
 
-        module_full = f"velaris.agents.{agent_name}.{module_path.split('/')[-1].replace('.py','')}"
+        module_full = f"agents.{agent_name}.{module_path.split('/')[-1].replace('.py','')}"
         logger.debug("Loading %s from %s", cls_name, module_full)
 
         module = importlib.import_module(module_full)
@@ -86,3 +88,5 @@ class AgentRegistry:
             except Exception as e:
                 out[name] = {"agent": name, "status": "error", "error": str(e)}
         return out
+
+# ================================================================================

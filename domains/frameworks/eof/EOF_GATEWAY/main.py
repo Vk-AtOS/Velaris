@@ -1,3 +1,5 @@
+# ================================================================================
+
 import logging
 logger = logging.getLogger("EOF_GATEWAY")
 logger.setLevel(logging.DEBUG)
@@ -13,3 +15,5 @@ class EOF_GATEWAYAgent:
     def route(self, src: str, dst: str, payload: dict):
         logger.debug("Routing from %s to %s payload=%s", src, dst, payload)
         return {"routed": True, "src": src, "dst": dst}
+
+# ================================================================================
