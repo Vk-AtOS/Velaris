@@ -1,0 +1,9 @@
+{
+  "name": "PRAETOR",
+  "display_name": "Praetor - Intrusion Detection & Anomaly Agent",
+  "version": "0.1.0",
+  "description": "Monitors event patterns, detects anomalies, flags suspicious activity.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:PraetorAgent",
+  "health_check": "health_check"
+}

@@ -1,0 +1,9 @@
+{
+  "name": "TARGETA",
+  "display_name": "Targeta - Precision Targeting Agent",
+  "version": "0.1.0",
+  "description": "Computes segmentation quality, match scores, and target fit metrics.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:TargetaAgent",
+  "health_check": "health_check"
+}

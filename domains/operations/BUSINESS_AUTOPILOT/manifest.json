@@ -1,0 +1,9 @@
+{
+  "name": "BUSINESS_AUTOPILOT",
+  "display_name": "BUSINESS_AUTOPILOT",
+  "version": "0.1.0",
+  "description": "Auto-generated placeholder for BUSINESS_AUTOPILOT",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:BusinessAutopilotAgent",
+  "health_check": "health_check"
+}

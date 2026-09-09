@@ -1,0 +1,9 @@
+{
+  "name": "REGISTRY",
+  "display_name": "Velaris Agent Registry",
+  "version": "0.1.0",
+  "description": "Auto-discovers and loads all Velaris agents dynamically.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:AgentRegistry",
+  "health_check": "health_check"
+}

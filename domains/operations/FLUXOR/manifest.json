@@ -1,0 +1,9 @@
+{
+  "name": "FLUXOR",
+  "display_name": "Fluxor - Operational Flux Agent",
+  "version": "0.1.0",
+  "description": "Balances dynamic operational loads, calculates throughput, and detects load spikes.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:FluxorAgent",
+  "health_check": "health_check"
+}

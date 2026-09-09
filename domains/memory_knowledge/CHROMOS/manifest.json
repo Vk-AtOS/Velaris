@@ -1,0 +1,9 @@
+{
+  "name": "CHROMOS",
+  "display_name": "Chromos - Structural DNA Model Agent",
+  "version": "0.1.0",
+  "description": "Maintains structural representations of system DNA, validates model shapes, and compares schema evolution across versions.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:ChromosAgent",
+  "health_check": "health_check"
+}

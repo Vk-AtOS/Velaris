@@ -1,0 +1,9 @@
+{
+  "name": "LEDGERON",
+  "display_name": "Ledgeron - Ledger & Reconciliation Agent",
+  "version": "0.1.0",
+  "description": "Records transactions, computes balances, and performs simple reconciliation checks.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:LedgeronAgent",
+  "health_check": "health_check"
+}

@@ -1,0 +1,9 @@
+{
+  "name": "NEURAL_MESH",
+  "display_name": "Neural Mesh",
+  "version": "0.1.0",
+  "description": "Agent communication & routing fabric. Uses Memory Fabric for context propagation.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:NeuralMesh",
+  "health_check": "health_check"
+}

@@ -1,0 +1,9 @@
+{
+  "name": "QUANTUM_MESH",
+  "display_name": "Quantum Mesh",
+  "version": "0.1.0",
+  "description": "Quantum-inspired search and parallel sampling built on QUANTUM_BRIDGE (sim-mode).",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:QuantumMesh",
+  "health_check": "health_check"
+}

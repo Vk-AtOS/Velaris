@@ -1,0 +1,9 @@
+{
+  "name": "SCHEDULON",
+  "display_name": "Schedulon - Scheduling & Load Balancing Agent",
+  "version": "0.1.0",
+  "description": "Creates optimal schedules, distributes workload, and calculates task feasibility windows.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:SchedulonAgent",
+  "health_check": "health_check"
+}

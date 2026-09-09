@@ -1,0 +1,9 @@
+{
+  "name": "AUDITOR",
+  "display_name": "Auditor - Operations Compliance Agent",
+  "version": "0.1.0",
+  "description": "Audits workflows, validates compliance rules, and detects process violations.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:AuditorAgent",
+  "health_check": "health_check"
+}

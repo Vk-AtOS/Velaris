@@ -1,0 +1,9 @@
+{
+  "name": "ADAPTIVE_BRANDING",
+  "display_name": "ADAPTIVE_BRANDING",
+  "version": "0.1.0",
+  "description": "Auto-generated placeholder for ADAPTIVE_BRANDING",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:AdaptiveBrandingAgent",
+  "health_check": "health_check"
+}

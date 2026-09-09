@@ -1,0 +1,9 @@
+{
+  "name": "NEURAL_DRIFT_MONITOR",
+  "display_name": "NEURAL_DRIFT_MONITOR",
+  "version": "0.1.0",
+  "description": "Auto-generated placeholder for NEURAL_DRIFT_MONITOR",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:NeuralDriftMonitorAgent",
+  "health_check": "health_check"
+}

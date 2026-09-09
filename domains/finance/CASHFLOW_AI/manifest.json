@@ -1,0 +1,9 @@
+{
+  "name": "CASHFLOW_AI",
+  "display_name": "CASHFLOW_AI",
+  "version": "0.1.0",
+  "description": "Auto-generated placeholder for CASHFLOW_AI",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:CashflowAiAgent",
+  "health_check": "health_check"
+}

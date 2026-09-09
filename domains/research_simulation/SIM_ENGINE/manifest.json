@@ -1,0 +1,9 @@
+{
+  "name": "SIM_ENGINE",
+  "display_name": "Simulation Graph Engine",
+  "version": "0.1.0",
+  "description": "Runs branching scenario simulations using agents and mesh.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:SimEngine",
+  "health_check": "health_check"
+}

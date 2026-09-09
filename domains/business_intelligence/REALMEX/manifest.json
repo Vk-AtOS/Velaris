@@ -1,0 +1,9 @@
+{
+  "name": "REALMEX",
+  "display_name": "Realmex - Reality Matrix Simulation Agent",
+  "version": "0.1.0",
+  "description": "Combines multi-domain simulation outputs into a unified cross-reality matrix for analysis.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:RealmexAgent",
+  "health_check": "health_check"
+}

@@ -1,0 +1,9 @@
+{
+  "name": "ORACLE",
+  "display_name": "Oracle - Predictive Intelligence Agent",
+  "version": "0.1.0",
+  "description": "Produces future outcome forecasts using probabilistic models.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:OracleAgent",
+  "health_check": "health_check"
+}

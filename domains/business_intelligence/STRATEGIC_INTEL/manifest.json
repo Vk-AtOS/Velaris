@@ -1,0 +1,9 @@
+{
+  "name": "STRATEGIC_INTEL",
+  "display_name": "STRATEGIC_INTEL",
+  "version": "0.1.0",
+  "description": "Auto-generated placeholder for STRATEGIC_INTEL",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:StrategicIntelAgent",
+  "health_check": "health_check"
+}

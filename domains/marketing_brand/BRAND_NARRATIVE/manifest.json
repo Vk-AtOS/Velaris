@@ -1,0 +1,9 @@
+{
+  "name": "BRAND_NARRATIVE",
+  "display_name": "BRAND_NARRATIVE",
+  "version": "0.1.0",
+  "description": "Auto-generated placeholder for BRAND_NARRATIVE",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:BrandNarrativeAgent",
+  "health_check": "health_check"
+}

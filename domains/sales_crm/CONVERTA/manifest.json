@@ -1,0 +1,9 @@
+{
+  "name": "CONVERTA",
+  "display_name": "Converta - Conversion Optimization Agent",
+  "version": "0.1.0",
+  "description": "Computes conversion rates, funnel leakage, and optimization scores.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:ConvertaAgent",
+  "health_check": "health_check"
+}

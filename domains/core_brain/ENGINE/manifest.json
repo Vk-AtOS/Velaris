@@ -1,0 +1,9 @@
+{
+  "name": "ENGINE",
+  "display_name": "Velaris Core Engine",
+  "version": "0.1.0",
+  "description": "Executes agents, orchestrates pipelines, and integrates the Velaris registry.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:VelarisEngine",
+  "health_check": "health_check"
+}

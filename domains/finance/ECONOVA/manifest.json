@@ -1,0 +1,9 @@
+{
+  "name": "ECONOVA",
+  "display_name": "Econova - Economic Modeling Agent",
+  "version": "0.1.0",
+  "description": "Models economic effects, market sensitivity, and demand projections.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:EconovaAgent",
+  "health_check": "health_check"
+}

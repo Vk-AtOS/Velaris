@@ -1,0 +1,9 @@
+{
+  "name": "ARTESIA",
+  "display_name": "Artesia - Artistic Style Agent",
+  "version": "0.1.0",
+  "description": "Fuses styles, generates aesthetic metrics, and performs artistic transformations.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:ArtesiaAgent",
+  "health_check": "health_check"
+}

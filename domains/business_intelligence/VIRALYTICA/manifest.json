@@ -1,0 +1,9 @@
+{
+  "name": "VIRALYTICA",
+  "display_name": "Viralytica - Virality Modeling Agent",
+  "version": "0.1.0",
+  "description": "Calculates virality coefficients, propagation curves, and shareability metrics.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:ViralyticaAgent",
+  "health_check": "health_check"
+}

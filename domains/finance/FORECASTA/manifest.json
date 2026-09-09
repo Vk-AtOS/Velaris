@@ -1,0 +1,9 @@
+{
+  "name": "FORECASTA",
+  "display_name": "Forecasta - Predictive Modeling Agent",
+  "version": "0.1.0",
+  "description": "Generates forward projections, rolling forecasts, and short-term/long-term trend models.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:ForecastaAgent",
+  "health_check": "health_check"
+}

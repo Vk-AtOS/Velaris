@@ -1,0 +1,9 @@
+{
+  "name": "FISCALIS",
+  "display_name": "Fiscalis - Budget & Cost Agent",
+  "version": "0.1.0",
+  "description": "Manages budgets, runs cost breakdowns, and produces expense forecasts.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:FiscalisAgent",
+  "health_check": "health_check"
+}

@@ -1,0 +1,9 @@
+{
+  "name": "SENTINELDNA",
+  "display_name": "SentinelDNA - DNA Integrity & Drift Agent",
+  "version": "0.1.0",
+  "description": "Monitors DNA drift, validates integrity signatures, and alerts on abnormal genomic deviations.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:SentinelDNAAgent",
+  "health_check": "health_check"
+}

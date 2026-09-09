@@ -1,0 +1,9 @@
+{
+  "name": "NAVARCH",
+  "display_name": "Navarch - Tactical Pathfinding Agent",
+  "version": "0.1.0",
+  "description": "Computes optimal paths, evaluates route costs, and sequences multi-step actions.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:NavarchAgent",
+  "health_check": "health_check"
+}

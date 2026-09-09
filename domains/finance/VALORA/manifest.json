@@ -1,0 +1,9 @@
+{
+  "name": "VALORA",
+  "display_name": "Valora - Asset Valuation Agent",
+  "version": "0.1.0",
+  "description": "Computes asset valuations, weighted financial scores, and assesses value shifts.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:ValoraAgent",
+  "health_check": "health_check"
+}

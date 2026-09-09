@@ -1,0 +1,9 @@
+{
+  "name": "RETENTA",
+  "display_name": "Retenta - Retention & Churn Agent",
+  "version": "0.1.0",
+  "description": "Computes churn probability, retention scores, and engagement decay.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:RetentaAgent",
+  "health_check": "health_check"
+}

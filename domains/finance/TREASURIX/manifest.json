@@ -1,0 +1,9 @@
+{
+  "name": "TREASURIX",
+  "display_name": "Treasurix - Treasury & Cashflow Agent",
+  "version": "0.1.0",
+  "description": "Projects cashflow, computes runway, manages reserves and liquidity metrics.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:TreasurixAgent",
+  "health_check": "health_check"
+}

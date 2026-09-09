@@ -1,0 +1,9 @@
+{
+  "name": "COHORTUS",
+  "display_name": "Cohortus - Team Coordination Agent",
+  "version": "0.1.0",
+  "description": "Assigns roles to team members, distributes responsibilities, and generates collaboration clusters.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:CohortusAgent",
+  "health_check": "health_check"
+}

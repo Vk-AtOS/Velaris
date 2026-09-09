@@ -1,0 +1,9 @@
+{
+  "name": "COGNITIVE_LOAD_BALANCER",
+  "display_name": "Cognitive Load Balancer",
+  "version": "0.1.0",
+  "description": "Distributes requests among agents based on simple scoring and lifecycle state.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:LoadBalancer",
+  "health_check": "health_check"
+}

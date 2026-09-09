@@ -1,0 +1,9 @@
+{
+  "name": "LOGISTA",
+  "display_name": "Logista - Logistics & Routing Agent",
+  "version": "0.1.0",
+  "description": "Optimizes resource routing, load distribution, and operational logistics.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:LogistaAgent",
+  "health_check": "health_check"
+}

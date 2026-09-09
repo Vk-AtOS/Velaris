@@ -1,0 +1,9 @@
+{
+  "name": "AGENT_LIFECYCLE_MANAGER",
+  "display_name": "Agent Lifecycle Manager",
+  "version": "0.1.0",
+  "description": "Manages agent states and transitions (alive/idle/sleeping/suspended).",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:LifecycleManager",
+  "health_check": "health_check"
+}

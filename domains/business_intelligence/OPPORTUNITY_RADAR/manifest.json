@@ -1,0 +1,9 @@
+{
+  "name": "OPPORTUNITY_RADAR",
+  "display_name": "OPPORTUNITY_RADAR",
+  "version": "0.1.0",
+  "description": "Auto-generated placeholder for OPPORTUNITY_RADAR",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:OpportunityRadarAgent",
+  "health_check": "health_check"
+}

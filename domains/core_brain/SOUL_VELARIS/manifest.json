@@ -1,0 +1,9 @@
+{
+  "name": "SOUL_VELARIS",
+  "display_name": "Soul of Velaris",
+  "version": "0.1.0",
+  "description": "Bootstrap for system-level intent, ethical guardrails, identity tokens and persona glue.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:Soul",
+  "health_check": "health_check"
+}

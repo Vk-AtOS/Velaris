@@ -1,0 +1,9 @@
+{
+  "name": "FORMULA",
+  "display_name": "Formula - Framework Composition Agent",
+  "version": "0.1.0",
+  "description": "Builds structured frameworks, templates, and pattern-based content formulas.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:FormulaAgent",
+  "health_check": "health_check"
+}
