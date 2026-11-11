@@ -277,10 +277,25 @@ def _system(node: Node) -> Optional[str]:
     return _safe(base)
 
 
+def _http_method(node: Node) -> Optional[str]:
+    """The literal HTTP method of an HTTP node, upper-cased, or None when it cannot be known.
+
+    n8n leaves a parameter out of the export when it holds its default, and the HTTP
+    Request node's default method is GET, so a plain HTTP Request node with no method
+    is a GET. That default is assumed only for that exact node type and only when no
+    method key is present at all (older node versions call the key `requestMethod`);
+    an expression, an empty value or any other HTTP-flavoured node stays unknown.
+    """
+    for key in ("method", "requestMethod"):
+        if key in node.parameters:
+            return (_literal(node.parameters[key]) or "").upper() or None
+    return "GET" if _short(node.type) == "httpRequest" else None
+
+
 def _operation(node: Node) -> str:
     """read | write | send | delete | execute. Anything not recognised is 'execute'."""
     if _base(node.type) == "httprequest":
-        return _HTTP_METHODS.get((_literal(node.parameters.get("method")) or "").upper(), "execute")
+        return _HTTP_METHODS.get(_http_method(node) or "", "execute")
     op = (_literal(node.parameters.get("operation")) or "").lower()
     if "delete" in op or "remove" in op:
         return "delete"
@@ -314,7 +329,7 @@ def _describe(node: Node) -> str:
         phrase = {"schedule": "starts on a schedule", "manual": "starts when run manually"}.get(
             kind, f"starts on a {base} event")
     elif base == "httprequest":
-        method = (_literal(p.get("method")) or "").upper() or "an unspecified method on"
+        method = _http_method(node) or "an unspecified method on"
         phrase = f"calls {method} {_host(p.get('url')) or 'a dynamic URL'}"
     elif base in _PHRASES:
         phrase = _PHRASES[base]

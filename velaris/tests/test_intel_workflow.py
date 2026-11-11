@@ -246,6 +246,17 @@ def test_operation_inference_and_dynamic_urls():
     assert perm("httpRequest", method="DELETE", url="https://a.example/x")["operation"] == "delete"
     dynamic = perm("httpRequest", method="={{ $json.m }}", url="={{ $json.url }}")
     assert (dynamic["system"], dynamic["operation"]) == ("http", "execute")
+    # HTTP Request with no method key: n8n omits defaults from the export, and the default is GET.
+    assert perm("httpRequest", url="https://a.example/x")["operation"] == "read"
+    assert perm("httpRequest", url="https://a.example/x", requestMethod="POST")["operation"] == "write"
+    assert perm("httpRequest", url="https://a.example/x", requestMethod="GET")["operation"] == "read"
+    # Present but not a recognised literal: still fails closed.
+    for method in ("", "PURGE", None, {"a": 1}, "={{ $json.m }}"):
+        assert perm("httpRequest", url="https://a.example/x", method=method)["operation"] == "execute"
+    assert perm("httpRequest", url="https://a.example/x", method="", requestMethod="GET")["operation"] == "execute"
+    # The GET default belongs to the HTTP Request node only, not to look-alike tool nodes.
+    assert required_permissions(load({"nodes": [_node("t", LC + "toolHttpRequest", parameters={
+        "url": "https://a.example/x"})]}))[0]["operation"] == "execute"
     assert perm("postgres", operation="select")["operation"] == "read"
     assert perm("postgres", operation="executeQuery")["operation"] == "execute"
     assert perm("airtable", operation="deleteRecord")["operation"] == "delete"
@@ -269,3 +280,12 @@ def test_error_output_label_disabled_trigger_and_self_loop():
     assert a["cycles"] == [["Ok"]]
     assert a["unreachable"] == ["Cron"]                       # a disabled trigger starts nothing
     assert a["unhandled_external"] == [] and "Note" not in a["execution_order"]
+
+
+def test_http_request_without_method_is_described_as_get():
+    wf = load({"nodes": [_node("Read", BASE + "httpRequest", parameters={"url": "https://a.example/x"}),
+                         _node("Dyn", BASE + "httpRequest", parameters={"method": "={{ $json.m }}",
+                                                                        "url": "https://a.example/x"})]})
+    described = {s["node"]: s["does"] for s in to_plan(wf)}
+    assert described["Read"] == "calls GET a.example"
+    assert described["Dyn"] == "calls an unspecified method on a.example"
