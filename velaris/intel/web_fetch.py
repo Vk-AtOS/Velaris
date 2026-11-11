@@ -186,11 +186,15 @@ class Fetcher:
         if use_cache and (hit := self._cache_get(url)):
             return hit
         check_public(url, self._resolver)
+        target = url
+        if is_api:
+            # API URLs can carry a key in the path or query: record the host only.
+            url = "{0.scheme}://{0.netloc}".format(urlsplit(target))
         if not is_api and not self.allowed_by_robots(url):
             trace.append("web", "fetch.refused", {"url": url, "reason": "robots"})
             raise FetchError("robots_disallowed", url)
         try:
-            r = self._get_following(url)
+            r = self._get_following(target)
         except FetchError as e:
             trace.append("web", "fetch.refused", {"url": url, "reason": e.reason})
             raise
@@ -200,12 +204,13 @@ class Fetcher:
             raise FetchError("http_status", str(r.status_code))
         if ctype and not ctype.startswith(TEXT_TYPES):
             raise FetchError("not_text", ctype)
-        out = Fetched(url=url, final_url=str(r.url), status=r.status_code, content_type=ctype, text=r.text)
-        self._cache_file(url).write_text(json.dumps(
-            {"url": out.url, "final_url": out.final_url, "status": out.status,
-             "content_type": out.content_type, "text": out.text}))
-        trace.append("web", "fetch", {"url": url, "final_url": out.final_url, "status": out.status,
-                                       "bytes": len(out.text)})
+        out = Fetched(url=target, final_url=str(r.url), status=r.status_code, content_type=ctype, text=r.text)
+        if not is_api:
+            self._cache_file(target).write_text(json.dumps(
+                {"url": out.url, "final_url": out.final_url, "status": out.status,
+                 "content_type": out.content_type, "text": out.text}))
+        trace.append("web", "fetch", {"url": url, "final_url": url if is_api else out.final_url,
+                                       "status": out.status, "bytes": len(out.text)})
         return out
 
 
