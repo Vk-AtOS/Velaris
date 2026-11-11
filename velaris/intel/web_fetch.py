@@ -3,8 +3,11 @@
 Every fetch goes through the same gates, in this order:
   1. scheme and address check   only http/https; the host must resolve to public
                                 addresses (no loopback, private, link-local or
-                                cloud-metadata ranges). Redirects are followed by
-                                hand so each hop is checked again.
+                                cloud-metadata ranges). The connection is then made
+                                to one of the addresses that were checked, not to
+                                the name, so a DNS answer that changes afterwards
+                                has no effect. Redirects are followed by hand so
+                                each hop is resolved, checked and pinned again.
   2. robots.txt                 fetched once per host and cached; disallowed
                                 paths are not fetched.
   3. per-host rate limit        a minimum gap between requests to one host.
@@ -23,7 +26,8 @@ import socket
 import threading
 import time
 from dataclasses import dataclass
-from typing import Callable, Dict, Optional
+from http.cookiejar import CookieJar, DefaultCookiePolicy
+from typing import Callable, Dict, List, Optional, Tuple
 from urllib import robotparser
 from urllib.parse import urljoin, urlsplit
 
@@ -67,8 +71,12 @@ def _resolve(host: str) -> list:
     return [info[4][0] for info in socket.getaddrinfo(host, None)]
 
 
-def check_public(url: str, resolver: Resolver = _resolve) -> None:
-    """Raise FetchError unless the URL is http(s) and its host resolves only to public addresses."""
+def check_public(url: str, resolver: Resolver = _resolve) -> List[str]:
+    """Raise FetchError unless the URL is http(s) and its host resolves only to public addresses.
+
+    Returns the addresses that were checked. A caller that goes on to connect must connect to
+    one of these (see `pinned`), never resolve the name a second time.
+    """
     parts = urlsplit(url)
     if parts.scheme not in ("http", "https") or not parts.hostname:
         raise FetchError("blocked_scheme", parts.scheme or "none")
@@ -78,15 +86,25 @@ def check_public(url: str, resolver: Resolver = _resolve) -> None:
         raise FetchError("dns_failed", parts.hostname) from e
     if not addresses:
         raise FetchError("dns_failed", parts.hostname)
-    # ponytail: the address is checked here and resolved again when connecting, so a DNS
-    # answer that changes in between is not caught. Pin the checked address in the
-    # transport if this ever runs where an attacker controls DNS for a fetched host.
     for addr in addresses:
         ip = ipaddress.ip_address(addr.split("%")[0])
         if getattr(ip, "ipv4_mapped", None):
             ip = ip.ipv4_mapped
         if not ip.is_global:      # private, loopback, link-local (incl. 169.254.169.254), reserved, multicast
             raise FetchError("blocked_address", f"{parts.hostname} resolves to a non-public address")
+    return list(dict.fromkeys(addresses))
+
+
+def pinned(url: str, address: str) -> Tuple[httpx.URL, Dict[str, str], Dict[str, str]]:
+    """The same request aimed at one already-checked address: (url, headers, extensions).
+
+    The URL's host becomes the address, so nothing between here and the socket looks the name
+    up again. The Host header keeps the original name, and for https so does the TLS server
+    name, which is what both SNI and the certificate check use.
+    """
+    original = httpx.URL(url)
+    extensions = {"sni_hostname": original.raw_host.decode("ascii")} if original.scheme == "https" else {}
+    return original.copy_with(host=address), {"Host": original.netloc.decode("ascii")}, extensions
 
 
 class Fetcher:
@@ -94,7 +112,12 @@ class Fetcher:
 
     def __init__(self, *, transport: Optional[httpx.BaseTransport] = None, resolver: Resolver = _resolve,
                  min_gap_s: float = MIN_GAP_S, cache_ttl_s: float = CACHE_TTL_S, obey_robots: bool = True) -> None:
+        # Requests are addressed by IP (see `pinned`), so the client must keep nothing that it
+        # files under the URL's host: two sites on one address would otherwise share a kept-alive
+        # TLS connection and each other's cookies. No keep-alive, and a cookie jar that accepts none.
         self._client = httpx.Client(transport=transport, follow_redirects=False, timeout=TIMEOUT_S,
+                                    limits=httpx.Limits(max_keepalive_connections=0),
+                                    cookies=CookieJar(DefaultCookiePolicy(allowed_domains=[])),
                                     headers={"User-Agent": USER_AGENT, "Accept-Language": "en"})
         self._resolver = resolver
         self._min_gap = min_gap_s
@@ -115,28 +138,39 @@ class Fetcher:
             time.sleep(wait)
 
     def _raw_get(self, url: str) -> httpx.Response:
-        """One request, no redirects, body capped at MAX_BYTES."""
-        check_public(url, self._resolver)
-        self._wait_turn(urlsplit(url).hostname or "")
-        try:
-            with self._client.stream("GET", url) as r:
-                body = bytearray()
-                for part in r.iter_bytes():
-                    body.extend(part)
-                    if len(body) > MAX_BYTES:
-                        break
-                r._content = bytes(body[:MAX_BYTES])  # noqa: SLF001  keep the capped body on the response
-                return r
-        except httpx.HTTPError as e:
-            raise FetchError("network", type(e).__name__) from e
+        """One request, no redirects, body capped at MAX_BYTES.
 
-    def _get_following(self, url: str) -> httpx.Response:
+        The host is resolved once, here; every address in the answer is checked, and the
+        connection goes to one of those addresses. `response.url` therefore holds the address.
+        """
+        addresses = check_public(url, self._resolver)
+        self._wait_turn(urlsplit(url).hostname or "")
+        unreachable: Optional[httpx.HTTPError] = None
+        for address in addresses:
+            target, headers, extensions = pinned(url, address)
+            try:
+                with self._client.stream("GET", target, headers=headers, extensions=extensions) as r:
+                    body = bytearray()
+                    for part in r.iter_bytes():
+                        body.extend(part)
+                        if len(body) > MAX_BYTES:
+                            break
+                    r._content = bytes(body[:MAX_BYTES])  # noqa: SLF001  keep the capped body on the response
+                    return r
+            except (httpx.ConnectError, httpx.ConnectTimeout) as e:
+                unreachable = e          # e.g. an IPv6 address on an IPv4-only machine: try the next checked one
+            except httpx.HTTPError as e:
+                raise FetchError("network", type(e).__name__) from e
+        raise FetchError("network", type(unreachable).__name__) from unreachable
+
+    def _get_following(self, url: str) -> Tuple[httpx.Response, str]:
+        """(response, the URL it finally came from). Every hop goes through _raw_get."""
         for _ in range(MAX_REDIRECTS + 1):
             r = self._raw_get(url)
             if r.status_code in (301, 302, 303, 307, 308) and r.headers.get("location"):
-                url = urljoin(url, r.headers["location"])      # checked again on the next loop
+                url = urljoin(url, r.headers["location"])      # resolved, checked and pinned on the next loop
                 continue
-            return r
+            return r, url
         raise FetchError("too_many_redirects", url)
 
     def allowed_by_robots(self, url: str) -> bool:
@@ -147,7 +181,7 @@ class Fetcher:
         if origin not in self._robots:
             parser: Optional[robotparser.RobotFileParser] = robotparser.RobotFileParser()
             try:
-                r = self._get_following(origin + "/robots.txt")
+                r, _ = self._get_following(origin + "/robots.txt")
                 if r.status_code == 200:
                     parser.parse(r.text.splitlines())
                 elif r.status_code in (401, 403):
@@ -195,7 +229,7 @@ class Fetcher:
             trace.append("web", "fetch.refused", {"url": url, "reason": "robots"})
             raise FetchError("robots_disallowed", url)
         try:
-            r = self._get_following(target)
+            r, final_url = self._get_following(target)
         except FetchError as e:
             trace.append("web", "fetch.refused", {"url": url, "reason": e.reason})
             if is_api:
@@ -207,7 +241,7 @@ class Fetcher:
             raise FetchError("http_status", str(r.status_code))
         if ctype and not ctype.startswith(TEXT_TYPES):
             raise FetchError("not_text", ctype)
-        out = Fetched(url=target, final_url=str(r.url), status=r.status_code, content_type=ctype, text=r.text)
+        out = Fetched(url=target, final_url=str(httpx.URL(final_url)), status=r.status_code, content_type=ctype, text=r.text)
         if not is_api:
             self._cache_file(target).write_text(json.dumps(
                 {"url": out.url, "final_url": out.final_url, "status": out.status,

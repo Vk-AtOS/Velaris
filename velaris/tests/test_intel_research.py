@@ -31,7 +31,8 @@ def env(tmp_path, monkeypatch):
     fetched = Counter()
 
     def handler(request: httpx.Request) -> httpx.Response:
-        url = str(request.url)
+        # the fetcher connects to the checked address; the site asked for is in the Host header
+        url = str(request.url.copy_with(host=request.headers["host"]))
         if url not in PAGES:
             return httpx.Response(404)
         fetched[url] += 1
