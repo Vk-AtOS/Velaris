@@ -286,9 +286,12 @@ def _http_method(node: Node) -> Optional[str]:
     method key is present at all (older node versions call the key `requestMethod`);
     an expression, an empty value or any other HTTP-flavoured node stays unknown.
     """
-    for key in ("method", "requestMethod"):
-        if key in node.parameters:
-            return (_literal(node.parameters[key]) or "").upper() or None
+    given = {(_literal(node.parameters[key]) or "").upper()
+             for key in ("method", "requestMethod") if key in node.parameters}
+    if len(given) > 1:
+        return None   # the two spellings disagree: we cannot know which one n8n will use
+    if given:
+        return given.pop() or None
     return "GET" if _short(node.type) == "httpRequest" else None
 
 

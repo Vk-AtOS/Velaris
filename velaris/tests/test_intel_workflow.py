@@ -289,3 +289,10 @@ def test_http_request_without_method_is_described_as_get():
     described = {s["node"]: s["does"] for s in to_plan(wf)}
     assert described["Read"] == "calls GET a.example"
     assert described["Dyn"] == "calls an unspecified method on a.example"
+
+
+def test_http_request_with_two_disagreeing_method_keys_fails_closed():
+    # `method` (new) and `requestMethod` (old) both present and different: which one runs is unknowable
+    wf = load({"nodes": [_node("Both", BASE + "httpRequest", parameters={
+        "method": "GET", "requestMethod": "DELETE", "url": "https://a.example/x"})]})
+    assert {s["node"]: s["does"] for s in to_plan(wf)}["Both"] == "calls an unspecified method on a.example"

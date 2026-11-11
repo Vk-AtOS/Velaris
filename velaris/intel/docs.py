@@ -49,6 +49,7 @@ from velaris.intel.web_markdown import chunk, html_to_markdown
 MAX_BYTES = 50_000_000        # one file
 MAX_MEMBER = 200_000_000      # one unpacked part of an Office file (zip-bomb limit)
 MAX_CHUNKS = 5000             # per file
+MAX_SLIDES = 2000             # per presentation
 CHUNK_CHARS = 2000
 RRF_K = 60
 
@@ -226,6 +227,11 @@ def _pptx(data: bytes) -> str:
         if not names:   # no slide list at all (a damaged or hand-made file): fall back to file-number order
             names = sorted((n for n in z.namelist() if re.fullmatch(r"ppt/slides/slide\d+\.xml", n)),
                            key=lambda n: int(re.findall(r"\d+", n)[-1]))
+        # A slide list may name one part many times or parts that are not there; each real part is read once.
+        present = set(z.namelist())
+        names = [n for n in dict.fromkeys(names) if n in present]
+        if len(names) > MAX_SLIDES:
+            raise DocError(f"presentation has {len(names)} slides (limit {MAX_SLIDES})")
         for i, n in enumerate(names, 1):
             paras = ["".join(t.text or "" for t in p.iter(A + "t")).strip() for p in _xml(z, n).iter(A + "p")]
             if any(paras):

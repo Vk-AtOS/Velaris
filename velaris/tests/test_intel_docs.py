@@ -270,3 +270,10 @@ def test_powerpoint_order_from_a_real_reordered_deck():
     md, _ = convert("deck.pptx", buf.getvalue())
     assert md.index("Third made") < md.index("First made") < md.index("Second made")
     assert md.startswith("## Slide 1\n\nThird made")
+
+
+def test_powerpoint_slide_listed_many_times_or_missing_is_read_once():
+    # a slide list that repeats one part, or names a part that is not in the file, must not multiply the work
+    rels = {"rId1": "slides/slide1.xml", "rId2": "slides/slide1.xml", "rId3": "slides/gone.xml"}
+    md, _ = convert("deck.pptx", _deck(["rId1", "rId2", "rId1", "rId3"], rels))
+    assert md == "## Slide 1\n\nAlpha"
