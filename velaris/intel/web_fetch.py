@@ -189,7 +189,8 @@ class Fetcher:
         target = url
         if is_api:
             # API URLs can carry a key in the path or query: record the host only.
-            url = "{0.scheme}://{0.netloc}".format(urlsplit(target))
+            parts = urlsplit(target)  # hostname, not netloc: netloc can hold user:password@
+            url = f"{parts.scheme}://{parts.hostname}" + (f":{parts.port}" if parts.port else "")
         if not is_api and not self.allowed_by_robots(url):
             trace.append("web", "fetch.refused", {"url": url, "reason": "robots"})
             raise FetchError("robots_disallowed", url)
@@ -197,6 +198,8 @@ class Fetcher:
             r = self._get_following(target)
         except FetchError as e:
             trace.append("web", "fetch.refused", {"url": url, "reason": e.reason})
+            if is_api:
+                raise FetchError(e.reason, url) from None  # the original detail can quote the full URL
             raise
         ctype = r.headers.get("content-type", "").split(";")[0].strip().lower()
         if r.status_code >= 400:
