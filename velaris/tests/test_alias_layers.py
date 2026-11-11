@@ -1,7 +1,8 @@
 import importlib
 
+# X_SIM moved to _archived_domains/research_simulation; see _archived_tests/test_removed_cases.py
 ALIASES = [
-"CRK","ASEL","AEIL","X_SIM","SANDE","SAGE","NIRVANA",
+"CRK","ASEL","AEIL","SANDE","SAGE","NIRVANA",
 "HYPERSYNC","CORE_CONVERGENCE","FSCL","GCK","CONVERGENCE_BRIDGE"
 ]
 
