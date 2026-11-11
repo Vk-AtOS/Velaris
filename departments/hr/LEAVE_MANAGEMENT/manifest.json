@@ -1,0 +1,9 @@
+{
+  "name": "LEAVE_MANAGEMENT",
+  "version": "1.0.0",
+  "domain": "hr",
+  "description": "Employee leave lifecycle: apply, approve/reject, balance tracking with India-standard entitlements (casual/sick/earned/maternity/paternity).",
+  "entrypoint": "main.py:LeaveManagement",
+  "hitl_required": false,
+  "tags": ["leave", "hr", "attendance", "absence"]
+}

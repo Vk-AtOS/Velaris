@@ -19,4 +19,4 @@ def test_vcas_ops():
     assert A.execute("TASK")["executed"] is True
 
     S = import_module("agents.VCAS_SUPERVISOR.main").VCASSupervisorAgent()
-    assert S.approve("TASK")["approved"] is True
+    assert S.approve("TASK")["approved"] is False  # was `is True`: the stub approved everything; it now denies (fail closed)

@@ -1,0 +1,8 @@
+{
+  "name": "ZOHO_CONNECTOR",
+  "version": "1.0.0",
+  "domain": "connectors",
+  "entrypoint": "main.py:ZohoConnector",
+  "description": "OAuth2 base connector for all Zoho APIs — handles token refresh automatically. All Zoho agents inherit from or compose this.",
+  "hitl_required": false
+}

@@ -1,0 +1,8 @@
+{
+  "name": "OPS_REPORT",
+  "version": "1.0.0",
+  "domain": "operations",
+  "entrypoint": "main.py:OpsReportAgent",
+  "description": "OPS_REPORT \u2014 Velaris BOS agent for Knackforge",
+  "hitl_required": false
+}

@@ -1,0 +1,8 @@
+{
+  "name": "EMPLOYEE_ONBOARDING",
+  "version": "1.0.0",
+  "domain": "hr",
+  "entrypoint": "main.py:EmployeeOnboardingAgent",
+  "description": "EMPLOYEE_ONBOARDING \u2014 Velaris BOS agent for Knackforge",
+  "hitl_required": false
+}

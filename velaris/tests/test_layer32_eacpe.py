@@ -18,6 +18,6 @@ def test_eacpe_ops():
     protocol = import_module("agents.EACPE_PROTOCOL.main").EACPE_PROTOCOLAgent()
     guard = import_module("agents.EACPE_HUMAN_GUARD.main").EACPE_HUMAN_GUARDAgent()
 
-    assert align.align({"goal":"test"})["aligned"] is True
-    assert protocol.evaluate_protocol({"check":"rules"})["protocol_safe"] is True
-    assert guard.validate({"action":"deploy"})["approved"] is True
+    assert align.align({"goal":"test"})["aligned"] is False  # was `is True`: the stub approved everything; it now denies (fail closed)
+    assert protocol.evaluate_protocol({"check":"rules"})["protocol_safe"] is False
+    assert guard.validate({"action":"deploy"})["approved"] is False

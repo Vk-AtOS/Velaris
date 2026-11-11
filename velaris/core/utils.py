@@ -24,3 +24,11 @@ def file_exists(path):
 def log(message):
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"[Velaris-CORE {now}] {message}")
+
+
+def not_implemented(component, reason="no real implementation exists yet"):
+    """
+    Explicit result for logic that has no real implementation.
+    Returned instead of a fabricated number so nothing made-up reaches a caller.
+    """
+    return {"status": "not_implemented", "score": None, "component": component, "reason": reason}

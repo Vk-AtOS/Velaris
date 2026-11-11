@@ -46,4 +46,4 @@ def test_governance_basic_ops(tmp_path):
     assert ee.assess({})["pass"] is True
 
     zt = import_module("live.agents.ZERO_TRUST_PIPELINE.main").ZERO_TRUST_PIPELINEAgent()
-    assert zt.verify("tok") is True
+    assert zt.verify("tok") is False  # was `is True`: the stub approved everything; it now denies (fail closed)

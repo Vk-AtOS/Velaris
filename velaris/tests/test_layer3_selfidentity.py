@@ -27,4 +27,4 @@ def test_identity_base_ops():
     assert sh.last()["x"] == 1
 
     sc = import_module("live.agents.SELF_CONSISTENCY.main").SELF_CONSISTENCYAgent()
-    assert sc.check({"name":"Velaris"}) is True
+    assert sc.check({"name":"Velaris"}) is False  # was `is True`: the stub approved everything; it now denies (fail closed)

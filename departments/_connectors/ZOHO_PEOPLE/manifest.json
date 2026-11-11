@@ -1,0 +1,8 @@
+{
+  "name": "ZOHO_PEOPLE",
+  "version": "1.0.0",
+  "domain": "connectors",
+  "entrypoint": "main.py:ZohoPeopleConnector",
+  "description": "Zoho People connector — pulls employee profiles, attendance, leave balances, and appraisal scores.",
+  "hitl_required": false
+}

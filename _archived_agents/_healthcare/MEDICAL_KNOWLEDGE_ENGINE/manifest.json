@@ -1,0 +1,8 @@
+{
+  "name": "MEDICAL_KNOWLEDGE_ENGINE",
+  "version": "1.0.0",
+  "domain": "client_services",
+  "entrypoint": "main.py:MedicalKnowledgeEngine",
+  "description": "MEDICAL_KNOWLEDGE_ENGINE \u2014 Velaris BOS agent for Knackforge",
+  "hitl_required": false
+}

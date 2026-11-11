@@ -1,0 +1,8 @@
+{
+  "name": "PIPELINE_MONITOR",
+  "version": "1.0.0",
+  "domain": "operations",
+  "entrypoint": "main.py:PipelineMonitorAgent",
+  "description": "PIPELINE_MONITOR \u2014 Velaris BOS agent for Knackforge",
+  "hitl_required": false
+}

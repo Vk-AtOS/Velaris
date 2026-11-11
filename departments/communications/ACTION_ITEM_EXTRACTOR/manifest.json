@@ -1,0 +1,9 @@
+{
+  "name": "ACTION_ITEM_EXTRACTOR",
+  "version": "1.0.0",
+  "domain": "communications",
+  "description": "Extracts structured action items from meeting transcripts: owner inference, due-date parsing, overdue tracking. SQLite backed, Zoho Projects integration ready.",
+  "entrypoint": "main.py:ActionItemExtractor",
+  "hitl_required": false,
+  "tags": ["action-items", "meeting", "tasks", "extraction", "nlp"]
+}

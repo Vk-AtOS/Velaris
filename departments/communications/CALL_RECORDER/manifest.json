@@ -1,0 +1,9 @@
+{
+  "name": "CALL_RECORDER",
+  "version": "1.0.0",
+  "domain": "communications",
+  "description": "Local audio recorder for calls and meetings using system microphone via ffmpeg. 16kHz mono WAV output. No audio leaves the machine.",
+  "entrypoint": "main.py:CallRecorder",
+  "hitl_required": false,
+  "tags": ["call", "recording", "audio", "local", "privacy"]
+}

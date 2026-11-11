@@ -24,7 +24,8 @@ def test_eof_orchestrate_and_policy_and_route():
 
     p = {"name":"safety","rules":["no-autonomy-without-approval"]}
     pe = policy.evaluate(p)
-    assert pe["compliant"] is True
+    assert pe["compliant"] is False  # was `is True`: the stub approved everything; it now denies (fail closed)
+    assert pe["status"] == "not_implemented"
 
     gr = gateway.route("PRIME","ADME",{"job":"sync"})
     assert gr["routed"] is True

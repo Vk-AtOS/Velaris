@@ -1,0 +1,9 @@
+{
+  "name": "PAYROLL_ENGINE",
+  "version": "1.0.0",
+  "domain": "hr",
+  "description": "India statutory payroll computation (EPF/ESI/PT/TDS). Local computation + Zoho Payroll connector for live data.",
+  "entrypoint": "main.py:PayrollEngine",
+  "hitl_required": true,
+  "tags": ["payroll", "statutory", "epf", "esi", "tds", "hr"]
+}

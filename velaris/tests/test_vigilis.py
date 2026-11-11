@@ -23,8 +23,10 @@ def test_keypair_and_sign_verify():
     ok = agent.verify_signature(message, sig)
     assert ok is True
 
-def test_policy_evaluation_allows_by_default():
+def test_policy_evaluation_denies_by_default():
+    # was "allows_by_default": no policy engine exists, so the placeholder now denies (fail closed)
     agent = VigilisAgent()
     res = agent.evaluate_policy({})
-    assert res['allowed'] is True
+    assert res['allowed'] is False
+    assert res['status'] == 'not_implemented'
     assert isinstance(res['reasons'], list)

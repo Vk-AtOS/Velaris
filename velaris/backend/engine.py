@@ -23,6 +23,7 @@ class BackendEngine:
         return {
             "status": "online",
             "agents_loaded": self.router.count(),
+            "agents_failed": dict(self.router.failed),
             "agent_list": self.router.list_agents()
         }
 

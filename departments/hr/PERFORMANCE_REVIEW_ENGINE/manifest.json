@@ -1,0 +1,9 @@
+{
+  "name": "PERFORMANCE_REVIEW_ENGINE",
+  "version": "1.0.0",
+  "domain": "hr",
+  "description": "OKR tracking, 360-degree reviews (self/peer/manager), and calibration scoring with weighted composite ratings.",
+  "entrypoint": "main.py:PerformanceReviewEngine",
+  "hitl_required": true,
+  "tags": ["performance", "okr", "360-review", "calibration", "hr"]
+}

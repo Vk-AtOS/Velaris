@@ -1,0 +1,8 @@
+{
+  "name": "ZOHO_PAYROLL",
+  "version": "1.0.0",
+  "domain": "connectors",
+  "entrypoint": "main.py:ZohoPayrollConnector",
+  "description": "Zoho Payroll connector (India) — pulls payslips, salary components, EPF/ESI/TDS statutory deductions, YTD summaries, and CTC.",
+  "hitl_required": false
+}

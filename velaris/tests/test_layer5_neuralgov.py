@@ -30,4 +30,5 @@ def test_pipeline():
     p7 = import_module("live.agents.NEURAL_CONSTRAINT_FIELD.main").NeuralConstraintField().constrain(p6)
     p8 = import_module("live.agents.SANITY_VERIFIER.main").SanityVerifier().verify(p7)
 
-    assert p8["final_safe_output"] == True
+    assert p8["final_safe_output"] is False  # was `is True`: the stub approved everything; it now denies (fail closed)
+    assert p8["status"] == "not_implemented"

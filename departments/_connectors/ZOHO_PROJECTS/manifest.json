@@ -1,0 +1,8 @@
+{
+  "name": "ZOHO_PROJECTS",
+  "version": "1.0.0",
+  "domain": "connectors",
+  "entrypoint": "main.py:ZohoProjectsConnector",
+  "description": "Zoho Projects connector — pulls active projects, per-employee task lists, time logs, and task completion/on-time delivery summaries.",
+  "hitl_required": false
+}

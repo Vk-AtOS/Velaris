@@ -13,7 +13,11 @@ def test_mcfe_health():
 
 def test_mcfe_ops():
     Classifier = import_module("agents.MCFE_CLASSIFIER.main").MCFEClassifierAgent()
-    domain = Classifier.classify("example")["domain"]
+    result = Classifier.classify("example")
+    # was a domain picked by hash(text); now an explicit not-implemented result
+    assert result["status"] == "not_implemented"
+    domain = result["domain"]
+    assert domain is None
 
     Router = import_module("agents.MCFE_ROUTER.main").MCFERouterAgent()
     assert Router.route(domain)["route"] == "ok"
