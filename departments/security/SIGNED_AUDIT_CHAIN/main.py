@@ -32,16 +32,28 @@ class SignedAuditChain:
             "ts": datetime.utcnow().isoformat() + "Z",
             "actor": actor,
             "action": action,
-            "details": details
+            "details": details,
+            # Hash of the previous line: removing or reordering an entry breaks every later one.
+            "prev": self._last_line_hash(),
         }
         entry_bytes = json.dumps(entry, sort_keys=True).encode()
         sig = self._sign(entry_bytes)
         with open(self.CHAIN_PATH, "a") as f:
-            f.write(base64.b64encode(entry_bytes).decode() + "::" + sig + "/n")
+            f.write(base64.b64encode(entry_bytes).decode() + "::" + sig + "\n")
+
+    @staticmethod
+    def _line_hash(line: str) -> str:
+        return hashlib.sha256(line.strip().encode()).hexdigest()
+
+    def _last_line_hash(self) -> str:
+        with open(self.CHAIN_PATH, "r") as f:
+            lines = f.read().splitlines()
+        return self._line_hash(lines[-1]) if lines else ""
 
     def verify_chain(self) -> bool:
         with open(self.CHAIN_PATH, "r") as f:
             lines = f.readlines()
+        prev = ""
         for line in lines:
             if "::" not in line:
                 return False
@@ -50,6 +62,9 @@ class SignedAuditChain:
             expected = self._sign(entry_bytes)
             if not hmac.compare_digest(expected, sig):
                 return False
+            if json.loads(entry_bytes).get("prev") != prev:
+                return False
+            prev = self._line_hash(line)
         return True
 
 # ================================================================================
