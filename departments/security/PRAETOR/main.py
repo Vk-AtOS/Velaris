@@ -18,13 +18,21 @@ class PraetorAgent:
         return status
 
     def detect_anomaly(self, values):
-        if not values or len(values) < 2:
+        """True when the latest value is more than `threshold` standard deviations
+        from the values before it.
+
+        The baseline excludes the latest value: including it lets a spike inflate
+        its own mean and stdev, which caps z at (n-1)/sqrt(n) and hides the spike
+        in short series.
+        """
+        if not values or len(values) < 3:
             return False
-        mean = statistics.mean(values)
-        stdev = statistics.stdev(values)
-        latest = values[-1]
+        baseline, latest = values[:-1], values[-1]
+        mean = statistics.mean(baseline)
+        stdev = statistics.stdev(baseline)
         if stdev == 0:
-            return False
+            # A perfectly flat history: any departure from it is anomalous.
+            return latest != mean
         z = abs((latest - mean) / stdev)
         anomaly = z > self.threshold
         logger.debug("Anomaly check: latest=%s mean=%s stdev=%s z=%s anomaly=%s",
