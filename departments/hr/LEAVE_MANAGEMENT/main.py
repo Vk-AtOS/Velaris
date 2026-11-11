@@ -109,7 +109,11 @@ class LeaveManagement:
             "SELECT entitlement, used FROM leave_balances WHERE employee_id=? AND leave_type=? AND year=?",
             (employee_id, leave_type, date.fromisoformat(from_date).year)
         ).fetchone()
-        if row and (row["entitlement"] - row["used"]) < days:
+        if not row:
+            # No balance record is not "unlimited leave": seed_balances() first.
+            conn.close()
+            return {"error": "no_balance_record", "employee_id": employee_id, "leave_type": leave_type}
+        if (row["entitlement"] - row["used"]) < days:
             conn.close()
             return {"error": "insufficient_balance", "available": row["entitlement"] - row["used"], "requested": days}
         cur = conn.execute(
@@ -138,15 +142,25 @@ class LeaveManagement:
         if row["status"] != "pending":
             conn.close()
             return {"error": f"already_{row['status']}"}
+        if status == "approved":
+            if reviewed_by == row["employee_id"]:
+                conn.close()
+                return {"error": "self_approval_not_allowed"}
+            # Deduct only if the balance still covers it: several pending requests can
+            # each pass the check in apply(), so the check is repeated here, atomically.
+            deducted = conn.execute(
+                "UPDATE leave_balances SET used=used+? WHERE employee_id=? AND leave_type=? AND year=?"
+                " AND entitlement-used>=?",
+                (row["days"], row["employee_id"], row["leave_type"],
+                 date.fromisoformat(row["from_date"]).year, row["days"])
+            ).rowcount
+            if not deducted:
+                conn.close()
+                return {"error": "insufficient_balance", "requested": row["days"]}
         conn.execute(
             "UPDATE leave_requests SET status=?, reviewed_by=?, reviewed_on=? WHERE id=?",
             (status, reviewed_by, date.today().isoformat(), leave_id)
         )
-        if status == "approved":
-            conn.execute(
-                "UPDATE leave_balances SET used=used+? WHERE employee_id=? AND leave_type=? AND year=?",
-                (row["days"], row["employee_id"], row["leave_type"], date.fromisoformat(row["from_date"]).year)
-            )
         conn.commit()
         conn.close()
         return {"id": leave_id, "status": status, "reviewed_by": reviewed_by}
