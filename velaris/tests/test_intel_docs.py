@@ -1,4 +1,5 @@
 """docs.py: file conversion, versioned ingestion, hybrid search, cited answers. No network, no real model."""
+import datetime
 import io
 import zipfile
 
@@ -148,3 +149,124 @@ def test_answer_keeps_only_sentences_that_cite_a_retrieved_passage():
         raise LLMError("no model")
     out = DocStore(FakeLLM(down)).ask("Who approves leave?", scope="acme")
     assert out["answer"] == "" and out["sources"] and out["reason"].startswith("model unavailable")
+
+
+# ── Excel dates and PowerPoint slide order ───────────────────────────────────
+def _dated_xlsx(cells, *, num_fmts="", xf_fmt_ids=(0,), date1904=False):
+    """A one-sheet workbook built by hand: `cells` is [(style index or None, type or None, value)]."""
+    xfs = "".join(f'<xf numFmtId="{i}"/>' for i in xf_fmt_ids)
+    row = "".join(f'<c r="{chr(65 + n)}2"' + (f' s="{s}"' if s is not None else "") + (f' t="{t}"' if t else "")
+                  + f"><v>{v}</v></c>" for n, (s, t, v) in enumerate(cells))
+    head = "".join(f'<c r="{chr(65 + n)}1" t="inlineStr"><is><t>c{n}</t></is></c>' for n in range(len(cells)))
+    return _zip({
+        "xl/workbook.xml": f'<workbook {SNS}>' + ('<workbookPr date1904="1"/>' if date1904 else "")
+                           + '<sheets><sheet name="S" sheetId="1" r:id="rId1"/></sheets></workbook>',
+        "xl/_rels/workbook.xml.rels":
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            '<Relationship Id="rId1" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Target="styles.xml" '
+            'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"/></Relationships>',
+        "xl/styles.xml": f'<styleSheet {SNS}><numFmts>{num_fmts}</numFmts><cellXfs>{xfs}</cellXfs></styleSheet>',
+        "xl/worksheets/sheet1.xml": f'<worksheet {SNS}><sheetData><row r="1">{head}</row><row r="2">{row}</row>'
+                                    "</sheetData></worksheet>",
+    })
+
+
+def _row(data):
+    """{column name: value} for the single data row of a workbook built by _dated_xlsx."""
+    md, kind = convert("book.xlsx", data)
+    assert kind == "xlsx"
+    return dict(pair.split(" = ", 1) for pair in md.split("\n\n", 1)[1].split("; "))
+
+
+def test_excel_date_cells_become_iso_and_numbers_stay_numbers():
+    fmts = ('<numFmt numFmtId="164" formatCode="yyyy\\-mm\\-dd"/>'
+            '<numFmt numFmtId="165" formatCode="[$-409]d/m/yy\\ h:mm\\ AM/PM;@"/>'
+            '<numFmt numFmtId="166" formatCode="#,##0.00\\ &quot;days&quot;;[Red]\\-#,##0.00"/>'
+            '<numFmt numFmtId="167" formatCode="[h]:mm:ss"/>'
+            '<numFmt numFmtId="168" formatCode="mmm\\-yy"/>')
+    #            style: 0  1   2   3   4    5    6    7    8   9
+    ids =             (0, 14, 22, 20, 164, 165, 166, 167, 168, 2)
+    got = _row(_dated_xlsx([
+        (1, None, "45000"),          # built-in 14: date
+        (2, None, "45000.5625"),     # built-in 22: date and time
+        (3, None, "0.75"),           # built-in 20: time of day
+        (4, "n", "45000"),           # custom yyyy-mm-dd
+        (5, None, "45000.25"),       # custom with a locale prefix and AM/PM
+        (6, None, "45000"),          # custom number whose literal text and colour contain d, y, s
+        (7, None, "1.5"),            # elapsed time over a day: left alone
+        (8, None, "45000"),          # month-year: m without h or s is a month
+        (9, None, "45000"),          # built-in 2 (0.00): a number
+        (0, None, "45000"),          # General
+        (None, None, "45000"),       # no style at all
+        (1, "str", "45000"),         # a formula's text result, not a number, even in a date style
+        (1, None, "60"),             # 29 Feb 1900 never happened
+        (1, None, "59"), (1, None, "61"), (1, None, "1"),
+        (1, None, "not-a-number"), (1, None, "99999999999"),
+    ], num_fmts=fmts, xf_fmt_ids=ids))
+    assert got == {
+        "c0": "2023-03-15", "c1": "2023-03-15T13:30:00", "c2": "18:00:00", "c3": "2023-03-15",
+        "c4": "2023-03-15T06:00:00", "c5": "45000", "c6": "1.5", "c7": "2023-03-15", "c8": "45000",
+        "c9": "45000", "c10": "45000", "c11": "45000", "c12": "60", "c13": "1900-02-28", "c14": "1900-03-01",
+        "c15": "1900-01-01", "c16": "not-a-number", "c17": "99999999999"}
+
+
+def test_excel_1904_date_system_and_missing_styles():
+    assert _row(_dated_xlsx([(1, None, "0"), (1, None, "43538")], xf_fmt_ids=(0, 14), date1904=True)) == {
+        "c0": "1904-01-01", "c1": "2023-03-15"}
+    # same serial in the 1900 system is 1462 days earlier
+    assert _row(_dated_xlsx([(1, None, "43538")], xf_fmt_ids=(0, 14)))["c0"] == "2019-03-14"
+    # style index past the end of the style table, and the original fixture with no styles part
+    assert _row(_dated_xlsx([(7, None, "45000")], xf_fmt_ids=(0, 14)))["c0"] == "45000"
+    assert "Limit = 250000" in convert("vendors.xlsx", XLSX)[0]
+
+
+def test_excel_dates_from_a_real_workbook():
+    openpyxl = pytest.importorskip("openpyxl")
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.append(["Invoice", "Raised", "Paid at", "Amount"])
+    ws.append(["INV-7", datetime.date(2024, 2, 29), datetime.datetime(2024, 3, 1, 9, 15), 1250.5])
+    buf = io.BytesIO()
+    wb.save(buf)
+    md, _ = convert("invoices.xlsx", buf.getvalue())
+    assert "Invoice = INV-7; Raised = 2024-02-29; Paid at = 2024-03-01T09:15:00; Amount = 1250.5" in md
+
+
+def _deck(order, rels):
+    ids = "".join(f'<p:sldId id="{256 + i}" r:id="{rid}"/>' for i, rid in enumerate(order))
+    members = {
+        "ppt/presentation.xml": '<p:presentation xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" '
+                                'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+                                f"<p:sldIdLst>{ids}</p:sldIdLst></p:presentation>",
+        "ppt/_rels/presentation.xml.rels":
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            + "".join(f'<Relationship Id="{rid}" Target="{target}"/>' for rid, target in rels.items())
+            + "</Relationships>",
+    }
+    for n, word in ((1, "Alpha"), (2, "Bravo"), (3, "Charlie")):
+        members[f"ppt/slides/slide{n}.xml"] = f"<s {ANS}><a:p><a:r><a:t>{word}</a:t></a:r></a:p></s>"
+    return _zip(members)
+
+
+def test_powerpoint_slides_follow_the_slide_id_list_not_file_names():
+    rels = {"rId9": "slides/slide1.xml", "rId3": "/ppt/slides/slide2.xml", "rId5": "slides/slide3.xml",
+            "rId1": "slideMasters/slideMaster1.xml"}
+    md, kind = convert("deck.pptx", _deck(["rId5", "rId9", "rId3"], rels))
+    assert kind == "pptx"
+    assert md == "## Slide 1\n\nCharlie\n\n## Slide 2\n\nAlpha\n\n## Slide 3\n\nBravo"
+    # a slide file that the presentation does not list is not part of the deck
+    assert "Alpha" not in convert("deck.pptx", _deck(["rId5", "rId3"], rels))[0]
+
+
+def test_powerpoint_order_from_a_real_reordered_deck():
+    pptx = pytest.importorskip("pptx")
+    prs = pptx.Presentation()
+    for title in ("First made", "Second made", "Third made"):
+        prs.slides.add_slide(prs.slide_layouts[5]).shapes.title.text = title
+    id_list = prs.slides._sldIdLst            # move the last slide to the front, as dragging it would
+    id_list.insert(0, id_list[-1])
+    buf = io.BytesIO()
+    prs.save(buf)
+    md, _ = convert("deck.pptx", buf.getvalue())
+    assert md.index("Third made") < md.index("First made") < md.index("Second made")
+    assert md.startswith("## Slide 1\n\nThird made")

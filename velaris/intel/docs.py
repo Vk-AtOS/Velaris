@@ -24,6 +24,7 @@ import hashlib
 import io
 import json
 import math
+import posixpath
 import re
 import sqlite3
 import threading
@@ -33,6 +34,7 @@ import xml.etree.ElementTree as ET
 import zipfile
 from collections import Counter
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
@@ -53,6 +55,7 @@ RRF_K = 60
 W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 S = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
 A = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
+P = "{http://schemas.openxmlformats.org/presentationml/2006/main}"
 R_ID = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id"
 
 
@@ -111,18 +114,85 @@ def _docx(data: bytes) -> str:
     return "\n\n".join(out)
 
 
+def _part(folder: str, target: str) -> str:
+    """Zip member a relationship Target points at ('/xl/x.xml' is absolute, 'x.xml' is relative to folder)."""
+    return target.lstrip("/") if target.startswith("/") else posixpath.normpath(posixpath.join(folder, target))
+
+
+# Built-in number format ids that show a serial number as a date or a time (ECMA-376 part 1,
+# 18.8.30, including the ids whose text depends on the locale). 22 shows both.
+_DATE_FORMAT_IDS = {
+    **dict.fromkeys((14, 15, 16, 17, 27, 28, 29, 30, 31, 36, 50, 51, 52, 53, 54, 57, 58), "date"),
+    **dict.fromkeys((18, 19, 20, 21, 32, 33, 34, 35, 45, 46, 47, 55, 56), "time"), 22: "datetime"}
+
+
+def _date_kind(code: str) -> str:
+    """What a custom number format shows: 'date', 'time', 'datetime', or '' for an ordinary number."""
+    # Drop what is not a format token: "quoted text", \x escapes, _x padding, *x fill, and [..]
+    # sections (colours, conditions, locales) other than the elapsed-time tokens [h] [m] [s].
+    bare = re.sub(r'"[^"]*"|\\.|_.|\*.|\[(?!(?:h+|m+|s+)\])[^\]]*\]', "", code.lower())
+    clock = re.search(r"[hs]|am/pm|a/p", bare) is not None
+    bare = bare.replace("am/pm", "").replace("a/p", "")
+    calendar = re.search(r"[yd]", bare) is not None or ("m" in bare and not clock)   # m beside h or s is minutes
+    return "datetime" if calendar and clock else "date" if calendar else "time" if clock else ""
+
+
+def _date_styles(z: zipfile.ZipFile, member: str) -> List[str]:
+    """For every cell style index (a cell's s="n"): 'date' | 'time' | 'datetime' | ''."""
+    if member not in z.namelist():
+        return []
+    root = _xml(z, member)
+    custom = {f.get("numFmtId"): _date_kind(f.get("formatCode", "")) for f in root.findall(f"{S}numFmts/{S}numFmt")}
+    out: List[str] = []
+    for xf in root.findall(f"{S}cellXfs/{S}xf"):
+        fmt = xf.get("numFmtId", "0")
+        out.append(custom[fmt] if fmt in custom else _DATE_FORMAT_IDS.get(int(fmt), "") if fmt.isdigit() else "")
+    return out
+
+
+def _serial_to_iso(text: str, kind: str, date1904: bool) -> str:
+    """An Excel serial number as an ISO date, time or date-time; the text unchanged if it is not one."""
+    try:
+        serial = float(text)
+        seconds = round(serial * 86400)
+        if kind == "time":
+            # ponytail: a time-only format on a value of a day or more is a duration ([h]:mm);
+            # it stays a number. Render as ISO 8601 durations if anyone searches by them.
+            return (datetime.min + timedelta(seconds=seconds)).time().isoformat() if 0 <= serial < 1 else text
+        if date1904:
+            if serial < 0:
+                return text
+            start = datetime(1904, 1, 1)
+        elif serial >= 61:
+            start = datetime(1899, 12, 30)   # Excel counts a 29 February 1900 that never happened
+        elif 1 <= serial < 60:
+            start = datetime(1899, 12, 31)
+        else:
+            return text                      # serial 0 and 60 are days that do not exist
+        when = start + timedelta(seconds=seconds)
+    except (ValueError, OverflowError):
+        return text
+    return when.date().isoformat() if kind == "date" else when.isoformat()
+
+
 def _xlsx(data: bytes) -> str:
     out: List[str] = []
     with zipfile.ZipFile(io.BytesIO(data)) as z:
         shared = (["".join(t.text or "" for t in si.iter(S + "t")) for si in _xml(z, "xl/sharedStrings.xml")]
                   if "xl/sharedStrings.xml" in z.namelist() else [])
-        rels = {r.get("Id"): r.get("Target", "") for r in _xml(z, "xl/_rels/workbook.xml.rels")}
-        for sheet in _xml(z, "xl/workbook.xml").iter(S + "sheet"):
+        rel_nodes = list(_xml(z, "xl/_rels/workbook.xml.rels"))
+        rels = {r.get("Id"): r.get("Target", "") for r in rel_nodes}
+        styles = _date_styles(z, next((_part("xl", r.get("Target", "")) for r in rel_nodes
+                                       if r.get("Type", "").endswith("/styles")), "xl/styles.xml"))
+        workbook = _xml(z, "xl/workbook.xml")
+        props = workbook.find(S + "workbookPr")
+        date1904 = props is not None and props.get("date1904", "0").lower() in ("1", "true")
+        for sheet in workbook.iter(S + "sheet"):
             target = rels.get(sheet.get(R_ID), "")
             if "worksheets/" not in target:
                 continue
             rows: List[List[str]] = []
-            for row in _xml(z, target.lstrip("/") if target.startswith("/") else "xl/" + target).iter(S + "row"):
+            for row in _xml(z, _part("xl", target)).iter(S + "row"):
                 cells: Dict[int, str] = {}
                 for c in row.findall(S + "c"):
                     letters = re.match(r"[A-Z]+", c.get("r", ""))
@@ -131,12 +201,13 @@ def _xlsx(data: bytes) -> str:
                         col = -1
                         for ch in letters.group(0):
                             col = (col + 1) * 26 + ord(ch) - 65
-                    v, kind = c.find(S + "v"), c.get("t")
-                    # ponytail: dates come out as Excel serial numbers (45000 = 2023-03-15); read
-                    # styles.xml number formats if people need to search spreadsheets by date.
+                    v, kind, style = c.find(S + "v"), c.get("t"), c.get("s", "0")
+                    shown_as = styles[int(style)] if style.isdigit() and int(style) < len(styles) else ""
                     cells[col] = ("".join(t.text or "" for t in c.iter(S + "t")) if kind == "inlineStr" else
                                   "" if v is None or v.text is None else
-                                  shared[int(v.text)] if kind == "s" else v.text)
+                                  shared[int(v.text)] if kind == "s" else
+                                  _serial_to_iso(v.text, shown_as, date1904) if shown_as and kind in (None, "n")
+                                  else v.text)
                 if any(cells.values()):
                     rows.append([cells.get(i, "") for i in range(max(cells) + 1)])
             if rows:
@@ -147,10 +218,14 @@ def _xlsx(data: bytes) -> str:
 def _pptx(data: bytes) -> str:
     out: List[str] = []
     with zipfile.ZipFile(io.BytesIO(data)) as z:
-        # ponytail: slides in file-number order, which is the shown order unless slides were
-        # reordered after creation; follow presentation.xml's slide list if order matters.
-        names = sorted((n for n in z.namelist() if re.fullmatch(r"ppt/slides/slide\d+\.xml", n)),
-                       key=lambda n: int(re.findall(r"\d+", n)[-1]))
+        # Shown order is the presentation's slide id list, each id resolved through its relationship.
+        rels = ({r.get("Id"): r.get("Target", "") for r in _xml(z, "ppt/_rels/presentation.xml.rels")}
+                if "ppt/_rels/presentation.xml.rels" in z.namelist() else {})
+        names = [_part("ppt", rels[s.get(R_ID)]) for s in _xml(z, "ppt/presentation.xml").iter(P + "sldId")
+                 if rels.get(s.get(R_ID))]
+        if not names:   # no slide list at all (a damaged or hand-made file): fall back to file-number order
+            names = sorted((n for n in z.namelist() if re.fullmatch(r"ppt/slides/slide\d+\.xml", n)),
+                           key=lambda n: int(re.findall(r"\d+", n)[-1]))
         for i, n in enumerate(names, 1):
             paras = ["".join(t.text or "" for t in p.iter(A + "t")).strip() for p in _xml(z, n).iter(A + "p")]
             if any(paras):
