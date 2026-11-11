@@ -5,6 +5,8 @@ import json
 import time
 from typing import Dict, Any, List
 
+from velaris.intel.paths import agent_dir
+
 
 class TemporalSnapshots:
     """
@@ -13,11 +15,10 @@ class TemporalSnapshots:
     - Allows restoring, listing, and comparing snapshots
     """
 
-    AGENT_DIR = "/live/agents/TEMPORAL_SNAPSHOTS"
-    SNAP_PATH = os.path.join(AGENT_DIR, "snapshots.json")
-
     def __init__(self):
-        os.makedirs(self.AGENT_DIR, exist_ok=True)
+        # Resolved per instance so VELARIS_DATA is honoured on any machine.
+        self.AGENT_DIR = str(agent_dir("TEMPORAL_SNAPSHOTS"))
+        self.SNAP_PATH = os.path.join(self.AGENT_DIR, "snapshots.json")
         if not os.path.exists(self.SNAP_PATH):
             with open(self.SNAP_PATH, "w") as f:
                 f.write("[]")

@@ -7,13 +7,14 @@ import hmac
 import hashlib
 from datetime import datetime
 
-class SignedAuditChain:
-    AGENT_DIR = "/live/agents/SIGNED_AUDIT_CHAIN"
-    CHAIN_PATH = os.path.join(AGENT_DIR, "chain.log")
-    KEY_PATH = os.path.join(AGENT_DIR, "chain.key")
+from velaris.intel.paths import agent_dir
 
+class SignedAuditChain:
     def __init__(self):
-        os.makedirs(self.AGENT_DIR, exist_ok=True)
+        # Resolved per instance so VELARIS_DATA is honoured on any machine.
+        self.AGENT_DIR = str(agent_dir("SIGNED_AUDIT_CHAIN"))
+        self.CHAIN_PATH = os.path.join(self.AGENT_DIR, "chain.log")
+        self.KEY_PATH = os.path.join(self.AGENT_DIR, "chain.key")
         if not os.path.exists(self.KEY_PATH):
             with open(self.KEY_PATH, "wb") as f:
                 f.write(os.urandom(64))

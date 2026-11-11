@@ -4,6 +4,8 @@ import json
 import os
 from typing import List, Dict, Any
 
+from velaris.intel.paths import agent_dir
+
 class DryRunSimulation:
     """
     Dry-Run Simulation Mode
@@ -12,11 +14,10 @@ class DryRunSimulation:
     - Provide a toggle for dry-run vs live
     """
 
-    AGENT_DIR = "/live/agents/DRY_RUN_SIMULATION"
-    LOG_PATH = os.path.join(AGENT_DIR, "dryrun.log")
-
     def __init__(self, dry_run: bool = True):
-        os.makedirs(self.AGENT_DIR, exist_ok=True)
+        # Resolved per instance so VELARIS_DATA is honoured on any machine.
+        self.AGENT_DIR = str(agent_dir("DRY_RUN_SIMULATION"))
+        self.LOG_PATH = os.path.join(self.AGENT_DIR, "dryrun.log")
         self.dry_run = dry_run
         self.actions_logged: List[Dict[str, Any]] = []
         self.actions_executed: List[Dict[str, Any]] = []

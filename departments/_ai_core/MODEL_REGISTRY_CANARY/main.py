@@ -4,6 +4,8 @@ import os
 import json
 from typing import Dict, Any, Optional
 
+from velaris.intel.paths import agent_dir
+
 class ModelRegistryCanary:
     """
     Velaris Model Registry + Canary Deploy System
@@ -13,11 +15,10 @@ class ModelRegistryCanary:
     - Metadata + checksum tracking
     """
 
-    AGENT_DIR = "/live/agents/MODEL_REGISTRY_CANARY"
-    REGISTRY_PATH = os.path.join(AGENT_DIR, "registry.json")
-
     def __init__(self):
-        os.makedirs(self.AGENT_DIR, exist_ok=True)
+        # Resolved per instance so VELARIS_DATA is honoured on any machine.
+        self.AGENT_DIR = str(agent_dir("MODEL_REGISTRY_CANARY"))
+        self.REGISTRY_PATH = os.path.join(self.AGENT_DIR, "registry.json")
         if not os.path.exists(self.REGISTRY_PATH):
             with open(self.REGISTRY_PATH, "w") as f:
                 f.write("{}")

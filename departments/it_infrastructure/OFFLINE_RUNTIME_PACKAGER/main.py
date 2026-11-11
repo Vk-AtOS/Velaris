@@ -5,6 +5,8 @@ import json
 import tarfile
 from typing import Dict, Any
 
+from velaris.intel.paths import agent_dir
+
 class OfflineRuntimePackager:
     """
     Offline Runtime Packager
@@ -13,10 +15,10 @@ class OfflineRuntimePackager:
     - Validates package contents before export
     """
 
-    AGENT_DIR = "/live/agents/OFFLINE_RUNTIME_PACKAGER"
-    EXPORT_DIR = os.path.join(AGENT_DIR, "exports")
-
     def __init__(self):
+        # Resolved per instance so VELARIS_DATA is honoured on any machine.
+        self.AGENT_DIR = str(agent_dir("OFFLINE_RUNTIME_PACKAGER"))
+        self.EXPORT_DIR = os.path.join(self.AGENT_DIR, "exports")
         os.makedirs(self.EXPORT_DIR, exist_ok=True)
 
     def _validate_structure(self, source_dir: str) -> bool:

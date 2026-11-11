@@ -4,6 +4,8 @@ import os
 import json
 from typing import Dict, List, Any
 
+from velaris.intel.paths import agent_dir
+
 class AutonomousPatchEngine:
     """
     Velaris Autonomous Patch Engine
@@ -12,11 +14,10 @@ class AutonomousPatchEngine:
     - Validates and simulates patches before applying
     """
 
-    AGENT_DIR = "/live/agents/AUTONOMOUS_PATCH_ENGINE"
-    PATCH_LOG = os.path.join(AGENT_DIR, "patch_history.json")
-
     def __init__(self):
-        os.makedirs(self.AGENT_DIR, exist_ok=True)
+        # Resolved per instance so VELARIS_DATA is honoured on any machine.
+        self.AGENT_DIR = str(agent_dir("AUTONOMOUS_PATCH_ENGINE"))
+        self.PATCH_LOG = os.path.join(self.AGENT_DIR, "patch_history.json")
         if not os.path.exists(self.PATCH_LOG):
             with open(self.PATCH_LOG, "w") as f:
                 f.write("[]")

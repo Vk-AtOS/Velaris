@@ -4,6 +4,8 @@ import json
 import os
 from typing import Any, Dict
 
+from velaris.intel.paths import agent_dir
+
 
 class MemoryDriftDetector:
     """
@@ -13,11 +15,10 @@ class MemoryDriftDetector:
     - Computes drift magnitude (0–100 scale)
     """
 
-    AGENT_DIR = "/live/agents/MEMORY_DRIFT_DETECTOR"
-    BASELINE_PATH = os.path.join(AGENT_DIR, "baseline.json")
-
     def __init__(self):
-        os.makedirs(self.AGENT_DIR, exist_ok=True)
+        # Resolved per instance so VELARIS_DATA is honoured on any machine.
+        self.AGENT_DIR = str(agent_dir("MEMORY_DRIFT_DETECTOR"))
+        self.BASELINE_PATH = os.path.join(self.AGENT_DIR, "baseline.json")
         if not os.path.exists(self.BASELINE_PATH):
             with open(self.BASELINE_PATH, "w") as f:
                 f.write("{}")

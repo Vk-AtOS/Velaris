@@ -4,8 +4,6 @@ import uuid
 from typing import Dict, Optional
 
 class HumanApproval:
-    AGENT_DIR = "/live/agents/HUMAN_APPROVAL_WORKFLOW"
-
     def __init__(self):
         self.requests: Dict[str, Dict] = {}
 

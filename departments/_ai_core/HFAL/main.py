@@ -4,6 +4,8 @@ import os
 import hashlib
 from typing import Dict, Any
 
+from velaris.intel.paths import agent_dir
+
 
 class HFAL:
     """
@@ -14,11 +16,10 @@ class HFAL:
     - Session validation
     """
 
-    AGENT_DIR = "/live/agents/HFAL"
-    SESSION_FILE = os.path.join(AGENT_DIR, "sessions.db")
-
     def __init__(self):
-        os.makedirs(self.AGENT_DIR, exist_ok=True)
+        # Resolved per instance so VELARIS_DATA is honoured on any machine.
+        self.AGENT_DIR = str(agent_dir("HFAL"))
+        self.SESSION_FILE = os.path.join(self.AGENT_DIR, "sessions.db")
         if not os.path.exists(self.SESSION_FILE):
             with open(self.SESSION_FILE, "w") as f:
                 f.write("{}")

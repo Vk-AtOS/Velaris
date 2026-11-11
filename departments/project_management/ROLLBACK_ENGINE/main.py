@@ -4,6 +4,8 @@ import json
 import os
 from typing import List, Dict, Any
 
+from velaris.intel.paths import agent_dir
+
 class RollbackEngine:
     """
     Velaris Rollback Engine
@@ -12,11 +14,11 @@ class RollbackEngine:
     - Maintains a rollback history log
     """
 
-    AGENT_DIR = "/live/agents/ROLLBACK_ENGINE"
-    SNAPSHOT_DIR = os.path.join(AGENT_DIR, "snapshots")
-    LOG_PATH = os.path.join(AGENT_DIR, "rollback.log")
-
     def __init__(self):
+        # Resolved per instance so VELARIS_DATA is honoured on any machine.
+        self.AGENT_DIR = str(agent_dir("ROLLBACK_ENGINE"))
+        self.SNAPSHOT_DIR = os.path.join(self.AGENT_DIR, "snapshots")
+        self.LOG_PATH = os.path.join(self.AGENT_DIR, "rollback.log")
         os.makedirs(self.SNAPSHOT_DIR, exist_ok=True)
         if not os.path.exists(self.LOG_PATH):
             with open(self.LOG_PATH, "w") as f:

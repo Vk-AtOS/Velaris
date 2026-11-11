@@ -5,6 +5,8 @@ import hashlib
 import base64
 from typing import Dict, Optional
 
+from velaris.intel.paths import agent_dir
+
 class IdentityFramework:
     """
     Velaris Identity Framework
@@ -13,11 +15,10 @@ class IdentityFramework:
     - Identity metadata registry
     """
 
-    AGENT_DIR = "/live/agents/IDENTITY_FRAMEWORK"
-    DB_PATH = os.path.join(AGENT_DIR, "identity.db")
-
     def __init__(self):
-        os.makedirs(self.AGENT_DIR, exist_ok=True)
+        # Resolved per instance so VELARIS_DATA is honoured on any machine.
+        self.AGENT_DIR = str(agent_dir("IDENTITY_FRAMEWORK"))
+        self.DB_PATH = os.path.join(self.AGENT_DIR, "identity.db")
         if not os.path.exists(self.DB_PATH):
             with open(self.DB_PATH, "w") as f:
                 f.write("{}")

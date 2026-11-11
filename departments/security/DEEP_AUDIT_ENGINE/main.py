@@ -5,6 +5,8 @@ import json
 import hashlib
 from typing import Dict, List, Any
 
+from velaris.intel.paths import agent_dir
+
 class DeepAuditEngine:
     """
     Velaris Deep Audit Engine
@@ -13,11 +15,10 @@ class DeepAuditEngine:
     - Detects drift or unauthorized changes
     """
 
-    AGENT_DIR = "/live/agents/DEEP_AUDIT_ENGINE"
-    AUDIT_LOG = os.path.join(AGENT_DIR, "audit_log.json")
-
     def __init__(self):
-        os.makedirs(self.AGENT_DIR, exist_ok=True)
+        # Resolved per instance so VELARIS_DATA is honoured on any machine.
+        self.AGENT_DIR = str(agent_dir("DEEP_AUDIT_ENGINE"))
+        self.AUDIT_LOG = os.path.join(self.AGENT_DIR, "audit_log.json")
         if not os.path.exists(self.AUDIT_LOG):
             with open(self.AUDIT_LOG, "w") as f:
                 f.write("[]")

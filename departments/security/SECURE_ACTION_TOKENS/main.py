@@ -7,6 +7,8 @@ import base64
 import time
 from typing import Optional, Dict
 
+from velaris.intel.paths import agent_dir
+
 class SecureActionTokens:
     """
     Velaris Secure Action Tokens
@@ -15,10 +17,10 @@ class SecureActionTokens:
     - Prevents replay via timestamp window
     """
 
-    AGENT_DIR = "/live/agents/SECURE_ACTION_TOKENS"
-    KEY_PATH = os.path.join(AGENT_DIR, "sat.key")
-
     def __init__(self, ttl_seconds: int = 60):
+        # Resolved per instance so VELARIS_DATA is honoured on any machine.
+        self.AGENT_DIR = str(agent_dir("SECURE_ACTION_TOKENS"))
+        self.KEY_PATH = os.path.join(self.AGENT_DIR, "sat.key")
         self.ttl = ttl_seconds
         os.makedirs(self.AGENT_DIR, exist_ok=True)
         if not os.path.exists(self.KEY_PATH):

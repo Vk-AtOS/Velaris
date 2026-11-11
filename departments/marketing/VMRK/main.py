@@ -5,10 +5,12 @@ import base64
 import hashlib
 import hmac
 
-class VMRK:
-    KEY_PATH = "/live/agents/VMRK/vmrk.key"
+from velaris.intel.paths import agent_dir
 
+class VMRK:
     def __init__(self):
+        # Resolved per instance so VELARIS_DATA is honoured on any machine.
+        self.KEY_PATH = str(agent_dir("VMRK") / "vmrk.key")
         if not os.path.exists(self.KEY_PATH):
             self._generate_key()
         self.key = self._load_key()

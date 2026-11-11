@@ -6,12 +6,14 @@ import hmac
 import hashlib
 from typing import Optional, List
 
-class SecretsVault:
-    AGENT_DIR = "/live/agents/SECRETS_VAULT"
-    KEY_PATH = os.path.join(AGENT_DIR, "vault.key")
-    DATA_DIR = os.path.join(AGENT_DIR, "data")
+from velaris.intel.paths import agent_dir
 
+class SecretsVault:
     def __init__(self):
+        # Resolved per instance so VELARIS_DATA is honoured on any machine.
+        self.AGENT_DIR = str(agent_dir("SECRETS_VAULT"))
+        self.KEY_PATH = os.path.join(self.AGENT_DIR, "vault.key")
+        self.DATA_DIR = os.path.join(self.AGENT_DIR, "data")
         os.makedirs(self.DATA_DIR, exist_ok=True)
         if not os.path.exists(self.KEY_PATH):
             self._generate_key()

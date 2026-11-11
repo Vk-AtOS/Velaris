@@ -5,6 +5,8 @@ import json
 import time
 from typing import Dict, Any, List
 
+from velaris.intel.paths import agent_dir
+
 class TelemetrySpine:
     """
     Telemetry Spine
@@ -13,11 +15,10 @@ class TelemetrySpine:
     - Provides query + filter capabilities
     """
 
-    AGENT_DIR = "/live/agents/TELEMETRY_SPINE"
-    LOG_PATH = os.path.join(AGENT_DIR, "telemetry.log")
-
     def __init__(self):
-        os.makedirs(self.AGENT_DIR, exist_ok=True)
+        # Resolved per instance so VELARIS_DATA is honoured on any machine.
+        self.AGENT_DIR = str(agent_dir("TELEMETRY_SPINE"))
+        self.LOG_PATH = os.path.join(self.AGENT_DIR, "telemetry.log")
         if not os.path.exists(self.LOG_PATH):
             with open(self.LOG_PATH, "w") as f:
                 f.write("[]")

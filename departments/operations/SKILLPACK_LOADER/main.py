@@ -4,6 +4,8 @@ import os
 import json
 from typing import Dict, Any, Optional
 
+from velaris.intel.paths import agent_dir
+
 class SkillpackLoader:
     """
     Velaris Skillpack Loader
@@ -12,10 +14,10 @@ class SkillpackLoader:
     - Enables dynamic capability injection
     """
 
-    AGENT_DIR = "/live/agents/SKILLPACK_LOADER"
-    SKILL_DIR = os.path.join(AGENT_DIR, "skillpacks")
-
     def __init__(self):
+        # Resolved per instance so VELARIS_DATA is honoured on any machine.
+        self.AGENT_DIR = str(agent_dir("SKILLPACK_LOADER"))
+        self.SKILL_DIR = os.path.join(self.AGENT_DIR, "skillpacks")
         os.makedirs(self.SKILL_DIR, exist_ok=True)
         self.registry: Dict[str, Dict[str, Any]] = {}
 
