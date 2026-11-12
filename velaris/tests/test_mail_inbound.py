@@ -331,3 +331,14 @@ def test_listener_handler_speaks_smtp_over_in_memory_streams_and_nothing_starts_
     w = asyncio.run(run())
     assert w.out.startswith(b"220 mx.acme.com") and b"250 2.0.0 queued" in w.out and b"221" in w.out and w.closed
     assert store.list_messages(ALICE, boxes["alice"]["id"])["total"] == 1
+
+
+def test_relaxed_alignment_fails_closed_under_suffixes_it_cannot_judge():
+    from velaris.mail.dnsauth import _aligned
+    assert _aligned("mail.ext.org", "news.ext.org", "r")             # known suffix: same registrable domain
+    assert _aligned("bounce.acme.com", "acme.com", "r")
+    assert not _aligned("evil.com.br", "bank.com.br", "r")           # unknown suffix: siblings are NOT one organisation
+    assert not _aligned("evil.co.jp", "bank.co.jp", "r")
+    assert _aligned("mail.bank.com.br", "bank.com.br", "r")          # a domain and its own subdomain still align
+    assert not _aligned("com.br", "bank.com.br", "r")                # a bare suffix never aligns with a registrant
+    assert not _aligned("evil.co.uk", "bank.co.uk", "r") and not _aligned("mail.ext.org", "ext.org", "s")

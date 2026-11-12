@@ -206,9 +206,25 @@ class DmarcResult:
     reason: str = ""
 
 
+# Suffixes where "last two labels" really is the registrable domain. Without the full Public Suffix
+# List we cannot know that for other suffixes (e.g. com.br, co.jp), so relaxed alignment there is
+# limited to a domain and its own subdomains: fail closed, never treat two unrelated registrants
+# under an unknown suffix as one organisation.
+_SIMPLE_TLDS = frozenset("com org net edu gov mil int info biz io dev app ai in us eu de fr nl se no ch".split())
+
+
 def _aligned(a: str, b: str, mode: str) -> bool:
     a, b = a.lower().strip("."), b.lower().strip(".")
-    return a == b if mode == "s" else org_domain(a) == org_domain(b)
+    if a == b:
+        return True
+    if mode == "s":
+        return False
+    la, lb = a.split("."), b.split(".")
+    if la[-1] in _SIMPLE_TLDS and lb[-1] in _SIMPLE_TLDS and ".".join(la[-2:]) not in _TWO_LABEL \
+            and ".".join(lb[-2:]) not in _TWO_LABEL:
+        return org_domain(a) == org_domain(b)            # known suffix: the registrable domain is the last two labels
+    short, long_ = (a, b) if len(la) < len(lb) else (b, a)
+    return len(short.split(".")) >= 2 and short not in _TWO_LABEL and long_.endswith("." + short)
 
 
 def _dmarc_record(resolver: Any, domain: str) -> Optional[dict]:
