@@ -1,6 +1,8 @@
 import logging
 import datetime
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
+
+from velaris.core.access import AccessDenied, Caller
 
 logger = logging.getLogger("EMPLOYEE_METRICS_ENGINE")
 
@@ -10,7 +12,10 @@ class EmployeeMetricsEngine:
     Aggregates Zoho People + Zoho Payroll + Zoho Projects data
     into a unified per-employee metrics profile.
     Feeds dashboard visualizations.
-    HITL gate: salary data requires manager approval before exposure.
+    Pay figures are read through ZohoPayrollConnector, which asks velaris.core.access
+    whether the caller may see them (their own record, or a payroll/HR administrator).
+    When they may not, the profile carries {"withheld": reason} instead of pay; the
+    scorecard and heatmap never read pay at all.
     """
 
     def __init__(self, config: Dict[str, Any] = None):
@@ -18,9 +23,9 @@ class EmployeeMetricsEngine:
         from velaris.agents.ZOHO_PEOPLE.main import ZohoPeopleConnector
         from velaris.agents.ZOHO_PAYROLL.main import ZohoPayrollConnector
         from velaris.agents.ZOHO_PROJECTS.main import ZohoProjectsConnector
-        self.people = ZohoPeopleConnector(config)
-        self.payroll = ZohoPayrollConnector(config)
-        self.projects = ZohoProjectsConnector(config)
+        self.people = ZohoPeopleConnector(self.config)
+        self.payroll = ZohoPayrollConnector(self.config)
+        self.projects = ZohoProjectsConnector(self.config)
 
     def health_check(self) -> Dict[str, Any]:
         return {
@@ -33,11 +38,17 @@ class EmployeeMetricsEngine:
             }
         }
 
-    def get_employee_profile(self, employee_id: str, month: int = None, year: int = None) -> Dict:
+    def get_employee_profile(self, employee_id: str, month: int = None, year: int = None, *,
+                             caller: Optional[Caller] = None) -> Dict:
         """
         Full unified profile for one employee.
         Returns attendance, leave, performance, task delivery, payroll summary.
+        Payroll is included only when the caller may read this employee's pay.
         """
+        return self._profile(employee_id, month, year, include_pay=True, caller=caller)
+
+    def _profile(self, employee_id: str, month: Optional[int], year: Optional[int], *,
+                 include_pay: bool, caller: Optional[Caller] = None) -> Dict:
         today = datetime.date.today()
         month = month or today.month
         year = year or today.year
@@ -75,12 +86,16 @@ class EmployeeMetricsEngine:
             profile["performance"] = {"error": str(e)}
 
         try:
-            payslip = self.payroll.get_payslip(employee_id, year, month)
-            profile["payroll"] = {
-                "gross": payslip.get("gross_pay", 0),
-                "net": payslip.get("net_pay", 0),
-                "statutory": self.payroll.get_statutory_deductions(employee_id, year, month)["statutory"]
-            }
+            if include_pay:
+                payslip = self.payroll.get_payslip(employee_id, year, month, caller=caller)
+                profile["payroll"] = {
+                    "gross": payslip.get("gross_pay", 0),
+                    "net": payslip.get("net_pay", 0),
+                    "statutory": self.payroll.get_statutory_deductions(
+                        employee_id, year, month, caller=caller)["statutory"]
+                }
+        except AccessDenied as e:
+            profile["payroll"] = {"withheld": e.reason}
         except Exception as e:
             logger.warning("Payroll fetch failed for %s: %s", employee_id, e)
             profile["payroll"] = {"error": str(e)}
@@ -129,7 +144,7 @@ class EmployeeMetricsEngine:
 
         scorecards = []
         for eid in employee_ids:
-            profile = self.get_employee_profile(eid, month, year)
+            profile = self._profile(eid, month, year, include_pay=False)      # the score uses no pay
 
             att_score = profile.get("attendance", {}).get("attendance_pct", 0) * 0.30
             delivery = profile.get("delivery", {})

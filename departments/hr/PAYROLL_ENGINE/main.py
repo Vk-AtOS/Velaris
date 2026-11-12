@@ -7,6 +7,7 @@ from datetime import date
 from typing import Dict, Any, List, Optional, Tuple, Union
 from velaris.agents.ZOHO_PAYROLL.main import ZohoPayrollConnector
 from velaris.agents.PAYROLL_ENGINE import statutory
+from velaris.core.access import Caller
 
 logger = logging.getLogger("PAYROLL_ENGINE")
 logger.setLevel(logging.DEBUG)
@@ -265,20 +266,24 @@ class PayrollEngine:
         return totals
 
     # ── Zoho-backed methods (requires zoho_enabled=True) ──────────────────
-    def get_payslip(self, employee_id: str, year: int, month: int) -> Dict:
+    # Each of these reads a stored payslip; ZohoPayrollConnector checks the caller (and raises
+    # AccessDenied) before anything is fetched. compute() above only works on figures its caller
+    # already supplied, so it reveals nothing new and is not gated.
+    def get_payslip(self, employee_id: str, year: int, month: int, *, caller: Optional[Caller] = None) -> Dict:
         if not self._zoho:
             return {"error": "zoho_not_configured"}
-        return self._zoho.get_payslip(employee_id, year, month)
+        return self._zoho.get_payslip(employee_id, year, month, caller=caller)
 
-    def get_statutory_deductions(self, employee_id: str, year: int, month: int) -> Dict:
+    def get_statutory_deductions(self, employee_id: str, year: int, month: int, *,
+                                 caller: Optional[Caller] = None) -> Dict:
         if not self._zoho:
             return {"error": "zoho_not_configured"}
-        return self._zoho.get_statutory_deductions(employee_id, year, month)
+        return self._zoho.get_statutory_deductions(employee_id, year, month, caller=caller)
 
-    def get_ytd_summary(self, employee_id: str, financial_year: int) -> Dict:
+    def get_ytd_summary(self, employee_id: str, financial_year: int, *, caller: Optional[Caller] = None) -> Dict:
         if not self._zoho:
             return {"error": "zoho_not_configured"}
-        return self._zoho.get_ytd_summary(employee_id, financial_year)
+        return self._zoho.get_ytd_summary(employee_id, financial_year, caller=caller)
 
 
 if __name__ == "__main__":

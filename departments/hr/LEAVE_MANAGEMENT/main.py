@@ -6,6 +6,8 @@ import sqlite3
 from datetime import date, timedelta
 from typing import Dict, Any, List, Optional
 
+from velaris.core.access import Caller, authorize_read
+
 logger = logging.getLogger("LEAVE_MANAGEMENT")
 logger.setLevel(logging.DEBUG)
 handler = logging.StreamHandler()
@@ -165,7 +167,10 @@ class LeaveManagement:
         conn.close()
         return {"id": leave_id, "status": status, "reviewed_by": reviewed_by}
 
-    def pending_approvals(self) -> List[Dict]:
+    # Leave records say who was on sick or maternity leave and when: health data. Reading them
+    # goes through velaris.core.access (own record, or an HR administrator) and is traced.
+    def pending_approvals(self, *, caller: Optional[Caller] = None) -> List[Dict]:
+        authorize_read("health", None, agent="LEAVE_MANAGEMENT", caller=caller, org=self.config.get("org"))
         conn = _db()
         rows = conn.execute(
             "SELECT * FROM leave_requests WHERE status='pending' ORDER BY applied_on"
@@ -173,7 +178,9 @@ class LeaveManagement:
         conn.close()
         return [dict(r) for r in rows]
 
-    def employee_history(self, employee_id: str, year: Optional[int] = None) -> List[Dict]:
+    def employee_history(self, employee_id: str, year: Optional[int] = None, *,
+                         caller: Optional[Caller] = None) -> List[Dict]:
+        authorize_read("health", employee_id, agent="LEAVE_MANAGEMENT", caller=caller, org=self.config.get("org"))
         conn = _db()
         if year:
             rows = conn.execute(

@@ -14,8 +14,8 @@ class AttendanceMonitorAgent:
     def __init__(self, config: Dict[str, Any] = None):
         self.config = config or {}
         from velaris.agents.ZOHO_PEOPLE.main import ZohoPeopleConnector
-        self.people = ZohoPeopleConnector(config)
-        self.shift_start = config.get("shift_start_hour", 9)  # 9 AM default
+        self.people = ZohoPeopleConnector(self.config)
+        self.shift_start = self.config.get("shift_start_hour", 9)  # 9 AM default
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": "ATTENDANCE_MONITOR", "status": "ok"}

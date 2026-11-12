@@ -1,8 +1,9 @@
 import datetime
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from velaris.agents.ZOHO_CONNECTOR.main import ZohoConnector
+from velaris.core.access import Caller, authorize_read
 
 logger = logging.getLogger("ZOHO_PEOPLE")
 
@@ -19,13 +20,18 @@ class ZohoPeopleConnector:
 
     def __init__(self, config: Dict[str, Any] = None):
         self.config = config or {}
-        self.zoho = ZohoConnector(config)
+        self.zoho = ZohoConnector(self.config)
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": "ZOHO_PEOPLE", "status": "ok"}
 
-    def get_employees(self, page: int = 1) -> List[Dict]:
-        """Returns list of all employees with basic profile."""
+    def get_employees(self, page: int = 1, *, caller: Optional[Caller] = None) -> List[Dict]:
+        """Returns list of all employees with their full employee-form records.
+
+        Those records can hold identity numbers, bank details and dates of birth, so only an
+        HR administrator may list them (velaris.core.access, category "identity").
+        """
+        authorize_read("identity", None, agent="ZOHO_PEOPLE", caller=caller, org=self.config.get("org"))
         resp = self.zoho.get(
             f"{self.BASE}/forms/employee/getRecords",
             {"page": page, "pageSize": 200}
