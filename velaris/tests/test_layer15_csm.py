@@ -11,7 +11,8 @@ def test_csm_health():
         inst = getattr(mod, cls)()
         assert inst.health_check()["status"] == "ok"
 
-def test_csm_ops():
+def test_csm_ops(tmp_path, monkeypatch):
+    monkeypatch.setenv("VELARIS_DATA", str(tmp_path))   # CSM_LINKER now persists its links
     Reasoner = import_module("agents.CSM_REASONER.main").CSMReasonerAgent()
     assert "strategy" in Reasoner.quick_strategy("X")
 
@@ -19,4 +20,6 @@ def test_csm_ops():
     assert Linker.link("A","B")["linked"] is True
 
     Policy = import_module("agents.CSM_POLICY.main").CSMPolicyAgent()
-    assert Policy.generate_policy("X")["policy"] == "generated"
+    # was `generate_policy("X")["policy"] == "generated"`: the stub "generated" a policy from anything.
+    assert Policy.generate_policy({"name": "spend", "required": ["approver"]})["policy"] == "generated"
+    assert Policy.generate_policy("X")["policy"] == "rejected"

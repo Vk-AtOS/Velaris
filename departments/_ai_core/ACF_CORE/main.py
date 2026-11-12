@@ -1,17 +1,44 @@
-# ================================================================================
+"""ACF core: the intake pipeline that chains the other three ACF agents.
 
-import logging
-logger = logging.getLogger("ACF_CORE")
-logger.setLevel(logging.DEBUG)
-if not logger.handlers:
-    h=logging.StreamHandler()
-    h.setFormatter(logging.Formatter("%(asctime)s - ACF_CORE - %(message)s"))
-    logger.addHandler(h)
+process(raw) runs ACF_CONTEXT (screen and envelope), then, when other sources
+describe the same record, ACF_FUSION against each in turn, then ACF_ROUTER.
+It stops at the first stage that refuses, and says which. A record whose
+sources conflict is still routed, with the conflicts attached and
+`signal.conflicted` set so a routing rule can send it to review.
+"""
+from velaris.agentkit.aicore_a_common import fail, health
+from velaris.agents.ACF_CONTEXT.main import ACFContextAgent
+from velaris.agents.ACF_FUSION.main import ACFFusionAgent
+from velaris.agents.ACF_ROUTER.main import ACFRouterAgent
+
+NAME = "ACF_CORE"
+
 
 class ACFCoreAgent:
-    def __init__(self):
-        logger.debug("ACF Core initialized.")
-    def health_check(self):
-        return {"agent":"ACF_CORE","status":"ok","version":"0.1.0"}
+    def __init__(self, rules=None, default_destination="triage"):
+        self.router = ACFRouterAgent(rules, default_destination)
 
-# ================================================================================
+    def health_check(self):
+        return health(NAME)
+
+    def process(self, raw, sources=None, context=None, now=None):
+        """sources: optional [{"source", "data", "ts"?}] to merge into a record signal."""
+        envelope = ACFContextAgent().contextualize(raw, context, now)
+        if not envelope["contextualized"]:
+            return fail(envelope["status"], envelope["reason"], stage="context", routed=False, destination=None)
+        signal, conflicts = envelope["signal"], []
+        if sources:
+            if signal["kind"] != "record" or not isinstance(sources, list):
+                return fail("invalid_input", "sources must be a list and can only be merged into a record",
+                            stage="fusion", routed=False, destination=None)
+            merged = {"source": (context or {}).get("source", "input"), "data": signal["content"]}
+            for other in sources:
+                fused = ACFFusionAgent().fuse(merged, other)
+                if not fused["fusion"]:
+                    return fail("invalid_input", fused["reason"], stage="fusion", routed=False, destination=None)
+                conflicts += fused["conflicts"]
+                merged = {"source": merged["source"], "data": fused["merged"]}
+            signal["content"] = merged["data"]      # flattened, agreed fields only
+        signal["conflicted"] = bool(conflicts)
+        routed = self.router.route(signal)
+        return {**routed, "stage": "routed" if routed["routed"] else "router", "conflicts": conflicts}

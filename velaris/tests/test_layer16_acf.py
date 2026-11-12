@@ -16,7 +16,9 @@ def test_acf_ops():
     assert Router.route("SIG")["routed"] is True
 
     Fusion = import_module("agents.ACF_FUSION.main").ACFFusionAgent()
-    assert Fusion.fuse("A","B")["fusion"] is True
+    # was `fuse("A","B")["fusion"] is True`: the stub "fused" anything. Two bare strings are not records.
+    assert Fusion.fuse({"x": 1}, {"y": 2})["fusion"] is True
+    assert Fusion.fuse("A","B")["fusion"] is False
 
     Context = import_module("agents.ACF_CONTEXT.main").ACFContextAgent()
     assert Context.contextualize("X")["contextualized"] is True
