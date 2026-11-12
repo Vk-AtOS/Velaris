@@ -1,8 +1,8 @@
 {
   "name": "SOUL_VELARIS",
   "display_name": "Soul of Velaris",
-  "version": "0.1.0",
-  "description": "Bootstrap for system-level intent, ethical guardrails, identity tokens and persona glue.",
+  "version": "1.0.0",
+  "description": "The company's charter for its agents (mission, guidelines, guardrail rules) and the check of an action against the guardrails.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:Soul",
   "health_check": "health_check"

@@ -1,5 +1,12 @@
 from importlib import import_module
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _data(tmp_path, monkeypatch):
+    monkeypatch.setenv("VELARIS_DATA", str(tmp_path))   # these agents now keep state; never write to ~/.velaris
+
 AGENTS = [
     ("SELF_IDENTITY", "SELF_IDENTITYAgent"),
     ("SOUL_CORE_EXT", "SOUL_CORE_EXTAgent"),

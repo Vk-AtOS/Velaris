@@ -10,7 +10,8 @@ def test_memory_fabric():
     m.put('ns', 'k1', {'v': 1}, ttl=1)
     assert m.get('ns', 'k1') is not None
 
-def test_soul():
+def test_soul(tmp_path, monkeypatch):
+    monkeypatch.setenv("VELARIS_DATA", str(tmp_path))
     s = Soul()
     assert s.health_check()['status'] == 'ok'
     intent = s.get_intent()
@@ -33,8 +34,10 @@ def test_memory_fabric_ttl_and_query(monkeypatch):
     assert m.get('nowhere', 'k') is None
 
 
-def test_agents_that_use_memory_fabric():
+def test_agents_that_use_memory_fabric(tmp_path, monkeypatch):
     # Both called put/get/query on MemoryFabric before those methods existed.
+    # INTER_AGENT_COHESION now keeps its own persistent board, so it needs a private data dir.
+    monkeypatch.setenv("VELARIS_DATA", str(tmp_path))
     from velaris.agents.INTER_AGENT_COHESION.main import Cohesion
     from velaris.agents.NEURAL_MESH.main import NeuralMesh
     c = Cohesion()

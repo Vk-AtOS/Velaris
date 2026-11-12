@@ -41,4 +41,8 @@ def test_aiie_pipeline():
     p7 = task.prepare(p6)
     p8 = vel.accelerate(p7)
 
-    assert p8["final"] == "ready_for_approval"
+    # was `p8["final"] == "ready_for_approval"`: an empty idea used to come out "ready" through eight echo
+    # stubs. Every stage now does real work, so an idea with nothing in it is refused at each step.
+    assert p2["status"] == "invalid_input" and p5["validated"] is False
+    assert p6["status"] == "invalid" and p7["task_ready"] is False
+    assert p8.get("final") != "ready_for_approval"

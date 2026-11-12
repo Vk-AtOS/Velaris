@@ -1,19 +1,35 @@
-# ================================================================================
+"""UIE_SEMANTICS: turns a message into a structured request frame.
 
-import logging
-logger = logging.getLogger("UIE_SEMANTICS")
-logger.setLevel(logging.DEBUG)
-if not logger.handlers:
-    h=logging.StreamHandler()
-    h.setFormatter(logging.Formatter("%(asctime)s - UIE_SEMANTICS - %(message)s"))
-    logger.addHandler(h)
+interpret(x) takes text (or UIE_SIGNAL's result) and returns a frame: the
+speech act (question / command / statement), the requested action from a
+fixed verb list with its risk class (money, destructive, normal, read), the
+object words after the verb, negation, urgency, and typed values (amounts,
+dates, e-mail addresses, percentages, references).
+
+Word lists and patterns only (velaris.agentkit.aicore_b_text). A verb that is
+not on the list gives action None; nothing is guessed.
+"""
+from typing import Any, Dict
+
+from velaris.agentkit import aicore_b_text as textkit
+from velaris.agentkit.aicore_b_common import health, text as as_text
+
+NAME = "UIE_SEMANTICS"
+
 
 class UIESemanticsAgent:
-    def __init__(self):
-        logger.debug("UIE Semantic Interpreter active.")
-    def interpret(self, x):
-        return {"interpreted":True,"content":x}
     def health_check(self):
-        return {"agent":"UIE_SEMANTICS","status":"ok","version":"0.1.0"}
+        return health(NAME)
 
-# ================================================================================
+    def interpret(self, x: Any) -> Dict[str, Any]:
+        source = x.get("text") if isinstance(x, dict) else x
+        body = as_text(source)
+        if body is None:
+            return {"interpreted": False, "frame": None, "status": "invalid_input",
+                    "reason": "expected text, or a processed signal with 'text'"}
+        if isinstance(x, dict) and x.get("processed") is False:
+            return {"interpreted": False, "frame": None, "status": "refused",
+                    "reason": "the signal was not accepted by UIE_SIGNAL"}
+        frame = textkit.frame(body)
+        return {"interpreted": True, "status": "ok", "frame": frame,
+                "understood": frame["action"] is not None or frame["act"] == "question"}

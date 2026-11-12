@@ -1,6 +1,6 @@
 {
   "name": "SOUL_CORE_EXT",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "author": "Velaris",
-  "description": "Layer 3 Self-Identity Kernel module: SOUL_CORE_EXT"
+  "description": "Versioned operating settings with history, time travel and rollback."
 }

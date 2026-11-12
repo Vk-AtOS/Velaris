@@ -1,6 +1,6 @@
 {
   "name": "SELF_CONSISTENCY",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "author": "Velaris",
-  "description": "Layer 3 Self-Identity Kernel module: SELF_CONSISTENCY"
+  "description": "Measures agreement between repeated answers to the same question (majority share against a threshold)."
 }

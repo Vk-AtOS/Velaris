@@ -1,6 +1,6 @@
 {
   "name": "SELF_IDENTITY",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "author": "Velaris",
-  "description": "Layer 3 Self-Identity Kernel module: SELF_IDENTITY"
+  "description": "Versioned identity sheet of this Velaris installation with a fixed instance id."
 }

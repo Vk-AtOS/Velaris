@@ -1,19 +1,44 @@
-# ================================================================================
+"""UIE_SIGNAL: first contact with an incoming message, before anything tries to interpret it.
 
-import logging
-logger = logging.getLogger("UIE_SIGNAL")
-logger.setLevel(logging.DEBUG)
-if not logger.handlers:
-    h=logging.StreamHandler()
-    h.setFormatter(logging.Formatter("%(asctime)s - UIE_SIGNAL - %(message)s"))
-    logger.addHandler(h)
+UIE is read here as "user input engine": UIE_SIGNAL cleans and screens a raw
+message, UIE_SEMANTICS turns it into a structured request, UIE_REASONER
+decides the next step, UIE_CORE runs the three.
+
+process(signal) takes text or {"text", "channel", "sender"}. It folds
+look-alike and invisible characters, collapses whitespace, scans for text
+that tries to instruct a model (velaris.intel.guard) and refuses the message
+if the scan says block. It returns the clean text, a copy with secrets and
+personal identifiers masked ("safe_text": the only version that should be
+stored or shown to a model), and what was found.
+"""
+from typing import Any, Dict
+
+from velaris.agentkit import aicore_b_text as textkit
+from velaris.agentkit.aicore_b_common import MAX_TEXT, health
+from velaris.intel import guard
+
+NAME = "UIE_SIGNAL"
+
 
 class UIESignalAgent:
-    def __init__(self):
-        logger.debug("UIE Signal Processing Unit online.")
-    def process(self, signal):
-        return {"processed":True,"signal":signal}
     def health_check(self):
-        return {"agent":"UIE_SIGNAL","status":"ok","version":"0.1.0"}
+        return health(NAME)
 
-# ================================================================================
+    def process(self, signal: Any) -> Dict[str, Any]:
+        base = {"processed": False, "signal": signal}
+        meta = signal if isinstance(signal, dict) else {}
+        raw = meta.get("text") if isinstance(signal, dict) else signal
+        if not isinstance(raw, str) or not raw.strip():
+            return {**base, "status": "invalid_input", "reason": "a signal is text or {'text': ...}"}
+        if len(raw) > MAX_TEXT:
+            return {**base, "status": "invalid_input", "reason": f"text longer than {MAX_TEXT} characters"}
+        scan = guard.scan(raw, source=f"uie:{meta.get('channel', 'unknown')}")
+        findings = [f["rule"] for f in scan.findings]
+        if scan.blocked:
+            return {**base, "status": "blocked", "risk": scan.level, "findings": findings,
+                    "reason": "the message looks like an attempt to instruct a model"}
+        clean = textkit.clean(raw)
+        safe, pii = guard.redact(clean)
+        return {"processed": True, "status": "ok", "signal": signal, "text": clean, "safe_text": safe,
+                "pii": pii, "risk": scan.level, "findings": findings,
+                "channel": meta.get("channel"), "sender": meta.get("sender"), "chars": len(clean)}

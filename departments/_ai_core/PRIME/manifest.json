@@ -1,8 +1,8 @@
 {
   "name": "PRIME",
   "display_name": "Velaris Prime Controller",
-  "version": "0.1.0",
-  "description": "Master orchestrator for the entire Velaris system. Boots engine, coordinates agents, runs workflows.",
+  "version": "1.0.0",
+  "description": "Deterministic authorisation (grants -> allow / needs_approval / deny, every decision traced) and control of the agent engine.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:VelarisPrime",
   "health_check": "health_check"

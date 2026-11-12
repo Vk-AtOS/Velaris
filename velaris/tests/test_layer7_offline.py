@@ -9,5 +9,9 @@ def test_health():
     for pkg in modules:
         mod = import_module(f"live.agents.{pkg}.main")
         Agent = [a for a in dir(mod) if a.lower().startswith(pkg.lower()) or a.lower().endswith("engine") or a.lower().endswith("core")]
-        obj = getattr(mod, [c for c in dir(mod) if c[0].isupper()][0])()
+        # was "first capitalised name in dir(mod)", which picks typing.Any once a module imports it;
+        # now: the class defined in that module that has a health_check
+        cls = next(v for v in vars(mod).values()
+                   if isinstance(v, type) and v.__module__ == mod.__name__ and hasattr(v, "health_check"))
+        obj = cls()
         assert obj.health_check()["status"] == "ok"
