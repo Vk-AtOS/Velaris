@@ -29,16 +29,17 @@ def test_forged_fallback_signature_is_rejected():
     assert agent.verify_signature(message, b"SIG:" + message[::-1][:32]) is False
 
 
-def test_hash_scorer_returns_explicit_not_implemented():
-    borrower = BorrowerProfile("br-001", 800000, 200000, 12, 1, 500000, "personal")
-    result = CreditRiskEngine().compute_risk(borrower)
-    assert result["status"] == "not_implemented"
-    assert result["score"] is None
-    assert "risk_score" not in result
+def test_former_hash_scorer_has_no_identity_noise():
+    # CREDIT_RISK_ENGINE once added sha256(borrower_id) noise; it is now a published-style scorecard,
+    # so two borrowers with the same figures must get the same score whatever their ids.
+    a = CreditRiskEngine().compute_risk(BorrowerProfile("br-001", 800000, 200000, 12, 1, 500000, "personal"))
+    b = CreditRiskEngine().compute_risk(BorrowerProfile("br-999", 800000, 200000, 12, 1, 500000, "personal"))
+    assert a["status"] == "ok" and a["score"] == b["score"] == sum(r["points"] for r in a["breakdown"])
+    assert "risk_score" not in a and a["decision"] is None
 
 
 def test_inventory_counts_every_agent_once():
     counted = sum(len(names) for dept in inventory().values() for names in dept.values())
     assert counted == AgentRouter().count()
-    assert "CREDIT_RISK_ENGINE" in inventory()["finance"]["not_implemented"]
+    assert "CREDIT_RISK_ENGINE" in inventory()["finance"]["rule_based"]
     assert set(inventory()["finance"]) == set(STATUSES)
