@@ -1,7 +1,10 @@
 """Council: blind peer review, code-side scoring, graceful failure. No network, no real model."""
 import json
 import re
+import threading
+import time
 
+import httpx
 import pytest
 
 from velaris.intel import trace
@@ -98,10 +101,101 @@ def test_chairman_failure_returns_top_ranked():
 
 
 def test_single_and_no_answers():
+    # One voice out of three is not a council: no answer, and the report says why.
     one = council("q", models=MODELS, llm=make_llm(UNANIMOUS, fail=("fake:b", "fake:c")))
-    assert one.chosen_by == "only_answer" and one.answer == ANSWERS["fake:a"] and one.agreement is None
+    assert one.status == "insufficient" and one.answer == "" and one.chosen_by == "none"
+    assert one.answers == {"fake:a": ANSWERS["fake:a"]} and one.answered == ["fake:a"]     # kept for a person
+    assert "1 of 3 members answered (fake:a)" in one.summary and "2 answers were needed" in one.summary
+    # The caller may accept a single answer explicitly, and a one-model council is allowed.
+    accepted = council("q", models=MODELS, llm=make_llm(UNANIMOUS, fail=("fake:b", "fake:c")), min_quorum=1)
+    assert accepted.status == "ok" and accepted.chosen_by == "only_answer" and accepted.answer == ANSWERS["fake:a"]
+    solo = council("q", models=["fake:a"], llm=make_llm(UNANIMOUS))
+    assert solo.status == "ok" and solo.chosen_by == "only_answer" and solo.agreement is None
     none = council("q", models=MODELS, llm=make_llm(UNANIMOUS, fail=MODELS))
-    assert none.chosen_by == "none" and none.answer == "" and len(none.failed) == 3
+    assert none.status == "insufficient" and none.answer == "" and len(none.failed) == 3
+
+
+def slow_llm(delays, preference=UNANIMOUS, started=None):
+    """Like make_llm, but `delays[model]` seconds pass before that model's first answer."""
+    inner = make_llm(preference)
+
+    def script(prompt, model):
+        if "ranking" not in prompt and "Write the single best answer" not in prompt:
+            if started is not None:
+                started.append((model, time.monotonic()))
+            time.sleep(delays.get(model, 0))
+        return inner.script(prompt, model)
+    return FakeLLM(script)
+
+
+def test_slow_member_is_timed_out_recorded_and_the_rest_carry_on():
+    begun = time.monotonic()
+    pref = {m: ["fake:a", "fake:b"] for m in MODELS}
+    r = council("q", models=MODELS, llm=slow_llm({"fake:c": 3.0}, pref), seed=1, timeout_s=0.3)
+    assert time.monotonic() - begun < 2.5                        # did not wait for the slow one
+    assert r.status == "ok" and r.chosen_by == "chairman" and r.answer == "FINAL"
+    assert r.answered == ["fake:a", "fake:b"] and set(r.rankings) == {"fake:a", "fake:b"}
+    assert r.failed == {"answer:fake:c": "timeout after 0.3s"}
+    assert "2 of 3 members answered (fake:a, fake:b)" in r.summary
+    assert "answer:fake:c failed: timeout after 0.3s" in r.summary
+    last = list(trace.entries())[-1]["payload"]
+    assert last["answered"] == ["fake:a", "fake:b"] and last["failed"] == r.failed and last["status"] == "ok"
+
+
+def test_two_of_three_timing_out_is_insufficient_not_a_thin_answer():
+    r = council("q", models=MODELS, llm=slow_llm({"fake:b": 3.0, "fake:c": 3.0}), seed=1, timeout_s=0.3)
+    assert r.status == "insufficient" and r.answer == "" and r.chosen_by == "none"
+    assert r.answered == ["fake:a"] and not r.rankings          # no review or chairman calls were spent
+    assert set(r.failed) == {"answer:fake:b", "answer:fake:c"}
+    assert r.to_dict()["summary"].startswith("1 of 3 members answered (fake:a)")
+
+
+def test_local_models_take_turns_so_each_gets_its_full_time(monkeypatch):
+    """Three models on one local server, each needing 0.25 s, limit 0.4 s. Asked all at once the
+    server would queue them and the last would be waiting past its limit; in turn, all answer."""
+    local = ["ollama:a", "ollama:b", "ollama:c"]
+    answers = dict(zip(local, ANSWERS.values()))
+    busy = threading.Lock()
+
+    def script(prompt, model):
+        if "Write the single best answer" in prompt:
+            return "FINAL"
+        if "ranking" in prompt:
+            seen = _labels(prompt)
+            return json.dumps({"ranking": [seen[answers[m]] for m in local]})
+        assert busy.acquire(blocking=False), "two local models were asked at the same time"
+        try:
+            time.sleep(0.25)
+            return answers[model]
+        finally:
+            busy.release()
+
+    r = council("q", models=local, llm=FakeLLM(script), seed=1, timeout_s=0.4)
+    assert r.answered == local and not r.failed and r.status == "ok"
+
+
+def test_timeout_comes_from_the_environment_and_reaches_the_http_call(monkeypatch):
+    from velaris.intel import council as council_module, llm as llm_module
+    monkeypatch.setenv("VELARIS_COUNCIL_TIMEOUT", "7.5")
+    assert council_module.default_timeout() == 7.5
+    seen = []
+    monkeypatch.setattr(llm_module.httpx, "post", lambda url, **kw: seen.append(kw["timeout"]) or
+                        httpx.Response(200, json={"response": "ok"}, request=httpx.Request("POST", url)))
+    with llm_module.call_timeout(7.5):
+        llm_module.LLM().complete("hi", model="ollama:x")
+    llm_module.LLM().complete("hi", model="ollama:x")
+    assert seen == [7.5, llm_module.TIMEOUT_S]
+
+
+def test_answers_without_enough_reviews_are_contested():
+    r = council("q", models=MODELS, llm=make_llm(UNANIMOUS, bad_reviews={"fake:a": 2, "fake:b": 2}), seed=1)
+    assert len(r.rankings) == 1 and r.agreement is None and r.contested
+
+
+def test_bad_timeout_or_quorum_is_rejected():
+    for kw in ({"timeout_s": 0}, {"min_quorum": 0}, {"min_quorum": 4}):
+        with pytest.raises(ValueError):
+            council("q", models=MODELS, llm=make_llm(UNANIMOUS), **kw)
 
 
 def test_answer_cannot_instruct_reviewers():

@@ -9,6 +9,8 @@ Tests and offline runs use FakeLLM, which answers from a script.
 """
 from __future__ import annotations
 
+import contextlib
+import contextvars
 import hashlib
 import json
 import logging
@@ -17,7 +19,7 @@ import os
 import re
 import time
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Sequence, Union
+from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Union
 
 import httpx
 
@@ -28,6 +30,18 @@ logger = logging.getLogger("velaris.intel.llm")
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434")
 TIMEOUT_S = float(os.environ.get("VELARIS_LLM_TIMEOUT", "180"))
 EMBED_DIM = 256  # size of the offline fallback embedding
+_call_timeout: contextvars.ContextVar[Optional[float]] = contextvars.ContextVar("velaris_llm_timeout", default=None)
+
+
+@contextlib.contextmanager
+def call_timeout(seconds: Optional[float]) -> Iterator[None]:
+    """Model calls made inside this block (in this thread) give up after `seconds` instead of
+    VELARIS_LLM_TIMEOUT. Used by callers that would rather go on without a slow model."""
+    token = _call_timeout.set(seconds)
+    try:
+        yield
+    finally:
+        _call_timeout.reset(token)
 
 
 class LLMError(RuntimeError):
@@ -59,7 +73,7 @@ def _split(model: str) -> tuple[str, str]:
 
 def _post(url: str, headers: Dict[str, str], body: Dict[str, Any]) -> Dict[str, Any]:
     try:
-        r = httpx.post(url, headers=headers, json=body, timeout=TIMEOUT_S)
+        r = httpx.post(url, headers=headers, json=body, timeout=_call_timeout.get() or TIMEOUT_S)
     except httpx.HTTPError as e:
         raise LLMError(f"request to {url.split('/')[2]} failed: {type(e).__name__}") from e
     if r.status_code >= 400:
