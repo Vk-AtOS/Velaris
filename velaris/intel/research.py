@@ -9,7 +9,21 @@
                the sub-question go to a model. This is the main cost control.
   4. learn     one model call per page returns {claim, quote} pairs. Code then
                looks for each quote in the page text. No quote, no learning:
-               the pair is dropped and counted as rejected.
+               the pair is dropped and counted as rejected. A quote that is
+               really there does not make the claim true, so code also compares
+               the claim with its quote (research_report.check_claim): a figure,
+               date or name the quote does not contain, or a flipped negation,
+               drops the claim (`unsupported_claims`); a name found only
+               elsewhere on the page keeps it with a caution in `flags`.
+               With check_entailment=True a model is then asked which remaining
+               claims do not follow from their quotes. Its answer can only
+               remove claims (`entailment_rejected`); it cannot add or reword
+               one, and if it fails or replies badly nothing changes.
+
+What this does and does not establish: every kept claim has a quote that is on
+the page, and shares its figures, dates, names and polarity. Whether the claim
+*means* what the quote means is beyond code (see check_claim for the limits),
+and the optional model check is a second opinion from a model, not proof.
   5. reflect   one model call says "enough" or names up to two gaps, which
                become the next round's sub-questions. Rounds are capped, and a
                round that adds nothing ends the loop.
@@ -33,7 +47,7 @@ from urllib.parse import urlsplit
 
 from velaris.intel import guard, trace, web
 from velaris.intel.llm import LLM, LLMError, cosine, extract_json
-from velaris.intel.research_report import findings_body, sources_section, verify_report
+from velaris.intel.research_report import check_claim, findings_body, sources_section, verify_report
 from velaris.intel.web_fetch import Fetcher, FetchError
 from velaris.intel.web_markdown import chunk
 
@@ -61,6 +75,7 @@ class Learning:
     title: str
     page_sha256: str
     trace_hash: str
+    flags: List[str] = field(default_factory=list)      # cautions from check_claim: a person should look
 
 
 @dataclass
@@ -70,7 +85,9 @@ class ResearchResult:
     learnings: List[Learning] = field(default_factory=list)
     sources: List[Dict[str, Any]] = field(default_factory=list)
     unsupported: List[str] = field(default_factory=list)
-    rejected_learnings: int = 0
+    rejected_learnings: int = 0          # the quote was not on the page
+    unsupported_claims: int = 0          # the quote was there but the claim did not follow from it (code check)
+    entailment_rejected: int = 0         # removed by the optional model check
     rounds: int = 0
     stopped_because: str = ""
 
@@ -94,6 +111,7 @@ class _Run:
     seen_quotes: Set[tuple] = field(default_factory=set)
     pages_read: int = 0
     errors: List[str] = field(default_factory=list)
+    check_entailment: bool = False
 
 
 def _plain(text: str) -> str:
@@ -163,6 +181,7 @@ def _learn(run: _Run, page: web.Page, subq: str, text: str) -> None:
     haystack = _plain(page.markdown)
     page_sha = hashlib.sha256(page.markdown.encode()).hexdigest()
     title = " ".join(page.title.split()) or url
+    candidates: List[tuple] = []
     for item in (items if isinstance(items, list) else [])[:LEARNINGS_PER_PAGE * 2]:
         claim, quote = (str(item.get(k) or "").strip() for k in ("claim", "quote")) \
             if isinstance(item, dict) else ("", "")
@@ -170,9 +189,21 @@ def _learn(run: _Run, page: web.Page, subq: str, text: str) -> None:
         if not claim or len(needle) < MIN_QUOTE_CHARS or needle not in haystack:
             run.result.rejected_learnings += 1      # the core guarantee: no learning without a real quote
             continue
+        problems, cautions = check_claim(claim, quote, context=f"{title}\n{page.markdown}")
+        if problems:                                # the quote is real, but the claim says more than it does
+            run.result.unsupported_claims += 1
+            trace.append("research", "research.claim_dropped", {"url": url, "claim": claim[:300],
+                                                                "problems": problems})
+            continue
         if (url, needle) in run.seen_quotes:
             continue
         run.seen_quotes.add((url, needle))
+        candidates.append((claim, quote, cautions))
+    if run.check_entailment and candidates:
+        refused = _not_entailed(run, [(c, q) for c, q, _ in candidates])
+        run.result.entailment_rejected += len(refused)
+        candidates = [c for i, c in enumerate(candidates) if i not in refused]     # removal only
+    for claim, quote, cautions in candidates:
         if url not in run.registry:
             run.registry[url] = len(run.registry) + 1
             run.result.sources.append({"n": run.registry[url], "title": title, "url": url, "sha256": page_sha})
@@ -181,7 +212,31 @@ def _learn(run: _Run, page: web.Page, subq: str, text: str) -> None:
             "n": n, "url": url, "page_sha256": page_sha, "claim": claim[:300],
             "quote_sha256": hashlib.sha256(quote.encode()).hexdigest()})
         run.result.learnings.append(Learning(n=n, claim=claim, quote=quote, url=url, title=title,
-                                             page_sha256=page_sha, trace_hash=entry["hash"]))
+                                             page_sha256=page_sha, trace_hash=entry["hash"], flags=cautions))
+
+
+def _not_entailed(run: _Run, pairs: List[tuple]) -> Set[int]:
+    """Positions in `pairs` (claim, quote) that a model says do not follow from their quote.
+
+    The model's reply is used for one thing only: choosing claims to remove. Numbers outside
+    the list are ignored, and a failed or unreadable reply removes nothing.
+    """
+    listing = "\n\n".join(f"{i}. Claim: {claim}\n   Quote: {quote}" for i, (claim, quote) in enumerate(pairs, 1))
+    preamble, block = guard.wrap(listing, label="numbered claims, each with the quote offered as its support")
+    prompt = (f"{preamble}\n\n{block}\n\nFor each numbered claim decide whether the quote alone is enough to "
+              "establish it. A claim that adds, changes or assumes anything the quote does not say is not "
+              'supported. Reply with JSON only: {"unsupported": [<numbers of the claims that are not supported>]}.')
+    try:
+        raw = extract_json(run.llm.complete(prompt, model=run.model, max_tokens=200, temperature=0.0,
+                                            purpose="research.entailment").text)
+    except LLMError as e:
+        run.errors.append(f"entailment: {str(e)[:120]}")
+        return set()
+    listed = raw.get("unsupported") if isinstance(raw, dict) else None
+    refused = {n - 1 for n in (listed if isinstance(listed, list) else [])
+               if isinstance(n, int) and not isinstance(n, bool) and 1 <= n <= len(pairs)}
+    trace.append("research", "research.entailment", {"checked": len(pairs), "removed": sorted(refused)})
+    return refused
 
 
 def _gather(run: _Run, subq: str, budget: int) -> None:
@@ -257,7 +312,10 @@ def _write_report(run: _Run, scope_note: str) -> None:
     try:
         draft = run.llm.complete(prompt, model=run.model, max_tokens=1200, temperature=0.2,
                                  purpose="research.report").text
-        body, res.unsupported = verify_report(draft, set(run.registry.values()))
+        evidence: Dict[int, str] = {}
+        for x in res.learnings:      # what each source number actually supplied
+            evidence[x.n] = f"{evidence.get(x.n, '')} {x.claim} {x.quote}"
+        body, res.unsupported = verify_report(draft, set(run.registry.values()), evidence)
     except LLMError as e:
         res.stopped_because = f"error:report: {str(e)[:120]}"
     if not body:      # no draft, or nothing in it survived checking: list the verified findings instead
@@ -273,15 +331,18 @@ def _write_report(run: _Run, scope_note: str) -> None:
 
 def research(question: str, *, llm: Optional[LLM] = None, model: Optional[str] = None,
              fetcher: Optional[Fetcher] = None, max_subquestions: int = 4, max_sources: int = 8,
-             max_rounds: int = 2, scope_note: str = "", search_fn: SearchFn = web.search) -> ResearchResult:
+             max_rounds: int = 2, scope_note: str = "", search_fn: SearchFn = web.search,
+             check_entailment: bool = False) -> ResearchResult:
     """Research a question on the web and return a report in which every sentence is cited.
 
     Never raises for a model or web failure: the result is partial and
     `stopped_because` says why. `search_fn` has the signature of web.search.
+    `check_entailment` adds one model call per page that may remove claims which do not
+    follow from their quotes (it never adds any); see the module docstring for the limits.
     """
     res = ResearchResult(question=question)
     run = _Run(question=question, llm=llm or LLM(), model=model, fetcher=fetcher, search_fn=search_fn,
-               max_sources=max_sources, result=res)
+               max_sources=max_sources, result=res, check_entailment=check_entailment)
     queue = _plan(run, max_subquestions, scope_note)
     res.stopped_because = "max_rounds"
     for rnd in range(1, max_rounds + 1):
