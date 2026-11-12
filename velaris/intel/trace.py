@@ -8,12 +8,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import threading
 import time
 from pathlib import Path
 from typing import Any, Dict, Iterator, Optional
 
-from velaris.intel.paths import data_dir
+from velaris.intel.paths import data_dir, open_private
 
 GENESIS = "0" * 64
 _lock = threading.Lock()
@@ -47,9 +48,10 @@ def append(actor: str, action: str, payload: Optional[Dict[str, Any]] = None) ->
         ts = time.time()
         entry = {"ts": ts, "actor": actor, "action": action, "payload": payload,
                  "prev": prev, "hash": _hash(prev, ts, actor, action, payload)}
-        with path.open("a", encoding="utf-8") as f:
+        with open_private(path, "a") as f:       # the trace names people and what was read about them
             f.write(json.dumps(entry, sort_keys=True) + "\n")
             f.flush()
+            os.fsync(f.fileno())
     return entry
 
 

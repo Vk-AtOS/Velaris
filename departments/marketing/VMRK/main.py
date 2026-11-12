@@ -1,28 +1,17 @@
 # ================================================================================
 
-import os
 import base64
 import hashlib
 import hmac
 
-from velaris.intel.paths import agent_dir
+from velaris.intel.paths import agent_dir, load_or_create_key
 
 class VMRK:
     def __init__(self):
         # Resolved per instance so VELARIS_DATA is honoured on any machine.
         self.KEY_PATH = str(agent_dir("VMRK") / "vmrk.key")
-        if not os.path.exists(self.KEY_PATH):
-            self._generate_key()
-        self.key = self._load_key()
-
-    def _generate_key(self):
-        key = os.urandom(64)
-        with open(self.KEY_PATH, "wb") as f:
-            f.write(key)
-
-    def _load_key(self):
-        with open(self.KEY_PATH, "rb") as f:
-            return f.read()
+        # Signing key is owner-only from the moment it exists.
+        self.key = load_or_create_key(self.KEY_PATH, 64)
 
     def sign(self, message: str) -> str:
         sig = hmac.new(self.key, message.encode(), hashlib.sha256).digest()

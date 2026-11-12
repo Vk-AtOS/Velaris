@@ -7,7 +7,7 @@ import hmac
 import hashlib
 from datetime import datetime
 
-from velaris.intel.paths import agent_dir
+from velaris.intel.paths import agent_dir, load_or_create_key, open_private
 
 class SignedAuditChain:
     def __init__(self):
@@ -15,13 +15,9 @@ class SignedAuditChain:
         self.AGENT_DIR = str(agent_dir("SIGNED_AUDIT_CHAIN"))
         self.CHAIN_PATH = os.path.join(self.AGENT_DIR, "chain.log")
         self.KEY_PATH = os.path.join(self.AGENT_DIR, "chain.key")
-        if not os.path.exists(self.KEY_PATH):
-            with open(self.KEY_PATH, "wb") as f:
-                f.write(os.urandom(64))
-        with open(self.KEY_PATH, "rb") as f:
-            self.key = f.read()
-        if not os.path.exists(self.CHAIN_PATH):
-            open(self.CHAIN_PATH, "w").close()
+        # Signing key and chain are owner-only from the moment they exist.
+        self.key = load_or_create_key(self.KEY_PATH, 64)
+        open_private(self.CHAIN_PATH, "a").close()
 
     def _sign(self, entry_bytes: bytes) -> str:
         sig = hmac.new(self.key, entry_bytes, hashlib.sha256).digest()
@@ -38,7 +34,7 @@ class SignedAuditChain:
         }
         entry_bytes = json.dumps(entry, sort_keys=True).encode()
         sig = self._sign(entry_bytes)
-        with open(self.CHAIN_PATH, "a") as f:
+        with open_private(self.CHAIN_PATH, "a") as f:
             f.write(base64.b64encode(entry_bytes).decode() + "::" + sig + "\n")
 
     @staticmethod

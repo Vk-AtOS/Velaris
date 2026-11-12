@@ -4,9 +4,10 @@ import os
 import base64
 import hmac
 import hashlib
+import re
 from typing import Optional, List
 
-from velaris.intel.paths import agent_dir
+from velaris.intel.paths import agent_dir, load_or_create_key, private_dir, read_private, write_private
 
 class SecretsVault:
     def __init__(self):
@@ -14,25 +15,22 @@ class SecretsVault:
         self.AGENT_DIR = str(agent_dir("SECRETS_VAULT"))
         self.KEY_PATH = os.path.join(self.AGENT_DIR, "vault.key")
         self.DATA_DIR = os.path.join(self.AGENT_DIR, "data")
-        os.makedirs(self.DATA_DIR, exist_ok=True)
-        if not os.path.exists(self.KEY_PATH):
-            self._generate_key()
-        self.key = self._load_key()
+        private_dir(self.DATA_DIR)
+        # Key, secrets and signatures are owner-only from the moment they exist.
+        self.key = load_or_create_key(self.KEY_PATH, 64)
 
-    def _generate_key(self):
-        key = os.urandom(64)
-        with open(self.KEY_PATH, "wb") as f:
-            f.write(key)
-
-    def _load_key(self):
-        with open(self.KEY_PATH, "rb") as f:
-            return f.read()
+    @staticmethod
+    def _checked(name: str) -> str:
+        # A secret's name becomes a file name: anything that could leave DATA_DIR is refused.
+        if not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}", name):
+            raise ValueError("secret name must be 1-128 characters of letters, digits, '_', '-' or '.'")
+        return name
 
     def _sig_path(self, name: str) -> str:
-        return os.path.join(self.DATA_DIR, f"{name}.sig")
+        return os.path.join(self.DATA_DIR, f"{self._checked(name)}.sig")
 
     def _data_path(self, name: str) -> str:
-        return os.path.join(self.DATA_DIR, f"{name}.sec")
+        return os.path.join(self.DATA_DIR, f"{self._checked(name)}.sec")
 
     def _compute_hmac(self, data: bytes) -> str:
         mac = hmac.new(self.key, data, hashlib.sha256).digest()
@@ -41,21 +39,16 @@ class SecretsVault:
     def set_secret(self, name: str, secret: str) -> None:
         data = secret.encode()
         b64 = base64.b64encode(data)
-        with open(self._data_path(name), "wb") as f:
-            f.write(b64)
-        sig = self._compute_hmac(b64)
-        with open(self._sig_path(name), "w") as f:
-            f.write(sig)
+        write_private(self._data_path(name), b64)
+        write_private(self._sig_path(name), self._compute_hmac(b64))
 
     def get_secret(self, name: str) -> Optional[str]:
         data_path = self._data_path(name)
         sig_path = self._sig_path(name)
         if not os.path.exists(data_path) or not os.path.exists(sig_path):
             return None
-        with open(data_path, "rb") as f:
-            b64 = f.read()
-        with open(sig_path, "r") as f:
-            sig = f.read().strip()
+        b64 = read_private(data_path)
+        sig = read_private(sig_path).decode().strip()
         expected = self._compute_hmac(b64)
         if not hmac.compare_digest(expected, sig):
             raise ValueError("Integrity check failed")

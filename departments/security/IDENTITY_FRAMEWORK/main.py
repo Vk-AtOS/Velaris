@@ -1,11 +1,16 @@
 # ================================================================================
 
+import json
+import logging
 import os
 import hashlib
+import hmac
 import base64
 from typing import Dict, Optional
 
-from velaris.intel.paths import agent_dir
+from velaris.intel.paths import agent_dir, read_private, write_private
+
+logger = logging.getLogger("IDENTITY_FRAMEWORK")
 
 class IdentityFramework:
     """
@@ -19,23 +24,26 @@ class IdentityFramework:
         # Resolved per instance so VELARIS_DATA is honoured on any machine.
         self.AGENT_DIR = str(agent_dir("IDENTITY_FRAMEWORK"))
         self.DB_PATH = os.path.join(self.AGENT_DIR, "identity.db")
-        if not os.path.exists(self.DB_PATH):
-            with open(self.DB_PATH, "w") as f:
-                f.write("{}")
         self._load_db()
 
     def _load_db(self):
-        import json
-        with open(self.DB_PATH, "r") as f:
-            try:
-                self.db: Dict[str, Dict] = json.load(f)
-            except:
-                self.db = {}
+        # Password hashes: the file is owner-only (see velaris.intel.paths).
+        self.db: Dict[str, Dict] = {}
+        if not os.path.exists(self.DB_PATH):
+            return
+        try:
+            loaded = json.loads(read_private(self.DB_PATH))
+        except ValueError as e:
+            # An identity store that cannot be parsed must not be silently replaced by an empty
+            # one: the next create_identity() would overwrite every account. Refuse to start.
+            logger.warning("Identity store %s is corrupt: %s", self.DB_PATH, e)
+            raise RuntimeError(f"identity store {self.DB_PATH} is corrupt; restore it or remove it") from e
+        if not isinstance(loaded, dict):
+            raise RuntimeError(f"identity store {self.DB_PATH} does not hold a JSON object")
+        self.db = loaded
 
     def _save_db(self):
-        import json
-        with open(self.DB_PATH, "w") as f:
-            json.dump(self.db, f, indent=2)
+        write_private(self.DB_PATH, json.dumps(self.db, indent=2))
 
     def _hash_password(self, password: str) -> str:
         salt = os.urandom(16)
@@ -46,7 +54,7 @@ class IdentityFramework:
         raw = base64.b64decode(stored.encode())
         salt, h = raw[:16], raw[16:]
         new_h = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 200000)
-        return h == new_h
+        return hmac.compare_digest(h, new_h)
 
     def create_identity(self, username: str, password: str, meta: Dict) -> bool:
         if username in self.db:
