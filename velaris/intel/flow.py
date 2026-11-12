@@ -26,6 +26,23 @@ and the run's state is nothing but those rows. So:
   flow = Flow([Tool("pay", pay, "Pay a vendor", {"vendor": "name", "amount": "rupees"})])
   r = flow.start("Pay Acme 40,000")        # r.status == "waiting_approval", r.pending shows the call
   r = flow.decide(r.run_id, r.pending["call_hash"], approve=True, by="finance.head")
+
+Approvals made elsewhere (a `gate`)
+-----------------------------------
+With `gate=` set, a waiting step is not decided through decide() (it refuses) but by
+an outside approver such as AetherOS Prime (velaris.core.prime.PrimeGate). The gate
+has two methods:
+
+  submit(run_id, pending, meta) -> record     ask once; the record is kept as a "gate" event
+  check(record) -> record                      ask again later, on every resume()
+
+A record is {"state": "pending" | "approved" | "rejected", "call_hash", "decided_by",
+"note", ...}. Only a record whose call_hash is the waiting call's own becomes a
+decision; anything else, an exception, or an unreachable approver leaves the step
+waiting. It never runs. A step interrupted mid-run is asked about afresh.
+
+call(tool, args) starts a run of exactly one step chosen by code, not by a model:
+the same verdict, approval and record, then the tool's output as the final answer.
 """
 from __future__ import annotations
 
@@ -35,7 +52,7 @@ import sqlite3
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Sequence, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 from velaris.intel import guard, trace
 from velaris.intel.llm import LLM, LLMError, extract_json
@@ -90,10 +107,10 @@ def _hash(prev: str, run_id: str, seq: int, ts: float, kind: str, body: str) -> 
 class Flow:
     def __init__(self, tools: Sequence[Tool], *, llm: Optional[LLM] = None, model: Optional[str] = None,
                  instructions: str = "", permit: Optional[Callable[[str, Dict[str, Any]], str]] = None,
-                 max_turns: int = 12, path: Optional[str] = None) -> None:
+                 max_turns: int = 12, path: Optional[str] = None, gate: Any = None) -> None:
         self.tools = {t.name: t for t in tools}
         self.llm, self.model, self.instructions = llm or LLM(), model, instructions
-        self.permit, self.max_turns = permit, max_turns
+        self.permit, self.max_turns, self.gate = permit, max_turns, gate
         self._db = sqlite3.connect(path or str(data_dir() / "flow.db"), check_same_thread=False)
         self._db.executescript(_SCHEMA)
 
@@ -114,7 +131,7 @@ class Flow:
             raise FlowError(f"run {run_id} is being advanced by another process") from e
         event = {"seq": seq, "ts": ts, "kind": kind, "prev": prev, "hash": h, **json.loads(raw)}
         events.append(event)
-        if kind in ("start", "decision", "final", "stop") or body.get("verdict") == "approve":
+        if kind in ("start", "decision", "final", "stop", "gate") or body.get("verdict") == "approve":
             # anchor the moments that matter in the global trace, so cutting the tail off a run is detectable
             trace.append("flow", kind, {"run_id": run_id, "seq": seq, "event_hash": h,
                                         **{k: body[k] for k in ("tool", "verdict", "approve", "by", "call_hash",
@@ -170,8 +187,11 @@ class Flow:
             self._append(run_id, events, "invalid", {"error": f"{name} takes only these arguments: "
                                                               f"{sorted(tool.params)}"})
         else:
-            self._append(run_id, events, "call", {"tool": name, "args": args, "verdict": self._verdict(tool, args),
-                                                  "call_hash": call_hash(name, args)})
+            self._append_call(run_id, events, tool, args)
+
+    def _append_call(self, run_id: str, events: List[Dict[str, Any]], tool: Tool, args: Dict[str, Any]) -> None:
+        self._append(run_id, events, "call", {"tool": tool.name, "args": args, "verdict": self._verdict(tool, args),
+                                              "call_hash": call_hash(tool.name, args)})
 
     def _prompt(self, events: List[Dict[str, Any]]) -> str:
         tools = "\n".join(
@@ -225,9 +245,10 @@ class Flow:
                 started = next((e for e in reversed(after) if e["kind"] == "exec"), None)
                 decision = next((e for e in reversed(after) if e["kind"] == "decision"), None)
                 reason = ""
-                if call["verdict"] == "deny":
-                    self._append(run_id, events, "result", {"call_seq": call["seq"], "ok": False, "flagged": False,
-                                                            "output": "not permitted by policy"})
+                if call["verdict"] == "deny" or call["tool"] not in self.tools:
+                    self._append(run_id, events, "result", {
+                        "call_seq": call["seq"], "ok": False, "flagged": False,
+                        "output": "not permitted by policy" if call["verdict"] == "deny" else "tool no longer available"})
                     continue
                 if started and not self.tools[call["tool"]].idempotent and (
                         not decision or decision["seq"] < started["seq"]):
@@ -235,9 +256,15 @@ class Flow:
                 elif call["verdict"] == "approve" and not decision:
                     reason = "needs approval"
                 if reason:
-                    return Result(run_id, "waiting_approval", reason, {
-                        "tool": call["tool"], "args": call["args"], "reason": reason,
-                        "call_hash": call["call_hash"]}, turns)
+                    pending = {"tool": call["tool"], "args": call["args"], "reason": reason,
+                               "call_hash": call["call_hash"]}
+                    if self.gate is not None:
+                        decided, record = self._ask_gate(run_id, events, call, pending,
+                                                         since=started["seq"] if started else call["seq"])
+                        if decided:
+                            continue
+                        pending["approver"] = record
+                    return Result(run_id, "waiting_approval", reason, pending, turns)
                 if decision and not decision["approve"]:
                     note = f": {decision['note']}" if decision["note"] else ""
                     self._append(run_id, events, "result", {
@@ -246,6 +273,14 @@ class Flow:
                     continue
                 self._execute(run_id, events, call)
                 continue
+            direct = events[0].get("direct")
+            if direct:                       # a one-step run: the step was chosen by code, not by a model
+                if call is None:
+                    self._append_call(run_id, events, self.tools[direct["tool"]], direct["args"])
+                else:
+                    done = next(e for e in events if e["kind"] == "result" and e["call_seq"] == call["seq"])
+                    self._append(run_id, events, "final", {"output": done["output"], "ok": done["ok"]})
+                continue
             if turns >= self.max_turns:
                 self._append(run_id, events, "stop", {"reason": "out_of_turns"})
                 continue
@@ -253,10 +288,54 @@ class Flow:
             if events[-1]["kind"] == "model_error":
                 return Result(run_id, "model_error", events[-1]["error"], None, turns)
 
-    def start(self, task: str, *, actor: str = "") -> Result:
+    def _ask_gate(self, run_id: str, events: List[Dict[str, Any]], call: Dict[str, Any], pending: Dict[str, Any],
+                  since: int) -> Tuple[bool, Optional[Dict[str, Any]]]:
+        """Ask the outside approver about the waiting call. (True, record) once a decision is recorded."""
+        asked = next((e for e in reversed(events) if e["kind"] == "gate" and e["seq"] > since), None)
+        try:
+            if asked is None:
+                record = self.gate.submit(run_id, pending, events[0].get("meta") or {})
+                self._append(run_id, events, "gate", {"call_seq": call["seq"], "call_hash": call["call_hash"],
+                                                      "record": record})
+            else:
+                record = self.gate.check(asked["record"])
+        except Exception as e:  # unreachable or unclear: the step waits, it never runs
+            trace.append("flow", "gate.error", {"run_id": run_id, "call_hash": call["call_hash"],
+                                                "error": type(e).__name__})
+            return False, asked["record"] if asked else None
+        if not isinstance(record, dict) or record.get("call_hash") != call["call_hash"] \
+                or record.get("state") not in ("approved", "rejected"):
+            return False, record if isinstance(record, dict) else None
+        self._append(run_id, events, "decision", {
+            "approve": record["state"] == "approved", "by": str(record.get("decided_by") or "gate"),
+            "note": str(record.get("note") or "")[:500], "call_hash": call["call_hash"]})
+        return True, record
+
+    def start(self, task: str, *, actor: str = "", meta: Optional[Dict[str, Any]] = None) -> Result:
+        """`meta` is kept with the run (and handed to a gate), e.g. who it runs for."""
         run_id = uuid.uuid4().hex
-        self._append(run_id, [], "start", {"task": task, "actor": actor, "tools": sorted(self.tools)})
+        body = {"task": task, "actor": actor, "tools": sorted(self.tools)}
+        self._append(run_id, [], "start", {**body, "meta": meta} if meta else body)
         return self._advance(run_id)
+
+    def call(self, tool: str, args: Dict[str, Any], *, actor: str = "",
+             meta: Optional[Dict[str, Any]] = None) -> Result:
+        """A run of exactly this one step. It is permitted, approved and recorded like any other."""
+        t = self.tools.get(tool)
+        if t is None or not isinstance(args, dict) or set(args) - set(t.params):
+            raise FlowError(f"{tool!r} is not a tool here, or takes other arguments")
+        run_id = uuid.uuid4().hex
+        body = {"task": f"call {tool}", "actor": actor, "tools": [tool], "direct": {"tool": tool, "args": args}}
+        self._append(run_id, [], "start", {**body, "meta": meta} if meta else body)
+        return self._advance(run_id)
+
+    def waiting(self) -> List[str]:
+        """Runs whose last event leaves them waiting for a decision (oldest first). Reads only."""
+        rows = self._db.execute(
+            "SELECT e.run_id, e.kind, e.body FROM events e JOIN (SELECT run_id, MAX(seq) AS m FROM events "
+            "GROUP BY run_id) last ON e.run_id = last.run_id AND e.seq = last.m "
+            "WHERE e.kind IN ('call', 'exec', 'gate') ORDER BY e.ts").fetchall()
+        return [r for r, kind, body in rows if kind != "call" or json.loads(body).get("verdict") == "approve"]
 
     def resume(self, run_id: str) -> Result:
         """Carry on after a restart. Also the way to read a run's current status: it only
@@ -265,6 +344,8 @@ class Flow:
 
     def decide(self, run_id: str, pending_call_hash: str, *, approve: bool, by: str, note: str = "") -> Result:
         """A person's answer to a waiting step. `pending_call_hash` must be the one they were shown."""
+        if self.gate is not None:
+            raise FlowError("decisions for this flow are made by its approver (gate), not here")
         if not by.strip():
             raise FlowError("a decision needs the name of the person who made it")
         state = self._advance(run_id)

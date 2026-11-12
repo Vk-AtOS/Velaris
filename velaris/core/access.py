@@ -29,7 +29,8 @@ signature at start-up:
 
 The replacement must return (False, reason) when the service is down, slow or unsure;
 it must never raise its way to an answer or default to True. Callers, tracing, the
-exception and every agent stay as they are. Nothing of that service is built here.
+exception and every agent stay as they are. velaris.core.prime.PrimeReadAuthoriser is one
+such replacement (AetherOS Prime), installed only when VELARIS_READ_AUTHORISER=prime.
 
 Changes and approvals
 ---------------------
