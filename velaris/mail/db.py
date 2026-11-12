@@ -1,0 +1,161 @@
+"""The mail database: one sqlite file under VELARIS_DATA/mail, owner-only, WAL, one lock.
+
+Attachments are content-addressed files under mail/blobs (owner-only); a blob is deleted when no
+attachment row refers to it. Full-text search uses FTS5 when this sqlite has it, else LIKE.
+"""
+from __future__ import annotations
+
+import contextlib
+import hashlib
+import json
+import sqlite3
+import threading
+from pathlib import Path
+from typing import Any, Iterator, List, Optional
+
+from velaris.intel.paths import data_dir, open_private, private_dir, read_private, write_private
+from velaris.mail.common import MailError
+
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS mailbox(
+  id TEXT PRIMARY KEY, org TEXT NOT NULL, address TEXT NOT NULL UNIQUE, owner_id TEXT NOT NULL,
+  kind TEXT NOT NULL, quota_bytes INTEGER NOT NULL, signature TEXT NOT NULL DEFAULT '',
+  vacation TEXT NOT NULL DEFAULT '{}', legal_hold INTEGER NOT NULL DEFAULT 0, created REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS alias(address TEXT PRIMARY KEY, mailbox_id TEXT NOT NULL, org TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS delegation(
+  id TEXT PRIMARY KEY, mailbox_id TEXT NOT NULL, org TEXT NOT NULL, user_id TEXT NOT NULL, rights TEXT NOT NULL,
+  granted_by TEXT NOT NULL, created REAL NOT NULL, revoked INTEGER NOT NULL DEFAULT 0, UNIQUE(mailbox_id, user_id));
+CREATE TABLE IF NOT EXISTS folder(
+  id TEXT PRIMARY KEY, mailbox_id TEXT NOT NULL, org TEXT NOT NULL, name TEXT NOT NULL, role TEXT NOT NULL,
+  UNIQUE(mailbox_id, name));
+CREATE TABLE IF NOT EXISTS thread(
+  id TEXT PRIMARY KEY, mailbox_id TEXT NOT NULL, org TEXT NOT NULL, subject_norm TEXT NOT NULL, last_ts REAL NOT NULL);
+CREATE INDEX IF NOT EXISTS thread_subject ON thread(mailbox_id, subject_norm);
+CREATE TABLE IF NOT EXISTS message(
+  id TEXT PRIMARY KEY, org TEXT NOT NULL, mailbox_id TEXT NOT NULL, folder_id TEXT NOT NULL, thread_id TEXT NOT NULL,
+  message_id TEXT NOT NULL, in_reply_to TEXT NOT NULL DEFAULT '', refs TEXT NOT NULL DEFAULT '[]',
+  from_addr TEXT NOT NULL DEFAULT '', from_name TEXT NOT NULL DEFAULT '', to_addrs TEXT NOT NULL DEFAULT '[]',
+  cc_addrs TEXT NOT NULL DEFAULT '[]', bcc_addrs TEXT NOT NULL DEFAULT '[]', subject TEXT NOT NULL DEFAULT '',
+  date_ts REAL, received_ts REAL NOT NULL, size INTEGER NOT NULL,
+  seen INTEGER NOT NULL DEFAULT 0, flagged INTEGER NOT NULL DEFAULT 0, answered INTEGER NOT NULL DEFAULT 0,
+  draft INTEGER NOT NULL DEFAULT 0, snippet TEXT NOT NULL DEFAULT '', body_text TEXT NOT NULL DEFAULT '',
+  body_html TEXT NOT NULL DEFAULT '', headers TEXT NOT NULL DEFAULT '{}', auth_results TEXT NOT NULL DEFAULT '',
+  spam_score REAL NOT NULL DEFAULT 0, spam_report TEXT NOT NULL DEFAULT '[]', source TEXT NOT NULL,
+  origin TEXT NOT NULL DEFAULT '', deleted_at REAL, prev_folder_id TEXT, hold INTEGER NOT NULL DEFAULT 0,
+  defects TEXT NOT NULL DEFAULT '[]', blocked_images INTEGER NOT NULL DEFAULT 0, sent_by TEXT NOT NULL DEFAULT '');
+CREATE INDEX IF NOT EXISTS msg_folder ON message(mailbox_id, folder_id, received_ts);
+CREATE INDEX IF NOT EXISTS msg_thread ON message(mailbox_id, thread_id);
+CREATE INDEX IF NOT EXISTS msg_mid ON message(mailbox_id, message_id);
+CREATE INDEX IF NOT EXISTS msg_reply ON message(mailbox_id, in_reply_to);
+CREATE TABLE IF NOT EXISTS label(message_pk TEXT NOT NULL, label TEXT NOT NULL, PRIMARY KEY(message_pk, label));
+CREATE TABLE IF NOT EXISTS attachment(
+  message_pk TEXT NOT NULL, sha256 TEXT NOT NULL, name TEXT NOT NULL, content_type TEXT NOT NULL, size INTEGER NOT NULL,
+  content_id TEXT NOT NULL DEFAULT '', inline INTEGER NOT NULL DEFAULT 0, org TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS att_msg ON attachment(message_pk);
+CREATE INDEX IF NOT EXISTS att_sha ON attachment(sha256);
+CREATE TABLE IF NOT EXISTS rule(
+  id TEXT PRIMARY KEY, mailbox_id TEXT NOT NULL, org TEXT NOT NULL, name TEXT NOT NULL, enabled INTEGER NOT NULL,
+  position INTEGER NOT NULL, conditions TEXT NOT NULL, actions TEXT NOT NULL, created_by TEXT NOT NULL, created REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS account(
+  id TEXT PRIMARY KEY, mailbox_id TEXT NOT NULL, org TEXT NOT NULL, config TEXT NOT NULL, state TEXT NOT NULL DEFAULT '{}',
+  created_by TEXT NOT NULL, created REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS submission(
+  id TEXT PRIMARY KEY, org TEXT NOT NULL, mailbox_id TEXT NOT NULL, draft_id TEXT NOT NULL, actor_id TEXT NOT NULL,
+  on_behalf_of TEXT NOT NULL, grant_id TEXT NOT NULL DEFAULT '', origin TEXT NOT NULL, state TEXT NOT NULL,
+  undo_status TEXT NOT NULL, created REAL NOT NULL, send_at REAL, reasons TEXT NOT NULL DEFAULT '[]',
+  payload_hash TEXT NOT NULL, flow_run_id TEXT NOT NULL DEFAULT '', approved_by TEXT NOT NULL DEFAULT '',
+  approved_at REAL, canceled_by TEXT NOT NULL DEFAULT '', sent_at REAL, attempts INTEGER NOT NULL DEFAULT 0,
+  error TEXT NOT NULL DEFAULT '', refused INTEGER NOT NULL DEFAULT 0);
+CREATE INDEX IF NOT EXISTS sub_due ON submission(state, send_at);
+CREATE TABLE IF NOT EXISTS autoreply_log(mailbox_id TEXT NOT NULL, sender_hash TEXT NOT NULL, ts REAL NOT NULL);
+CREATE INDEX IF NOT EXISTS ar_log ON autoreply_log(mailbox_id, sender_hash, ts);
+CREATE TABLE IF NOT EXISTS domain(
+  domain TEXT NOT NULL, org TEXT NOT NULL, token TEXT NOT NULL, verified INTEGER NOT NULL DEFAULT 0, created REAL NOT NULL,
+  PRIMARY KEY(domain, org));
+CREATE UNIQUE INDEX IF NOT EXISTS domain_owner ON domain(domain) WHERE verified=1;
+CREATE TABLE IF NOT EXISTS org_settings(org TEXT PRIMARY KEY, data TEXT NOT NULL);
+"""
+
+
+class Database:
+    """Connection, lock and blob files. MailStore builds on this."""
+
+    def __init__(self, path: Optional[str] = None) -> None:
+        base = private_dir(data_dir() / "mail")
+        self.path = Path(path) if path else base / "mail.db"
+        self.blob_dir = private_dir(self.path.parent / "blobs")
+        open_private(self.path, "a").close()                      # created 0600 before sqlite touches it
+        self._lock = threading.RLock()
+        self._conn = sqlite3.connect(str(self.path), check_same_thread=False)
+        self._conn.row_factory = sqlite3.Row
+        self._conn.execute("PRAGMA journal_mode=WAL")
+        self._conn.execute("PRAGMA foreign_keys=ON")
+        self._conn.executescript(SCHEMA)
+        self.fts = True
+        try:
+            self._conn.execute("CREATE VIRTUAL TABLE IF NOT EXISTS msg_fts USING fts5(subject, body, people)")
+        except sqlite3.OperationalError:
+            self.fts = False                                      # no FTS5 in this sqlite: LIKE search
+
+    @contextlib.contextmanager
+    def tx(self) -> Iterator[sqlite3.Connection]:
+        with self._lock, self._conn:
+            yield self._conn
+
+    def q(self, sql: str, args: tuple = ()) -> List[sqlite3.Row]:
+        with self._lock:
+            return self._conn.execute(sql, args).fetchall()
+
+    def one(self, sql: str, args: tuple = ()) -> Optional[sqlite3.Row]:
+        with self._lock:
+            return self._conn.execute(sql, args).fetchone()
+
+    def run(self, sql: str, args: tuple = ()) -> int:
+        with self.tx() as c:
+            return c.execute(sql, args).rowcount
+
+    # blobs
+    def _blob_path(self, sha: str) -> Path:
+        if len(sha) != 64 or any(ch not in "0123456789abcdef" for ch in sha):
+            raise MailError("bad_hash", "not a sha256 hash")
+        return private_dir(self.blob_dir / sha[:2]) / sha
+
+    def put_blob(self, sha: str, data: bytes) -> None:
+        if hashlib.sha256(data).hexdigest() != sha:
+            raise MailError("bad_hash", "the content does not match its hash")
+        try:
+            write_private(self._blob_path(sha), data, exclusive=True)
+        except FileExistsError:
+            pass                                                   # same content already stored
+
+    def get_blob(self, sha: str) -> bytes:
+        try:
+            data = read_private(self._blob_path(sha))
+        except FileNotFoundError:
+            raise MailError("not_found", "no such attachment", 404) from None
+        if hashlib.sha256(data).hexdigest() != sha:
+            raise MailError("corrupt", "the stored attachment failed its integrity check", 500)
+        return data
+
+    def gc_blobs(self, shas: List[str]) -> int:
+        """Delete blobs that no attachment row refers to any more. Returns how many files were removed."""
+        n = 0
+        for sha in set(shas):
+            if not self.one("SELECT 1 FROM attachment WHERE sha256=? LIMIT 1", (sha,)):
+                try:
+                    self._blob_path(sha).unlink()
+                    n += 1
+                except FileNotFoundError:
+                    pass
+        return n
+
+
+def dumps(v: Any) -> str:
+    return json.dumps(v, separators=(",", ":"), sort_keys=True)
+
+
+def loads(s: Optional[str], default: Any) -> Any:
+    try:
+        return json.loads(s) if s else default
+    except ValueError:
+        return default
