@@ -35,12 +35,15 @@ class MessagesMixin(ChatCore):
 
     # ── send ──────────────────────────────────────────────────────────────────
     def post(self, caller: Caller, channel_id: int, body: Any, *, topic: Any = None, local_id: Any = None,
-             reply_to: Any = None, attachments: Any = (), ai_assisted: bool = False) -> Dict[str, Any]:
+             reply_to: Any = None, attachments: Any = (), ai_assisted: bool = False,
+             context_authors: Optional[Sequence[str]] = None) -> Dict[str, Any]:
+        """`context_authors` is for the assistant module only (a confirmed draft, an approved run); the HTTP API never passes it."""
         caller = self._enter(caller)
         ch = self._channel(caller, channel_id)
         role = self._require(caller, ch, "post")
         return self._post(caller, ch, role, body, topic=topic, local_id=local_id, reply_to=reply_to,
-                          attachments=attachments, ai_assisted=ai_assisted)
+                          attachments=attachments, ai_assisted=ai_assisted,
+                          context_authors=None if context_authors is None else sorted(set(context_authors)))
 
     def post_as_assistant(self, org: str, assistant: str, channel_id: int, body: str, *, topic: Optional[str] = None,
                           reply_to: Optional[int] = None, for_user: str = "",

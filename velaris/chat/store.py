@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS files(hash TEXT NOT NULL, org TEXT NOT NULL, size INT
 CREATE TABLE IF NOT EXISTS settings(org TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY(org, key));
 CREATE TABLE IF NOT EXISTS ai_drafts(id TEXT PRIMARY KEY, org TEXT NOT NULL, channel_id INTEGER NOT NULL,
   topic TEXT NOT NULL, requester TEXT NOT NULL, assistant TEXT NOT NULL, body TEXT NOT NULL,
-  status TEXT NOT NULL, created_at REAL NOT NULL, source_message_id INTEGER NOT NULL);
+  status TEXT NOT NULL, created_at REAL NOT NULL, source_message_id INTEGER NOT NULL, context_authors TEXT);
 CREATE TABLE IF NOT EXISTS ai_proposals(run_id TEXT PRIMARY KEY, org TEXT NOT NULL, channel_id INTEGER NOT NULL,
   requester TEXT NOT NULL, requester_roles TEXT NOT NULL, assistant TEXT NOT NULL, tool TEXT NOT NULL,
   call_hash TEXT NOT NULL, approvers TEXT NOT NULL, status TEXT NOT NULL, created_at REAL NOT NULL,
@@ -104,6 +104,8 @@ class Store:
         record of whose messages the model read, so those still waiting become `needs_reconfirm` and cannot run."""
         if "context_authors" not in {r["name"] for r in self.db.execute("PRAGMA table_info(messages)")}:
             self.db.execute("ALTER TABLE messages ADD COLUMN context_authors TEXT")   # NULL: provenance of old AI text unknown
+        if "context_authors" not in {r["name"] for r in self.db.execute("PRAGMA table_info(ai_drafts)")}:
+            self.db.execute("ALTER TABLE ai_drafts ADD COLUMN context_authors TEXT")   # NULL: derived from the source message
         cols = {r["name"] for r in self.db.execute("PRAGMA table_info(ai_proposals)")}
         if "context_authors" in cols:
             return

@@ -18,7 +18,9 @@ one-step run in velaris.intel.flow that runs only with two keys: the requester's
                    with `requester_not_confirmed` until key 1 is turned. Either side may reject at any time.
               Who may be the second person: channel owners/admins (public/private channels only) and
               chat_admins who have used chat, minus the requester and minus anyone who wrote a message in
-              the context the model read (their ids are kept on the proposal, never their text). In direct
+              the context the model read (their ids are kept on the proposal, never their text; AI text keeps its own authors,
+              also through a confirmed draft or an approved run). If some AI text lost its provenance the set is unknown
+              (`*`): only a chat_admin who has not posted in the topic lately may approve. In direct
               and group conversations only chat_admins qualify. Nobody left: status `no_eligible_approver`
               and the requester gets an assistant_notice. Proposals from before this rule: `needs_reconfirm`.
   Events      assistant_proposal op=confirm goes to the requester only (the "confirm this" card). Approvers
@@ -35,7 +37,7 @@ import os
 import uuid
 from dataclasses import dataclass
 from functools import partial
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Sequence
 
 from velaris.chat.core import sha
 from velaris.chat.errors import ChatError
@@ -48,6 +50,7 @@ from velaris.intel.llm import LLM, LLMError, extract_json
 
 CONTEXT_MESSAGES = 20
 _MODEL_ENV = ("VELARIS_MODEL", "ANTHROPIC_API_KEY", "AWS_BEARER_TOKEN_BEDROCK", "OLLAMA_MODEL")
+UNKNOWN = "*"        # in a context-author set: some AI text's provenance is lost, so who steered it is unknown
 WITHHELD = "[message withheld: it read like instructions to an AI]"
 
 
@@ -76,7 +79,8 @@ def _check_post(svc: ChatService, who: Caller, args: Dict[str, Any]) -> Dict[str
 
 
 def _run_post(svc: ChatService, who: Caller, args: Dict[str, Any]) -> Dict[str, Any]:
-    msg = svc.post(who, args["channel_id"], args["body"], topic=args.get("topic"), ai_assisted=True)
+    msg = svc.post(who, args["channel_id"], args["body"], topic=args.get("topic"), ai_assisted=True,
+                   context_authors=[*args.get("context_authors", [UNKNOWN]), who.id])
     return {"posted_message_id": msg["id"], "channel_id": msg["channel_id"]}
 
 
@@ -168,13 +172,8 @@ class Assistant:
     def _prompt(self, caller: Caller, ch: Any, row: Any, assistant: str, request: str) -> tuple:
         """The prompt, and the ids of everyone who wrote a message in the context window (withheld ones too)."""
         svc = self.svc
-        rows = self._window(ch, row["topic"], row["id"], "id, sender, body, ai_assisted, context_authors", True)
-        lines, found = [], {r["sender"] for r in rows if not is_assistant(r["sender"])}
-        for r in rows:               # AI text was derived from other people's messages: their authors count too
-            if r["ai_assisted"]:     # (each stored set is already the closure of its own window; unknown provenance: widen)
-                found.update(json.loads(r["context_authors"]) if r["context_authors"] else
-                             {m["sender"] for m in self._window(ch, row["topic"], r["id"], "sender", False)})
-        authors = sorted(u for u in found if not is_assistant(u))
+        rows, authors = self._closure(ch, row["topic"], row["id"])
+        lines = []
         for r in rows:
             blocked = guard.scan(r["body"], source=f"chat.message.{r['id']}").blocked
             lines.append(f"[{r['id']}] {r['sender']}: {WITHHELD if blocked else guard.redact(r['body'])[0]}")
@@ -188,6 +187,16 @@ class Assistant:
                 f"Actions you may suggest:\n{tools}\n\n"
                 'Reply with JSON only: {"text": "<your reply>", "propose": null or {"tool": "<name>", "args": {...}}}. '
                 "If you do not know, say so; do not invent facts."), authors
+
+    def _closure(self, ch: Any, topic: str, before_id: int) -> tuple:
+        """The window before `before_id` and its full author set: its senders plus, for AI text, whoever that text was
+        built from. AI text with no recorded provenance makes the set UNKNOWN; it is never guessed from neighbours."""
+        rows = self._window(ch, topic, before_id, "id, sender, body, ai_assisted, context_authors", True)
+        found = {r["sender"] for r in rows if not is_assistant(r["sender"])}
+        for r in rows:
+            if r["ai_assisted"]:
+                found.update(json.loads(r["context_authors"]) if r["context_authors"] else {UNKNOWN})
+        return rows, sorted(u for u in found if not is_assistant(u))
 
     def _window(self, ch: Any, topic: str, before_id: int, cols: str, live_only: bool) -> List[Any]:
         """The CONTEXT_MESSAGES messages before `before_id` in the channel (this topic, for named channels), oldest first."""
@@ -216,8 +225,8 @@ class Assistant:
             return {"assistant": assistant, "status": "answered", "message_id": msg["id"]}
         draft_id = uuid.uuid4().hex
         with svc._write() as db:
-            db.execute("INSERT INTO ai_drafts VALUES(?,?,?,?,?,?,?,?,?,?)", (draft_id, caller.org, ch["id"], row["topic"],
-                       caller.id, assistant, text, "pending", svc.clock(), row["id"]))
+            db.execute("INSERT INTO ai_drafts VALUES(?,?,?,?,?,?,?,?,?,?,?)", (draft_id, caller.org, ch["id"], row["topic"],
+                       caller.id, assistant, text, "pending", svc.clock(), row["id"], json.dumps(sorted({*authors, caller.id}))))
             svc._audit("assistant.draft", assistant, caller.org, for_user=caller.id, channel=ch["id"], message=row["id"],
                        draft=draft_id, draft_sha256=sha(text))
             svc._notify([caller.id], {"type": "assistant_draft", "op": "new", "channel_id": ch["id"], "draft_id": draft_id,
@@ -238,12 +247,21 @@ class Assistant:
             raise ChatError(404, "no_such_draft", "no such draft")             # other people's drafts do not exist for you
         return row
 
+    def _draft_authors(self, caller: Caller, row: Any) -> List[str]:
+        """Who steered the draft. Drafts from before the column existed: the window before their source message; if
+        that is gone, unknown."""
+        if row["context_authors"] is not None:
+            return json.loads(row["context_authors"])
+        ch, src = self.svc.store.channel(caller.org, row["channel_id"]), self.svc.store.message(caller.org, row["source_message_id"])
+        return [UNKNOWN] if ch is None or src is None else self._closure(ch, row["topic"], src["id"])[1]
+
     def confirm_draft(self, caller: Caller, draft_id: Any, body: Optional[str] = None) -> Dict[str, Any]:
         """Post the draft under the requester's own name (optionally edited first). Their limits, their policy."""
         svc = self.svc
         caller = svc._enter(caller)
         row = self._draft(caller, draft_id)
-        msg = svc.post(caller, row["channel_id"], row["body"] if body is None else body, topic=row["topic"], ai_assisted=True)
+        msg = svc.post(caller, row["channel_id"], row["body"] if body is None else body, topic=row["topic"], ai_assisted=True,
+                       context_authors=[*self._draft_authors(caller, row), caller.id])   # the editor counts too
         with svc._write() as db:
             db.execute("UPDATE ai_drafts SET status='confirmed' WHERE id=?", (row["id"],))
             svc._audit("assistant.draft_confirmed", row["assistant"], caller.org, for_user=caller.id, draft=row["id"],
@@ -259,19 +277,23 @@ class Assistant:
             svc._audit("assistant.draft_discarded", row["assistant"], caller.org, for_user=caller.id, draft=row["id"])
 
     # ── proposals: the approval path ──────────────────────────────────────────
-    def _flow(self, who: Caller) -> Flow:
-        tools = [Tool(t.name, partial(self._execute, t, who), t.description, dict(t.params), needs_approval=True)
+    def _flow(self, who: Caller, authors: Sequence[str] = (UNKNOWN,)) -> Flow:
+        tools = [Tool(t.name, partial(self._execute, t, who, list(authors)), t.description, dict(t.params), needs_approval=True)
                  for t in self.tools.values()]
         return Flow(tools, llm=self.llm, path=self.flow_path)
 
-    def _execute(self, tool: ChatTool, who: Caller, **args: Any) -> Any:
-        return tool.run(self.svc, who, args)
+    def _execute(self, tool: ChatTool, who: Caller, authors: List[str], **args: Any) -> Any:
+        """Runs an approved step. The proposal's authors ride along (set here, never by the model: _propose refuses
+        any argument a tool does not declare) so what the step posts keeps its provenance."""
+        return tool.run(self.svc, who, {**args, "context_authors": authors})
 
     def _approvers(self, ch: Any, requester: str, authors: List[str]) -> List[str]:
         """Who may be the second key: owners/admins (named channels only) and known chat_admins, never the
         requester and never anyone who wrote text the model read."""
         named = [] if ch["kind"] in ("direct", "group") else [r["user_id"] for r in self.svc.store.all(
             "SELECT user_id FROM members WHERE channel_id=? AND role IN ('owner','admin')", (ch["id"],))]
+        if UNKNOWN in authors:               # provenance lost: only a chat_admin outside the recent posters may be the second key
+            named = []
         pool = [*named, *self.svc.chat_admins(ch["org"])]    # admins: last verified request carried the role
         return list(dict.fromkeys(u for u in pool if u != requester and u not in authors and not is_assistant(u)))
 
@@ -288,7 +310,7 @@ class Assistant:
             return False
         if CHAT_ADMIN in caller.roles:
             return True
-        return ch is not None and ch["kind"] not in ("direct", "group") and self.svc.store.role(ch["id"], caller.id) in ("owner", "admin")
+        return UNKNOWN not in json.loads(row["context_authors"]) and ch is not None and ch["kind"] not in ("direct", "group") and self.svc.store.role(ch["id"], caller.id) in ("owner", "admin")
 
     def _propose(self, caller: Caller, ch: Any, row: Any, assistant: str, proposal: Dict[str, Any],
                  authors: List[str]) -> Dict[str, Any]:
@@ -339,7 +361,8 @@ class Assistant:
             start = self._flow(caller).history(r["run_id"])[0]
             out.append({"run_id": r["run_id"], "channel_id": r["channel_id"], "tool": r["tool"], "args": start["direct"]["args"],
                         "call_hash": r["call_hash"], "requester": r["requester"], "approvers": json.loads(r["approvers"]),
-                        "assistant": r["assistant"], "requester_confirmed": bool(r["requester_confirmed"])})
+                        "assistant": r["assistant"], "requester_confirmed": bool(r["requester_confirmed"]),
+                    "provenance_unknown": UNKNOWN in json.loads(r["context_authors"])})
         return out
 
     def _proposal(self, caller: Caller, run_id: Any) -> Any:
@@ -405,7 +428,7 @@ class Assistant:
             if not svc.org_setting(caller.org, "ai_enabled") or ch is None or not ch["ai_enabled"]:
                 raise ChatError(409, "assistant_disabled", "the assistant is switched off here, so this cannot run")
         requester = Caller(id=row["requester"], org=row["org"], roles=frozenset(json.loads(row["requester_roles"])))
-        flow = self._flow(requester)
+        flow = self._flow(requester, json.loads(row["context_authors"]))
         try:
             flow.decide(run_id, call_hash, approve=approve, by=caller.id, note=note[:500])
         except FlowError:
