@@ -6,7 +6,7 @@ import sqlite3
 from datetime import date, timedelta
 from typing import Dict, Any, List, Optional
 
-from velaris.core.access import Caller, authorize_read
+from velaris.core.access import Caller, authorize_read, current_caller, deployment_org, org_denied
 
 logger = logging.getLogger("LEAVE_MANAGEMENT")
 logger.setLevel(logging.DEBUG)
@@ -33,9 +33,15 @@ def _db() -> sqlite3.Connection:
             status TEXT DEFAULT 'pending',
             applied_on TEXT NOT NULL,
             reviewed_by TEXT,
-            reviewed_on TEXT
+            reviewed_on TEXT,
+            reviewed_by_employee TEXT,
+            org TEXT
         )
     """)
+    have = {r["name"] for r in conn.execute("PRAGMA table_info(leave_requests)")}
+    for col in ("reviewed_by_employee", "org"):          # stores made before these columns existed
+        if col not in have:
+            conn.execute(f"ALTER TABLE leave_requests ADD COLUMN {col} TEXT")
     conn.execute("""
         CREATE TABLE IF NOT EXISTS leave_balances (
             employee_id TEXT NOT NULL,
@@ -119,8 +125,8 @@ class LeaveManagement:
             conn.close()
             return {"error": "insufficient_balance", "available": row["entitlement"] - row["used"], "requested": days}
         cur = conn.execute(
-            "INSERT INTO leave_requests (employee_id, leave_type, from_date, to_date, days, reason, applied_on) VALUES (?,?,?,?,?,?,?)",
-            (employee_id, leave_type, from_date, to_date, days, reason, date.today().isoformat())
+            "INSERT INTO leave_requests (employee_id, leave_type, from_date, to_date, days, reason, applied_on, org) VALUES (?,?,?,?,?,?,?,?)",
+            (employee_id, leave_type, from_date, to_date, days, reason, date.today().isoformat(), deployment_org())
         )
         leave_id = cur.lastrowid
         conn.commit()
@@ -136,18 +142,27 @@ class LeaveManagement:
         return self._update_status(leave_id, "rejected", reviewed_by)
 
     def _update_status(self, leave_id: int, status: str, reviewed_by: str) -> Dict[str, Any]:
+        caller = current_caller()
+        if org_denied(caller):
+            return {"error": "access_denied"}
+        if caller is not None and reviewed_by != caller.id:
+            return {"error": "reviewer_must_be_caller"}       # nobody reviews in someone else's name
         conn = _db()
         row = conn.execute("SELECT * FROM leave_requests WHERE id=?", (leave_id,)).fetchone()
-        if not row:
+        dep = deployment_org()
+        if not row or (dep is not None and row["org"] != dep):  # another organisation's (or unstamped) request
             conn.close()
             return {"error": "not_found"}
+        # The request names the HR employee id; the reviewer is known by user id and, if any, employee id.
+        mine = {reviewed_by, *(([caller.employee_id] if caller and caller.employee_id else []))}
+        if row["employee_id"] in mine:
+            conn.close()
+            return {"error": "self_approval_not_allowed"}
         if row["status"] != "pending":
             conn.close()
             return {"error": f"already_{row['status']}"}
+        reviewer_employee = caller.employee_id if caller else None
         if status == "approved":
-            if reviewed_by == row["employee_id"]:
-                conn.close()
-                return {"error": "self_approval_not_allowed"}
             # Deduct only if the balance still covers it: several pending requests can
             # each pass the check in apply(), so the check is repeated here, atomically.
             deducted = conn.execute(
@@ -160,12 +175,13 @@ class LeaveManagement:
                 conn.close()
                 return {"error": "insufficient_balance", "requested": row["days"]}
         conn.execute(
-            "UPDATE leave_requests SET status=?, reviewed_by=?, reviewed_on=? WHERE id=?",
-            (status, reviewed_by, date.today().isoformat(), leave_id)
+            "UPDATE leave_requests SET status=?, reviewed_by=?, reviewed_by_employee=?, reviewed_on=? WHERE id=?",
+            (status, reviewed_by, reviewer_employee, date.today().isoformat(), leave_id)
         )
         conn.commit()
         conn.close()
-        return {"id": leave_id, "status": status, "reviewed_by": reviewed_by}
+        return {"id": leave_id, "status": status, "reviewed_by": reviewed_by,
+                "reviewed_by_employee": reviewer_employee}
 
     # Leave records say who was on sick or maternity leave and when: health data. Reading them
     # goes through velaris.core.access (own record, or an HR administrator) and is traced.
@@ -173,7 +189,8 @@ class LeaveManagement:
         authorize_read("health", None, agent="LEAVE_MANAGEMENT", caller=caller, org=self.config.get("org"))
         conn = _db()
         rows = conn.execute(
-            "SELECT * FROM leave_requests WHERE status='pending' ORDER BY applied_on"
+            "SELECT * FROM leave_requests WHERE status='pending' AND (? IS NULL OR org=?) ORDER BY applied_on",
+            (deployment_org(),) * 2
         ).fetchall()
         conn.close()
         return [dict(r) for r in rows]
@@ -184,13 +201,14 @@ class LeaveManagement:
         conn = _db()
         if year:
             rows = conn.execute(
-                "SELECT * FROM leave_requests WHERE employee_id=? AND strftime('%Y',from_date)=? ORDER BY from_date DESC",
-                (employee_id, str(year))
+                "SELECT * FROM leave_requests WHERE employee_id=? AND strftime('%Y',from_date)=?"
+                " AND (? IS NULL OR org=?) ORDER BY from_date DESC",
+                (employee_id, str(year), deployment_org(), deployment_org())
             ).fetchall()
         else:
             rows = conn.execute(
-                "SELECT * FROM leave_requests WHERE employee_id=? ORDER BY from_date DESC",
-                (employee_id,)
+                "SELECT * FROM leave_requests WHERE employee_id=? AND (? IS NULL OR org=?) ORDER BY from_date DESC",
+                (employee_id, deployment_org(), deployment_org())
             ).fetchall()
         conn.close()
         return [dict(r) for r in rows]

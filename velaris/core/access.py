@@ -49,6 +49,7 @@ from __future__ import annotations
 
 import contextlib
 import contextvars
+import os
 from dataclasses import dataclass
 from fnmatch import fnmatchcase
 from typing import Any, Dict, FrozenSet, Iterator, Optional, Tuple
@@ -119,6 +120,21 @@ def acting_as(caller: Optional[Caller]) -> Iterator[Optional[Caller]]:
         _current.reset(token)
 
 
+def deployment_org() -> Optional[str]:
+    """The one organisation this deployment belongs to (VELARIS_ORG), or None when unset (offline/dev)."""
+    return os.environ.get("VELARIS_ORG", "").strip() or None
+
+
+def org_denied(caller: Optional[Caller]) -> Optional[str]:
+    """Why `caller` may not use this deployment, or None. Always None while VELARIS_ORG is unset."""
+    dep = deployment_org()
+    if dep is None:
+        return None
+    if not isinstance(caller, Caller):
+        return "no caller identity"
+    return None if caller.org == dep else "caller belongs to another organisation than this deployment"
+
+
 def decide(caller: Optional[Caller], category: str, subject_id: Optional[str],
            org: Optional[str] = None) -> Tuple[bool, str]:
     """(allowed, reason) for reading `category` data about employee `subject_id`.
@@ -129,6 +145,8 @@ def decide(caller: Optional[Caller], category: str, subject_id: Optional[str],
     """
     if not isinstance(caller, Caller):
         return False, "no caller identity"
+    if (why := org_denied(caller)):
+        return False, why
     allowed_roles = READ_OTHERS.get(category)
     if allowed_roles is None:
         return False, f"unknown data category '{category}'"
@@ -152,6 +170,8 @@ def authorize_read(category: str, subject_id: Optional[Any], *, agent: str,
     who = caller if caller is not None else current_caller()
     subject = None if subject_id is None else str(subject_id)
     allowed, reason = decide(who, category, subject, org or None)
+    if allowed is True and (why := org_denied(who)):      # also when decide() was replaced
+        allowed, reason = False, why
     known = isinstance(who, Caller)
     trace.append("access", "sensitive_read.granted" if allowed is True else "sensitive_read.denied", {
         "agent": agent, "category": category, "subject": subject, "data_org": org or None,
@@ -181,6 +201,8 @@ def check_caller(agent: str, change: str, details: Optional[Dict[str, Any]] = No
     who = current_caller()
     if not isinstance(who, Caller):
         status, reason = "unauthenticated", "no authenticated caller; run this with acting_as(caller)"
+    elif (why := org_denied(who)):
+        status, reason = "denied", why
     elif claimed is not None and claimed != who.id:
         status, reason = "denied", f"{who.id} cannot act as {str(claimed)[:80]}"
     elif roles is not None and not who.roles & roles and not (also is not None and who.id == also):

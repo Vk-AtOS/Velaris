@@ -25,7 +25,7 @@ from typing import Any, Dict, List, Optional
 from velaris.agentkit.checks import is_name, is_number
 from velaris.agentkit.results import fail, invalid, ok
 from velaris.agentkit.state import JsonState
-from velaris.core.access import check_caller
+from velaris.core.access import check_caller, current_caller, deployment_org, org_denied
 from velaris.agentkit.infra_store import audit
 
 NAME = "ITSM_ENGINE"
@@ -40,6 +40,15 @@ TRANSITIONS = {
     "closed": (),
     "cancelled": (),
 }
+
+
+def _mine(tk: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """`tk` if the current caller may see it. With VELARIS_ORG set the store is this deployment's
+    organisation only: an unstamped ticket, or a caller of another organisation or none, sees nothing."""
+    dep = deployment_org()
+    if tk is None or dep is None:
+        return tk
+    return tk if tk.get("org") == dep and not org_denied(current_caller()) else None
 
 
 @dataclass
@@ -125,7 +134,7 @@ class ITSMEngine:
             if t.ticket_id in tickets:
                 return fail("duplicate", "a ticket with this id already exists")
             tickets[t.ticket_id] = {
-                **asdict(t), "state": "new", "computed_priority": assessed["computed_priority"],
+                **asdict(t), "org": deployment_org(), "state": "new", "computed_priority": assessed["computed_priority"],
                 "score": assessed["score"], "opened_at": now, "responded_at": None, "resolved_at": None,
                 "hold_started": None, "held_s": 0.0,
                 "respond_due": now + assessed["respond_within_min"] * 60,
@@ -149,7 +158,7 @@ class ITSMEngine:
         now = time.time() if now is None else now
 
         def move(data: Dict[str, Any]) -> Dict[str, Any]:
-            tk = data.get("tickets", {}).get(ticket_id) if isinstance(ticket_id, str) else None
+            tk = _mine(data.get("tickets", {}).get(ticket_id) if isinstance(ticket_id, str) else None)
             if tk is None:
                 return fail("unknown_ticket", "no such ticket")
             if to not in TRANSITIONS.get(tk["state"], ()):
@@ -176,7 +185,7 @@ class ITSMEngine:
         if now is not None and not is_number(now, 0):
             return invalid("now must be a timestamp")
         now = time.time() if now is None else now
-        tk = self._state.load().get("tickets", {}).get(ticket_id) if isinstance(ticket_id, str) else None
+        tk = self._ticket(ticket_id)
         if tk is None:
             return fail("unknown_ticket", "no such ticket")
 
@@ -193,12 +202,16 @@ class ITSMEngine:
                   response=clock(tk["responded_at"], tk["respond_due"]),
                   resolution=clock(tk["resolved_at"], tk["resolve_due"], paused=tk["state"] == "on_hold"))
 
-    def get_ticket(self, ticket_id: str) -> Dict[str, Any]:
+    def _ticket(self, ticket_id: Any) -> Optional[Dict[str, Any]]:
         tk = self._state.load().get("tickets", {}).get(ticket_id) if isinstance(ticket_id, str) else None
+        return _mine(tk)
+
+    def get_ticket(self, ticket_id: str) -> Dict[str, Any]:
+        tk = self._ticket(ticket_id)
         return ok(ticket=tk) if tk else fail("unknown_ticket", "no such ticket")
 
     def list_tickets(self, state: Optional[str] = None) -> List[Dict[str, Any]]:
         """Tickets (optionally in one state), most urgent first: priority, then earliest resolution due."""
-        tickets = self._state.load().get("tickets", {}).values()
+        tickets = [t for t in self._state.load().get("tickets", {}).values() if _mine(t) is not None]
         return sorted((t for t in tickets if state is None or t["state"] == state),
                       key=lambda t: (t["computed_priority"], t["resolve_due"]))

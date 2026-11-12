@@ -35,7 +35,7 @@ from fastapi.responses import JSONResponse
 
 from velaris.api.allowlist import ACT, READ, catalog, prepare, rule_for, tool_params
 from velaris.api.auth import AuthError, Verifier, load_public_key
-from velaris.core.access import AccessDenied, Caller
+from velaris.core.access import AccessDenied, Caller, deployment_org
 from velaris.core.prime import PrimeGate, gate_from_env, install_read_authoriser
 from velaris.intel import trace
 from velaris.intel.flow import Flow, FlowError, Tool
@@ -62,16 +62,18 @@ class Settings:
     llm: Optional[LLM] = None
     flow_db: Optional[str] = None           # None: <VELARIS_DATA>/flow.db
     call_timeout: float = CALL_TIMEOUT_S
+    org: Optional[str] = None               # the one organisation this deployment belongs to (VELARIS_ORG)
 
     @classmethod
     def from_env(cls) -> "Settings":
-        """VELARIS_API_SECRET, VELARIS_IDENTITY_PUBLIC_KEY (PEM path); Prime: see velaris.core.prime."""
+        """VELARIS_API_SECRET, VELARIS_IDENTITY_PUBLIC_KEY (PEM path), VELARIS_ORG; Prime: see velaris.core.prime."""
         secret = os.environ.get("VELARIS_API_SECRET", "").encode()
         key_path = os.environ.get("VELARIS_IDENTITY_PUBLIC_KEY", "")
-        if not secret or not key_path:
-            raise ValueError("VELARIS_API_SECRET and VELARIS_IDENTITY_PUBLIC_KEY must be set")
+        org = deployment_org()
+        if not secret or not key_path or not org:
+            raise ValueError("VELARIS_API_SECRET, VELARIS_IDENTITY_PUBLIC_KEY and VELARIS_ORG must be set")
         install_read_authoriser()
-        return cls(secret=secret, identity_key=load_public_key(Path(key_path).read_bytes()), gate=gate_from_env())
+        return cls(secret=secret, identity_key=load_public_key(Path(key_path).read_bytes()), gate=gate_from_env(), org=org)
 
 
 def _error(status: int, code: str, message: str) -> JSONResponse:
@@ -94,6 +96,8 @@ def _caller(meta: Dict[str, Any]) -> Caller:
 def create_app(settings: Settings, engine: Any = None) -> FastAPI:
     if engine is None:
         from velaris.backend.engine import backend as engine   # loads every agent; deferred for tests
+    if not (isinstance(settings.org, str) and settings.org.strip()):
+        raise ValueError("a Velaris deployment belongs to one organisation: set VELARIS_ORG")
     verifier = Verifier(settings.secret, settings.identity_key)
     llm = settings.llm or LLM()
     app = FastAPI(title="Velaris", docs_url=None, redoc_url=None, openapi_url=None)
@@ -136,6 +140,10 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
         except AuthError as e:
             logger.warning("refused %s %s: %s", request.method, request.url.path, e.code)
             raise ApiError(e.status, e.code, e.message) from None
+        if caller.org != settings.org:       # one deployment, one organisation: refused before any dispatch
+            record(caller, "request.refused", {"method": request.method, "path": request.url.path[:120],
+                                               "outcome": "org_mismatch"})
+            raise ApiError(403, "wrong_organisation", "this deployment does not serve the caller's organisation")
         try:
             data = json.loads(body) if body else None
         except ValueError:
@@ -167,6 +175,8 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
 
     def run_tool(agent: str, method: str, owner: Caller, **kwargs: Any) -> Any:
         """A flow step: checked again, then run as the person the run is for."""
+        if owner.org != settings.org:        # Prime-approved and local steps alike
+            raise AccessDenied("the run belongs to another organisation than this deployment")
         args = prepare(agent, method, method_of(agent, method), kwargs, owner)
         try:
             return engine.run(agent, method, args, caller=owner)

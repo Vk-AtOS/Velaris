@@ -85,7 +85,7 @@ def engine():
 
 def app_client(tmp_path, gate=None, llm=None):
     settings = Settings(secret=SECRET, identity_key=KEY.public_key(), gate=gate, flow_db=str(tmp_path / "flow.db"),
-                        llm=llm or FakeLLM(lambda p, m: pytest.fail("no model expected")))
+                        org="acme", llm=llm or FakeLLM(lambda p, m: pytest.fail("no model expected")))
     return TestClient(create_app(settings, engine=engine()))
 
 
@@ -182,7 +182,7 @@ def test_consequential_call_waits_for_a_second_person(tmp_path):
     own = send(c, "POST", f"/flows/{run_id}/decide", {"call_hash": h, "approve": True})
     assert own.json()["error"]["code"] == "four_eyes"
     assert send(c, "POST", f"/flows/{run_id}/decide", {"call_hash": h, "approve": True}, sub="u3",
-                org="globex", roles=["flow_approver"]).status_code == 404
+                org="globex", roles=["flow_approver"]).status_code == 403    # not this deployment's org
     wrong = send(c, "POST", f"/flows/{run_id}/decide", {"call_hash": "0" * 64, "approve": True}, sub="u2",
                  roles=["flow_approver"])
     assert wrong.status_code == 409 and BOOKED == []
@@ -230,3 +230,20 @@ def test_with_prime_the_approval_comes_from_prime_only(tmp_path):
     assert send(c, "GET", f"/flows/{run_id}").json()["status"] == "waiting_approval"
     fake.req.update(state="approved", decided_by="u2", execution={"status": "succeeded"})
     assert send(c, "GET", f"/flows/{run_id}").json()["status"] == "done" and BOOKED == [("C", "u1", "u1")]
+
+
+def test_deployment_serves_one_organisation(tmp_path, monkeypatch):
+    c = app_client(tmp_path)
+    r = send(c, "POST", "/agents/DEMO/whoami", {}, org="globex")
+    assert r.status_code == 403 and r.json()["error"]["code"] == "wrong_organisation"
+    assert send(c, "GET", "/agents", org="globex").status_code == 403           # every endpoint, before dispatch
+    assert [p["outcome"] for p in api_entries("request.refused")] == ["org_mismatch"] * 2
+    assert api_entries("agent.call") == []
+    # no organisation configured: the app and from_env refuse to start
+    with pytest.raises(ValueError):
+        create_app(Settings(secret=SECRET, identity_key=KEY.public_key()), engine=engine())
+    for k, v in (("VELARIS_API_SECRET", "s" * 32), ("VELARIS_IDENTITY_PUBLIC_KEY", str(tmp_path / "k.pem"))):
+        monkeypatch.setenv(k, v)
+    monkeypatch.delenv("VELARIS_ORG", raising=False)
+    with pytest.raises(ValueError, match="VELARIS_ORG"):
+        Settings.from_env()

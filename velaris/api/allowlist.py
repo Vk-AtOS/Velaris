@@ -84,6 +84,16 @@ METHODS: Dict[str, Dict[str, Rule]] = {
     # Knowledge
     "DOCUMENT_LIBRARY": {"search": Rule(READ, scope="scope"), "ask": Rule(READ, scope="scope")},
     "MODEL_COUNCIL": {"deliberate": Rule(READ)},
+    # Atlassian Cloud. The writes are act rules: a step that waits for approval, and the connector
+    # itself refuses to run them anywhere else.
+    "JIRA": {
+        "search_issues": Rule(READ), "get_issue": Rule(READ), "get_transitions": Rule(READ), "list_projects": Rule(READ),
+        "create_issue": Rule(ACT), "transition_issue": Rule(ACT),
+    },
+    "CONFLUENCE": {
+        "search": Rule(READ), "get_page_markdown": Rule(READ), "list_spaces": Rule(READ),
+        "ingest_space": Rule(ACT, scope="scope"),
+    },
     "LONGTERM_MEMORY": {"recall": Rule(READ, scope="scope"), "remember": Rule(ACT, scope="scope")},
 }
 
