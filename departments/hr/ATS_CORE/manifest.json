@@ -1,0 +1,9 @@
+{
+  "name": "ATS_CORE",
+  "version": "1.0.0",
+  "domain": "hr",
+  "description": "Applicant tracking core: requisitions with structured must/nice skills and an approval, candidates with a mandatory DPDP consent record (purpose, notice version, retention date), contact data stored apart from evaluation data, applications and pipeline stages with allowed transitions, a human-only decision log, duplicate review (no auto-merge), candidate export and erasure, and a retention sweep that lists what is due (a person approves each deletion). Ledger entries hold hashes only. It never ranks, scores or decides about a person.",
+  "entrypoint": "main.py:AtsCore",
+  "hitl_required": true,
+  "tags": ["hiring", "ats", "recruitment", "dpdp"]
+}

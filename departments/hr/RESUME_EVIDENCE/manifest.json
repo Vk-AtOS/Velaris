@@ -1,0 +1,9 @@
+{
+  "name": "RESUME_EVIDENCE",
+  "version": "1.0.0",
+  "domain": "hr",
+  "description": "Turns a resume (txt, pdf, docx via velaris.intel.docs) into structured facts, each with the passage it came from; skills are normalised through a reviewed alias table (unknown skills are reported and queued for review, never guessed); lays a requisition's must/nice skills against the facts as evidence and gaps with the arithmetic shown. Resume text is screened for hidden text and prompt injection and flagged for the human, never obeyed. It produces no hire/reject decision, no ranking and no single score. Includes a four-fifths impact-ratio audit aid over funnel stages.",
+  "entrypoint": "main.py:ResumeEvidence",
+  "hitl_required": false,
+  "tags": ["hiring", "resume", "skills", "evidence", "bias-audit"]
+}

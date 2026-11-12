@@ -1,0 +1,9 @@
+{
+  "name": "JOB_POSTINGS",
+  "version": "1.0.0",
+  "domain": "hr",
+  "description": "Job publishing for an approved requisition: schema.org JobPosting JSON-LD (validated), a careers-page HTML fragment, the Google Indexing API notification body (built; sending is a separate approved act that needs a token from SECRETS_VAULT), and a posting pack per other board (LinkedIn, Naukri, Indeed, foundit, Shine, Apna, Internshala, NCS, local) with text, fields, manual steps, a tracked link and a take-down task. Nothing is marked posted without a second person's approval. Tracked links feed the ATS source.",
+  "entrypoint": "main.py:JobPostings",
+  "hitl_required": true,
+  "tags": ["hiring", "jobs", "google-for-jobs", "posting-pack"]
+}

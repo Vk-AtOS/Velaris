@@ -1,0 +1,423 @@
+{
+ "version": 1,
+ "note": "Seed table. esco_id is null until an admin reviews and fills it from an ESCO release; never guessed.",
+ "skills": [
+  {
+   "id": "python",
+   "label": "Python",
+   "esco_id": null,
+   "aliases": [
+    "python3"
+   ]
+  },
+  {
+   "id": "java",
+   "label": "Java",
+   "esco_id": null,
+   "aliases": [
+    "core java",
+    "java se",
+    "j2ee",
+    "java ee"
+   ]
+  },
+  {
+   "id": "javascript",
+   "label": "JavaScript",
+   "esco_id": null,
+   "aliases": [
+    "ecmascript",
+    "es6"
+   ]
+  },
+  {
+   "id": "typescript",
+   "label": "TypeScript",
+   "esco_id": null,
+   "aliases": []
+  },
+  {
+   "id": "react",
+   "label": "React",
+   "esco_id": null,
+   "aliases": [
+    "reactjs",
+    "react.js",
+    "react js"
+   ]
+  },
+  {
+   "id": "angular",
+   "label": "Angular",
+   "esco_id": null,
+   "aliases": [
+    "angularjs",
+    "angular js"
+   ]
+  },
+  {
+   "id": "vue",
+   "label": "Vue.js",
+   "esco_id": null,
+   "aliases": [
+    "vue",
+    "vuejs",
+    "vue.js"
+   ]
+  },
+  {
+   "id": "nodejs",
+   "label": "Node.js",
+   "esco_id": null,
+   "aliases": [
+    "nodejs",
+    "node.js",
+    "node js"
+   ]
+  },
+  {
+   "id": "sql",
+   "label": "SQL",
+   "esco_id": null,
+   "aliases": [
+    "t-sql",
+    "pl/sql",
+    "plsql",
+    "structured query language"
+   ]
+  },
+  {
+   "id": "postgresql",
+   "label": "PostgreSQL",
+   "esco_id": null,
+   "aliases": [
+    "postgres",
+    "psql"
+   ]
+  },
+  {
+   "id": "mysql",
+   "label": "MySQL",
+   "esco_id": null,
+   "aliases": [
+    "my sql"
+   ]
+  },
+  {
+   "id": "mongodb",
+   "label": "MongoDB",
+   "esco_id": null,
+   "aliases": [
+    "mongo",
+    "mongo db"
+   ]
+  },
+  {
+   "id": "redis",
+   "label": "Redis",
+   "esco_id": null,
+   "aliases": []
+  },
+  {
+   "id": "aws",
+   "label": "Amazon Web Services",
+   "esco_id": null,
+   "aliases": [
+    "amazon web services",
+    "aws cloud"
+   ]
+  },
+  {
+   "id": "azure",
+   "label": "Microsoft Azure",
+   "esco_id": null,
+   "aliases": [
+    "ms azure",
+    "azure cloud"
+   ]
+  },
+  {
+   "id": "gcp",
+   "label": "Google Cloud Platform",
+   "esco_id": null,
+   "aliases": [
+    "google cloud",
+    "gcp"
+   ]
+  },
+  {
+   "id": "docker",
+   "label": "Docker",
+   "esco_id": null,
+   "aliases": [
+    "containerisation",
+    "containerization"
+   ]
+  },
+  {
+   "id": "kubernetes",
+   "label": "Kubernetes",
+   "esco_id": null,
+   "aliases": [
+    "k8s"
+   ]
+  },
+  {
+   "id": "git",
+   "label": "Git",
+   "esco_id": null,
+   "aliases": [
+    "github",
+    "gitlab",
+    "version control"
+   ]
+  },
+  {
+   "id": "linux",
+   "label": "Linux",
+   "esco_id": null,
+   "aliases": [
+    "ubuntu",
+    "centos",
+    "unix",
+    "shell scripting"
+   ]
+  },
+  {
+   "id": "jenkins",
+   "label": "Jenkins",
+   "esco_id": null,
+   "aliases": []
+  },
+  {
+   "id": "cicd",
+   "label": "CI/CD",
+   "esco_id": null,
+   "aliases": [
+    "ci cd",
+    "ci/cd",
+    "continuous integration",
+    "continuous delivery",
+    "continuous deployment"
+   ]
+  },
+  {
+   "id": "rest_api",
+   "label": "REST APIs",
+   "esco_id": null,
+   "aliases": [
+    "restful",
+    "restful api",
+    "rest api",
+    "rest apis"
+   ]
+  },
+  {
+   "id": "django",
+   "label": "Django",
+   "esco_id": null,
+   "aliases": [
+    "django rest framework",
+    "drf"
+   ]
+  },
+  {
+   "id": "flask",
+   "label": "Flask",
+   "esco_id": null,
+   "aliases": []
+  },
+  {
+   "id": "fastapi",
+   "label": "FastAPI",
+   "esco_id": null,
+   "aliases": [
+    "fast api"
+   ]
+  },
+  {
+   "id": "spring_boot",
+   "label": "Spring Boot",
+   "esco_id": null,
+   "aliases": [
+    "springboot",
+    "spring framework"
+   ]
+  },
+  {
+   "id": "csharp",
+   "label": "C#",
+   "esco_id": null,
+   "aliases": [
+    "c sharp",
+    "c#"
+   ]
+  },
+  {
+   "id": "dotnet",
+   "label": ".NET",
+   "esco_id": null,
+   "aliases": [
+    ".net",
+    "dotnet",
+    "dot net",
+    ".net core",
+    "asp.net",
+    "asp .net"
+   ]
+  },
+  {
+   "id": "php",
+   "label": "PHP",
+   "esco_id": null,
+   "aliases": []
+  },
+  {
+   "id": "laravel",
+   "label": "Laravel",
+   "esco_id": null,
+   "aliases": []
+  },
+  {
+   "id": "selenium",
+   "label": "Selenium",
+   "esco_id": null,
+   "aliases": [
+    "selenium webdriver"
+   ]
+  },
+  {
+   "id": "manual_testing",
+   "label": "Manual Testing",
+   "esco_id": null,
+   "aliases": [
+    "functional testing",
+    "qa testing"
+   ]
+  },
+  {
+   "id": "test_automation",
+   "label": "Test Automation",
+   "esco_id": null,
+   "aliases": [
+    "automation testing",
+    "automated testing",
+    "test automation"
+   ]
+  },
+  {
+   "id": "jira",
+   "label": "Jira",
+   "esco_id": null,
+   "aliases": []
+  },
+  {
+   "id": "agile",
+   "label": "Agile",
+   "esco_id": null,
+   "aliases": [
+    "agile methodology",
+    "agile development"
+   ]
+  },
+  {
+   "id": "scrum",
+   "label": "Scrum",
+   "esco_id": null,
+   "aliases": [
+    "scrum master"
+   ]
+  },
+  {
+   "id": "html",
+   "label": "HTML",
+   "esco_id": null,
+   "aliases": [
+    "html5"
+   ]
+  },
+  {
+   "id": "css",
+   "label": "CSS",
+   "esco_id": null,
+   "aliases": [
+    "css3"
+   ]
+  },
+  {
+   "id": "data_analysis",
+   "label": "Data Analysis",
+   "esco_id": null,
+   "aliases": [
+    "data analytics"
+   ]
+  },
+  {
+   "id": "machine_learning",
+   "label": "Machine Learning",
+   "esco_id": null,
+   "aliases": [
+    "scikit-learn",
+    "sklearn"
+   ]
+  },
+  {
+   "id": "power_bi",
+   "label": "Power BI",
+   "esco_id": null,
+   "aliases": [
+    "powerbi"
+   ]
+  },
+  {
+   "id": "excel",
+   "label": "Microsoft Excel",
+   "esco_id": null,
+   "aliases": [
+    "ms excel",
+    "excel",
+    "advanced excel"
+   ]
+  },
+  {
+   "id": "tally",
+   "label": "Tally",
+   "esco_id": null,
+   "aliases": [
+    "tally erp",
+    "tally prime"
+   ]
+  },
+  {
+   "id": "networking",
+   "label": "Networking",
+   "esco_id": null,
+   "aliases": [
+    "computer networking",
+    "lan wan"
+   ]
+  },
+  {
+   "id": "sysadmin",
+   "label": "System Administration",
+   "esco_id": null,
+   "aliases": [
+    "system administration",
+    "sysadmin",
+    "windows server"
+   ]
+  },
+  {
+   "id": "customer_support",
+   "label": "Customer Support",
+   "esco_id": null,
+   "aliases": [
+    "technical support",
+    "helpdesk",
+    "help desk",
+    "l1 support",
+    "l2 support"
+   ]
+  }
+ ]
+}

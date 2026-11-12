@@ -1,0 +1,9 @@
+{
+  "name": "INTERVIEW_RECORD",
+  "version": "1.0.0",
+  "domain": "hr",
+  "description": "The replayable record of an interview, gated by each participant's consent: join/leave events, paste events (size only), an append-only edit log of a shared coding/text pad that can be replayed to any moment, tab-visibility events if the client reports them, one audio track per participant referenced by SHA-256, an optional local transcriber hook (faster-whisper is not installed: reports not_configured), and an evidence view for a human reviewer. It computes no AI-likelihood, cheating or authenticity score, and no threshold: those signals are not reliable enough to act on.",
+  "entrypoint": "main.py:InterviewRecord",
+  "hitl_required": true,
+  "tags": ["hiring", "interview", "evidence", "consent", "replay"]
+}

@@ -1,0 +1,9 @@
+{
+  "name": "INTERVIEW_SCHEDULER",
+  "version": "1.0.0",
+  "domain": "hr",
+  "description": "Interview scheduling: slot proposals from interviewer availability (Asia/Kolkata working hours, buffers, daily maximum, time off, panel intersection, no double booking), RFC 5545/5546 iCalendar invitations built with the stdlib (METHOD:REQUEST/CANCEL, stable UID, SEQUENCE incremented on reschedule), invitation e-mails as drafts that a person approves (nothing is sent), candidate self-schedule tokens (hashed, expiring), a reminders list, and no-show handling that never rejects anyone.",
+  "entrypoint": "main.py:InterviewScheduler",
+  "hitl_required": true,
+  "tags": ["hiring", "interview", "calendar", "ical"]
+}

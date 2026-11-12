@@ -1,0 +1,9 @@
+{
+  "name": "INTERVIEW_KIT",
+  "version": "1.0.0",
+  "domain": "hr",
+  "description": "Structured interviews: question banks tagged by competency, rubrics with anchored 1-5 descriptors, a kit per requisition, scorecards that each interviewer submits independently before seeing anyone else's, aggregation that shows every interviewer's score and evidence with the arithmetic and flags disagreements of two points or more, inter-rater agreement (weighted Cohen's kappa, Krippendorff's alpha, written from scratch), calibration reports, and work-sample tasks with checklists. No automated judgement of a person is made: no overall score, no recommendation, no ranking.",
+  "entrypoint": "main.py:InterviewKit",
+  "hitl_required": false,
+  "tags": ["hiring", "interview", "rubric", "kappa", "alpha"]
+}
