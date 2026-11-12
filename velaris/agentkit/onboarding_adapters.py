@@ -12,6 +12,11 @@ MessageSender delivers one message (offer-letter email, signing link, OTP, remin
               transport accepted it. Velaris sends nothing itself: no mail account, no SMS gateway is assumed.
 OfferStatus   OFFER_LETTERS (or anything that can answer): `get_offer_status(offer_id, org)` -> "accepted" | other | None.
               ONBOARDING_FLOW refuses to start from an offer that is not accepted when one is configured.
+PolicyAckView read-only view of POLICY_ACKS evidence: `ack_evidence(org, employee_id, policy_key)` ->
+                  {"current_version": int | None, "acks": [{"employee_id", "policy_key", "version", "evidence_sha256"}]}.
+              ONBOARDING_FLOW completes a policy_ack task only on a matching, current acknowledgement; no view = refuse.
+EsignView     read-only view of ESIGN: `request_info(request_id, org)` -> {"status", "document_ref"} | None.
+              OFFER_LETTERS calls a response "esign_evidence" only when the referenced request is sealed for that offer.
 PdfSigner     puts the PLATFORM certificate's signature into a PDF (PAdES). See onboarding_esign.py for how
               pyHanko or an Aadhaar eSign hash-out plugs in.
 """
@@ -36,3 +41,33 @@ class PdfSigner(Protocol):
 
 class OfferStatus(Protocol):
     def get_offer_status(self, offer_id: str, org: str) -> Optional[str]: ...
+
+
+class PolicyAckView(Protocol):
+    def ack_evidence(self, org: str, employee_id: str, policy_key: str) -> Optional[Dict[str, Any]]: ...
+
+
+class EsignView(Protocol):
+    def request_info(self, request_id: str, org: str) -> Optional[Dict[str, Any]]: ...
+
+
+class PolicyAcksReader:
+    """The real PolicyAckView: POLICY_ACKS's public `ack_evidence` (its own store, no second copy)."""
+
+    def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
+        from velaris.agents.POLICY_ACKS.main import PolicyAcks      # late: the agent packages import this module
+        self._agent = PolicyAcks(config)
+
+    def ack_evidence(self, org: str, employee_id: str, policy_key: str) -> Optional[Dict[str, Any]]:
+        return self._agent.ack_evidence(org, employee_id, policy_key)
+
+
+class EsignReader:
+    """The real EsignView: ESIGN's public `request_info`."""
+
+    def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
+        from velaris.agents.ESIGN.main import Esign                # late: the agent packages import this module
+        self._agent = Esign(config)
+
+    def request_info(self, request_id: str, org: str) -> Optional[Dict[str, Any]]:
+        return self._agent.request_info(request_id, org)

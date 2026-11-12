@@ -314,14 +314,17 @@ class OfferLetters:
     def record_response(self, offer_id: str, response: str, evidence_ref: str = "", note: str = "") -> Dict[str, Any]:
         """Record that the candidate accepted or declined (HR administrators). After expiry it is refused.
 
-        `evidence_ref` should be the ESIGN request id when the candidate signed through ESIGN; without it the record
-        says only "recorded by HR", which is weaker evidence."""
+        `evidence_ref` is the ESIGN request id when the candidate signed through ESIGN. It is checked (config["esign"], an
+        EsignView): the request must be sealed and made for this offer, else the response is refused. Without a reference
+        the record says only "recorded by HR", which is weaker evidence."""
         who, refusal = writer(_AGENT, "record_response", {"offer": str(offer_id), "response": str(response)[:10]}, roles=HR_ADMINS)
         if refusal:
             return refusal
         if response not in ("accept", "decline"):
             return invalid("response must be 'accept' or 'decline'")
         now = self._now()
+        if evidence_ref and (bad := self._unverified_evidence(who.org, offer_id, str(evidence_ref))):
+            return bad
 
         def _do(o: Dict[str, Any]) -> Dict[str, Any]:
             if o["status"] != "sent":
@@ -340,6 +343,20 @@ class OfferLetters:
         if out.get("status") == "ok" and o and o["candidate"].get("application_id") and ats is not None:
             out["ats_notified"] = bool(ats.record_offer_outcome(o["candidate"]["application_id"], who.org, o["status"], offer_id))
         return out
+
+    def _unverified_evidence(self, org: str, offer_id: str, ref: str) -> Optional[Dict[str, Any]]:
+        """None when ESIGN confirms `ref` is a sealed request for this offer; otherwise the refusal (fail closed)."""
+        view = self.config.get("esign")
+        if view is None:
+            return fail("not_configured", "the e-signature evidence cannot be checked: ESIGN is not connected; record without evidence_ref")
+        try:
+            info = view.request_info(ref, org)
+        except Exception as e:                  # a view outside this agent: any failure means "cannot confirm"
+            logger.warning("esign evidence check failed for offer %s: %s", offer_id, e)
+            return fail("not_configured", "the e-signature evidence could not be checked")
+        if not info or info.get("status") != "sealed" or info.get("document_ref") != offer_id:
+            return fail("evidence_mismatch", "the evidence reference is not a sealed e-signature request for this offer")
+        return None
 
     def withdraw_offer(self, offer_id: str, reason: str) -> Dict[str, Any]:
         """Withdraw an offer that has not been answered (HR administrators)."""

@@ -3,8 +3,8 @@
 A template item has a key, a title, a kind, an owner role, a due offset in days from an anchor date (the join date
 for onboarding, the last working day for exit; negative = before it), the keys it depends on, and whether it is
 required. Kinds: "task" (a person does it and says so), "collect:<identifier>" (pan, aadhaar, bank_account),
-"form:<name>" (velaris.agentkit.onboarding_fields.FORMS), "document", "policy_ack" (completed with a POLICY_ACKS
-evidence reference).
+"form:<name>" (velaris.agentkit.onboarding_fields.FORMS), "document", "policy_ack" (completed only against a current POLICY_ACKS
+acknowledgement of the item's `policy` key by the case's subject).
 
 Nothing in a template is a statutory figure or deadline: the due offsets are the company's own working defaults,
 set here so the first customer has something to edit. Change them by changing this file or passing a template.
@@ -18,8 +18,8 @@ Item = Dict[str, Any]
 
 
 def _i(key: str, title: str, owner: str, due: int, deps: tuple = (), kind: str = "task", required: bool = True,
-       note: str = "") -> Item:
-    return {"key": key, "title": title, "owner": owner, "due_offset_days": due, "depends_on": list(deps),
+       note: str = "", policy: str = "") -> Item:
+    return {"policy": policy or None, "key": key, "title": title, "owner": owner, "due_offset_days": due, "depends_on": list(deps),
             "kind": kind, "required": required, "note": note}
 
 
@@ -41,9 +41,10 @@ BASE: List[Item] = [
     _i("esi_nomination", "Submit the ESI nomination (if covered)", "employee", 14, (), "form:esi_nomination", False),
     _i("provision_accounts", "Create email and chat accounts", "it", -2, ("confirm_offer_accepted",)),
     _i("allocate_laptop", "Allocate and record a laptop and accessories", "it", -2, ("confirm_offer_accepted",)),
-    _i("ack_code_of_conduct", "Acknowledge the code of conduct", "employee", 3, ("provision_accounts",), "policy_ack"),
+    _i("ack_code_of_conduct", "Acknowledge the code of conduct", "employee", 3, ("provision_accounts",), "policy_ack",
+       policy="code_of_conduct"),
     _i("ack_infosec_policy", "Acknowledge the information security policy", "employee", 3, ("provision_accounts",),
-       "policy_ack"),
+       "policy_ack", policy="information_security"),
     _i("assign_buddy", "Assign an onboarding buddy", "manager", -3),
     _i("first_week_plan", "Write the first-week plan", "manager", -1, ("assign_buddy",)),
     _i("orientation", "Orientation session held", "hr", 0, ("provision_accounts", "allocate_laptop")),
@@ -55,7 +56,7 @@ ROLE_ADDONS: Dict[str, List[Item]] = {
         _i("source_control_access", "Grant source control and CI access", "it", -1, ("provision_accounts",)),
         _i("dev_environment", "Dev environment working on the new laptop", "it", 0, ("allocate_laptop",)),
         _i("secure_coding_ack", "Acknowledge the secure-coding standard", "employee", 7, ("source_control_access",),
-           "policy_ack"),
+           "policy_ack", policy="secure_coding"),
     ],
     "sales": [_i("crm_access", "Grant CRM access", "it", -1, ("provision_accounts",))],
     "support": [_i("ticketing_access", "Grant ticketing system access", "it", -1, ("provision_accounts",))],

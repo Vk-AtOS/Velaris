@@ -19,6 +19,7 @@ import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
 import base64
+import hmac
 import logging
 from datetime import date
 from typing import Any, Dict, List, Optional
@@ -37,6 +38,7 @@ from velaris.intel.paths import read_private, write_private
 logger = logging.getLogger("ONBOARDING_FLOW")
 _AGENT = "ONBOARDING_FLOW"
 MAX_DOC = 5 * 1024 * 1024
+AADHAAR_CASE_PER_DAY, AADHAAR_CALLER_PER_DAY = 3, 5      # check_aadhaar attempts per UTC day (every attempt counts, match or not)
 DOC_TYPES = ("identity_proof", "address_proof", "education_certificate", "experience_letter", "other")
 CATEGORY = {"pan": "identity", "aadhaar": "identity", "bank_account": "bank"}
 FORM_CLASS = {"tax_declaration": "tax_records", "pf_nomination": "pf_esi_records", "esi_nomination": "pf_esi_records",
@@ -51,7 +53,7 @@ class OnboardingFlow:
         self.store = Store(_AGENT)
 
     def health_check(self) -> Dict[str, Any]:
-        return health(_AGENT, offer_check=bool(self.config.get("offers")))
+        return health(_AGENT, offer_check=bool(self.config.get("offers")), policy_acks=bool(self.config.get("policy_acks")))
 
     def _now(self):
         return utcnow(self.config)
@@ -165,7 +167,8 @@ class OnboardingFlow:
     # ---- tasks -----------------------------------------------------------------------------------
     def complete_task(self, case_id: str, task_key: str, note: str = "", evidence_ref: str = "") -> Dict[str, Any]:
         """Mark your task done (its assignee, or an HR administrator). Blocked tasks and data-capture tasks (which complete
-        when the data is submitted) are refused; a policy acknowledgement needs the POLICY_ACKS evidence reference."""
+        when the data is submitted) are refused; a policy acknowledgement completes only against the subject's current
+        POLICY_ACKS acknowledgement (evidence_ref = its evidence_sha256). Other tasks take no evidence reference."""
         who, refusal = writer(_AGENT, "complete_task", {"case": str(case_id), "task": str(task_key)[:40]})
         if refusal:
             return refusal
@@ -177,12 +180,39 @@ class OnboardingFlow:
                 raise Refused(fail("denied", "this task is assigned to someone else"))
             if t["kind"].split(":")[0] in ("collect", "form", "document"):
                 raise Refused(fail("conflict", "this task completes when the data is submitted (or HR waives it)"))
-            if t["kind"] == "policy_ack" and not evidence_ref:
-                raise Refused(invalid("a policy acknowledgement task needs the POLICY_ACKS evidence reference"))
-            self._finish(c, t, who, note, evidence_ref)
+            if evidence_ref and t["kind"] != "policy_ack":      # a free-text reference nobody can check is not recorded
+                raise Refused(invalid("this task takes no evidence reference"))
+            ref = self._verified_ack(c, t, evidence_ref) if t["kind"] == "policy_ack" else ""
+            self._finish(c, t, who, note, ref)
             return ok(task=t["key"], status_report=cl.progress(c["tasks"], self._today()))
 
         return self._guard_open(case_id, who, _do)
+
+    def _verified_ack(self, c: Dict[str, Any], t: Dict[str, Any], evidence_ref: str) -> str:
+        """The evidence reference, once POLICY_ACKS confirms it: an acknowledgement by the case's subject of this task's
+        policy at the current published version. Not configured, missing or stale: refuse (fail closed)."""
+        view = self.config.get("policy_acks")
+        if view is None:
+            raise Refused(fail("not_configured", "policy acknowledgements cannot be checked: POLICY_ACKS is not connected"))
+        if not t.get("policy"):
+            raise Refused(fail("not_configured", "this task names no policy to check"))
+        if not evidence_ref:
+            raise Refused(invalid("a policy acknowledgement task needs the POLICY_ACKS evidence reference"))
+        try:
+            info = view.ack_evidence(c["org"], c["subject_id"], t["policy"])
+        except Exception as e:                  # a view outside this agent: any failure means "cannot confirm"
+            logger.warning("policy ack check failed for case %s: %s", c["id"], e)
+            raise Refused(fail("not_configured", "policy acknowledgements could not be checked"))
+        cur = (info or {}).get("current_version")
+        if cur is None:
+            raise Refused(fail("no_current_policy", "this policy has no current published version"))
+        match = [a for a in info["acks"] if a["employee_id"] == c["subject_id"] and a["policy_key"] == t["policy"]]
+        if not any(a["version"] == cur for a in match):
+            why = "an older version" if match else "no acknowledgement"
+            raise Refused(fail("not_acknowledged", f"POLICY_ACKS holds {why} for this person; they must acknowledge version {cur}"))
+        if not any(a["version"] == cur and hmac.compare_digest(str(a["evidence_sha256"]), str(evidence_ref)) for a in match):
+            raise Refused(fail("evidence_mismatch", "the evidence reference is not this person's acknowledgement"))
+        return evidence_ref
 
     def waive_task(self, case_id: str, task_key: str, reason: str) -> Dict[str, Any]:
         """Waive a task with a reason (HR administrators). Waived tasks count as complete and are listed as waived."""
@@ -309,20 +339,55 @@ class OnboardingFlow:
             out[kind] = item
         return ok(identifiers=out)
 
+    def _charge_aadhaar_attempt(self, org: str, case_id: str, caller_id: str) -> Optional[int]:
+        """Count one attempt against this case and this caller for today (persisted). Returns the attempts left for the
+        tighter of the two, or None when either is already at its limit (locked until the next UTC day)."""
+        today = self._today().isoformat()
+        limits = ((f"{org}:case:{case_id}", AADHAAR_CASE_PER_DAY), (f"{org}:caller:{caller_id}", AADHAAR_CALLER_PER_DAY))
+
+        def _do(data: Dict[str, Any]) -> Optional[int]:
+            bucket = data.setdefault("records", {}).setdefault("aadhaar_attempts", {})
+            slots = [bucket.get(k) if (bucket.get(k) or {}).get("day") == today else {"day": today, "count": 0} for k, _ in limits]
+            if any(sl["count"] >= lim for sl, (_, lim) in zip(slots, limits)):
+                return None
+            for sl, (k, _) in zip(slots, limits):
+                sl["count"] += 1
+                bucket[k] = sl
+            return min(lim - sl["count"] for sl, (_, lim) in zip(slots, limits))
+
+        return self.store.state.update(_do)
+
     def check_aadhaar(self, case_id: str, number: str) -> Dict[str, Any]:
-        """Does this number match the stored last four and keyed hash? Only the new joiner or an HR administrator may ask."""
+        """Does this number match the stored Aadhaar? Only the new joiner or an HR administrator with identity access may ask.
+        The answer is one yes/no for the whole number (never the last four alone). Attempts are limited per case and per
+        caller per day, and every attempt is traced (ids only)."""
         who, refusal = reader(_AGENT)
         if refusal:
             return refusal
         case = self._case_for(who, case_id, subject_or_hr=True)
         if "tasks" not in case:
             return case
+        try:
+            authorize_read("identity", case["subject_id"], agent=_AGENT, caller=who, org=who.org)
+        except AccessDenied as e:
+            return fail("denied", e.reason)
         stored = case["identifiers"].get("aadhaar")
+        if not stored:
+            return fail("not_found", "no Aadhaar digest stored")
         try:
             n = fields.normalise_identifier("aadhaar", number)
         except ValueError as e:
             return invalid(str(e))
-        return ok(matches=bool(stored) and crypto.aadhaar_matches(n, stored)) if stored else fail("not_found", "no Aadhaar digest stored")
+        left = self._charge_aadhaar_attempt(who.org, case_id, who.id)
+        try:
+            trace.append(_AGENT, "aadhaar.check_attempt" if left is not None else "aadhaar.check_locked",
+                         {"case": case_id, "org": who.org, "by": who.id})
+        except (OSError, ValueError) as e:
+            logger.warning("aadhaar check for %s not traced: %s", case_id, e)
+            return fail("audit_failed", "the attempt could not be recorded, so it was not made")
+        if left is None:
+            return fail("locked", "too many Aadhaar checks for this case or caller today; try again tomorrow")
+        return ok(matches=crypto.aadhaar_matches(n, stored), attempts_left_today=left)
 
     def submit_form(self, case_id: str, form: str, form_fields: Dict[str, Any]) -> Dict[str, Any]:
         """Submit a data-capture form (tax declaration regime, PF/ESI nomination, emergency contact). Nothing is filed anywhere."""

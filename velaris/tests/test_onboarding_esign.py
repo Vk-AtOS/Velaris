@@ -378,3 +378,24 @@ def test_verify_refuses_unsealed():
     e, sender, _, rid = setup()
     with acting_as(HR1):
         assert e.verify(rid)["status"] == "not_sealed"
+
+
+def test_verify_applies_the_same_visibility_as_get_request():
+    e, sender, _, rid = setup()
+    sign_all(e, sender)
+    with acting_as(MGR):                                            # same org, neither drafter nor HR
+        assert e.get_request(rid)["status"] == "not_found"
+        v = e.verify(rid)
+        assert v["status"] == "not_found" and "signers" not in v and "platform_signature" not in v
+        assert e.get_sealed_document(rid)["status"] == "not_found" and e.void_request(rid, "x")["status"] == "denied"
+        assert e.list_requests()["requests"] == []
+    with acting_as(HR2):
+        assert e.verify(rid)["valid"] is True
+
+
+def test_real_esign_reader_gives_status_and_document_ref_only():
+    from velaris.agentkit.onboarding_adapters import EsignReader
+    e, sender, _, rid = setup()
+    view = EsignReader({"clock": Clock()})
+    assert view.request_info(rid, ORG) == {"status": "sent", "document_ref": "ofr-1"}
+    assert view.request_info(rid, "globex") is None and view.request_info("sig-none", ORG) is None

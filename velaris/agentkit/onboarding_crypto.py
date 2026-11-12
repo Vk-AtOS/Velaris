@@ -75,4 +75,9 @@ def aadhaar_digest(number: str) -> Dict[str, str]:
 
 
 def aadhaar_matches(number: str, stored: Dict[str, str]) -> bool:
-    return hmac.compare_digest(aadhaar_digest(number)["digest"], str(stored.get("digest", "")))
+    """True only when the last four AND the keyed digest both match. Both are compared in constant time and combined
+    without short-circuit, so neither the result nor its timing says whether the last four alone matched."""
+    mine = aadhaar_digest(number)
+    last4 = hmac.compare_digest(mine["last4"], str(stored.get("last4", "")))
+    full = hmac.compare_digest(mine["digest"], str(stored.get("digest", "")))
+    return last4 & full

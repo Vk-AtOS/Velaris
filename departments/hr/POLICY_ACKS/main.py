@@ -224,6 +224,14 @@ class PolicyAcks:
                 for r in self._pending(who.org) if r["due_date"] <= limit]
         return ok(reminders=rows, sent=False, note="drafted only; no message is sent by this agent")
 
+    # ---- read-only view for other agents (ONBOARDING_FLOW; not an HTTP method) ---------------------------
+    def ack_evidence(self, org: str, employee_id: str, policy_key: str) -> Dict[str, Any]:
+        """The current published version of a policy and this employee's acknowledgements of that key (any version)."""
+        cur = self._current(org, policy_key)
+        return {"current_version": cur["version"] if cur else None,
+                "acks": [{k: a[k] for k in ("employee_id", "policy_key", "version", "evidence_sha256")}
+                         for a in self.store.all("acks", org) if a["employee_id"] == employee_id and a["policy_key"] == policy_key]}
+
     # ---- data-subject support (called by EMPLOYEE_RECORDS; not an HTTP method) --------------------------
     def dsr_export(self, org: str, employee_id: str) -> Dict[str, Any]:
         return {"policy_acknowledgements": [{k: a[k] for k in ("policy_key", "version", "text_sha256", "acknowledged_at", "evidence_sha256")}

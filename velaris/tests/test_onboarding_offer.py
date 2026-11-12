@@ -3,7 +3,7 @@ import base64
 
 import pytest
 
-from velaris.tests.onboarding_helpers import CANDIDATE, HR1, HR2, MGR, ORG, OTHER_ORG_HR, PAYROLL, Clock, FakeAts, FakeSender, person
+from velaris.tests.onboarding_helpers import CANDIDATE, HR1, HR2, MGR, ORG, OTHER_ORG_HR, PAYROLL, Clock, FakeAts, FakeEsign, FakeSender, person
 from velaris.agents.OFFER_LETTERS.main import OfferLetters
 from velaris.agents.PAYROLL_ENGINE import statutory
 from velaris.agentkit.onboarding_pdf import parse_pdf
@@ -187,16 +187,22 @@ def test_send_needs_approval_and_a_sender():
 
 def test_expiry_response_and_ats_notification():
     ats = FakeAts({"APP-1": CANDIDATE})
-    o, clock = make(ats=ats, sender=FakeSender())
+    esign = FakeEsign({})
+    o, clock = make(ats=ats, sender=FakeSender(), esign=esign)
     oid = draft(o, application_id="APP-1", candidate_name="ignored", candidate_email="ignored@x.in")["offer"]["id"]
     with acting_as(HR1):
         full = o.get_offer(oid)["offer"]
     assert full["candidate"]["name"] == "Asha Raman" and full["candidate"]["consent"]["purpose"] == "recruitment"      # from the ATS
+    esign.requests.update({"sig-123": {"status": "sealed", "document_ref": oid}, "sig-draft": {"status": "sent", "document_ref": oid},
+                           "sig-other": {"status": "sealed", "document_ref": "ofr-x"}})
     approve_all(o, oid)
     with acting_as(HR1):
         assert o.record_response(oid, "accept")["status"] == "conflict"            # not sent yet
         o.send_offer(oid)
         assert o.record_response(oid, "maybe")["status"] == "invalid_input"
+        for bad in ("made-up", "sig-draft", "sig-other"):                      # unknown, not sealed, sealed for another offer
+            assert o.record_response(oid, "accept", evidence_ref=bad)["status"] == "evidence_mismatch"
+        assert o.get_offer(oid)["offer"]["status"] == "sent"
         r = o.record_response(oid, "accept", evidence_ref="sig-123")
         assert r["offer"]["status"] == "accepted" and r["ats_notified"] is True
         assert ats.outcomes == [("APP-1", "accepted", oid)]
@@ -323,3 +329,15 @@ def test_a_reviser_cannot_approve_the_offer_they_changed():
         r = o.approve(oid, acknowledge_review=True)
         assert r["status"] == "denied" and "reviser" in r["reason"]
         assert o.reject(oid, "no")["status"] == "denied"
+
+
+def test_record_response_evidence_fails_closed_without_an_esign_view():
+    o, _ = make(sender=FakeSender())
+    oid = draft(o)["offer"]["id"]
+    approve_all(o, oid)
+    with acting_as(HR1):
+        o.send_offer(oid)
+        assert o.record_response(oid, "accept", evidence_ref="sig-123")["status"] == "not_configured"
+        assert o.get_offer(oid)["offer"]["status"] == "sent"
+        r = o.record_response(oid, "accept")                                        # no claim, no check: the weaker basis
+        assert r["status"] == "ok" and o.get_offer(oid)["offer"]["response"]["basis"] == "recorded_by_hr"

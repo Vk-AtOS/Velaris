@@ -71,3 +71,25 @@ class FakeOffers:
 
 CANDIDATE = {"name": "Asha Raman", "email": "asha@example.in", "phone": "9000000000", "org": ORG,
              "consent": {"purpose": "recruitment", "notice_version": "n1", "given_at": "2026-10-01T00:00:00Z", "retention_until": "2027-04-01"}}
+
+
+class FakePolicyAcks:
+    """A PolicyAckView: `acks` is a list of (employee_id, policy_key, version, evidence_sha256); `current` maps key -> version."""
+
+    def __init__(self, current: Dict[str, int], acks: List[tuple]) -> None:
+        self.current, self.acks = current, acks
+
+    def ack_evidence(self, org: str, employee_id: str, policy_key: str) -> Optional[Dict[str, Any]]:
+        return {"current_version": self.current.get(policy_key),
+                "acks": [{"employee_id": e, "policy_key": k, "version": v, "evidence_sha256": h}
+                         for e, k, v, h in self.acks if e == employee_id and k == policy_key]}
+
+
+class FakeEsign:
+    """An EsignView: `requests` maps request id -> {"status", "document_ref"}."""
+
+    def __init__(self, requests: Dict[str, Dict[str, Any]]) -> None:
+        self.requests = requests
+
+    def request_info(self, request_id: str, org: str) -> Optional[Dict[str, Any]]:
+        return self.requests.get(request_id)

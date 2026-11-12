@@ -449,7 +449,7 @@ class Esign:
         if refusal:
             return refusal
         req = self.store.get("requests", request_id, who.org)
-        if req is None:
+        if not self._visible(who, req):          # same rule as get_request: drafter or HR, else "not found"
             return fail("not_found", "no such request")
         if req["status"] != "sealed" or not req["seal"]:
             return fail("not_sealed", f"request is {req['status']}; only a sealed request can be verified")
@@ -460,6 +460,11 @@ class Esign:
                   signers=[{"name": e["name"], "email": e["email"], "signed_at": e["signed_at"], "auth_methods": e["auth_methods"]} for e in evidence])
 
     # ---- reads ---------------------------------------------------------------------------------------
+    def request_info(self, request_id: str, org: str) -> Optional[Dict[str, Any]]:
+        """Status and document_ref of a request of `org` for another agent (OFFER_LETTERS); not an HTTP method. No names, no tokens."""
+        req = self.store.get("requests", request_id, org)
+        return {"status": req["status"], "document_ref": req["document_ref"]} if req else None
+
     def _visible(self, who: Caller, req: Optional[Dict[str, Any]]) -> bool:
         return req is not None and bool(who.roles & HR_ADMINS or who.id == req["created_by"])
 

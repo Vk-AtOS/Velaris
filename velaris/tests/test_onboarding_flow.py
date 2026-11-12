@@ -4,7 +4,7 @@ import json
 import os
 from pathlib import Path
 
-from velaris.tests.onboarding_helpers import HR1, HR2, MGR, ORG, OTHER_ORG_HR, PAYROLL, Clock, FakeOffers, person
+from velaris.tests.onboarding_helpers import HR1, HR2, MGR, ORG, OTHER_ORG_HR, PAYROLL, Clock, FakeOffers, FakePolicyAcks, person
 from velaris.agents.ONBOARDING_FLOW.main import OnboardingFlow
 from velaris.core.access import Caller, acting_as
 from velaris.intel import trace
@@ -102,8 +102,11 @@ def test_dependencies_blocked_report_and_completion_percent():
         assert "collect_pan" in o.case_status(cid)["overdue"]
 
 
+ACKS = FakePolicyAcks({"code_of_conduct": 2, "information_security": 1}, [("E7", "code_of_conduct", 2, "h-good")])
+
+
 def test_complete_task_rules():
-    o, _ = make()
+    o, _ = make(policy_acks=ACKS)
     cid = start(o)
     unblock(o, cid)
     with acting_as(EMP):
@@ -113,7 +116,7 @@ def test_complete_task_rules():
         o.complete_task(cid, "provision_accounts")
     with acting_as(EMP):
         assert o.complete_task(cid, "ack_code_of_conduct")["status"] == "invalid_input"      # needs the POLICY_ACKS evidence
-        assert o.complete_task(cid, "ack_code_of_conduct", evidence_ref="ack-1")["status"] == "ok"
+        assert o.complete_task(cid, "ack_code_of_conduct", evidence_ref="h-good")["status"] == "ok"
         assert o.complete_task(cid, "nope")["status"] == "not_found"
         assert o.waive_task(cid, "assign_buddy", "x")["status"] == "denied"
     with acting_as(HR1):
@@ -121,6 +124,73 @@ def test_complete_task_rules():
         assert o.waive_task(cid, "collect_aadhaar", "no purpose applies")["status"] == "ok"
         view = {t["key"]: t["state"] for t in o.case_status(cid)["tasks"]}
         assert view["collect_aadhaar"] == "waived"
+
+
+def _ack_case(o, sid="E7"):
+    cid = start(o, subject_id=sid)
+    unblock(o, cid)
+    with acting_as(IT):
+        assert o.complete_task(cid, "provision_accounts")["status"] == "ok"
+    return cid
+
+
+def test_policy_ack_task_needs_a_real_current_acknowledgement_by_the_subject():
+    acks = FakePolicyAcks({"code_of_conduct": 2, "information_security": 1},
+                          [("E7", "code_of_conduct", 1, "h-old"), ("E9", "code_of_conduct", 2, "h-other"),
+                           ("E7", "information_security", 1, "h-sec")])
+    o, _ = make(policy_acks=acks)
+    cid = _ack_case(o)
+    with acting_as(EMP):
+        assert o.complete_task(cid, "ack_code_of_conduct", evidence_ref="made-up")["status"] == "not_acknowledged"   # only an old version
+        assert o.complete_task(cid, "ack_code_of_conduct", evidence_ref="h-old")["status"] == "not_acknowledged"
+        assert o.complete_task(cid, "ack_code_of_conduct", evidence_ref="h-other")["status"] == "not_acknowledged"   # someone else's ack
+        assert o.complete_task(cid, "ack_infosec_policy", evidence_ref="made-up")["status"] == "evidence_mismatch"
+        assert o.complete_task(cid, "ack_infosec_policy", evidence_ref="h-code")["status"] == "evidence_mismatch"
+        assert o.complete_task(cid, "ack_infosec_policy")["status"] == "invalid_input"
+    with acting_as(HR1):
+        assert o.complete_task(cid, "ack_infosec_policy", evidence_ref="made-up")["status"] == "evidence_mismatch"   # HR is no exception
+        assert o.complete_task(cid, "ack_infosec_policy", evidence_ref="h-sec")["status"] == "ok"
+        t = {x["key"]: x for x in o.case_status(cid)["tasks"]}
+    assert t["ack_infosec_policy"]["state"] == "done" and t["ack_code_of_conduct"]["state"] == "ready"
+
+
+def test_policy_ack_task_fails_closed_without_a_checker_or_a_policy():
+    o, _ = make()                                                                     # no policy_acks configured
+    cid = _ack_case(o)
+    with acting_as(EMP):
+        assert o.complete_task(cid, "ack_code_of_conduct", evidence_ref="h-good")["status"] == "not_configured"
+    class Broken:
+        def ack_evidence(self, *a):
+            raise OSError("store down")
+    o2, _ = make(policy_acks=Broken())
+    cid2 = _ack_case(o2, "E8")
+    with acting_as(person("E8")):
+        assert o2.complete_task(cid2, "ack_code_of_conduct", evidence_ref="h-good")["status"] == "not_configured"
+    o3, _ = make(policy_acks=FakePolicyAcks({}, []))                                  # policy never published
+    cid3 = _ack_case(o3, "E9")
+    with acting_as(person("E9")):
+        assert o3.complete_task(cid3, "ack_code_of_conduct", evidence_ref="h-good")["status"] == "no_current_policy"
+
+
+def test_plain_tasks_take_no_unverifiable_evidence_reference():
+    o, _ = make(policy_acks=ACKS)
+    cid = start(o)
+    with acting_as(HR1):
+        assert o.complete_task(cid, "confirm_offer_accepted", evidence_ref="trust-me")["status"] == "invalid_input"
+        assert o.complete_task(cid, "confirm_offer_accepted")["status"] == "ok"
+
+
+def test_real_policy_acks_reader_resolves_through_the_public_api():
+    from velaris.agentkit.onboarding_adapters import PolicyAcksReader
+    from velaris.agents.POLICY_ACKS.main import PolicyAcks
+    clock = Clock()
+    pa = PolicyAcks({"clock": clock})
+    with acting_as(HR1):
+        assert pa.publish_policy("code_of_conduct", "CoC", "text v1", "2026-11-01")["status"] == "ok"
+    view = PolicyAcksReader({"clock": clock})
+    assert view.ack_evidence(ORG, "E7", "code_of_conduct") == {"current_version": 1, "acks": []}
+    assert view.ack_evidence(ORG, "E7", "nope")["current_version"] is None
+    assert view.ack_evidence("globex", "E7", "code_of_conduct")["current_version"] is None
 
 
 def test_case_completes_when_every_required_task_is_done():
@@ -229,6 +299,81 @@ def test_aadhaar_needs_purpose_valid_number_and_can_only_be_compared():
         assert o.check_aadhaar(cid, "234123412345")["status"] == "invalid_input"
     with acting_as(MGR):
         assert o.check_aadhaar(cid, AADHAAR)["status"] == "denied"
+
+
+def _aadhaar_case(o):
+    cid = start(o)
+    unblock(o, cid)
+    with acting_as(EMP):
+        assert o.submit_identifier(cid, "aadhaar", AADHAAR, purpose="UAN seeding")["status"] == "ok"
+    return cid
+
+
+def test_check_aadhaar_is_rate_limited_per_case_and_locks_out():
+    o, clock = make()
+    cid = _aadhaar_case(o)
+    with acting_as(EMP):
+        r = [o.check_aadhaar(cid, AADHAAR) for _ in range(3)]
+        assert [x["status"] for x in r] == ["ok"] * 3 and r[-1]["attempts_left_today"] == 0
+        assert o.check_aadhaar(cid, AADHAAR)["status"] == "locked"      # a correct number is locked out too
+    with acting_as(HR1):
+        assert o.check_aadhaar(cid, AADHAAR)["status"] == "locked"      # the limit is per case, so HR is locked out as well
+    clock.advance(days=1)
+    with acting_as(EMP):
+        assert o.check_aadhaar(cid, AADHAAR)["matches"] is True         # the lockout ends with the day
+    acts = [e["action"] for e in trace.entries() if e["action"].startswith("aadhaar.")]
+    assert acts.count("aadhaar.check_attempt") == 4 and acts.count("aadhaar.check_locked") == 2
+    assert AADHAAR not in json.dumps(list(trace.entries()))
+
+
+def test_check_aadhaar_limit_is_per_caller_across_cases_and_persisted():
+    o, _ = make()
+    cids = []
+    for sid in ("E1", "E2"):
+        cid = start(o, subject_id=sid)
+        unblock(o, cid)
+        with acting_as(person(sid)):
+            o.submit_identifier(cid, "aadhaar", AADHAAR, purpose="x")
+        cids.append(cid)
+    with acting_as(HR1):
+        for i in range(5):
+            assert o.check_aadhaar(cids[i % 2], AADHAAR)["status"] == "ok"
+        assert o.check_aadhaar(cids[0], AADHAAR)["status"] == "locked"   # 5 per caller per day, whichever case
+    o2, _ = make()                                                      # a new process: the counters are on disk
+    with acting_as(HR1):
+        assert o2.check_aadhaar(cids[1], AADHAAR)["status"] == "locked"
+
+
+def test_check_aadhaar_needs_identity_access_and_never_leaks_a_partial_match():
+    from velaris.agentkit import onboarding_crypto as crypto
+    o, _ = make()
+    cid = _aadhaar_case(o)
+    with acting_as(PAYROLL):
+        assert o.check_aadhaar(cid, AADHAAR)["status"] == "not_found"
+    stored = json.loads((Path(os.environ["VELARIS_DATA"]) / "agents" / "ONBOARDING_FLOW" / "state.json").read_text())
+    rec = stored["records"]["cases"][f"{ORG}:{cid}"]["identifiers"]["aadhaar"]
+    same_last4 = "999999992346"
+    assert crypto.aadhaar_digest(same_last4)["last4"] == rec["last4"]
+    assert crypto.aadhaar_matches(same_last4, rec) is False and crypto.aadhaar_matches(AADHAAR, rec) is True
+    with acting_as(EMP):
+        r = o.check_aadhaar(cid, "234123412346")
+    assert set(r) == {"status", "matches", "attempts_left_today"}
+
+
+def test_check_aadhaar_refused_when_identity_access_is_denied_and_does_not_count(monkeypatch):
+    import velaris.agents.ONBOARDING_FLOW.main as m
+    from velaris.core.access import AccessDenied
+    o, _ = make()
+    cid = _aadhaar_case(o)
+
+    def deny(*a, **k):
+        raise AccessDenied("no identity access")
+    with monkeypatch.context() as mp:
+        mp.setattr(m, "authorize_read", deny)
+        with acting_as(EMP):
+            assert [o.check_aadhaar(cid, AADHAAR)["status"] for _ in range(6)] == ["denied"] * 6
+    with acting_as(EMP):
+        assert o.check_aadhaar(cid, AADHAAR)["attempts_left_today"] == 2
 
 
 def test_identifier_input_and_access_rules():
