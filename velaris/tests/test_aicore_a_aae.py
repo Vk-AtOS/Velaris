@@ -113,3 +113,13 @@ def test_engine_skips_what_policy_refuses_and_reports_it():
     assert none["status"] == "no_action" and none["chosen"] is None
     assert engine.act("", [])["status"] == "invalid_input"
     assert engine.act("s", [{"id": "a", "type": "call"}, {"id": "b", "type": "call"}])["status"] == "invalid_input"
+
+
+def test_policy_fails_closed_when_a_guard_comparison_cannot_be_made():
+    """A text or missing amount must not slip past the approval rule onto the broader allow rule."""
+    p = AAE_POLICYAgent(RULES)
+    for params in ({"amount": "5000"}, {"amount": None}, {}, {"amount": float("nan")}):
+        d = p.decide({"type": "refund", "params": params})
+        assert (d["decision"], d["rule"], d["allowed"]) == ("deny", "big_refund", False), params
+    assert p.decide({"type": "refund", "params": {"amount": 50}})["decision"] == "allow"
+    assert p.decide({"type": "send_email", "params": {"amount": "x"}})["decision"] == "allow"   # rule does not apply
