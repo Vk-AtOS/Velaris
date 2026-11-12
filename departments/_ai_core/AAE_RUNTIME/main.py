@@ -1,7 +1,9 @@
 """AAE runtime: runs one approved action, once, and keeps a record of it.
 
 An action is {"id", "type", "params"?}. run() asks AAE_POLICY first: a denied
-action does not run, and one that needs approval runs only with `approved_by`.
+action does not run, and one that needs approval runs only when the current caller
+(velaris.core.access) approves it: `approved_by` is that caller's id, and a value
+naming anyone else is refused.
 The handler for the action type is a Python callable registered by the caller.
 An action id that already completed is not run again; the recorded result is
 returned (`replayed`). Every attempt goes to the journal and to the hash-chained
@@ -13,6 +15,7 @@ import time
 
 from velaris.agentkit.aicore_a_common import JsonState, fail, health, ident, invalid, ok
 from velaris.agents.AAE_POLICY.main import AAE_POLICYAgent
+from velaris.core.access import check_caller
 from velaris.intel import trace
 from velaris.intel.paths import agent_dir
 
@@ -45,8 +48,15 @@ class AAE_RUNTIMEAgent:
         verdict = self.policy.decide(action)
         if verdict["decision"] == "deny":
             return self._finish(aid, atype, "denied", fail("denied", verdict["reason"], action=aid))
-        if verdict["decision"] == "needs_approval" and ident(approved_by) is None:
-            return fail("needs_approval", verdict["reason"], action=aid)       # not journalled: nothing happened
+        if verdict["decision"] == "needs_approval":
+            if ident(approved_by) is None:
+                return fail("needs_approval", verdict["reason"], action=aid)   # not journalled: nothing happened
+            caller, refused = check_caller(NAME, "approve", {"action": aid, "type": atype}, claimed=approved_by)
+            if refused:
+                return {**refused, "action": aid}
+            approved_by = caller.id
+        else:
+            approved_by = None              # nothing needed approving; do not record a claimed approver
         handler = self.handlers.get(atype)
         if handler is None:
             return self._finish(aid, atype, "no_handler",

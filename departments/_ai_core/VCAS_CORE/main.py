@@ -5,18 +5,24 @@ submit(task):
   2. VCAS_SUPERVISOR (PRIME): may it run?            deny -> "denied"
                                                      needs_approval -> "pending" (stored, names the approver)
   3. VCAS_AUTOPILOT runs it                          -> "done" / "failed"
-decide(task_id, approve, by) settles a pending task: only the approver PRIME
-named can decide; an approval runs the task, a rejection closes it. Pending
+decide(task_id, approve) settles a pending task: only the approver PRIME
+named can decide; an approval runs the task, a rejection closes it. The decision
+records the task's digest (aicore_b_authz.task_digest), so the approval covers
+exactly the stored task, params included. Identity is the current caller
+(velaris.core.access): submit() only for the task's own principal, decide() only
+by the named approver; a legacy `by` must be the caller. Pending
 tasks are stored owner-only under this agent's state directory and survive a
 restart (handlers must be registered again on the new autopilot instance).
 """
 import time
 from typing import Any, Dict, Optional
 
-from velaris.agentkit.aicore_b_common import JsonState, fail, health, ident, invalid
+from velaris.agentkit.aicore_b_authz import task_digest
+from velaris.agentkit.aicore_b_common import JsonState, fail, health, invalid
 from velaris.agents.VCAS_AUTOPILOT.main import VCASAutopilotAgent
 from velaris.agents.VCAS_ROUTER.main import VCASRouterAgent
 from velaris.agents.VCAS_SUPERVISOR.main import VCASSupervisorAgent
+from velaris.core.access import check_caller
 from velaris.intel import trace
 
 NAME = "VCAS_CORE"
@@ -37,6 +43,9 @@ class VCASCoreAgent:
         routed = self.router.route(task, self.autopilot.handlers())
         if routed["autopilot_route"] != "ok":
             return {"status": routed["status"], "outcome": "manual", "reason": routed["reason"]}
+        _, refused = check_caller(NAME, "submit", {"task_id": str(task["id"])[:64]}, claimed=task["principal"])
+        if refused:
+            return {**refused, "outcome": "refused"}
         verdict = self.supervisor.approve(task, now=now)
         if verdict["decision"] == "needs_approval":
             entry = {"task": task, "approver": verdict["approver"], "reason": verdict["reason"], "ts": time.time()}
@@ -52,16 +61,21 @@ class VCASCoreAgent:
     def pending(self) -> Dict[str, Any]:
         return self._pending.load().get("pending", {})
 
-    def decide(self, task_id: str, approve: bool, by: str, note: str = "") -> Dict[str, Any]:
+    def decide(self, task_id: str, approve: bool, by: Optional[str] = None, note: str = "") -> Dict[str, Any]:
+        caller, refused = check_caller(NAME, "decide", {"task_id": str(task_id)[:64]}, claimed=by)
+        if refused:
+            return refused
+        by = caller.id
         entry = self.pending().get(str(task_id))
         if entry is None:
             return fail("not_found", f"no pending task {task_id!r}")
-        if ident(by) is None or by != entry["approver"]:
+        if by != entry["approver"]:
             return fail("denied", f"only {entry['approver']} can decide this task")
         if not isinstance(approve, bool):
             return invalid("approve must be true or false")
         self._pending.update(lambda s: s["pending"].pop(str(task_id), None))
         recorded = trace.append(NAME, "decision", {"task_id": str(task_id), "approved": approve, "by": by,
+                                                   "task_digest": task_digest(entry["task"]),
                                                    "note": str(note)[:300]})
         if not approve:
             return {"status": "rejected", "outcome": "rejected", "by": by}

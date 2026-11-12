@@ -10,7 +10,8 @@ a severity. final_safe_output is True only when nothing is "high" or "critical":
              result is not released. A payload that legitimately carries its own
              non-ok "status" field must be verified on its own, not inside a stage result.
   high       not JSON (or holds NaN/Infinity); larger than MAX_BYTES; nested deeper
-             than MAX_DEPTH; a credential in the text (API key, private key, JWT,
+             than MAX_DEPTH (an output over MAX_BYTES is rejected without a content
+             scan; anything within it is scanned in full); a credential in the text (API key, private key, JWT,
              AWS key); instruction-like text scored "high" by the guard; a field
              missing from, or of the wrong type for, the caller's schema
   medium     personal identifiers in the text (email, phone, PAN, Aadhaar, card ...)
@@ -103,13 +104,15 @@ class SanityVerifier:
         except (TypeError, ValueError) as e:
             return self._result([_finding("high", "not_json", f"cannot be serialised as JSON: {str(e)[:120]}")])
         findings += list(_not_ok(constrained))
-        if size > MAX_BYTES:
+        if size > MAX_BYTES:            # unsafe already; the text is not scanned past the cap
             findings.append(_finding("high", "too_large", f"{size} bytes; the limit is {MAX_BYTES}"))
-        scan = guard.scan(text[:200000], source=NAME)
+            return self._result(findings)
+        # The whole text is scanned: it is no longer than the JSON, which is within MAX_BYTES.
+        scan = guard.scan(text, source=NAME)
         if scan.level != "none":
             severity = {"block": "critical", "high": "high", "low": "low"}[scan.level]
             findings.append(_finding(severity, "instruction_like_text", ", ".join(f["rule"] for f in scan.findings)))
-        kinds = guard.redact(text[:200000])[1]
+        kinds = guard.redact(text)[1]
         credentials = sorted(k for k in kinds if k in CREDENTIAL_KINDS)
         personal = sorted(k for k in kinds if k not in CREDENTIAL_KINDS)
         if credentials:

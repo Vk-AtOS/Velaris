@@ -12,20 +12,30 @@ limit, and targets it must never touch. align(inputs) checks one proposal,
      "unclear" through velaris.intel.llm. Code checks that every principle got
      exactly one of those verdicts; anything else counts as not aligned.
 
-aligned is True only if the mandate holds and, where a review ran, every
-principle is "consistent". With text to review and no model reachable, the
+aligned is True only if the mandate holds and, where principles are declared,
+a review ran and every principle is "consistent" (principles declared but no text
+to review: not aligned, status "needs_text"). Prohibited targets are compared after
+Unicode NFKC normalisation, case-folding and trimming, on both sides. Mandates and
+principles are set by a governance admin only (velaris.core.access). With text to review and no model reachable, the
 answer is "not_configured" and aligned is False: no judgement is invented.
 """
 from __future__ import annotations
 
+import unicodedata
 from typing import Any, Dict, List, Optional
 
 from velaris.agentkit.infra_store import State, invalid, is_name, is_number, ok
+from velaris.core.access import GOVERNANCE_ADMINS, check_caller
 from velaris.intel import guard
 from velaris.intel.llm import LLM, LLMError, extract_json
 
 NAME = "EACPE_ALIGNMENT"
 VERDICTS = ("consistent", "conflicts", "unclear")
+
+
+def _norm(target: str) -> str:
+    """The form targets are compared in: "V-13", " v\u201113 " and full-width "\uff36-13" are one target."""
+    return unicodedata.normalize("NFKC", target).casefold().strip()
 
 
 class EACPE_ALIGNMENTAgent:
@@ -44,7 +54,10 @@ class EACPE_ALIGNMENTAgent:
             return invalid("need an agent name and a list of action classes")
         if not is_number(max_amount, 0) or not isinstance(targets, list) or not all(isinstance(t, str) for t in targets):
             return invalid("max_amount must be >= 0 and prohibited_targets a list of text")
-        mandate = {"classes": action_classes, "max_amount": max_amount, "prohibited": targets}
+        _, refused = check_caller(NAME, "set_mandate", {"agent": agent}, roles=GOVERNANCE_ADMINS)
+        if refused:
+            return refused
+        mandate = {"classes": action_classes, "max_amount": max_amount, "prohibited": [_norm(t) for t in targets]}
         self._state.change(lambda d: d.setdefault("mandates", {}).__setitem__(agent, mandate))
         return ok(agent=agent, **mandate)
 
@@ -52,6 +65,9 @@ class EACPE_ALIGNMENTAgent:
         if not isinstance(principles, list) or not all(isinstance(p, str) and p.strip() for p in principles) \
                 or len(principles) > 20:
             return invalid("principles must be a list of up to 20 statements")
+        _, refused = check_caller(NAME, "set_principles", {"count": len(principles)}, roles=GOVERNANCE_ADMINS)
+        if refused:
+            return refused
         self._state.change(lambda d: d.__setitem__("principles", principles))
         return ok(principles=len(principles))
 
@@ -93,10 +109,12 @@ class EACPE_ALIGNMENTAgent:
             return no("outside_mandate", f"{inputs['action_class']} is not in this agent's mandate")
         if amount > mandate["max_amount"]:
             return no("outside_mandate", f"amount {amount} is above the limit {mandate['max_amount']}")
-        if target is not None and target in mandate["prohibited"]:
+        if target is not None and _norm(target) in {_norm(t) for t in mandate["prohibited"]}:
             return no("outside_mandate", f"{target} is a prohibited target")
         principles = data.get("principles", [])
-        if not text or not text.strip() or not principles:
+        if principles and (not text or not text.strip()):
+            return no("needs_text", "principles are declared, so the proposal needs text to review")
+        if not principles:
             return {"aligned": True, "details": inputs, "status": "ok", "reason": "within mandate", "review": None}
         review = self._review(text, principles)
         if review["status"] != "ok":

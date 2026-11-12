@@ -102,7 +102,7 @@ class VigilisAgent:
             and not infra_policy.problems(p.get("when")) for p in policies)
         if not well_formed:
             return denied("invalid_policy", "configured policies are malformed: denied")
-        matching = [p for p in policies if infra_policy.evaluate(p["when"], context)[0]]
+        matching = [p for p in policies if infra_policy.evaluate(p["when"], context, p["effect"])[0]]
         for effect in ("deny", "allow"):
             hit = next((p for p in matching if p["effect"] == effect), None)
             if hit:

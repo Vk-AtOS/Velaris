@@ -1,4 +1,4 @@
-"""Declared rules over a record: the one evaluator behind the policy, compliance and constraint agents.
+r"""Declared rules over a record: the one evaluator behind the policy, compliance and constraint agents.
 
 A rule states what must hold:
 
@@ -11,6 +11,18 @@ A rule applies when every `when` condition holds (no `when` = always); it is
 violated when any `require` condition does not hold. A missing field never
 satisfies a requirement, and a malformed rule is reported as an error, so
 callers can fail closed.
+
+`matches` runs a caller-supplied regular expression, so the pattern is checked
+(pattern_error) when a rule is validated - which is both when it is stored and
+again every time it is evaluated - and a pattern that fails is never run:
+  - at most MAX_PATTERN (200) characters, and it must compile;
+  - no backreferences (\1, (?P=name), conditional groups);
+  - no nested quantifiers ((a+)+, (\w*)*, (x{2,})+) and no alternation inside a
+    quantified group ((a|aa)*): the shapes behind exponential backtracking;
+  - at most MAX_WIDE_REPEATS (2) quantifiers whose upper bound is above 16 or
+    unbounded, and the text matched is at most MAX_MATCH_INPUT (1,000) characters
+    (a longer value does not match). These two bound the remaining polynomial
+    backtracking (e.g. ".*a.*b") to well under a second.
 """
 from __future__ import annotations
 
@@ -18,6 +30,11 @@ import re
 from typing import Any, Callable, Dict, List, Optional
 
 from velaris.agentkit.aicore_b_common import dig, ident, number
+
+try:
+    from re import _parser as _sre          # Python 3.11+
+except ImportError:                         # Python < 3.11
+    import sre_parse as _sre                # type: ignore[no-redef]
 
 _ORDER: Dict[str, Callable[[float, float], bool]] = {
     ">": lambda a, b: a > b, ">=": lambda a, b: a >= b,
@@ -27,7 +44,59 @@ _ALIASES = {"eq": "==", "ne": "!=", "gt": ">", "gte": ">=", "lt": "<", "lte": "<
 OPS = ("==", "!=", "in", "not_in", "contains", "exists", "absent", "matches", *_ORDER)
 SEVERITIES = ("low", "medium", "high", "critical")
 MAX_PATTERN = 200           # user-supplied regular expressions are kept short
-MAX_MATCH_INPUT = 10_000    # and never run over long strings
+MAX_MATCH_INPUT = 1_000     # and never run over long strings
+MAX_WIDE_REPEATS = 2        # quantifiers allowing more than _WIDE repetitions, per pattern
+_WIDE = 16
+_REPEATS = {_sre.MAX_REPEAT, _sre.MIN_REPEAT} | ({_sre.POSSESSIVE_REPEAT} if hasattr(_sre, "POSSESSIVE_REPEAT") else set())
+
+
+def _shape_error(items: Any, in_repeat: bool, wide: List[int]) -> Optional[str]:
+    """Walk a parsed pattern for backreferences, nested quantifiers and alternation under a quantifier."""
+    for op, av in items:
+        if op in (_sre.GROUPREF, _sre.GROUPREF_EXISTS):
+            return "backreferences are not allowed"
+        children: List[Any] = []
+        multi = in_repeat
+        if op in _REPEATS:
+            lo, hi, sub = av
+            many = hi is _sre.MAXREPEAT or hi > 1
+            if many and in_repeat:
+                return "nested quantifiers are not allowed"
+            if hi is _sre.MAXREPEAT or hi > _WIDE:
+                wide.append(1)
+            multi, children = in_repeat or many, [sub]
+        elif op == _sre.BRANCH:
+            if in_repeat:
+                return "alternation inside a quantified group is not allowed"
+            children = list(av[1])
+        elif op == _sre.SUBPATTERN:
+            children = [av[-1]]
+        elif op in (_sre.ASSERT, _sre.ASSERT_NOT):
+            children = [av[1]]
+        elif hasattr(_sre, "ATOMIC_GROUP") and op == _sre.ATOMIC_GROUP:
+            children = [av]
+        for child in children:
+            err = _shape_error(child, multi, wide)
+            if err:
+                return err
+    return None
+
+
+def pattern_error(pattern: Any) -> Optional[str]:
+    """Why a caller-supplied regular expression may not be run, or None. See the module docstring."""
+    if not isinstance(pattern, str) or len(pattern) > MAX_PATTERN:
+        return f"a pattern must be text of at most {MAX_PATTERN} characters"
+    try:
+        parsed = _sre.parse(pattern)
+    except (re.error, OverflowError, RecursionError) as e:
+        return f"bad pattern: {e}"
+    wide: List[int] = []
+    err = _shape_error(parsed, False, wide)
+    if err:
+        return err
+    if len(wide) > MAX_WIDE_REPEATS:
+        return f"at most {MAX_WIDE_REPEATS} unbounded (or over {_WIDE}) quantifiers per pattern"
+    return None
 
 
 def _op(cond: Dict[str, Any]) -> str:
@@ -54,12 +123,9 @@ def condition_error(cond: Any) -> Optional[str]:
     if op in _ORDER and number(value) is None:
         return f"'{op}' needs a numeric value"
     if op == "matches":
-        if not isinstance(value, str) or len(value) > MAX_PATTERN:
-            return f"'matches' needs a pattern of at most {MAX_PATTERN} characters"
-        try:
-            re.compile(value)
-        except re.error as e:
-            return f"bad pattern: {e}"
+        err = pattern_error(value)
+        if err:
+            return f"'matches': {err}"
     return None
 
 
@@ -86,7 +152,8 @@ def holds(cond: Dict[str, Any], record: Any) -> bool:
     if op == "contains":
         return isinstance(actual, (str, list, tuple, dict)) and expected in actual
     if op == "matches":
-        return isinstance(actual, str) and len(actual) <= MAX_MATCH_INPUT and re.search(expected, actual) is not None
+        return (isinstance(actual, str) and len(actual) <= MAX_MATCH_INPUT and pattern_error(expected) is None
+                and re.search(expected, actual) is not None)
     a = number(actual)
     return a is not None and _ORDER[op](a, float(expected))
 

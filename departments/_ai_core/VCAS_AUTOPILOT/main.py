@@ -2,9 +2,13 @@
 
 register(action, handler) adds a Python callable taking the task's params and
 returning a JSON-able result. execute(task, approval) runs it only when
-`approval` carries the trace hash of either PRIME's "allow" decision for this
-task id, principal, action, resource, amount and currency, or VCAS_CORE's
-record of a person approving this task id. The hash is looked up in the
+`approval` carries the trace hash of either PRIME's "allow" decision or VCAS_CORE's
+record of a person approving, and that decision carries the same
+aicore_b_authz.task_digest as the task given here: id, action, principal,
+resource, context (amount, currency ...) and params, so nothing the handler
+receives can differ from what was approved. The run is also bound to the caller
+(velaris.core.access): a PRIME allow runs only for the task's principal, a
+person's approval only for that person. The hash is looked up in the
 trace, so an approval cannot be made up by the caller, and each hash is
 spent once (kept in the same state file), so it cannot be replayed. A task id that
 already ran is never run again: the stored result is returned instead
@@ -18,8 +22,10 @@ import logging
 import time
 from typing import Any, Callable, Dict, Optional
 
+from velaris.agentkit.aicore_b_authz import task_digest
 from velaris.agentkit.aicore_b_common import JsonState, fail, health, ident, invalid, jsonable
 from velaris.agents.VCAS_SUPERVISOR.main import task_error
+from velaris.core.access import current_caller
 from velaris.intel import trace
 
 logger = logging.getLogger("VCAS_AUTOPILOT")
@@ -35,15 +41,13 @@ def _proven(task: Dict[str, Any], approval: Any) -> bool:
     entry = next((e for e in trace.entries() if e.get("hash") == wanted), None)
     if entry is None:
         return False
-    p = entry["payload"]
-    ctx = task.get("context") or {}
+    p, caller = entry["payload"], current_caller()
+    if p.get("task_digest") != task_digest(task) or caller is None:
+        return False
     if entry["actor"] == "PRIME" and entry["action"] == "prime.decision":
-        return (p.get("decision") == "allow" and p.get("task_id") == str(task["id"])
-                and p.get("principal") == task["principal"] and p.get("action") == task["action"]
-                and p.get("resource") == task.get("resource")
-                and p.get("amount") == ctx.get("amount") and p.get("currency") == ctx.get("currency"))
+        return p.get("decision") == "allow" and caller.id == task["principal"]
     if entry["actor"] == "VCAS_CORE" and entry["action"] == "decision":
-        return p.get("approved") is True and p.get("task_id") == str(task["id"])
+        return p.get("approved") is True and caller.id == p.get("by")
     return False
 
 

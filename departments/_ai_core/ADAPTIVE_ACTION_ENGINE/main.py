@@ -43,7 +43,7 @@ class ADAPTIVE_ACTION_ENGINEAgent:
         passed_over = []
         for action in ranked["order"]:
             result = self.runtime.run(action, approved_by)
-            if result["status"] in ("denied", "needs_approval", "no_handler"):
+            if result["status"] in ("denied", "needs_approval", "no_handler", "unauthenticated", "audit_failed"):
                 passed_over.append({"type": action["type"], "status": result["status"], "reason": result["reason"]})
                 continue
             if not result.get("replayed"):

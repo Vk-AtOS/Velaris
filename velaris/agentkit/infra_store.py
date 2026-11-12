@@ -26,6 +26,9 @@ from velaris.intel import guard, trace
 from velaris.intel.paths import agent_dir, write_private
 
 logger = logging.getLogger("velaris.agentkit.infra")
+# The only sensitivity labels allowed to leave this machine (LOCAL_ROUTER, CLOUD_HANDOFF_CONTROLLER).
+# Anything else - "restricted", a typo, or no label at all - stays local.
+MAY_LEAVE_MACHINE = ("public", "internal")
 _locks: Dict[str, threading.RLock] = {}
 _locks_guard = threading.Lock()
 

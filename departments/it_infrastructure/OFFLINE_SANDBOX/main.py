@@ -8,6 +8,12 @@ this agent does guarantee is narrower and exact:
   - no shell: arguments are passed as a list, so nothing is expanded or chained
   - an argument may not contain "/" or "..", start with "~" or hold a NUL, so a
     file operand can only name a file in the working directory
+  - an argument starting with "-" must be one of that command's _FLAGS, exactly
+    (no bundling, no long options, no "--"); a flag that takes a value is followed
+    by a count. This shuts out option-driven escapes such as GNU
+    `wc --files0-from=FILE` or `tail --follow=name`. The allowed flags were checked
+    against GNU coreutils and the macOS (BSD) tools: none of them reads a file other
+    than its operands, writes anything, or runs another program
   - the working directory is a fresh temporary directory holding only the files
     the caller passed in, and it is deleted afterwards
   - the environment is replaced (PATH, LANG, HOME, TMPDIR only): no secrets leak in
@@ -19,6 +25,7 @@ without running it.
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import signal
 import subprocess
@@ -28,7 +35,17 @@ import time
 from velaris.agentkit import infra_store
 
 _NAME = "OFFLINE_SANDBOX"
+# command -> {flag: takes a numeric value}. A command not listed takes no flags at all.
+_FLAGS = {
+    "cat": {"-n": False, "-b": False, "-s": False},
+    "echo": {"-n": False},
+    "head": {"-n": True, "-c": True},
+    "tail": {"-n": True, "-c": True, "-f": False},       # -f only waits for the timeout
+    "uname": {f: False for f in ("-a", "-s", "-r", "-m", "-n", "-p", "-v")},
+    "wc": {"-l": False, "-w": False, "-c": False, "-m": False},
+}
 _COMMANDS = ("cat", "echo", "false", "head", "tail", "true", "uname", "wc")
+_COUNT = re.compile(r"\+?[0-9]{1,9}")
 _SEARCH_PATH = "/usr/bin:/bin"
 _MAX_TIMEOUT_S = 30.0
 _MAX_OUTPUT = 64 * 1024
@@ -42,10 +59,19 @@ def _refusal(argv):
         return f"argv must be a list of 1 to {_MAX_ARGS} strings"
     if argv[0] not in _COMMANDS:
         return f"command '{argv[0][:40]}' is not on the allow-list"
+    flags, needs_count = _FLAGS.get(argv[0], {}), False
     for arg in argv[1:]:
         if len(arg) > 4096 or "\x00" in arg or "/" in arg or ".." in arg or arg.startswith("~"):
             return "arguments may not contain '/', '..', NUL or start with '~'"
-    return ""
+        if needs_count:
+            if not _COUNT.fullmatch(arg):
+                return f"a count must follow the flag before '{arg[:40]}'"
+            needs_count = False
+        elif arg.startswith("-"):
+            if arg not in flags:
+                return f"{argv[0]} takes only the flags {sorted(flags) or 'none'}; '{arg[:40]}' is refused"
+            needs_count = flags[arg]
+    return "a flag is missing its count" if needs_count else ""
 
 
 def _files_problem(files):

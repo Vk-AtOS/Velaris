@@ -10,17 +10,33 @@ that no grant may ever allow, is denied.
 A grant is a time-limited statement by a person (the grantor):
 
     {"id", "grantor", "principal", "actions": ["invoice.approve", "leave.*"],
-     "resources": ["finance/*"], "max_amount": 50000, "currency": "INR",
+     "resources": ["finance/*"],          # default ["**"]: every resource "max_amount": 50000, "currency": "INR",
      "autonomy": "act" | "act_and_notify" | "with_approval" | "observe",
      "approver": "<person asked when the grant does not cover a request>",
-     "valid_from": <epoch s>, "valid_until": <epoch s>, "revoked_at", "revoked_by"}
+     "valid_from": <epoch s>, "valid_until": <epoch s>, "revoked_at", "revoked_by",
+     "delegable": false}
+
+Resources match segment by segment (velaris.core.access.resource_matches: "*" never
+crosses "/"). A grant that covers "agent.execute" must list its resources as exact
+"AGENT.method" names - no patterns, no default - so it is an explicit allowlist.
+
+A grantor who is not a governance admin may only pass on what they hold:
+delegation_error() requires one live, delegable grant of theirs that covers every
+action and resource, at no stronger autonomy, no higher amount and no later expiry.
+
+task_digest(task) is the one canonical digest of a task (id, action, principal,
+resource, context incl. amount and currency, params). PRIME's and VCAS_CORE's
+decisions carry it, and VCAS_AUTOPILOT runs a task only if its digest matches.
 """
 from __future__ import annotations
 
+import hashlib
+import json
 from fnmatch import fnmatchcase
 from typing import Any, Dict, Iterable, List, Optional
 
 from velaris.agentkit.aicore_b_common import ident, number
+from velaris.core.access import resource_matches
 
 ALLOW, NEEDS_APPROVAL, DENY = "allow", "needs_approval", "deny"
 CURRENCY = "INR"                     # ponytail: one currency, no FX; other currencies go to a person
@@ -41,6 +57,21 @@ NEVER = frozenset({
 # What a covering grant lets the principal do, weakest first.
 AUTONOMY = {"observe": DENY, "with_approval": NEEDS_APPROVAL, "act_and_notify": ALLOW, "act": ALLOW}
 _RANK = list(AUTONOMY)
+EXECUTE = "agent.execute"
+_GLOB = frozenset("*?[")
+
+
+def _is_pattern(value: str) -> bool:
+    return bool(_GLOB & set(value))
+
+
+def task_digest(task: Dict[str, Any]) -> str:
+    """SHA-256 of the canonical form of everything that decides what a task does. Raises on non-JSON values."""
+    canonical = {"id": str(task.get("id")), "action": task.get("action"), "principal": task.get("principal"),
+                 "resource": task.get("resource"), "context": task.get("context") or {},
+                 "params": task.get("params") or {}}
+    return hashlib.sha256(json.dumps(canonical, sort_keys=True, separators=(",", ":"),
+                                     allow_nan=False).encode()).hexdigest()
 
 
 def grant_error(grant: Any) -> Optional[str]:
@@ -52,15 +83,23 @@ def grant_error(grant: Any) -> Optional[str]:
             return f"grant needs '{key}'"
     if grant["approver"] in (grant["grantor"], grant["principal"]):
         return "approver must be a person other than the grantor and the principal"
+    if grant["grantor"] == grant["principal"]:
+        return "a grantor cannot grant to themselves"
+    if not isinstance(grant.get("delegable", False), bool):
+        return "'delegable' must be true or false"
     actions = grant.get("actions")
     if not isinstance(actions, list) or not actions or any(ident(a) is None for a in actions):
         return "grant needs a non-empty list of 'actions'"
     never = [a for a in actions if any(fnmatchcase(n, a) for n in NEVER)]
     if never:
         return f"actions {never} cover something on the NEVER list"
-    resources = grant.get("resources", ["*"])
+    resources = grant.get("resources", ["**"])
     if not isinstance(resources, list) or not resources or any(ident(r) is None for r in resources):
         return "'resources' must be a non-empty list of patterns"
+    if any(fnmatchcase(EXECUTE, a) for a in actions) and any(
+            _is_pattern(r) or r.count(".") != 1 or not all(part.isidentifier() for part in r.split("."))
+            or r.split(".")[1].startswith("_") for r in resources):
+        return f"a grant covering '{EXECUTE}' must list exact 'AGENT.method' resources (no patterns, no private methods)"
     if grant.get("autonomy") not in AUTONOMY:
         return f"autonomy must be one of {_RANK}"
     if grant.get("max_amount") is not None:
@@ -138,7 +177,7 @@ def authorize(principal: Any, action: Any, resource: Any = None, context: Option
     covering = [g for g in live if any(fnmatchcase(action, a) for a in g["actions"])]
     if not covering:
         return _to_person(f"'{action}' is outside what {principal} was granted", live[0])
-    in_scope = [g for g in covering if any(fnmatchcase(resource, r) for r in g.get("resources", ["*"]))]
+    in_scope = [g for g in covering if any(resource_matches(r, resource) for r in g.get("resources", ["**"]))]
     if not in_scope:
         return _to_person(f"resource '{resource}' is outside the granted resources", covering[0])
 
@@ -164,3 +203,27 @@ def authorize(principal: Any, action: Any, resource: Any = None, context: Option
 
 def live_grants(grants: Iterable[Dict[str, Any]], now: float) -> List[Dict[str, Any]]:
     return [g for g in grants if grant_error(g) is None and not _dead_reason(g, now)]
+
+
+def _covers(held: str, wanted: str, match) -> bool:
+    """Does the held pattern cover everything the wanted one does? A wanted pattern must be held as written."""
+    return wanted == held or (not _is_pattern(wanted) and match(held, wanted))
+
+
+def delegation_error(held: Iterable[Dict[str, Any]], grant: Dict[str, Any], now: float) -> Optional[str]:
+    """Why `grant["grantor"]` may not give `grant` from what they hold, or None if one held grant covers it all."""
+    for h in live_grants(held, now):
+        if h["principal"] != grant["grantor"] or h.get("delegable") is not True:
+            continue
+        if not all(any(_covers(x, a, lambda p, v: fnmatchcase(v, p)) for x in h["actions"]) for a in grant["actions"]):
+            continue
+        if not all(any(_covers(x, r, resource_matches) for x in h.get("resources", ["**"])) for r in grant["resources"]):
+            continue
+        if _RANK.index(grant["autonomy"]) > _RANK.index(h["autonomy"]) or grant["valid_until"] > h["valid_until"]:
+            continue
+        if grant.get("max_amount") is not None and (h.get("max_amount") is None
+                                                    or grant["max_amount"] > h["max_amount"]):
+            continue
+        return None
+    return (f"{grant['grantor']} holds no live, delegable grant covering these actions, resources, autonomy, "
+            "amount and period")

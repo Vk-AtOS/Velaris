@@ -18,7 +18,6 @@ from __future__ import annotations
 from velaris.agentkit import infra_metrics, infra_store
 
 _NAME = "LOCAL_ROUTER"
-_MAY_LEAVE = ("public", "internal")
 
 
 class LocalRouter:
@@ -36,7 +35,7 @@ class LocalRouter:
         if not all(isinstance(v, bool) for v in flags.values()) or not infra_store.is_number(mem, 0):
             return infra_store.invalid("needs_network and cloud_available must be true/false, est_mem_mb >= 0",
                                        route="reject")
-        may_leave = task.get("sensitivity", "restricted") in _MAY_LEAVE
+        may_leave = task.get("sensitivity", "restricted") in infra_store.MAY_LEAVE_MACHINE
         if not may_leave:
             if flags["needs_network"]:
                 return infra_store.fail("rejected", "restricted work cannot use the network", route="reject")

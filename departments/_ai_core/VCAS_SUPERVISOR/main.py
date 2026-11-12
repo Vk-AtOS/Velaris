@@ -15,7 +15,7 @@ task: {"id", "action", "principal", "resource" (optional), "context": {"amount",
 """
 from typing import Any, Dict, Optional
 
-from velaris.agentkit.aicore_b_common import health, ident, invalid
+from velaris.agentkit.aicore_b_common import health, ident, invalid, jsonable
 from velaris.agents.PRIME.main import VelarisPrime
 
 NAME = "VCAS_SUPERVISOR"
@@ -31,6 +31,8 @@ def task_error(task: Any) -> Optional[str]:
         return "'context' must be an object"
     if task.get("params") is not None and not isinstance(task["params"], dict):
         return "'params' must be an object"
+    if not jsonable({k: task.get(k) for k in ("resource", "context", "params")}):
+        return "'resource', 'context' and 'params' must be JSON"
     return None
 
 
@@ -46,5 +48,5 @@ class VCASSupervisorAgent:
         if err:
             return {"approved": False, "task": task, "decision": "deny", **invalid(err)}
         d = self.prime.authorize(task["principal"], task["action"], task.get("resource"), task.get("context") or {},
-                                 now=now, task_id=str(task["id"]))
+                                 now=now, task_id=str(task["id"]), params=task.get("params") or {})
         return {"approved": d["decision"] == "allow", "task": task, **d}

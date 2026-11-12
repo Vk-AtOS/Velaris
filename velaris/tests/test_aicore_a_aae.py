@@ -4,6 +4,7 @@ import pytest
 from velaris.agents.AAE_POLICY.main import AAE_POLICYAgent
 from velaris.agents.AAE_RUNTIME.main import AAE_RUNTIMEAgent
 from velaris.agents.ADAPTIVE_ACTION_ENGINE.main import ADAPTIVE_ACTION_ENGINEAgent
+from velaris.core.access import Caller, acting_as
 from velaris.intel import trace
 
 RULES = [
@@ -70,7 +71,13 @@ def test_runtime_gates_denied_unapproved_unhandled_and_failing_actions():
     assert rt.run({"id": "d1", "type": "delete_ledger"})["status"] == "denied"
     held = rt.run({"id": "r1", "type": "refund", "params": {"amount": 5000}})
     assert held["status"] == "needs_approval" and rt.history("r1")["status"] == "not_found"
-    paid = rt.run({"id": "r1", "type": "refund", "params": {"amount": 5000}}, approved_by="cfo")
+    refund = {"id": "r1", "type": "refund", "params": {"amount": 5000}}
+    assert rt.run(refund, approved_by="cfo")["status"] == "unauthenticated"           # naming an approver is not enough
+    with acting_as(Caller("clerk", "kf")):
+        assert rt.run(refund, approved_by="cfo")["status"] == "denied"               # nor naming someone else
+    assert rt.history("r1")["status"] == "not_found"
+    with acting_as(Caller("cfo", "kf")):
+        paid = rt.run(refund, approved_by="cfo")
     assert paid["result"] == {"refunded": 5000} and rt.history("r1")["approved_by"] == "cfo"
     assert rt.run({"id": "s1", "type": "send_sms"})["status"] == "no_handler"
     failed = rt.run({"id": "c1", "type": "call"})

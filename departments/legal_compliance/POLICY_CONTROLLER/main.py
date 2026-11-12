@@ -7,13 +7,16 @@ earlier revision of the policy set. A policy that has an "effect" is a rule:
     {"effect": "allow" | "deny", "priority": int (default 0), "when": {conditions}}
 
 with conditions as in velaris.agentkit.infra_policy (an absent field never
-matches). A policy without "effect" is stored as a plain document and takes no
+matches an allow rule and always matches a deny rule). A policy without "effect" is stored as a plain document and takes no
 part in decisions. A rule-shaped policy that is malformed is refused at write time.
 
 evaluate(context) orders the active rules by priority (highest first), then deny
 before allow, then id, and the first rule whose conditions all hold decides. If
 none holds, the answer is deny by the implicit "default_deny" rule. The result
 always names the deciding rule, its version and the policy-set revision.
+
+put_policy() and retire() are for governance admins only; who made a change is the
+current caller (velaris.core.access), never an argument.
 """
 from __future__ import annotations
 
@@ -22,6 +25,7 @@ from typing import Any, Dict, List, Optional
 
 from velaris.agentkit import infra_policy
 from velaris.agentkit.infra_store import State, audit, fail, invalid, is_json, is_name, is_number, ok
+from velaris.core.access import GOVERNANCE_ADMINS, check_caller
 
 NAME = "POLICY_CONTROLLER"
 RULE_FIELDS = ("effect", "priority", "when", "description")
@@ -69,21 +73,24 @@ class POLICY_CONTROLLERAgent:
                   {"policy_id": pid, "version": result["version"], "by": by})
         return result
 
-    def put_policy(self, pid: str, policy: Dict[str, Any], by: str = "unspecified") -> Dict[str, Any]:
-        if not is_name(pid) or not is_name(by):
-            return invalid("policy id and 'by' must be short names")
+    def put_policy(self, pid: str, policy: Dict[str, Any], by: Optional[str] = None) -> Dict[str, Any]:
+        """Store a new version of a policy, as the current caller (a governance admin)."""
+        if not is_name(pid):
+            return invalid("policy id must be a short name")
         if not isinstance(policy, dict) or not is_json(policy):
             return invalid("policy must be a JSON object")
         problems = rule_problems(policy)
         if problems:
             return invalid("; ".join(problems))
-        return self._write(pid, policy, by)
+        caller, refused = check_caller(NAME, "put_policy", {"policy_id": pid}, roles=GOVERNANCE_ADMINS, claimed=by)
+        return refused or self._write(pid, policy, caller.id)
 
-    def retire(self, pid: str, by: str = "unspecified") -> Dict[str, Any]:
-        """Stop a policy taking part (its history is kept)."""
-        if not isinstance(pid, str) or not is_name(by):
-            return invalid("policy id and 'by' must be names")
-        return self._write(pid, None, by)
+    def retire(self, pid: str, by: Optional[str] = None) -> Dict[str, Any]:
+        """Stop a policy taking part (its history is kept). Governance admins only."""
+        if not isinstance(pid, str):
+            return invalid("policy id must be a name")
+        caller, refused = check_caller(NAME, "retire", {"policy_id": pid}, roles=GOVERNANCE_ADMINS, claimed=by)
+        return refused or self._write(pid, None, caller.id)
 
     def get_policy(self, pid: str, version: Optional[int] = None) -> Optional[Dict[str, Any]]:
         """The current policy (or a given version); None if absent, retired or the version does not exist."""
@@ -112,7 +119,7 @@ class POLICY_CONTROLLERAgent:
                 rules.append((pid, current[-1]))
         rules.sort(key=lambda r: (-r[1]["policy"].get("priority", 0), r[1]["policy"]["effect"] != "deny", r[0]))
         for pid, v in rules:
-            if infra_policy.evaluate(v["policy"].get("when", {}), context)[0]:
+            if infra_policy.evaluate(v["policy"].get("when", {}), context, v["policy"]["effect"])[0]:
                 return ok(decision=v["policy"]["effect"], allowed=v["policy"]["effect"] == "allow", rule=pid,
                           rule_version=v["version"], rev=rev, considered=len(rules))
         return ok(decision="deny", allowed=False, rule="default_deny", rule_version=None, rev=rev, considered=len(rules))

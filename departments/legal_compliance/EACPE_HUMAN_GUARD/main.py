@@ -12,6 +12,11 @@ exempt. validate(action) answers for one concrete action, {"class": ...,
                         not assumed to be safe
   malformed             refused
 
+Who acts is never an argument: the requester, the approver and whoever changes a class
+are the current caller (velaris.core.access). request() and decide() refuse without one;
+set_approvers() and exempt() also need the governance admin role. A legacy `by` /
+`approver` / `requested_by` value is accepted only when it is the caller's own id.
+
 Out of the box, DEFAULT_GUARDED classes are guarded with no approvers, so they
 cannot proceed until someone is named with set_approvers(). Requests, decisions
 and use of an approval are recorded in the hash-chained trace; an approval that
@@ -26,6 +31,7 @@ import uuid
 from typing import Any, Dict, List, Optional
 
 from velaris.agentkit.infra_store import State, audit, fail, invalid, is_json, is_name, is_number, ok
+from velaris.core.access import GOVERNANCE_ADMINS, check_caller
 
 NAME = "EACPE_HUMAN_GUARD"
 APPROVAL_TTL_S = 24 * 3600
@@ -48,20 +54,28 @@ class EACPE_HUMAN_GUARDAgent:
     def _classes(self, data: Dict[str, Any]) -> Dict[str, Any]:
         return data.get("classes") or {c: {"mode": "guarded", "approvers": []} for c in DEFAULT_GUARDED}
 
-    def set_approvers(self, action_class: str, approvers: List[str], by: str) -> Dict[str, Any]:
-        """Guard `action_class`; only the listed people may approve it."""
-        if not is_name(action_class) or not is_name(by) or not isinstance(approvers, list) or not all(
-                is_name(a) for a in approvers):
-            return invalid("need a class name, a list of approver names and who is making the change")
+    def set_approvers(self, action_class: str, approvers: List[str], by: Optional[str] = None) -> Dict[str, Any]:
+        """Guard `action_class`; only the listed people may approve it. Governance admins only."""
+        if not is_name(action_class) or not isinstance(approvers, list) or not all(is_name(a) for a in approvers):
+            return invalid("need a class name and a list of approver names")
+        caller, refused = check_caller(NAME, "set_approvers", {"class": action_class, "approvers": approvers},
+                                       roles=GOVERNANCE_ADMINS, claimed=by)
+        if refused:
+            return refused
+        by = caller.id
         self._state.change(lambda d: d.__setitem__("classes", {**self._classes(d),
                                                               action_class: {"mode": "guarded", "approvers": approvers}}))
         audit(NAME, "class.guarded", {"class": action_class, "approvers": approvers, "by": by})
         return ok(action_class=action_class, approvers=approvers)
 
-    def exempt(self, action_class: str, by: str) -> Dict[str, Any]:
-        """Declare a class reversible: its actions need no approval."""
-        if not is_name(action_class) or not is_name(by):
-            return invalid("need a class name and who is making the change")
+    def exempt(self, action_class: str, by: Optional[str] = None) -> Dict[str, Any]:
+        """Declare a class reversible: its actions need no approval. Governance admins only."""
+        if not is_name(action_class):
+            return invalid("need a class name")
+        caller, refused = check_caller(NAME, "exempt", {"class": action_class}, roles=GOVERNANCE_ADMINS, claimed=by)
+        if refused:
+            return refused
+        by = caller.id
         self._state.change(lambda d: d.__setitem__("classes", {**self._classes(d),
                                                               action_class: {"mode": "exempt", "approvers": []}}))
         audit(NAME, "class.exempt", {"class": action_class, "by": by})
@@ -74,10 +88,18 @@ class EACPE_HUMAN_GUARDAgent:
         return "" if is_json(action) else "action must be JSON"
 
     def request(self, action: Dict[str, Any]) -> Dict[str, Any]:
-        """Ask for approval of one action. Returns the request id the approver acts on."""
+        """Ask for approval of one action, as the current caller. Returns the request id the approver acts on."""
+        if isinstance(action, dict) and "requested_by" not in action:
+            caller, refused = check_caller(NAME, "request", {"class": str(action.get("class"))[:128]})
+            if refused:
+                return refused
+            action = {**action, "requested_by": caller.id}
         problem = self._shape(action)
         if problem:
             return invalid(problem)
+        _, refused = check_caller(NAME, "request", {"class": action["class"]}, claimed=action["requested_by"])
+        if refused:
+            return refused
         cls = self._classes(self._state.load()).get(action["class"])
         if cls is None or cls["mode"] != "guarded":
             return fail("not_guarded", "this class is exempt or unclassified; nothing to approve")
@@ -87,9 +109,16 @@ class EACPE_HUMAN_GUARDAgent:
         audit(NAME, "request", {"id": rid, "class": action["class"], "by": action["requested_by"], "hash": entry["hash"]})
         return {"status": "pending", "request_id": rid, "approvers": cls["approvers"], "action_hash": entry["hash"]}
 
-    def decide(self, request_id: str, approver: str, approve: bool, now: Optional[float] = None) -> Dict[str, Any]:
-        if not isinstance(approve, bool) or not is_name(approver) or (now is not None and not is_number(now, 0)):
-            return invalid("approver must be a name and approve true or false")
+    def decide(self, request_id: str, approver: Optional[str] = None, approve: Optional[bool] = None,
+               now: Optional[float] = None) -> Dict[str, Any]:
+        """The current caller approves or rejects a request. `approver`, if given, must be the caller."""
+        if not isinstance(approve, bool) or (now is not None and not is_number(now, 0)):
+            return invalid("approve must be true or false")
+        caller, refused = check_caller(NAME, "decide", {"id": str(request_id)[:64], "approve": approve},
+                                       claimed=approver)
+        if refused:
+            return refused
+        approver = caller.id
         now = time.time() if now is None else now
 
         def apply(data: Dict[str, Any]) -> Dict[str, Any]:

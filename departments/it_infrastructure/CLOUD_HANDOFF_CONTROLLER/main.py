@@ -1,8 +1,9 @@
 """CLOUD_HANDOFF_CONTROLLER: a durable outbox for work that has to leave this machine.
 
 enqueue() stores an item on disk; secrets and personal identifiers in its text
-are masked first (velaris.intel.guard), and items marked sensitivity
-"restricted" are refused. sync() delivers pending items oldest-first through a
+are masked first (velaris.intel.guard). Only items whose "sensitivity" is on
+infra_store.MAY_LEAVE_MACHINE ("public", "internal", the same list LOCAL_ROUTER uses)
+are accepted; "restricted", a misspelt label or no label at all is refused. sync() delivers pending items oldest-first through a
 `sender` the caller supplies, and stops at the first failure so order is kept;
 an item counts as delivered only when the sender returns True.
 
@@ -32,8 +33,9 @@ class CloudHandoffController:
     def enqueue(self, data):
         if not isinstance(data, dict) or not data or not infra_store.is_json(data):
             return infra_store.invalid("item must be a non-empty JSON object")
-        if data.get("sensitivity") == "restricted":
-            return infra_store.fail("refused", "restricted items are never handed off")
+        if data.get("sensitivity") not in infra_store.MAY_LEAVE_MACHINE:
+            return infra_store.fail("refused", "only items labelled sensitivity "
+                                    f"{' or '.join(infra_store.MAY_LEAVE_MACHINE)} are handed off")
         item = {"id": uuid.uuid4().hex, "queued_at": time.time(), "attempts": 0,
                 "data": infra_store.redact_json(data)}
 

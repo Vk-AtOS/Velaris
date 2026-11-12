@@ -9,6 +9,10 @@ Checks, all deterministic: both ends are agents that exist, the payload is a
 JSON object within a size limit, and no text in it looks like an attempt to
 instruct a model (velaris.intel.guard). Every decision is written to the
 trace without the payload.
+
+receive(dst) is bound to the caller (velaris.core.access): only the agent whose
+name is `dst` may take its messages, and `dst` must be a known agent name (no path
+separators), so it can never name a file outside this agent's directory.
 """
 import json
 import logging
@@ -17,6 +21,7 @@ from typing import Any, Dict, Iterator
 
 from velaris.agentkit.aicore_b_common import (JsonState, append_line, fail, health, ident, invalid, jsonable,
                                               known_agents, new_id, peek_dir, read_lines)
+from velaris.core.access import check_caller
 from velaris.intel import guard, trace
 from velaris.intel.paths import agent_dir
 
@@ -76,10 +81,16 @@ class EOF_GATEWAYAgent:
         return {**base, "routed": True, "status": "ok", "message_id": message["id"], "trace_hash": entry["hash"]}
 
     def receive(self, dst: str, limit: int = 10) -> Dict[str, Any]:
-        """Messages queued for `dst` that were not returned before, oldest first."""
+        """Messages queued for `dst` that were not returned before, oldest first. Only `dst` itself may ask."""
         dst_id = ident(dst, 80)
-        if dst_id is None or not isinstance(limit, int) or isinstance(limit, bool) or limit < 1:
+        if dst_id is None or not dst_id.isidentifier() or not isinstance(limit, int) or isinstance(limit, bool) \
+                or limit < 1:
             return invalid("dst must be an agent name and limit a positive integer", messages=[])
+        if dst_id not in known_agents():
+            return fail("unknown_agent", f"no such agent: {dst_id}", messages=[])
+        _, refused = check_caller(NAME, "receive", {"dst": dst_id}, roles=frozenset(), also=dst_id)
+        if refused:
+            return {**refused, "messages": []}
         queued = read_lines(peek_dir(NAME) / f"inbox_{dst_id}.jsonl")
         taken = int(self._cursors.load().get(dst_id, 0))
         batch = queued[taken:taken + limit]

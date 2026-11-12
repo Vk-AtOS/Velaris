@@ -31,6 +31,14 @@ The replacement must return (False, reason) when the service is down, slow or un
 it must never raise its way to an answer or default to True. Callers, tracing, the
 exception and every agent stay as they are. Nothing of that service is built here.
 
+Changes and approvals
+---------------------
+Agents that grant, approve, enrol or change policy never take the acting person as an
+argument. check_caller() reads the current Caller, refuses when there is none ("unauthenticated"),
+when a legacy identity argument names someone else, or when the change needs a role the caller
+does not hold (GOVERNANCE_ADMINS, SECURITY_ADMINS), and traces the decision either way. It
+returns a refusal dict instead of raising, so agents can pass it straight back.
+
 Limits: roles are organisation-wide ("hr_admin" may read every employee of the
 organisation; there is no "manager of these five people" because there is no reporting
 line data here), and a Caller is only as true as the entry point that built it: this
@@ -41,6 +49,7 @@ from __future__ import annotations
 import contextlib
 import contextvars
 from dataclasses import dataclass
+from fnmatch import fnmatchcase
 from typing import Any, Dict, FrozenSet, Iterator, Optional, Tuple
 
 from velaris.core.exceptions import VelarisError
@@ -53,6 +62,12 @@ READ_OTHERS: Dict[str, FrozenSet[str]] = {
     "identity": frozenset({"hr_admin"}),                      # PAN, Aadhaar, passport, full employee records
     "health": frozenset({"hr_admin"}),                        # medical details, sick and maternity leave
 }
+
+# Roles that may make privileged changes. Defined here only; agents import these names.
+GOVERNANCE_ADMIN = "governance_admin"     # PRIME grants, approvers, exemptions, policies, mandates, memory imports
+SECURITY_ADMIN = "security_admin"         # zero-trust enrolment and policy, identity tokens for others
+GOVERNANCE_ADMINS: FrozenSet[str] = frozenset({GOVERNANCE_ADMIN})
+SECURITY_ADMINS: FrozenSet[str] = frozenset({SECURITY_ADMIN})
 
 
 class AccessDenied(VelarisError, PermissionError):
@@ -145,3 +160,77 @@ def authorize_read(category: str, subject_id: Optional[Any], *, agent: str,
         raise AccessDenied(str(reason)[:200])
     return who                           # type: ignore[return-value]  (decide() allowed it, so it is a Caller)
 
+
+
+def has_role(caller: Optional[Caller], roles: FrozenSet[str]) -> bool:
+    return isinstance(caller, Caller) and bool(caller.roles & roles)
+
+
+def check_caller(agent: str, change: str, details: Optional[Dict[str, Any]] = None, *,
+                 roles: Optional[FrozenSet[str]] = None, also: Optional[str] = None,
+                 claimed: Any = None) -> Tuple[Optional[Caller], Optional[Dict[str, Any]]]:
+    """May the current caller make `change`? Returns (caller, None) or (None, refusal).
+
+    roles     None: any authenticated caller; otherwise the caller must hold one of them,
+              or be `also` (a recorded owner, or the subject acting for themselves).
+    claimed   a legacy identity argument (by=, approver=, grantor=...). When given it must be
+              the caller's own id: nobody acts in someone else's name.
+    The decision is traced; if it cannot be, the change is refused ("audit_failed").
+    """
+    who = current_caller()
+    if not isinstance(who, Caller):
+        status, reason = "unauthenticated", "no authenticated caller; run this with acting_as(caller)"
+    elif claimed is not None and claimed != who.id:
+        status, reason = "denied", f"{who.id} cannot act as {str(claimed)[:80]}"
+    elif roles is not None and not who.roles & roles and not (also is not None and who.id == also):
+        status, reason = "denied", f"{change} needs one of the roles {sorted(roles)}"
+    else:
+        status, reason = "ok", "allowed"
+    try:
+        trace.append("access", "change.granted" if status == "ok" else "change.denied", {
+            "agent": agent, "change": change, "caller": who.id if isinstance(who, Caller) else None,
+            "roles": sorted(who.roles) if isinstance(who, Caller) else [], "reason": reason,
+            "details": details or {}})
+    except (OSError, ValueError, TypeError) as e:
+        return None, {"status": "audit_failed", "reason": f"the decision could not be recorded: {type(e).__name__}"}
+    if status != "ok":
+        return None, {"status": status, "reason": reason}
+    return who, None
+
+
+# ---- resources ---------------------------------------------------------------
+# A resource is a "/"-separated name. Patterns match segment by segment: "*" and "?" never
+# cross a "/", and only a final "**" segment matches any number (one or more) of segments.
+
+def resource_error(resource: Any) -> Optional[str]:
+    """Why `resource` is not a usable resource name, or None."""
+    if not isinstance(resource, str) or not resource or len(resource) > 512:
+        return "resource must be a non-empty string of at most 512 characters"
+    if "\\" in resource or "\x00" in resource or ".." in resource:
+        return "resource may not contain '..', a backslash or NUL"
+    if any(not seg for seg in resource.split("/")):
+        return "resource may not have empty segments"
+    return None
+
+
+def resource_matches(pattern: Any, resource: Any) -> bool:
+    """Segment-aware match of a well-formed `resource` against `pattern`. Anything malformed is False."""
+    if resource_error(resource) or not isinstance(pattern, str) or resource_error(pattern.replace("**", "x")):
+        return False
+    pat, res = pattern.split("/"), resource.split("/")
+    if pat[-1] == "**":
+        head = pat[:-1]
+        if len(res) <= len(head):
+            return False
+        pat, res = head, res[:len(head)]
+    return len(pat) == len(res) and all(fnmatchcase(r, p) for p, r in zip(pat, res))
+
+
+# ---- memory scopes -----------------------------------------------------------
+
+def may_write_scope(caller: Optional[Caller], scope: Any) -> bool:
+    """A memory scope belongs to an organisation: "<org>" or "<org>:<anything>".
+
+    Only a governance admin of that organisation may write to it in bulk (imports)."""
+    return (has_role(caller, GOVERNANCE_ADMINS) and isinstance(scope, str)
+            and (scope == caller.org or scope.startswith(caller.org + ":")))  # type: ignore[union-attr]

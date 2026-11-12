@@ -214,7 +214,7 @@ def test_router_rejects_bad_input():
 # ── CLOUD_HANDOFF_CONTROLLER ─────────────────────────────────────────────────
 def test_handoff_without_transport_claims_nothing():
     c = make("CLOUD_HANDOFF_CONTROLLER", "CloudHandoffController")
-    r = c.sync({"job": "nightly-report"})
+    r = c.sync({"job": "nightly-report", "sensitivity": "internal"})
     assert r["status"] == "not_configured" and r["synced"] is False and r["pending"] == 1
     assert len(make("CLOUD_HANDOFF_CONTROLLER", "CloudHandoffController").pending()) == 1
 
@@ -222,11 +222,11 @@ def test_handoff_without_transport_claims_nothing():
 def test_handoff_delivers_in_order_and_stops_at_first_failure():
     c = make("CLOUD_HANDOFF_CONTROLLER", "CloudHandoffController")
     for n in (1, 2, 3):
-        c.enqueue({"n": n})
+        c.enqueue({"n": n, "sensitivity": "public"})
     sent = []
     partial = c.sync(sender=lambda item: sent.append(item["n"]) or item["n"] < 2)
     assert (partial["status"], partial["delivered"], partial["pending"], sent) == ("partial", 1, 2, [1, 2])
-    assert c.pending()[0]["data"] == {"n": 2} and c.pending()[0]["attempts"] == 1
+    assert c.pending()[0]["data"] == {"n": 2, "sensitivity": "public"} and c.pending()[0]["attempts"] == 1
 
     def broken(item):
         raise ConnectionError("link down")
@@ -238,10 +238,14 @@ def test_handoff_delivers_in_order_and_stops_at_first_failure():
 
 def test_handoff_masks_secrets_and_refuses_restricted():
     c = make("CLOUD_HANDOFF_CONTROLLER", "CloudHandoffController")
-    c.enqueue({"note": "contact a.person@example.com", "nested": [{"pan": "ABCDE1234F"}]})
+    c.enqueue({"note": "contact a.person@example.com", "nested": [{"pan": "ABCDE1234F"}], "sensitivity": "internal"})
     stored = c.pending()[0]["data"]
-    assert stored == {"note": "contact [EMAIL]", "nested": [{"pan": "[PAN]"}]}
+    assert stored == {"note": "contact [EMAIL]", "nested": [{"pan": "[PAN]"}], "sensitivity": "internal"}
     assert c.enqueue({"sensitivity": "restricted", "x": 1})["status"] == "refused"
+    for label in (None, "Restricted", "confidential", "pubic", "", ["public"]):    # unclassified or misspelt stays here
+        item = {"x": 1} if label is None else {"x": 1, "sensitivity": label}
+        assert c.enqueue(item)["status"] == "refused", label
+    assert len(c.pending()) == 1
     assert c.sync({"sensitivity": "restricted"}, sender=lambda i: True)["synced"] is False
     assert c.enqueue("text")["status"] == "invalid_input" and c.enqueue({})["status"] == "invalid_input"
     assert c.sync(sender="ftp")["status"] == "invalid_input"
@@ -301,6 +305,10 @@ def test_sandbox_timeout_and_output_cap(monkeypatch):
     ["rm", "-rf", "x"], ["sh", "-c", "echo hi"], ["python3", "-c", "1"], ["/bin/echo", "hi"],
     ["cat", "/etc/passwd"], ["cat", "../secret"], ["cat", "~root"], ["cat", "a\x00b"], [], "echo hi",
     ["echo", 5], None,
+    # flags outside each command's explicit list: option-driven file reads and the like
+    ["wc", "--files0-from=list.txt"], ["wc", "--files0-from", "list.txt"], ["tail", "--follow=name", "x"],
+    ["cat", "-"], ["cat", "--", "-x"], ["head", "-n", "-5", "f"], ["head", "-n"], ["head", "-n5", "f"],
+    ["echo", "-e", "x"], ["true", "--help"], ["wc", "-lw"], ["uname", "--all"], ["cat", "-v", "f"],
 ])
 def test_sandbox_refuses_everything_else(argv):
     s = make("OFFLINE_SANDBOX", "OfflineSandbox")
@@ -312,6 +320,8 @@ def test_sandbox_refuses_everything_else(argv):
 def test_sandbox_refuses_bad_files_and_limits():
     s = make("OFFLINE_SANDBOX", "OfflineSandbox")
     assert s.safe(["echo", "ok"]) == {"safe": True, "status": "ok", "reason": "on the allow-list"}
+    for allowed in (["wc", "-l", "-w"], ["head", "-c", "10", "f"], ["tail", "-n", "+2", "f"], ["uname", "-s"]):
+        assert s.safe(allowed)["safe"] is True, allowed
     assert s.run(["cat", "x"], files={"../x": "1"})["status"] == "refused"
     assert s.run(["cat", "x"], files={"x": b"bytes"})["status"] == "refused"
     assert s.run(["echo"], timeout_s=3600)["status"] == "refused"

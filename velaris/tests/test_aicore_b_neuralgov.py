@@ -11,6 +11,10 @@ from velaris.agents.NEURAL_CONSTRAINT_FIELD.main import NeuralConstraintField
 from velaris.agents.NEURAL_DRIFT_MONITOR.main import NeuralDriftMonitorAgent
 from velaris.agents.NEURAL_POLICY_MESH.main import NeuralPolicyMesh
 from velaris.agents.SELF_CORRECTION_ENGINE.main import SelfCorrectionEngine
+from velaris.core.access import GOVERNANCE_ADMIN, Caller, acting_as
+from velaris.intel import trace
+
+ADMIN = Caller("gov", "acme", frozenset({GOVERNANCE_ADMIN}))
 
 
 @pytest.fixture(autouse=True)
@@ -23,8 +27,9 @@ def _data(tmp_path, monkeypatch):
 
 def test_mesh_one_violated_policy_denies_even_if_others_pass():
     mesh = NeuralPolicyMesh()
-    assert mesh.add_policy("safety", ["no-autonomy-without-approval"], owner="coo")["status"] == "ok"
-    mesh.add_policy("spend", [{"id": "cap", "field": "amount", "op": "<=", "value": 1000}], owner="cfo")
+    with acting_as(ADMIN):
+        assert mesh.add_policy("safety", ["no-autonomy-without-approval"], owner="coo")["status"] == "ok"
+        mesh.add_policy("spend", [{"id": "cap", "field": "amount", "op": "<=", "value": 1000}], owner="cfo")
     mesh = NeuralPolicyMesh()                                           # restart keeps the register
     assert [p["name"] for p in mesh.list_policies()] == ["safety", "spend"]
     fine = mesh.enforce({"intent": "refund", "autonomous": False, "amount": 500})
@@ -40,12 +45,38 @@ def test_mesh_fails_closed_and_rejects_bad_policies():
     empty = mesh.enforce({"intent": "build_business"})
     assert empty["status"] == "no_policies" and empty["allowed"] is False
     assert mesh.enforce("build")["status"] == "invalid_input"
-    assert mesh.add_policy("p", [])["status"] == "invalid_input"
-    assert mesh.add_policy("p", ["made-up-rule"])["status"] == "invalid_input"
-    assert mesh.add_policy("p", [{"id": "r", "field": "a", "op": "??"}])["status"] == "invalid_input"
-    assert mesh.remove_policy("p")["status"] == "not_found"
+    with acting_as(ADMIN):
+        assert mesh.add_policy("p", [])["status"] == "invalid_input"
+        assert mesh.add_policy("p", ["made-up-rule"])["status"] == "invalid_input"
+        assert mesh.add_policy("p", [{"id": "r", "field": "a", "op": "??"}])["status"] == "invalid_input"
+        assert mesh.remove_policy("p")["status"] == "not_found"
+        mesh.add_policy("spend", [{"id": "cap", "field": "amount", "op": "<=", "value": 1000}])
     bad = mesh.enforce({"a": 1}, policies=[{"name": "p", "rules": ["made-up-rule"]}])
     assert bad["allowed"] is False and bad["status"] == "invalid_policy"
+
+
+def test_mesh_changes_need_an_admin_or_the_owner_and_callers_only_add():
+    mesh = NeuralPolicyMesh()
+    cap = [{"id": "cap", "field": "amount", "op": "<=", "value": 1000}]
+    assert mesh.add_policy("spend", cap, owner="cfo")["status"] == "unauthenticated"
+    with acting_as(Caller("cfo", "acme")):
+        assert mesh.add_policy("spend", cap)["status"] == "denied"              # only an admin creates
+    with acting_as(ADMIN):
+        mesh.add_policy("spend", cap, owner="cfo")
+    with acting_as(Caller("intruder", "acme")):
+        assert mesh.remove_policy("spend")["status"] == "denied"
+        assert mesh.add_policy("spend", [{"id": "open", "field": "amount", "op": ">=", "value": 0}])["status"] == "denied"
+    assert mesh.remove_policy("spend")["status"] == "unauthenticated"
+    # a caller's own policies are checked on top of the register; they cannot replace it
+    lax = [{"name": "lax", "rules": [{"id": "any", "field": "amount", "op": ">=", "value": 0}]}]
+    assert mesh.enforce({"amount": 5000}, policies=lax)["allowed"] is False
+    assert mesh.enforce({"amount": 5000}, policies=[])["allowed"] is False
+    with acting_as(Caller("cfo", "acme")):                                       # the recorded owner may change it
+        assert mesh.add_policy("spend", [{"id": "cap", "field": "amount", "op": "<=", "value": 9000}])["status"] == "ok"
+        assert mesh.add_policy("spend", cap, owner="someone-else")["status"] == "denied"
+        assert mesh.remove_policy("spend")["status"] == "ok"
+    assert {e["payload"]["change"] for e in trace.entries() if e["actor"] == "access"} >= {
+        "add_policy", "replace_policy", "remove_policy"}
 
 
 # ---- NEURAL_ALIGNMENT_ENGINE -------------------------------------------------

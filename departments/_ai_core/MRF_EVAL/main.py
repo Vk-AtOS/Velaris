@@ -9,7 +9,9 @@ Rubric (every key optional, at least one required):
   forbidden    terms that must not appear
   min_chars / max_chars
   fields       keys that must be present when the output is JSON (an object, or text holding one)
-  pattern      a regular expression the text must match (at most 200 characters)
+  pattern      a regular expression the first 1,000 characters must match; checked like a rule's
+               `matches` pattern (aicore_b_rules.pattern_error: length, no backreferences, no
+               nested quantifiers), so it cannot backtrack for long
 Each rubric item is one check. score = checks passed / checks; passed means
 every check passed. Deterministic.
 """
@@ -18,6 +20,7 @@ import re
 from typing import Any, Dict, List
 
 from velaris.agentkit.aicore_b_common import health, ident, invalid, number
+from velaris.agentkit.aicore_b_rules import MAX_MATCH_INPUT, pattern_error
 from velaris.intel.llm import LLMError, extract_json
 
 NAME = "MRF_EVAL"
@@ -34,13 +37,8 @@ def rubric_error(rubric: Any) -> Any:
     for key in ("min_chars", "max_chars"):
         if key in rubric and (number(rubric[key]) is None or rubric[key] < 0):
             return f"'{key}' must be a non-negative number"
-    if "pattern" in rubric:
-        if not isinstance(rubric["pattern"], str) or len(rubric["pattern"]) > 200:
-            return "'pattern' must be a regular expression of at most 200 characters"
-        try:
-            re.compile(rubric["pattern"])
-        except re.error as e:
-            return f"bad pattern: {e}"
+    if "pattern" in rubric and pattern_error(rubric["pattern"]):
+        return f"'pattern': {pattern_error(rubric['pattern'])}"
     return None
 
 
@@ -84,7 +82,7 @@ class MRF_EVALAgent:
             for field in rubric["fields"]:
                 check("field", isinstance(data, dict) and field in data, field)
         if "pattern" in rubric:
-            check("pattern", re.search(rubric["pattern"], text[:10_000]) is not None, rubric["pattern"])
+            check("pattern", re.search(rubric["pattern"], text[:MAX_MATCH_INPUT]) is not None, rubric["pattern"])
         failures = [c for c in checks if not c["ok"]]
         return {"status": "ok", "passed": not failures, "score": round((len(checks) - len(failures)) / len(checks), 4),
                 "checks": checks, "failures": failures}

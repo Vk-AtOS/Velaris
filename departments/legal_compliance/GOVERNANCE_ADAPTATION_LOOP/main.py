@@ -8,7 +8,7 @@ behind it may be wrong. record() stores outcomes {"rule", "decision",
     >= REVIEW_RATE        proposal "review_rule"  (people disagree with it often)
     == 0 and >= 4x MIN    proposal "keep"         (consistently accepted)
 
-A proposal only becomes "accepted" when a named person accepts it with
+A proposal only becomes "accepted" when a governance admin (the caller) accepts it with
 resolve(); even then this agent changes no rule. The owner of the policy
 (POLICY_CONTROLLER) makes the change. Outcomes and proposals persist.
 """
@@ -19,6 +19,7 @@ import uuid
 from typing import Any, Dict, List, Optional
 
 from velaris.agentkit.infra_store import State, audit, fail, invalid, is_name, ok
+from velaris.core.access import GOVERNANCE_ADMINS, check_caller
 
 NAME = "GOVERNANCE_ADAPTATION_LOOP"
 MIN_SAMPLES = 10
@@ -83,10 +84,17 @@ class GovernanceAdaptationLoop:
         return {"status": "ok", "adaptive_policy": shaped, "proposals": proposals,
                 **({"recorded": recorded["recorded"]} if recorded else {})}
 
-    def resolve(self, proposal_id: str, accept: bool, by: str) -> Dict[str, Any]:
-        """A named person accepts or rejects a proposal. Nothing else changes."""
-        if not isinstance(accept, bool) or not is_name(by):
-            return invalid("accept must be true or false and 'by' a name")
+    def resolve(self, proposal_id: str, accept: bool, by: Optional[str] = None) -> Dict[str, Any]:
+        """The current caller, a governance admin, accepts or rejects a proposal. Nothing else changes.
+
+        `by`, if given, must be the caller's own id (velaris.core.access)."""
+        if not isinstance(accept, bool):
+            return invalid("accept must be true or false")
+        caller, refused = check_caller(NAME, "resolve", {"id": str(proposal_id)[:64], "accept": accept},
+                                       roles=GOVERNANCE_ADMINS, claimed=by)
+        if refused:
+            return refused
+        by = caller.id
 
         def apply(data: Dict[str, Any]) -> Dict[str, Any]:
             p = data.get("proposals", {}).get(proposal_id) if isinstance(proposal_id, str) else None

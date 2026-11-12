@@ -1,5 +1,8 @@
-import pytest
 from importlib import import_module
+
+import pytest
+
+from velaris.core.access import GOVERNANCE_ADMIN, Caller, acting_as
 
 AGENTS = [
     ("GOVERNANCE_KERNEL", "GOVERNANCE_KERNELAgent"),
@@ -39,7 +42,8 @@ def test_governance_basic_ops(tmp_path):
     assert res["result"] == "simulated"
 
     pc = import_module("live.agents.POLICY_CONTROLLER.main").POLICY_CONTROLLERAgent()
-    pc.put_policy("pp", {"x":1})
+    with acting_as(Caller("cfo", "kf", frozenset({GOVERNANCE_ADMIN}))):    # policy changes need an admin caller
+        pc.put_policy("pp", {"x":1})
     assert pc.get_policy("pp") == {"x":1}
 
     zt = import_module("live.agents.ZERO_TRUST_PIPELINE.main").ZERO_TRUST_PIPELINEAgent()
