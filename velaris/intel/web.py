@@ -17,6 +17,7 @@ import hashlib
 import json
 import os
 import re
+import socket
 import time
 from collections import deque
 from dataclasses import asdict, dataclass, field
@@ -25,7 +26,7 @@ from urllib.parse import quote_plus, urlsplit
 
 from velaris.intel import guard, trace
 from velaris.intel.llm import LLM, LLMError, extract_json
-from velaris.intel.web_fetch import Fetcher, FetchError, check_public
+from velaris.intel.web_fetch import Fetcher, FetchError
 from velaris.intel.web_markdown import clean_url, html_to_markdown
 
 _fetcher: Optional[Fetcher] = None
@@ -61,48 +62,90 @@ class Page:
         return asdict(self)
 
 
-def _gate_browser_request(route: Any) -> None:
-    """Every request the browser makes (navigation, redirect, script, image, XHR) passes the
-    same public-address check as a normal fetch; anything else is aborted. Without this a page
-    could make the browser read internal services (127.0.0.1, 169.254.169.254, the LAN)."""
-    try:
-        check_public(route.request.url)
-    except FetchError as e:
-        trace.append("web", "render.blocked_request", {"host": urlsplit(route.request.url).hostname or "",
-                                                       "reason": e.reason})
+MAX_RENDER_REQUESTS = 200       # per page: main document plus its scripts, styles, data
+_DROP_HEADERS = {"content-encoding", "content-length", "transfer-encoding", "connection", "keep-alive",
+                 "set-cookie", "set-cookie2", "strict-transport-security", "alt-svc"}
+
+
+def browser_args(dead_port: int) -> List[str]:
+    """Chromium flags that leave the browser with no way to reach the network by itself.
+
+    It cannot resolve names, and every connection it opens on its own initiative (including
+    to localhost, and including WebSocket or WebRTC traffic that request routing never sees)
+    is sent to a proxy address where nothing listens.
+    """
+    return ["--host-resolver-rules=MAP * ~NOTFOUND",
+            f"--proxy-server=http://127.0.0.1:{dead_port}",
+            "--proxy-bypass-list=<-loopback>",
+            "--force-webrtc-ip-handling-policy=disable_non_proxied_udp"]
+
+
+def _serve_browser_request(route: Any, f: Fetcher, budget: List[int]) -> None:
+    """Answer one browser request (navigation, redirect, script, image, XHR) from this process.
+
+    The request is never handed back to the browser's own network stack. `Fetcher.get_pinned`
+    resolves the host once, checks every address, and connects to a checked address, so a name
+    that answers with a public address when checked and a private one afterwards (DNS
+    rebinding) never gets a second lookup: each new request for it is resolved and checked
+    again, and is refused the moment the answer is not public.
+    """
+    request = route.request
+    host = urlsplit(request.url).hostname or ""
+    refused = ""
+    if request.method != "GET":
+        refused = "method_not_allowed"          # rendering reads pages; it does not submit anything
+    elif budget[0] <= 0:
+        refused = "too_many_requests"
+    else:
+        budget[0] -= 1
+        try:
+            r, _ = f.get_pinned(request.url)
+        except FetchError as e:
+            refused = e.reason
+        except Exception as e:      # anything unexpected is a refusal too (recorded below), never a pass-through
+            refused = f"error_{type(e).__name__}"
+    if refused:
+        trace.append("web", "render.blocked_request", {"host": host, "reason": refused})
         route.abort()
         return
-    route.continue_()
+    route.fulfill(status=r.status_code, body=r.content,
+                  headers={k: v for k, v in r.headers.items() if k.lower() not in _DROP_HEADERS})
 
 
-def _render_with_browser(url: str) -> Optional[str]:
-    """Rendered HTML for pages built in the browser. None if no browser is installed."""
+def _render_with_browser(url: str, f: Fetcher) -> Optional[str]:
+    """Rendered HTML for pages built in the browser. None if no browser is installed.
+
+    Limits: GET only, no cookies, at most MAX_RENDER_REQUESTS requests and the fetcher's size
+    cap per response, so a page that needs a login or posts data renders partly or not at all.
+    """
     try:
         from playwright.sync_api import sync_playwright   # optional dependency, imported only when needed
     except ImportError:
         return None
-    try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch()
-            try:
-                # The request gate only sees what Playwright routes. Service workers fetch outside
-                # it, and WebSocket / WebRTC connections are never routed, so those are switched off.
-                # ponytail: the gate checks a name's address and the browser then resolves it again,
-                # so a host that changes its DNS answer in between gets through. Closing that needs
-                # an egress proxy that checks the address it actually connects to.
-                ctx = browser.new_context(service_workers="block")
-                ctx.add_init_script("for (const k of ['WebSocket', 'RTCPeerConnection', "
-                                    "'webkitRTCPeerConnection', 'WebTransport']) delete window[k];")
-                ctx.route("**/*", _gate_browser_request)
-                page = ctx.new_page()
-                page.goto(url, wait_until="networkidle", timeout=30000)
-                check_public(page.url)      # where the page ended up, after any script redirect
-                return page.content()
-            finally:
-                browser.close()
-    except Exception as e:  # the browser is best-effort; the caller keeps the static result
-        trace.append("web", "render.failed", {"url": url, "error": type(e).__name__})
-        return None
+    # A bound socket that never listens: connections to it are refused, and nobody else can
+    # take the port while the browser runs. It is the "proxy" in browser_args.
+    with socket.socket() as nowhere:
+        nowhere.bind(("127.0.0.1", 0))
+        try:
+            with sync_playwright() as p:
+                browser = p.chromium.launch(args=browser_args(nowhere.getsockname()[1]))
+                try:
+                    # Service workers fetch outside request routing, so they are blocked; the
+                    # page-level socket APIs are removed as well, though with the flags above
+                    # neither could reach anything.
+                    ctx = browser.new_context(service_workers="block")
+                    ctx.add_init_script("for (const k of ['WebSocket', 'RTCPeerConnection', "
+                                        "'webkitRTCPeerConnection', 'WebTransport']) delete window[k];")
+                    budget = [MAX_RENDER_REQUESTS]
+                    ctx.route("**/*", lambda route: _serve_browser_request(route, f, budget))
+                    page = ctx.new_page()
+                    page.goto(url, wait_until="networkidle", timeout=30000)
+                    return page.content()
+                finally:
+                    browser.close()
+        except Exception as e:  # the browser is best-effort; the caller keeps the static result
+            trace.append("web", "render.failed", {"url": url, "error": type(e).__name__})
+            return None
 
 
 def scrape(url: str, *, use_cache: bool = True, render_js: bool = True, f: Optional[Fetcher] = None) -> Page:
@@ -114,7 +157,7 @@ def scrape(url: str, *, use_cache: bool = True, render_js: bool = True, f: Optio
         return Page(url=url, error=e.reason, fetched_at=time.time())
     out = html_to_markdown(got.text, got.final_url)
     if out["needs_js"] and render_js:
-        rendered = _render_with_browser(got.final_url)
+        rendered = _render_with_browser(got.final_url, f)
         if rendered:
             out = html_to_markdown(rendered, got.final_url)
     scan = guard.scan(str(out["markdown"]), source=got.final_url)

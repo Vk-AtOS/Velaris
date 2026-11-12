@@ -137,14 +137,15 @@ class Fetcher:
         if wait > 0:
             time.sleep(wait)
 
-    def _raw_get(self, url: str) -> httpx.Response:
+    def _raw_get(self, url: str, polite: bool = True) -> httpx.Response:
         """One request, no redirects, body capped at MAX_BYTES.
 
         The host is resolved once, here; every address in the answer is checked, and the
         connection goes to one of those addresses. `response.url` therefore holds the address.
         """
         addresses = check_public(url, self._resolver)
-        self._wait_turn(urlsplit(url).hostname or "")
+        if polite:
+            self._wait_turn(urlsplit(url).hostname or "")
         unreachable: Optional[httpx.HTTPError] = None
         for address in addresses:
             target, headers, extensions = pinned(url, address)
@@ -163,10 +164,21 @@ class Fetcher:
                 raise FetchError("network", type(e).__name__) from e
         raise FetchError("network", type(unreachable).__name__) from unreachable
 
-    def _get_following(self, url: str) -> Tuple[httpx.Response, str]:
+    def get_pinned(self, url: str) -> Tuple[httpx.Response, str]:
+        """GET for the headless browser: (response, final URL), redirects followed.
+
+        The browser has no network access of its own (see web._render_with_browser); every
+        request it makes is answered from here, so each one is resolved once, checked, and
+        connected to the checked address exactly like a normal fetch. No robots check (the
+        page itself already passed it; these are its scripts, styles and data) and no
+        per-host pause (a page loads its parts together).
+        """
+        return self._get_following(url, polite=False)
+
+    def _get_following(self, url: str, polite: bool = True) -> Tuple[httpx.Response, str]:
         """(response, the URL it finally came from). Every hop goes through _raw_get."""
         for _ in range(MAX_REDIRECTS + 1):
-            r = self._raw_get(url)
+            r = self._raw_get(url, polite)
             if r.status_code in (301, 302, 303, 307, 308) and r.headers.get("location"):
                 url = urljoin(url, r.headers["location"])      # resolved, checked and pinned on the next loop
                 continue
