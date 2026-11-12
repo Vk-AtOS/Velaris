@@ -35,11 +35,14 @@ from fastapi.responses import JSONResponse
 
 from velaris.api.allowlist import ACT, READ, catalog, prepare, rule_for, tool_params
 from velaris.api.auth import AuthError, Verifier, load_public_key
+from velaris.chat.api import chat_router
+from velaris.control.api import mount as mount_control
 from velaris.core.access import AccessDenied, Caller, deployment_org
 from velaris.core.prime import PrimeGate, gate_from_env, install_read_authoriser
 from velaris.intel import trace
 from velaris.intel.flow import Flow, FlowError, Tool
 from velaris.intel.llm import LLM
+from velaris.mail.api import mount_mail
 
 logger = logging.getLogger("velaris.api")
 
@@ -101,6 +104,7 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
     verifier = Verifier(settings.secret, settings.identity_key)
     llm = settings.llm or LLM()
     app = FastAPI(title="Velaris", docs_url=None, redoc_url=None, openapi_url=None)
+    app.include_router(chat_router(verifier, settings.org, llm=settings.llm))     # company chat: /chat/... (velaris/chat)
     state: Dict[str, Any] = {}
 
     @app.exception_handler(ApiError)
@@ -354,4 +358,7 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
         record(caller, "trace.verify", {})
         return await in_thread(trace.verify)
 
+    mount_control(app, authed=authed, record=record, in_thread=in_thread, api_error=ApiError, llm=llm,
+                  gate=settings.gate, flow_path=settings.flow_db)       # control layer: /control/... (velaris/control)
+    mount_mail(app, settings, authed, record, in_thread)    # company email: /mail/... (velaris/mail)
     return app
