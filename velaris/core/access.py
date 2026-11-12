@@ -68,7 +68,9 @@ READ_OTHERS: Dict[str, FrozenSet[str]] = {
 # Roles that may make privileged changes. Defined here only; agents import these names.
 GOVERNANCE_ADMIN = "governance_admin"     # PRIME grants, approvers, exemptions, policies, mandates, memory imports
 SECURITY_ADMIN = "security_admin"         # zero-trust enrolment and policy, identity tokens for others
+ATLASSIAN_READER = "atlassian_reader"     # read Jira/Confluence through the deployment's one service account
 GOVERNANCE_ADMINS: FrozenSet[str] = frozenset({GOVERNANCE_ADMIN})
+ATLASSIAN_READERS: FrozenSet[str] = frozenset({ATLASSIAN_READER, GOVERNANCE_ADMIN})   # admins hold it implicitly
 SECURITY_ADMINS: FrozenSet[str] = frozenset({SECURITY_ADMIN})
 
 

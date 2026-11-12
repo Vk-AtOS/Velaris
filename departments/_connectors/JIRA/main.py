@@ -7,6 +7,11 @@ Consequential (change the customer's Jira): create_issue, transition_issue
   that is not running inside an approved flow step (atlassian.refuse_unless_approved), whatever
   arguments it carries; there is no approval parameter to forge. Each run is traced.
 
+Scope: only the projects in config jira_projects / vault ATLASSIAN_JIRA_PROJECTS can be read or changed (see
+atlassian.py); empty means nothing. Every JQL is wrapped in `project in (...) AND (...)`, issue keys and the
+issue's real project are checked, and list_projects returns only those projects. The API additionally
+requires the atlassian_reader role (velaris.core.access) for the reads.
+
 Issue text (summary, description) is data: it is screened by velaris.intel.guard and withheld when
 it reads like instructions to a model; the level is returned beside it.
 
@@ -20,7 +25,8 @@ import logging
 import re
 from typing import Any, Dict, List, Optional
 
-from velaris.agents.JIRA.atlassian import AtlassianClient, AtlassianError, refuse_unless_approved, screen
+from velaris.agents.JIRA.atlassian import (AtlassianClient, AtlassianError, in_scope, refuse_unless_approved, scope_query,
+                                           screen)
 from velaris.intel import trace
 
 logger = logging.getLogger("JIRA")
@@ -76,6 +82,14 @@ class JiraConnector:
             "guard": next(l for l in ("block", "high", "low", "none") if l in levels),
         }
 
+    def _projects(self) -> tuple:
+        return self.client.scope("jira_projects")
+
+    def _check_key(self, key: str) -> None:
+        self._key(key)
+        if not in_scope(key.rsplit("-", 1)[0], self._projects()):
+            raise AtlassianError("out_of_scope", "project is not in the configured Jira scope")
+
     # ── read-only ────────────────────────────────────────────────────────
     def search_issues(self, jql: str, *, max_results: int = 50, fields: str = SEARCH_FIELDS) -> Dict[str, Any]:
         """Issues matching a JQL query, token-paged up to max_results (1-1000)."""
@@ -83,18 +97,23 @@ class JiraConnector:
             raise ValueError("jql must be a non-empty string")
         if not 1 <= max_results <= 1000:
             raise ValueError("max_results must be 1 to 1000")
+        jql = scope_query(jql, "project", self._projects())
         raw = self.client.paged("/rest/api/3/search/jql", params={"jql": jql, "fields": fields, "maxResults": 100},
                                 items_key="issues", limit=max_results, next_token=True)
+        raw = [i for i in raw if in_scope(((i.get("fields") or {}).get("project") or {}).get("key"), self._projects())]
         return {"status": "ok", "count": len(raw), "issues": [self._issue(i) for i in raw]}
 
     def get_issue(self, key: str) -> Dict[str, Any]:
-        self._key(key)
-        return {"status": "ok", "issue": self._issue(self.client.request(
-            "GET", f"/rest/api/3/issue/{key}", params={"fields": SEARCH_FIELDS}))}
+        self._check_key(key)
+        raw = self.client.request("GET", f"/rest/api/3/issue/{key}", params={"fields": SEARCH_FIELDS}) or {}
+        # a moved issue answers to its old key: judge it by the project it is in now
+        if not in_scope(((raw.get("fields") or {}).get("project") or {}).get("key"), self._projects()):
+            raise AtlassianError("out_of_scope", "project is not in the configured Jira scope")
+        return {"status": "ok", "issue": self._issue(raw)}
 
     def get_transitions(self, key: str) -> Dict[str, Any]:
         """The transitions the issue can take now: needed to pick the id for transition_issue."""
-        self._key(key)
+        self._check_key(key)
         data = self.client.request("GET", f"/rest/api/3/issue/{key}/transitions")
         return {"status": "ok", "transitions": [{"id": t.get("id"), "name": t.get("name"),
                                                  "to": (t.get("to") or {}).get("name")}
@@ -103,8 +122,12 @@ class JiraConnector:
     def list_projects(self, *, max_results: int = 100) -> Dict[str, Any]:
         if not 1 <= max_results <= 1000:
             raise ValueError("max_results must be 1 to 1000")
-        raw = self.client.paged("/rest/api/3/project/search", params={"maxResults": 100, "startAt": 0},
-                                items_key="values", limit=max_results)
+        if not self._projects():
+            return {"status": "ok", "projects": []}
+        # ponytail: filtered after fetching (at most 1000 projects scanned); use the `keys` filter if sites are larger
+        raw = [p for p in self.client.paged("/rest/api/3/project/search", params={"maxResults": 100, "startAt": 0},
+                                            items_key="values", limit=1000)
+               if in_scope(p.get("key"), self._projects())][:max_results]
         return {"status": "ok", "projects": [{"key": p.get("key"), "name": p.get("name"), "id": p.get("id"),
                                               "type": p.get("projectTypeKey")} for p in raw]}
 
@@ -117,6 +140,8 @@ class JiraConnector:
             return refusal
         if not PROJECT_KEY.fullmatch(project_key or "") or not summary.strip() or "\n" in summary or len(summary) > 255:
             raise ValueError("project_key like 'ABC', and a one-line summary of at most 255 characters, are required")
+        if not in_scope(project_key, self._projects()):
+            raise AtlassianError("out_of_scope", "project is not in the configured Jira scope")
         fields: Dict[str, Any] = {"project": {"key": project_key}, "summary": summary.strip(),
                                   "issuetype": {"name": issue_type}}
         if description.strip():
@@ -130,7 +155,7 @@ class JiraConnector:
         refusal = refuse_unless_approved("JIRA", "transition_issue", {"key": str(key)[:20]})
         if refusal:
             return refusal
-        self._key(key)
+        self._check_key(key)
         if not re.fullmatch(r"[0-9]{1,6}", str(transition_id)):
             raise ValueError("transition_id must be the numeric id from get_transitions")
         trace.append("jira", "transition_issue", {"key": key, "transition": str(transition_id)})

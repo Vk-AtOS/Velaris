@@ -11,6 +11,12 @@ GET /wiki/api/v2/pages/{id}?body-format=storage, GET /wiki/api/v2/spaces/{id}/pa
 Pages come back in "storage format" (XHTML with ac:/ri: macros) and are converted with
 velaris.intel.web_markdown. Macro bodies other than plain text are rendered as text only
 (ponytail: code and table-of-contents macros lose their special form; map macros if that bites).
+Scope: only the spaces in config confluence_spaces / vault ATLASSIAN_CONFLUENCE_SPACES can be read or
+ingested (see atlassian.py); empty means nothing. CQL is wrapped in `space in (...) AND (...)`, a page is
+returned only if its spaceId belongs to an in-scope space, list_spaces shows only those, and the API
+requires the atlassian_reader role for the reads. ingest_space also skips pages with view restrictions
+(own or inherited from a parent, GET /wiki/rest/api/content/{id}/restriction/byOperation/read) so restricted
+content never enters the shared library; if the restriction check fails the page is skipped.
 Page text is data: it is screened by velaris.intel.guard; a page that reads like instructions is
 withheld from the results and from the library, and said so.
 """
@@ -19,7 +25,8 @@ import logging
 import re
 from typing import Any, Dict, List, Optional
 
-from velaris.agents.JIRA.atlassian import AtlassianClient, AtlassianError, refuse_unless_approved, screen
+from velaris.agents.JIRA.atlassian import (AtlassianClient, AtlassianError, in_scope, refuse_unless_approved, scope_query,
+                                           screen)
 from velaris.intel import trace
 from velaris.intel.web_markdown import html_to_markdown
 
@@ -54,12 +61,47 @@ class ConfluenceConnector:
             self._library = DocumentLibrary()
         return self._library
 
+    def _scoped_spaces(self) -> Dict[str, str]:
+        """{space id: key} for the configured spaces that exist; empty when nothing is configured."""
+        keys = self.client.scope("confluence_spaces")
+        if not keys:
+            return {}
+        raw = self.client.paged("/wiki/api/v2/spaces", params={"keys": ",".join(keys), "limit": 100},
+                                items_key="results", limit=1000)
+        return {str(s.get("id")): str(s.get("key")) for s in raw if in_scope(s.get("key"), keys)}
+
+    def _read_restricted(self, page_id: Any) -> bool:
+        """True when the page has view restrictions or that cannot be established (fail closed)."""
+        try:
+            data = self.client.request("GET", f"/wiki/rest/api/content/{page_id}/restriction/byOperation/read") or {}
+        except AtlassianError as e:
+            logger.warning("restriction check of page %s failed: %s", page_id, e.reason)
+            return True
+        found = data.get("restrictions") if isinstance(data, dict) else None
+        if not isinstance(found, dict) or not ({"user", "group"} & set(found)):
+            return True
+        return any((found.get(k) or {}).get("results") for k in ("user", "group"))
+
+    def _hidden(self, page_id: Any, parents: Dict[str, Any], seen: Dict[str, bool]) -> bool:
+        """Restricted itself or through an ancestor. Parents outside the listing are checked by id and end the walk."""
+        pid = str(page_id)
+        for _ in range(50):
+            if pid not in seen:
+                seen[pid] = self._read_restricted(pid)
+            if seen[pid]:
+                return True
+            if pid not in parents or not parents[pid]:
+                return False
+            pid = str(parents[pid])
+        return True                                     # too deep to trust
+
     def search(self, cql: str, *, limit: int = 25) -> Dict[str, Any]:
         """CQL search, paged up to `limit` (1-500). Titles and excerpts are screened."""
         if not isinstance(cql, str) or not cql.strip():
             raise ValueError("cql must be a non-empty string")
         if not 1 <= limit <= 500:
             raise ValueError("limit must be 1 to 500")
+        cql = scope_query(cql, "space", self.client.scope("confluence_spaces"))
         raw = self.client.paged("/wiki/rest/api/search", params={"cql": cql, "limit": 25}, items_key="results", limit=limit)
         results = []
         for r in raw:
@@ -75,13 +117,20 @@ class ConfluenceConnector:
         """One page as markdown (version, space and title included)."""
         if not isinstance(page_id, str) or not PAGE_ID.fullmatch(page_id):
             raise ValueError("page_id must be the numeric page id")
+        spaces = self._scoped_spaces()
+        if not spaces:
+            raise AtlassianError("out_of_scope", "no Confluence spaces are configured")
         page = self.client.request("GET", f"/wiki/api/v2/pages/{page_id}", params={"body-format": "storage"})
+        if str((page or {}).get("spaceId")) not in spaces:
+            raise AtlassianError("out_of_scope", "page is not in a configured Confluence space")
         return {"status": "ok", **self._page(page)}
 
     def list_spaces(self, *, limit: int = 100) -> Dict[str, Any]:
         if not 1 <= limit <= 1000:
             raise ValueError("limit must be 1 to 1000")
-        raw = self.client.paged("/wiki/api/v2/spaces", params={"limit": 100}, items_key="results", limit=limit)
+        keys = self.client.scope("confluence_spaces")
+        raw = [s for s in self.client.paged("/wiki/api/v2/spaces", params={"keys": ",".join(keys), "limit": 100},
+                                            items_key="results", limit=1000) if in_scope(s.get("key"), keys)][:limit] if keys else []
         return {"status": "ok", "spaces": [{"id": s.get("id"), "key": s.get("key"), "name": s.get("name"),
                                             "type": s.get("type"), "status": s.get("status")} for s in raw]}
 
@@ -90,7 +139,9 @@ class ConfluenceConnector:
 
         The library names each document "confluence <KEY> - <title> (<page id>)", which is what its
         answers cite. Unchanged pages are a no-op there, so this can run again to refresh.
-        A page the guard blocks is not ingested; it is listed under "withheld".
+        A page the guard blocks is not ingested; it is listed under "withheld". Only configured spaces are
+        accepted; pages with view restrictions (their own or a parent's) are skipped and listed under
+        "restricted". Each document starts with a line naming the space and page it came from.
         """
         refusal = refuse_unless_approved("CONFLUENCE", "ingest_space", {"space": str(space_key)[:40], "scope": str(scope)[:80]})
         if refusal:
@@ -101,8 +152,10 @@ class ConfluenceConnector:
             raise ValueError("scope (the library to add to) is required")
         if not 1 <= max_pages <= MAX_INGEST_PAGES:
             raise ValueError(f"max_pages must be 1 to {MAX_INGEST_PAGES}")
+        if not in_scope(space_key, self.client.scope("confluence_spaces")):
+            raise AtlassianError("out_of_scope", "space is not in the configured Confluence scope")
         found = self.client.request("GET", "/wiki/api/v2/spaces", params={"keys": space_key, "limit": 1})
-        spaces = (found or {}).get("results") or []
+        spaces = [s for s in (found or {}).get("results") or [] if in_scope(s.get("key"), (space_key,))]
         if not spaces:
             raise AtlassianError("not_found", f"no space with key {space_key}")
         pages = self.client.paged(f"/wiki/api/v2/spaces/{spaces[0]['id']}/pages",
@@ -110,8 +163,14 @@ class ConfluenceConnector:
         counts = {"ADDED": 0, "UPDATED": 0, "UNCHANGED": 0}
         withheld: List[Dict[str, Any]] = []
         failed: List[Dict[str, Any]] = []
+        restricted: List[Dict[str, Any]] = []
+        parents = {str(p.get("id")): p.get("parentId") for p in pages}
+        checked: Dict[str, bool] = {}
         for raw in pages:
             page = self._page(raw)
+            if self._hidden(page["id"], parents, checked):
+                restricted.append({"id": page["id"], "title": page["title"]})
+                continue
             if page["guard"] == "block":
                 withheld.append({"id": page["id"], "title": page["title"], "reason": "reads like instructions to an AI"})
                 continue
@@ -120,16 +179,16 @@ class ConfluenceConnector:
             safe_title = re.sub(r"[/\\]", "-", page["title"])
             name = f"confluence {space_key.upper()} - {safe_title} ({page['id']}).md"
             try:
-                result = self._lib().ingest(name, page["markdown"].encode("utf-8"), scope)
+                result = self._lib().ingest(name, f"Source: Confluence space {space_key.upper()}, page {page['id']}\n\n{page['markdown']}".encode("utf-8"), scope)
             except Exception as e:      # one unreadable page must not stop the space; the others still go in
                 logger.warning("ingest of Confluence page %s failed: %s", page["id"], type(e).__name__)
                 failed.append({"id": page["id"], "title": page["title"], "error": type(e).__name__})
                 continue
             counts[result["action"]] = counts.get(result["action"], 0) + 1
         trace.append("confluence", "ingest_space", {"space": space_key, "scope": scope, "pages_seen": len(pages), **counts,
-                                                    "withheld": len(withheld), "failed": len(failed)})
+                                                    "withheld": len(withheld), "restricted": len(restricted), "failed": len(failed)})
         return {"status": "ok" if not failed else "partial", "space": space_key, "pages_seen": len(pages),
-                **counts, "withheld": withheld, "failed": failed, "truncated": len(pages) >= max_pages}
+                **counts, "withheld": withheld, "restricted": restricted, "failed": failed, "truncated": len(pages) >= max_pages}
 
     def _page(self, raw: Dict[str, Any]) -> Dict[str, Any]:
         title = str(raw.get("title") or "")

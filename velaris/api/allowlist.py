@@ -28,7 +28,7 @@ from functools import lru_cache
 from typing import Any, Dict, FrozenSet, List, Optional, Tuple
 
 from velaris.agents.inventory import inventory
-from velaris.core.access import Caller, AccessDenied, READ_OTHERS, acting_as, authorize_read, check_caller
+from velaris.core.access import Caller, AccessDenied, ATLASSIAN_READERS, READ_OTHERS, acting_as, authorize_read, check_caller
 
 READ, ACT = "read", "act"
 _NEVER_PARAMS = {"self", "caller"}
@@ -43,6 +43,7 @@ class Rule:
     roles: Optional[FrozenSet[str]] = None
 
 
+_ATL = ATLASSIAN_READERS
 _HR = READ_OTHERS["identity"]           # who may act on another employee's HR records
 
 METHODS: Dict[str, Dict[str, Rule]] = {
@@ -86,12 +87,15 @@ METHODS: Dict[str, Dict[str, Rule]] = {
     "MODEL_COUNCIL": {"deliberate": Rule(READ)},
     # Atlassian Cloud. The writes are act rules: a step that waits for approval, and the connector
     # itself refuses to run them anywhere else.
+    # Reads use one service account, so they need the atlassian_reader role and are limited to the configured
+    # projects/spaces inside the connectors (confused-deputy guard).
     "JIRA": {
-        "search_issues": Rule(READ), "get_issue": Rule(READ), "get_transitions": Rule(READ), "list_projects": Rule(READ),
+        "search_issues": Rule(READ, roles=_ATL), "get_issue": Rule(READ, roles=_ATL),
+        "get_transitions": Rule(READ, roles=_ATL), "list_projects": Rule(READ, roles=_ATL),
         "create_issue": Rule(ACT), "transition_issue": Rule(ACT),
     },
     "CONFLUENCE": {
-        "search": Rule(READ), "get_page_markdown": Rule(READ), "list_spaces": Rule(READ),
+        "search": Rule(READ, roles=_ATL), "get_page_markdown": Rule(READ, roles=_ATL), "list_spaces": Rule(READ, roles=_ATL),
         "ingest_space": Rule(ACT, scope="scope"),
     },
     "LONGTERM_MEMORY": {"recall": Rule(READ, scope="scope"), "remember": Rule(ACT, scope="scope")},

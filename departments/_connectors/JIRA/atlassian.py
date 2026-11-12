@@ -10,6 +10,11 @@ ATLASSIAN_API_TOKEN, ATLASSIAN_SITE. API token with the account email, HTTP Basi
 basic auth for REST APIs). Missing credentials fail closed. The token is never logged, traced or put
 in an error; response text in errors is cut short and passed through guard.redact.
 
+Scope (confused-deputy guard): the one service account can see more than any caller may. The connectors
+therefore read only inside an explicit allow-list, config jira_projects / confluence_spaces or the vault
+secrets ATLASSIAN_JIRA_PROJECTS / ATLASSIAN_CONFLUENCE_SPACES (comma-separated keys). Unset or empty means
+nothing is readable. Queries are wrapped server-side (scope_query); results are checked again.
+
 Rate limits: 429 (and 503) with Retry-After is waited out, up to MAX_RETRIES times and MAX_WAIT_S
 each, then AtlassianError("rate_limited") is raised.
 """
@@ -17,6 +22,7 @@ from __future__ import annotations
 
 import base64
 import logging
+import re
 import time
 from typing import Any, Callable, Dict, List, Optional
 from urllib.parse import parse_qsl, urlsplit
@@ -38,6 +44,11 @@ MAX_WAIT_S = 60.0
 MAX_BODY = 8 * 1024 * 1024
 ALLOWED_SUFFIX = ".atlassian.net"
 SECRET_NAMES = {"email": "ATLASSIAN_EMAIL", "api_token": "ATLASSIAN_API_TOKEN", "site": "ATLASSIAN_SITE"}
+
+SCOPE_SECRETS = {"jira_projects": "ATLASSIAN_JIRA_PROJECTS", "confluence_spaces": "ATLASSIAN_CONFLUENCE_SPACES"}
+SCOPE_KEY = re.compile(r"~?[A-Za-z0-9_]{1,255}")
+_ORDER_BY = re.compile(r"order\s+by\b", re.IGNORECASE)
+_ORDER_CLAUSE = re.compile(r"order\s+by\s+[\w\s,.\[\]]+", re.IGNORECASE)
 
 
 class AtlassianError(RuntimeError):
@@ -65,6 +76,80 @@ def load_credentials(config: Dict[str, Any], vault: Any = None) -> Dict[str, str
             if v and v.strip():
                 found[k] = v.strip()
     return found
+
+
+def parse_keys(raw: Any) -> tuple:
+    """Keys from a list or a comma/space separated string. Anything that is not a plain key is dropped
+    (so it can never reach a query) and logged; the result may be empty, which means nothing readable."""
+    items = re.split(r"[,\s]+", raw) if isinstance(raw, str) else list(raw or [])
+    keys, seen = [], set()
+    for k in items:
+        k = str(k).strip()
+        if not k:
+            continue
+        if not SCOPE_KEY.fullmatch(k):
+            logger.warning("ignoring invalid Atlassian scope key %r", k[:40])
+        elif k.upper() not in seen:
+            seen.add(k.upper())
+            keys.append(k)
+    return tuple(keys)
+
+
+def load_scope(name: str, config: Dict[str, Any], vault: Any = None) -> tuple:
+    """Allowed project keys / space keys for `name` (a SCOPE_SECRETS key): config first, then the vault."""
+    if name in config:
+        return parse_keys(config[name])
+    if vault is None:
+        from velaris.agents.SECRETS_VAULT.main import SecretsVault
+        vault = SecretsVault()
+    try:
+        return parse_keys(vault.get_secret(SCOPE_SECRETS[name]) or "")
+    except (ValueError, OSError) as e:          # unreadable store: nothing is in scope
+        logger.warning("vault secret %s unavailable: %s", SCOPE_SECRETS[name], type(e).__name__)
+        return ()
+
+
+def in_scope(key: Any, keys: tuple) -> bool:
+    return isinstance(key, str) and key.upper() in {k.upper() for k in keys}
+
+
+def scope_query(user_query: str, field: str, keys: tuple) -> str:
+    """`<field> in (keys) AND (<user query>) [ORDER BY ...]` for JQL (project) or CQL (space).
+
+    The user's text is only ever placed inside one balanced pair of parentheses. Quotes and parentheses
+    are tracked outside string literals; an unbalanced ")" / "(" or unterminated quote is refused, so
+    `) OR project = SECRET` cannot close the wrapper. A trailing ORDER BY is cut off and appended after it.
+    """
+    if not keys:
+        raise AtlassianError("out_of_scope", "no Atlassian projects/spaces are configured")
+    depth, quote, i, cut = 0, None, 0, None
+    while i < len(user_query):
+        ch = user_query[i]
+        if quote:
+            if ch == "\\":
+                i += 1
+            elif ch == quote:
+                quote = None
+        elif ch in "\"'":
+            quote = ch
+        elif ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+            if depth < 0:
+                raise ValueError("query has an unbalanced ')'")
+        elif depth == 0 and _ORDER_BY.match(user_query, i) and not (i and (user_query[i - 1].isalnum() or user_query[i - 1] == "_")):
+            cut = i
+            break
+        i += 1
+    if quote or depth:                      # (a cut is only taken at depth 0, outside quotes)
+        raise ValueError("query has an unbalanced quote or parenthesis")
+    where, order = (user_query, "") if cut is None else (user_query[:cut], user_query[cut:].strip())
+    if order and not _ORDER_CLAUSE.fullmatch(order):
+        raise ValueError("ORDER BY may only list field names")
+    listed = ", ".join('"' + k + '"' for k in keys)
+    out = f"{field} in ({listed})" + (f" AND ({where.strip()})" if where.strip() else "")
+    return f"{out} {order}" if order else out
 
 
 def in_approved_step() -> bool:
@@ -110,12 +195,19 @@ class AtlassianClient:
                  resolver: Resolver = _resolve, sleep: Callable[[float], None] = time.sleep, vault: Any = None) -> None:
         config = config or {}
         self._creds = load_credentials(config, vault)
+        self._config, self._vault, self._scopes = config, vault, {}
         self._resolver, self._sleep = resolver, sleep
         self._hosts = {h.lower() for h in config.get("allowed_hosts", [])}
         self.site = self._creds.get("site", "").rstrip("/")
         # Pinned-address requests: nothing is kept per host (see web_fetch.Fetcher).
         self._client = httpx.Client(transport=transport, follow_redirects=False, timeout=TIMEOUT_S,
                                     limits=httpx.Limits(max_keepalive_connections=0))
+
+    def scope(self, name: str) -> tuple:
+        """Allowed keys for "jira_projects" or "confluence_spaces" (read once); () = nothing readable."""
+        if name not in self._scopes:
+            self._scopes[name] = load_scope(name, self._config, self._vault)
+        return self._scopes[name]
 
     @property
     def configured(self) -> bool:
