@@ -248,12 +248,12 @@ class Assistant:
         return row
 
     def _draft_authors(self, caller: Caller, row: Any) -> List[str]:
-        """Who steered the draft. Drafts from before the column existed: the window before their source message; if
-        that is gone, unknown."""
+        """Who steered the draft, as recorded when it was written. A draft from before the column existed has no
+        record, and rebuilding one from the live window would miss deleted or erased messages and anything edited
+        since, so it is unknown (fail closed)."""
         if row["context_authors"] is not None:
             return json.loads(row["context_authors"])
-        ch, src = self.svc.store.channel(caller.org, row["channel_id"]), self.svc.store.message(caller.org, row["source_message_id"])
-        return [UNKNOWN] if ch is None or src is None else self._closure(ch, row["topic"], src["id"])[1]
+        return [UNKNOWN]
 
     def confirm_draft(self, caller: Caller, draft_id: Any, body: Optional[str] = None) -> Dict[str, Any]:
         """Post the draft under the requester's own name (optionally edited first). Their limits, their policy."""

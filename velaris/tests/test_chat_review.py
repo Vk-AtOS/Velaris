@@ -221,7 +221,7 @@ def test_unknown_provenance_excludes_a_chat_admin_who_posted_in_the_topic():
     assert proposal(w)["status"] == "no_eligible_approver"
 
 
-def test_old_drafts_gain_a_null_authors_column_and_use_their_source_window():
+def test_old_drafts_gain_a_null_authors_column_and_are_unknown_not_rebuilt():
     w = World(fake("Hi."))
     w.s.post(CARA, w.gen, "hello")
     _, out = w.say(BOB, MENTION + "draft a hi")
@@ -236,7 +236,8 @@ def test_old_drafts_gain_a_null_authors_column_and_use_their_source_window():
         s2.db.close()
     st.db.execute("ALTER TABLE ai_drafts ADD COLUMN context_authors TEXT")      # the live store as the old code left it
     w.a.confirm_draft(BOB, did)
-    assert _msg_authors(w, w.gen, "bob") == ["bob", "cara"]                    # widened from the SOURCE message's window
+    # no record of who steered it, and rebuilding from the live window would miss deleted/erased/edited messages
+    assert UNKNOWN in _msg_authors(w, w.gen, "bob") and "bob" in _msg_authors(w, w.gen, "bob")
 
 
 def test_an_old_draft_whose_source_message_is_gone_is_unknown():
