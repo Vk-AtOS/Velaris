@@ -2,5 +2,5 @@
   "name": "EPISODIC_MEMORY",
   "version": "0.1.0",
   "author": "Velaris",
-  "description": "Memory substrate component: EPISODIC_MEMORY"
+  "description": "A durable, time-ordered log of what happened."
 }

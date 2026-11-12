@@ -2,5 +2,5 @@
   "name": "SELF_HISTORY",
   "version": "0.1.0",
   "author": "Velaris",
-  "description": "Layer 3 Self-Identity Kernel module: SELF_HISTORY"
+  "description": "Public methods: record, last (the module has no docstring)."
 }

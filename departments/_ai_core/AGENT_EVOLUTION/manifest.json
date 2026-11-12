@@ -2,7 +2,7 @@
   "name": "AGENT_EVOLUTION",
   "display_name": "Agent Evolution Engine",
   "version": "0.1.0",
-  "description": "Monitors agent metrics and proposes safe mutations / variants.",
+  "description": "Public methods: record, propose (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:EvolutionEngine",
   "health_check": "health_check"

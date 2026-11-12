@@ -2,7 +2,7 @@
   "name": "AEGIS",
   "display_name": "Aegis - Threat Shield & Rate Control Agent",
   "version": "0.1.0",
-  "description": "Monitors request patterns, maintains threat scores, and enforces rate limits.",
+  "description": "Public methods: record_event, is_rate_limited, adjust_threat, get_threat (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:AegisAgent",
   "health_check": "health_check"

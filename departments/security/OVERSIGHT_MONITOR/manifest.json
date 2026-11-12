@@ -2,5 +2,5 @@
   "name": "OVERSIGHT_MONITOR",
   "version": "0.1.0",
   "author": "Velaris",
-  "description": "Governance component: OVERSIGHT_MONITOR"
+  "description": "Public methods: record, last (the module has no docstring)."
 }

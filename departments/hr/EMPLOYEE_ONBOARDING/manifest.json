@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "domain": "hr",
   "entrypoint": "main.py:EmployeeOnboardingAgent",
-  "description": "EMPLOYEE_ONBOARDING \u2014 Velaris BOS agent for Knackforge",
+  "description": "Velaris BOS agent for Knackforge Ported from VKatOS client_onboarding, adapted for employees (IT setup, HR docs, 30/60/90 day plan).",
   "hitl_required": false
 }

@@ -2,7 +2,7 @@
   "name": "STRATEGOS",
   "display_name": "Strategos - Strategic Intelligence Agent",
   "version": "0.1.0",
-  "description": "Generates and ranks strategic plans, scores alternatives and simulates outcomes.",
+  "description": "Public methods: evaluate_strategy, rank_strategies, pick_best (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:StrategosAgent",
   "health_check": "health_check"

@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "domain": "sales_crm",
   "entrypoint": "main.py:WhatsAppBriefingAgent",
-  "description": "WHATSAPP_BRIEFING \u2014 Velaris BOS agent for Knackforge",
+  "description": "Velaris BOS agent for Knackforge Ported from VKatOS whatsapp_briefing.",
   "hitl_required": false
 }

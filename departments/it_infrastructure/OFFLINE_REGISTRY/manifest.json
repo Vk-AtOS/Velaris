@@ -2,5 +2,5 @@
   "name": "OFFLINE_REGISTRY",
   "version": "0.1.0",
   "author": "Velaris",
-  "description": "Memory substrate component: OFFLINE_REGISTRY"
+  "description": "Public methods: set, get (the module has no docstring)."
 }

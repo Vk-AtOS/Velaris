@@ -2,8 +2,15 @@
   "name": "CALL_TRANSCRIBER",
   "version": "1.0.0",
   "domain": "communications",
-  "description": "Local speech-to-text using OpenAI Whisper or faster-whisper. Fully on-device — no audio sent externally. Supports Tamil + English for Knackforge context.",
+  "description": "Local speech-to-text transcription using OpenAI Whisper (runs entirely on-device).",
   "entrypoint": "main.py:CallTranscriber",
   "hitl_required": false,
-  "tags": ["transcription", "whisper", "stt", "local", "privacy", "call"]
+  "tags": [
+    "transcription",
+    "whisper",
+    "stt",
+    "local",
+    "privacy",
+    "call"
+  ]
 }

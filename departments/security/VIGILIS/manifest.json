@@ -2,7 +2,7 @@
   "name": "VIGILIS",
   "display_name": "Vigilis - Security & Trust Agent",
   "version": "0.1.0",
-  "description": "Agent responsible for security posture checks, signature verification, and trust decisions.",
+  "description": "Signatures, a deny-by-default policy check, and a file-integrity watch.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:VigilisAgent",
   "health_check": "health_check"

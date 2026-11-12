@@ -2,7 +2,7 @@
   "name": "ORCHESTRIX",
   "display_name": "Orchestrix - Workflow Orchestration Agent",
   "version": "0.1.0",
-  "description": "Manages workflow orchestration, resolves dependencies, and distributes tasks in parallel-safe order.",
+  "description": "Public methods: resolve_dependencies, parallel_groups (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:OrchestrixAgent",
   "health_check": "health_check"

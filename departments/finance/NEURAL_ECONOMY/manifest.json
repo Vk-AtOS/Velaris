@@ -2,7 +2,7 @@
   "name": "NEURAL_ECONOMY",
   "display_name": "NEURAL_ECONOMY",
   "version": "0.1.0",
-  "description": "Auto-generated placeholder for NEURAL_ECONOMY",
+  "description": "Unit economics calculator.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:NeuralEconomyAgent",
   "health_check": "health_check"

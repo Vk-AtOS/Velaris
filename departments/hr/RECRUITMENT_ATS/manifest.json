@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "domain": "hr",
   "entrypoint": "main.py:RecruitmentATSAgent",
-  "description": "RECRUITMENT_ATS \u2014 Velaris BOS agent for Knackforge",
+  "description": "Velaris BOS agent for Knackforge Ported from VKatOS recruitment_tracker.",
   "hitl_required": false
 }

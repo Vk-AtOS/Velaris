@@ -2,7 +2,7 @@
   "name": "OVERWATCH",
   "display_name": "Overwatch - Strategic Oversight Agent",
   "version": "0.1.0",
-  "description": "Monitors high-level activity trends, detects strategic drift, and evaluates overall mission consistency.",
+  "description": "Public methods: record_snapshot, detect_drift, summarize_change (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:OverwatchAgent",
   "health_check": "health_check"

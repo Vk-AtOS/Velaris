@@ -2,7 +2,7 @@
   "name": "AGENT_LIFECYCLE",
   "display_name": "AGENT_LIFECYCLE",
   "version": "0.1.0",
-  "description": "Auto-generated placeholder for AGENT_LIFECYCLE",
+  "description": "Agent lifecycle: message-style front for AGENT_LIFECYCLE_MANAGER.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:AgentLifecycleAgent",
   "health_check": "health_check"

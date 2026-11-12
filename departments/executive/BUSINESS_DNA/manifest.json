@@ -2,7 +2,7 @@
   "name": "BUSINESS_DNA",
   "display_name": "BUSINESS_DNA",
   "version": "0.1.0",
-  "description": "Auto-generated placeholder for BUSINESS_DNA",
+  "description": "The company profile register.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:BusinessDnaAgent",
   "health_check": "health_check"

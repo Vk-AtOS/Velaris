@@ -2,7 +2,7 @@
   "name": "NAVARCH",
   "display_name": "Navarch - Tactical Pathfinding Agent",
   "version": "0.1.0",
-  "description": "Computes optimal paths, evaluates route costs, and sequences multi-step actions.",
+  "description": "Public methods: compute_path, sequence_steps (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:NavarchAgent",
   "health_check": "health_check"

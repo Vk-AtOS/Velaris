@@ -2,5 +2,5 @@
   "name": "POLICY_CONTROLLER",
   "version": "0.1.0",
   "author": "Velaris",
-  "description": "Governance component: POLICY_CONTROLLER"
+  "description": "A versioned policy store with a deterministic decision that names its rule."
 }

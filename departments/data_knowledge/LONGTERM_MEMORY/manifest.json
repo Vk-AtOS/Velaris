@@ -2,5 +2,5 @@
   "name": "LONGTERM_MEMORY",
   "version": "0.1.0",
   "author": "Velaris",
-  "description": "Memory substrate component: LONGTERM_MEMORY"
+  "description": "Public methods: put, get, remember, recall (the module has no docstring)."
 }

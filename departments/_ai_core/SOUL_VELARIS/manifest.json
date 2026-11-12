@@ -2,7 +2,7 @@
   "name": "SOUL_VELARIS",
   "display_name": "Soul of Velaris",
   "version": "1.0.0",
-  "description": "The company's charter for its agents (mission, guidelines, guardrail rules) and the check of an action against the guardrails.",
+  "description": "The company's charter for its agents, and the check of an action against it.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:Soul",
   "health_check": "health_check"

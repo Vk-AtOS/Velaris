@@ -2,7 +2,7 @@
   "name": "PRIME",
   "display_name": "Velaris Prime Controller",
   "version": "1.0.0",
-  "description": "Deterministic authorisation (grants -> allow / needs_approval / deny, every decision traced) and control of the agent engine.",
+  "description": "The Velaris controller, and the one place that decides what an agent or person may do.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:VelarisPrime",
   "health_check": "health_check"

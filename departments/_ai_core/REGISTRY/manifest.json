@@ -2,7 +2,7 @@
   "name": "REGISTRY",
   "display_name": "Velaris Agent Registry",
   "version": "0.1.0",
-  "description": "Auto-discovers and loads all Velaris agents dynamically.",
+  "description": "Discovers all agent modules under departments/<department>/* Loads their entrypoints from manifest.json Provides dynamic agent class loading.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:AgentRegistry",
   "health_check": "health_check"

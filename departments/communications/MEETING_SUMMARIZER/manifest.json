@@ -2,8 +2,14 @@
   "name": "MEETING_SUMMARIZER",
   "version": "1.0.0",
   "domain": "communications",
-  "description": "Rule-based meeting summarizer: decisions, action items, extractive summary from Whisper transcripts. No LLM required; LLM optional for richer output.",
+  "description": "Produces structured meeting summaries from transcripts.",
   "entrypoint": "main.py:MeetingSummarizer",
   "hitl_required": false,
-  "tags": ["meeting", "summary", "decisions", "action-items", "transcript"]
+  "tags": [
+    "meeting",
+    "summary",
+    "decisions",
+    "action-items",
+    "transcript"
+  ]
 }

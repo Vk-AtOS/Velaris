@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "domain": "operations",
   "entrypoint": "main.py:OpsReportAgent",
-  "description": "OPS_REPORT \u2014 Velaris BOS agent for Knackforge",
+  "description": "Velaris BOS agent for Knackforge Ported from VKatOS ops_report.",
   "hitl_required": false
 }

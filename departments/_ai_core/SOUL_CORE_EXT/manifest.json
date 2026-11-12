@@ -2,5 +2,5 @@
   "name": "SOUL_CORE_EXT",
   "version": "1.0.0",
   "author": "Velaris",
-  "description": "Versioned operating settings with history, time travel and rollback."
+  "description": "Versioned operating settings for this Velaris instance."
 }

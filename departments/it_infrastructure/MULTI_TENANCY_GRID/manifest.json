@@ -2,7 +2,7 @@
   "name": "MULTI_TENANCY_GRID",
   "display_name": "MULTI_TENANCY_GRID",
   "version": "0.1.0",
-  "description": "Auto-generated placeholder for MULTI_TENANCY_GRID",
+  "description": "Tenants, their quotas, and usage that cannot exceed them.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:MultiTenancyGridAgent",
   "health_check": "health_check"

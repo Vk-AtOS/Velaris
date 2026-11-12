@@ -2,7 +2,7 @@
   "name": "PROBABILIS",
   "display_name": "Probabilis - Probability Simulation Agent",
   "version": "0.1.0",
-  "description": "Runs probability simulations, Monte-Carlo outcomes, and distribution modeling.",
+  "description": "Public methods: bernoulli, monte_carlo, distribution_mean (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:ProbabilisAgent",
   "health_check": "health_check"

@@ -2,7 +2,7 @@
   "name": "LEDGERON",
   "display_name": "Ledgeron - Ledger & Reconciliation Agent",
   "version": "0.1.0",
-  "description": "Records transactions, computes balances, and performs simple reconciliation checks.",
+  "description": "Public methods: record_transaction, get_balance, reconcile, find_transactions (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:LedgeronAgent",
   "health_check": "health_check"

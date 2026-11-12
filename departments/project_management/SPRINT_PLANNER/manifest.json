@@ -2,8 +2,15 @@
   "name": "SPRINT_PLANNER",
   "version": "1.0.0",
   "domain": "delivery",
-  "description": "Scrum/Kanban sprint lifecycle: create sprints, Kanban board, velocity tracking, trend reports. Zoho Projects sync ready.",
+  "description": "Scrum/Kanban sprint management.",
   "entrypoint": "main.py:SprintPlanner",
   "hitl_required": false,
-  "tags": ["sprint", "scrum", "kanban", "delivery", "velocity", "agile"]
+  "tags": [
+    "sprint",
+    "scrum",
+    "kanban",
+    "delivery",
+    "velocity",
+    "agile"
+  ]
 }

@@ -2,7 +2,7 @@
   "name": "OPTIMA",
   "display_name": "Optima - Campaign Optimization Agent",
   "version": "0.1.0",
-  "description": "Computes efficiency scores, multi-factor campaign metrics, and optimization pivots.",
+  "description": "Public methods: efficiency_score, metric_normalize, pivot_factor (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:OptimaAgent",
   "health_check": "health_check"

@@ -2,7 +2,7 @@
   "name": "AUDITOR",
   "display_name": "Auditor - Operations Compliance Agent",
   "version": "0.1.0",
-  "description": "Audits workflows, validates compliance rules, and detects process violations.",
+  "description": "Public methods: check_compliance, find_violations (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:AuditorAgent",
   "health_check": "health_check"

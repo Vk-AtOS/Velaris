@@ -2,8 +2,14 @@
   "name": "TIME_TRACKER",
   "version": "1.0.0",
   "domain": "delivery",
-  "description": "Billable hours tracking: start/stop timer, manual log, weekly utilization reports per employee and project. Zoho Projects timelog sync ready.",
+  "description": "Billable hours and utilization tracking per employee and project.",
   "entrypoint": "main.py:TimeTracker",
   "hitl_required": false,
-  "tags": ["time", "billable", "utilization", "timesheet", "delivery"]
+  "tags": [
+    "time",
+    "billable",
+    "utilization",
+    "timesheet",
+    "delivery"
+  ]
 }

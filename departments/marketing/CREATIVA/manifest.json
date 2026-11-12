@@ -2,7 +2,7 @@
   "name": "CREATIVA",
   "display_name": "Creativa - Creative Idea Agent",
   "version": "0.1.0",
-  "description": "Generates creative ideas, expands concepts, and computes novelty scores.",
+  "description": "Public methods: expand_concept, novelty_score, idea_mix (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:CreativaAgent",
   "health_check": "health_check"

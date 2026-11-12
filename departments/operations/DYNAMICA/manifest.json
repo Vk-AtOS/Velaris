@@ -2,7 +2,7 @@
   "name": "DYNAMICA",
   "display_name": "Dynamica - Temporal Dynamics Agent",
   "version": "0.1.0",
-  "description": "Models dynamic systems, multi-variable changes, and temporal evolution across steps.",
+  "description": "Public methods: evolve_linear, evolve_multi, system_state (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:DynamicaAgent",
   "health_check": "health_check"

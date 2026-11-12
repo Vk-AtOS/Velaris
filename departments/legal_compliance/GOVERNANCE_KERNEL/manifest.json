@@ -2,5 +2,5 @@
   "name": "GOVERNANCE_KERNEL",
   "version": "0.1.0",
   "author": "Velaris",
-  "description": "Governance component: GOVERNANCE_KERNEL"
+  "description": "A thin front door to POLICY_CONTROLLER's versioned policy store and decision."
 }

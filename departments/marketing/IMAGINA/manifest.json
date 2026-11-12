@@ -2,7 +2,7 @@
   "name": "IMAGINA",
   "display_name": "Imagina - Vision & Ideation Agent",
   "version": "0.1.0",
-  "description": "Generates imaginative constructs, visual ideation sequences, and hypothetical scenarios.",
+  "description": "Public methods: imagine, scenario, visual_map (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:ImaginaAgent",
   "health_check": "health_check"

@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "domain": "hr",
   "entrypoint": "main.py:AttendanceMonitorAgent",
-  "description": "Real-time attendance monitoring via Zoho People — flags late arrivals, unplanned absences, and multi-day absence streaks.",
+  "description": "Real-time attendance monitoring.",
   "hitl_required": false
 }

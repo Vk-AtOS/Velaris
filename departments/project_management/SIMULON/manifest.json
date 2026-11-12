@@ -2,7 +2,7 @@
   "name": "SIMULON",
   "display_name": "Simulon - System Simulation Agent",
   "version": "0.1.0",
-  "description": "Runs simulations, processes system dynamics, and executes step-based scenario models.",
+  "description": "Public methods: run_linear, run_dynamic, scenario (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:SimulonAgent",
   "health_check": "health_check"

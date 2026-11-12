@@ -2,7 +2,7 @@
   "name": "FABRICA",
   "display_name": "Fabrica - Content Fabrication Agent",
   "version": "0.1.0",
-  "description": "Builds multi-layered structured content, composites, and formatted outputs.",
+  "description": "Public methods: build_layers, composition_score, combine (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:FabricaAgent",
   "health_check": "health_check"

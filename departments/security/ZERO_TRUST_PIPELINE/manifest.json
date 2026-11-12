@@ -2,5 +2,5 @@
   "name": "ZERO_TRUST_PIPELINE",
   "version": "0.1.0",
   "author": "Velaris",
-  "description": "Governance component: ZERO_TRUST_PIPELINE"
+  "description": "Every request is checked for identity, device, context and policy; the default is deny."
 }

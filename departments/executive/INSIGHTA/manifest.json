@@ -2,7 +2,7 @@
   "name": "INSIGHTA",
   "display_name": "Insighta - Behavioral Insights Agent",
   "version": "0.1.0",
-  "description": "Extracts user insights, detects behavioral trends, and evaluates pattern consistency.",
+  "description": "Public methods: detect_trend, behavioral_shift, consistency_score (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:InsightaAgent",
   "health_check": "health_check"

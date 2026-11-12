@@ -2,5 +2,5 @@
   "name": "SELF_IDENTITY",
   "version": "1.0.0",
   "author": "Velaris",
-  "description": "Versioned identity sheet of this Velaris installation with a fixed instance id."
+  "description": "Who this Velaris installation is, as a recorded, versioned fact sheet."
 }

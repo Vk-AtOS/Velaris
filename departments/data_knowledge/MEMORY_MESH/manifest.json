@@ -2,5 +2,5 @@
   "name": "MEMORY_MESH",
   "version": "0.1.0",
   "author": "Velaris",
-  "description": "Memory substrate component: MEMORY_MESH"
+  "description": "Which memory node serves which scope, and recall across several scopes."
 }

@@ -2,7 +2,7 @@
   "name": "ARGUS",
   "display_name": "Argus - Continuous Monitoring & Heartbeat Agent",
   "version": "0.1.0",
-  "description": "Tracks heartbeat events, monitors signature updates, and raises alerts on missing signals.",
+  "description": "Public methods: update_heartbeat, is_missing_heartbeat, update_signature, signature_changed (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:ArgusAgent",
   "health_check": "health_check"

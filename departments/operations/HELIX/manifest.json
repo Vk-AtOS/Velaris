@@ -2,7 +2,7 @@
   "name": "HELIX",
   "display_name": "Helix - Genome Mapping & Signature Agent",
   "version": "0.1.0",
-  "description": "Maintains genome-like system signatures, version DNA maps, and structural integrity checks.",
+  "description": "Public methods: generate_signature, store_genome, verify_genome (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:HelixAgent",
   "health_check": "health_check"

@@ -2,7 +2,7 @@
   "name": "TACTICIAN",
   "display_name": "Tactician - Execution Planner & Simulator",
   "version": "0.1.0",
-  "description": "Executes small-scale plan simulations, estimates success probabilities, and recommends simple adjustments.",
+  "description": "Public methods: simulate_plan, recommend_adjustments (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:TacticianAgent",
   "health_check": "health_check"

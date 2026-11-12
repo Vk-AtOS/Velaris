@@ -2,5 +2,5 @@
   "name": "SELF_CONSISTENCY",
   "version": "1.0.0",
   "author": "Velaris",
-  "description": "Measures agreement between repeated answers to the same question (majority share against a threshold)."
+  "description": "Ask the same question N times and measure how far the answers agree."
 }

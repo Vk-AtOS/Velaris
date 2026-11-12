@@ -2,7 +2,7 @@
   "name": "BUSINESS_AUTOPILOT",
   "display_name": "BUSINESS_AUTOPILOT",
   "version": "0.1.0",
-  "description": "Auto-generated placeholder for BUSINESS_AUTOPILOT",
+  "description": "Threshold rules over business metrics that PROPOSE actions.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:BusinessAutopilotAgent",
   "health_check": "health_check"

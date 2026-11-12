@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "domain": "operations",
   "entrypoint": "main.py:SLAMonitorAgent",
-  "description": "SLA_MONITOR \u2014 Velaris BOS agent for Knackforge",
+  "description": "Velaris BOS agent for Knackforge Ported from VKatOS sla_monitor.",
   "hitl_required": false
 }

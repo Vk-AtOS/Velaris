@@ -2,7 +2,7 @@
   "name": "ATTRACTA",
   "display_name": "Attracta - Appeal & Lead Attraction Agent",
   "version": "0.1.0",
-  "description": "Computes appeal score, lead attraction potential, and emotional resonance.",
+  "description": "Public methods: appeal_score, attraction_potential, emotional_resonance (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:AttractaAgent",
   "health_check": "health_check"

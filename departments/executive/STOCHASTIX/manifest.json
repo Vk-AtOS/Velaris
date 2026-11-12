@@ -2,7 +2,7 @@
   "name": "STOCHASTIX",
   "display_name": "Stochastix - Stochastic Process Agent",
   "version": "0.1.0",
-  "description": "Simulates stochastic processes, random walks, and samples multiple paths for analysis.",
+  "description": "Public methods: random_walk, sample_paths, expected_final (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:StochastixAgent",
   "health_check": "health_check"

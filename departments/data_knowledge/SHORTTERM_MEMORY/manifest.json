@@ -2,5 +2,5 @@
   "name": "SHORTTERM_MEMORY",
   "version": "0.1.0",
   "author": "Velaris",
-  "description": "Memory substrate component: SHORTTERM_MEMORY"
+  "description": "Bounded working memory per session."
 }

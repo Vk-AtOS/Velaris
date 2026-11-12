@@ -2,7 +2,7 @@
   "name": "GENEFLOW",
   "display_name": "GeneFlow - DNA Diff & Mutation Engine",
   "version": "0.1.0",
-  "description": "Computes structural diffs, detects mutations, and applies DNA migrations between versions.",
+  "description": "Public methods: compute_diff, apply_migration (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:GeneFlowAgent",
   "health_check": "health_check"

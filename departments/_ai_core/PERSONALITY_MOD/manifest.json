@@ -2,5 +2,5 @@
   "name": "PERSONALITY_MOD",
   "version": "1.0.0",
   "author": "Velaris",
-  "description": "Versioned house-style profile for outgoing messages, applied by code (banned phrases, length, greeting, sign-off)."
+  "description": "The house style for messages agents send, and the code that applies it."
 }

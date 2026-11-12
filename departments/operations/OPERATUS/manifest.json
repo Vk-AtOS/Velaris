@@ -2,7 +2,7 @@
   "name": "OPERATUS",
   "display_name": "Operatus - Operations Engine",
   "version": "0.1.0",
-  "description": "Executes workflows, tracks operational status, and validates process inputs.",
+  "description": "Public methods: execute_workflow, validate_inputs (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:OperatusAgent",
   "health_check": "health_check"

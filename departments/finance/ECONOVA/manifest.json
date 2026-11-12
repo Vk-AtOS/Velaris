@@ -2,7 +2,7 @@
   "name": "ECONOVA",
   "display_name": "Econova - Economic Modeling Agent",
   "version": "0.1.0",
-  "description": "Models economic effects, market sensitivity, and demand projections.",
+  "description": "Public methods: market_sensitivity, demand_projection, macro_index (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:EconovaAgent",
   "health_check": "health_check"

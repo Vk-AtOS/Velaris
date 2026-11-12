@@ -2,7 +2,7 @@
   "name": "CUSTOS",
   "display_name": "Custos - Access Control & Permissions Agent",
   "version": "0.1.0",
-  "description": "Manages authentication, access policies, role models, and authorization decisions.",
+  "description": "Public methods: define_role, assign_permission, check_access (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:CustosAgent",
   "health_check": "health_check"

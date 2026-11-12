@@ -2,7 +2,7 @@
   "name": "NEURAL_DRIFT_MONITOR",
   "display_name": "Drift monitor (PSI)",
   "version": "1.0.0",
-  "description": "Compares recent values of a numeric measure with a stored baseline using the Population Stability Index (drift at PSI >= 0.25).",
+  "description": "Has a numeric measure moved away from its baseline?",
   "owner": "Velaris Core",
   "entrypoint": "main.py:NeuralDriftMonitorAgent",
   "health_check": "health_check"

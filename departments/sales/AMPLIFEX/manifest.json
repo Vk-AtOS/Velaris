@@ -2,7 +2,7 @@
   "name": "AMPLIFEX",
   "display_name": "Amplifex - Audience Amplification Agent",
   "version": "0.1.0",
-  "description": "Computes amplification potential, audience expansion, and signal boost metrics.",
+  "description": "Public methods: amplify, audience_growth, signal_strength (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:AmplifexAgent",
   "health_check": "health_check"

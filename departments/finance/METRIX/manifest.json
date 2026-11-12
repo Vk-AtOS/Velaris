@@ -2,7 +2,7 @@
   "name": "METRIX",
   "display_name": "Metrix - Metrics & KPI Engine",
   "version": "0.1.0",
-  "description": "Calculates KPIs, normalizes metrics, and produces performance scores.",
+  "description": "Public methods: compute_kpi, normalize_metrics, performance_score (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:MetrixAgent",
   "health_check": "health_check"

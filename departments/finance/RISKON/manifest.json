@@ -2,7 +2,7 @@
   "name": "RISKON",
   "display_name": "Riskon - Risk Assessment Agent",
   "version": "0.1.0",
-  "description": "Computes risk scores, estimates volatility, and assesses financial exposure.",
+  "description": "Public methods: volatility, exposure, risk_score, compare_risk (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:RiskonAgent",
   "health_check": "health_check"

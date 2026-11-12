@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "domain": "hr",
   "entrypoint": "main.py:EmployeeMetricsEngine",
-  "description": "Aggregates Zoho People + Payroll + Projects into unified per-employee metrics profiles. Powers team scorecards and org heatmaps for the dashboard.",
+  "description": "Aggregates Zoho People + Zoho Payroll + Zoho Projects data into a unified per-employee metrics profile.",
   "hitl_required": true
 }

@@ -2,7 +2,7 @@
   "name": "POLARIS",
   "display_name": "Polaris - North-Star Alignment Agent",
   "version": "0.1.0",
-  "description": "Evaluates long-horizon mission alignment, computes strategy alignment scores, and identifies highest-value trajectories.",
+  "description": "Public methods: compute_score, rank_long_term, best_trajectory (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:PolarisAgent",
   "health_check": "health_check"
