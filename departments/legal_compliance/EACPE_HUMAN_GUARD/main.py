@@ -1,15 +1,140 @@
-import logging
-logger = logging.getLogger("EACPE_HUMAN_GUARD")
-logger.setLevel(logging.DEBUG)
-h = logging.StreamHandler()
-h.setFormatter(logging.Formatter("%(asctime)s - EACPE_HUMAN_GUARD - %(levelname)s - %(message)s"))
-if not logger.handlers: logger.addHandler(h)
+"""EACPE_HUMAN_GUARD: irreversible actions wait for a named person.
+
+Action classes are declared guarded (with the people who may approve them) or
+exempt. validate(action) answers for one concrete action, {"class": ...,
+"requested_by": ..., <any details>}:
+
+  exempt class          approved, nothing to wait for
+  guarded class         approved only if a listed approver - not the requester -
+                        approved this exact action (its details are hashed),
+                        within APPROVAL_TTL_S. An approval is used once.
+  any other class       refused as "unclassified": an action nobody classified is
+                        not assumed to be safe
+  malformed             refused
+
+Out of the box, DEFAULT_GUARDED classes are guarded with no approvers, so they
+cannot proceed until someone is named with set_approvers(). Requests, decisions
+and use of an approval are recorded in the hash-chained trace; an approval that
+cannot be recorded does not count.
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+import time
+import uuid
+from typing import Any, Dict, List, Optional
+
+from velaris.agentkit.infra_store import State, audit, fail, invalid, is_json, is_name, is_number, ok
+
+NAME = "EACPE_HUMAN_GUARD"
+APPROVAL_TTL_S = 24 * 3600
+DEFAULT_GUARDED = ("delete_data", "transfer_funds", "deploy_production", "send_external", "revoke_access",
+                   "sign_contract")
+
+
+def action_hash(action: Dict[str, Any]) -> str:
+    return hashlib.sha256(json.dumps(action, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
 
 class EACPE_HUMAN_GUARDAgent:
-    def __init__(self):
-        logger.debug("EACPE_HUMAN_GUARD initialized")
-    def health_check(self):
-        return {"agent":"EACPE_HUMAN_GUARD","status":"ok","version":"0.1.0"}
-    def validate(self, action: dict):
-        logger.debug("Validating human safety for action: %s", action)
-        return {"approved": False, "action": action, "status": "not_implemented", "reason": "no real check exists yet; denied (fail closed)"}
+    def __init__(self) -> None:
+        self.name = NAME
+        self._state = State(NAME)
+
+    def health_check(self) -> Dict[str, Any]:
+        return {"agent": self.name, "status": "ok", "version": "1.0.0"}
+
+    def _classes(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        return data.get("classes") or {c: {"mode": "guarded", "approvers": []} for c in DEFAULT_GUARDED}
+
+    def set_approvers(self, action_class: str, approvers: List[str], by: str) -> Dict[str, Any]:
+        """Guard `action_class`; only the listed people may approve it."""
+        if not is_name(action_class) or not is_name(by) or not isinstance(approvers, list) or not all(
+                is_name(a) for a in approvers):
+            return invalid("need a class name, a list of approver names and who is making the change")
+        self._state.change(lambda d: d.__setitem__("classes", {**self._classes(d),
+                                                              action_class: {"mode": "guarded", "approvers": approvers}}))
+        audit(NAME, "class.guarded", {"class": action_class, "approvers": approvers, "by": by})
+        return ok(action_class=action_class, approvers=approvers)
+
+    def exempt(self, action_class: str, by: str) -> Dict[str, Any]:
+        """Declare a class reversible: its actions need no approval."""
+        if not is_name(action_class) or not is_name(by):
+            return invalid("need a class name and who is making the change")
+        self._state.change(lambda d: d.__setitem__("classes", {**self._classes(d),
+                                                              action_class: {"mode": "exempt", "approvers": []}}))
+        audit(NAME, "class.exempt", {"class": action_class, "by": by})
+        return ok(action_class=action_class, mode="exempt")
+
+    @staticmethod
+    def _shape(action: Any) -> str:
+        if not isinstance(action, dict) or not is_name(action.get("class")) or not is_name(action.get("requested_by")):
+            return "action must be an object with 'class' and 'requested_by'"
+        return "" if is_json(action) else "action must be JSON"
+
+    def request(self, action: Dict[str, Any]) -> Dict[str, Any]:
+        """Ask for approval of one action. Returns the request id the approver acts on."""
+        problem = self._shape(action)
+        if problem:
+            return invalid(problem)
+        cls = self._classes(self._state.load()).get(action["class"])
+        if cls is None or cls["mode"] != "guarded":
+            return fail("not_guarded", "this class is exempt or unclassified; nothing to approve")
+        rid = uuid.uuid4().hex
+        entry = {"action": action, "hash": action_hash(action), "state": "pending", "ts": time.time()}
+        self._state.change(lambda d: d.setdefault("requests", {}).__setitem__(rid, entry))
+        audit(NAME, "request", {"id": rid, "class": action["class"], "by": action["requested_by"], "hash": entry["hash"]})
+        return {"status": "pending", "request_id": rid, "approvers": cls["approvers"], "action_hash": entry["hash"]}
+
+    def decide(self, request_id: str, approver: str, approve: bool, now: Optional[float] = None) -> Dict[str, Any]:
+        if not isinstance(approve, bool) or not is_name(approver) or (now is not None and not is_number(now, 0)):
+            return invalid("approver must be a name and approve true or false")
+        now = time.time() if now is None else now
+
+        def apply(data: Dict[str, Any]) -> Dict[str, Any]:
+            req = data.get("requests", {}).get(request_id) if isinstance(request_id, str) else None
+            if req is None:
+                return fail("unknown_request", "no such request")
+            if req["state"] != "pending":
+                return fail("denied", f"request is already {req['state']}")
+            cls = self._classes(data).get(req["action"]["class"], {})
+            if approver not in cls.get("approvers", []):
+                return fail("denied", f"{approver} is not a named approver for {req['action']['class']}")
+            if approver == req["action"]["requested_by"]:
+                return fail("denied", "the requester cannot approve their own action")
+            recorded = audit(NAME, "decision", {"id": request_id, "approver": approver, "approve": approve})
+            if not recorded:
+                return fail("error", "the decision could not be recorded; nothing changed")
+            req.update(state="approved" if approve else "rejected", approver=approver, decided_at=now, trace=recorded)
+            return ok(request_id=request_id, state=req["state"])
+        return self._state.change(apply)
+
+    def validate(self, action: dict, now: Optional[float] = None) -> Dict[str, Any]:
+        """May this exact action go ahead now? Consumes the approval it relies on."""
+        def no(status: str, reason: str) -> Dict[str, Any]:
+            return {"approved": False, "action": action, "status": status, "reason": reason}
+        problem = self._shape(action)
+        if problem or (now is not None and not is_number(now, 0)):
+            return no("invalid_input", problem or "now must be a timestamp")
+        now = time.time() if now is None else now
+
+        def check(data: Dict[str, Any]) -> Dict[str, Any]:
+            cls = self._classes(data).get(action["class"])
+            if cls is None:
+                return no("unclassified", "this action class is neither guarded nor exempt")
+            if cls["mode"] == "exempt":
+                return {"approved": True, "action": action, "status": "ok", "reason": "class is exempt"}
+            digest = action_hash(action)
+            for rid, req in sorted(data.get("requests", {}).items(), key=lambda kv: kv[1]["ts"]):
+                if req["hash"] == digest and req["state"] == "approved":
+                    if now - req["decided_at"] > APPROVAL_TTL_S:
+                        req["state"] = "expired"
+                        continue
+                    if not audit(NAME, "approval.used", {"id": rid, "hash": digest}):
+                        return no("error", "use of the approval could not be recorded")
+                    req.update(state="used", used_at=now)
+                    return {"approved": True, "action": action, "status": "ok", "approver": req["approver"],
+                            "request_id": rid, "reason": f"approved by {req['approver']}"}
+            return no("pending_approval", "no unused approval by a named approver for this exact action")
+        return self._state.change(check)

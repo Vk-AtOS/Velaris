@@ -28,5 +28,5 @@ def test_policy_evaluation_denies_by_default():
     agent = VigilisAgent()
     res = agent.evaluate_policy({})
     assert res['allowed'] is False
-    assert res['status'] == 'not_implemented'
+    assert res['status'] == 'no_policy'   # was 'not_implemented': policies are now evaluated; none configured = deny
     assert isinstance(res['reasons'], list)
