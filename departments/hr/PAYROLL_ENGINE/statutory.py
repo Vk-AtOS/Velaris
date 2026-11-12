@@ -12,9 +12,11 @@ Rules of this file:
 
 To change the law: append an Entry. Never edit a past one.
 """
-from dataclasses import dataclass
 from datetime import date
 from typing import Any, Dict, List, Optional, Tuple
+
+from velaris.agents.PAYROLL_ENGINE import registry
+from velaris.agents.PAYROLL_ENGINE.registry import Entry
 
 FETCHED = date(2026, 11, 11)
 
@@ -27,16 +29,6 @@ SRC_ESIC_CONTRIBUTION = "https://www.esic.gov.in/contribution"
 SRC_ESIC_COVERAGE = "https://www.esic.gov.in/coverage"
 SRC_GCC_REVENUE = "https://chennaicorporation.gov.in/gcc/department/revenue"
 SRC_GCC_PT_PRESS = "https://chennaicorporation.gov.in/gcc/pdf/PT_Press_Release.pdf"
-
-
-@dataclass(frozen=True)
-class Entry:
-    value: Any
-    effective_from: date
-    source_url: Optional[str]
-    fetched_on: Optional[date]
-    verified: bool
-    note: str = ""
 
 
 PARAMS: Dict[str, List[Entry]] = {
@@ -135,11 +127,7 @@ LOCAL_BODY_ALIASES = {
 
 def lookup(name: str, on: date) -> Optional[Entry]:
     """The entry of `name` in force on date `on`, or None if the registry has none."""
-    current = None
-    for entry in PARAMS.get(name, []):
-        if entry.effective_from <= on and (current is None or entry.effective_from > current.effective_from):
-            current = entry
-    return current
+    return registry.lookup(PARAMS, name, on)
 
 
 def normalise_local_body(local_body: Optional[str]) -> Optional[str]:
@@ -158,12 +146,4 @@ def half_year_of(pay_month_start: date, which: str) -> Tuple[date, str]:
 
 def describe(name: str, entry: Entry) -> Dict[str, Any]:
     """Plain-dict form of an entry for payroll results."""
-    return {
-        "name": name,
-        "value": entry.value,
-        "effective_from": entry.effective_from.isoformat(),
-        "source_url": entry.source_url,
-        "fetched_on": entry.fetched_on.isoformat() if entry.fetched_on else None,
-        "verified": entry.verified,
-        "note": entry.note,
-    }
+    return registry.describe(name, entry)

@@ -1,0 +1,8 @@
+{
+  "name": "CONFLUENCE",
+  "version": "1.0.0",
+  "domain": "connectors",
+  "entrypoint": "main.py:ConfluenceConnector",
+  "description": "Confluence Cloud connector (API token). Read-only: search (CQL), get_page_markdown, list_spaces. Consequential (approved flow step only): ingest_space (into DOCUMENT_LIBRARY).",
+  "hitl_required": true
+}

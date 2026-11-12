@@ -1,0 +1,9 @@
+{
+  "name": "GST_ENGINE",
+  "version": "1.0.0",
+  "domain": "finance",
+  "description": "GST for an IT services company in Tamil Nadu: place of supply, CGST+SGST vs IGST, export of services, GSTIN checksum, invoice validation, e-invoice applicability, GSTR-1/3B style monthly data. Dated registry with primary sources.",
+  "entrypoint": "main.py:GstEngine",
+  "hitl_required": true,
+  "tags": ["tax", "gst", "india", "finance"]
+}

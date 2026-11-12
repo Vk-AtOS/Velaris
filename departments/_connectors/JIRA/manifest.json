@@ -1,0 +1,8 @@
+{
+  "name": "JIRA",
+  "version": "1.0.0",
+  "domain": "connectors",
+  "entrypoint": "main.py:JiraConnector",
+  "description": "Jira Cloud connector (REST v3, API token). Read-only: search_issues, get_issue, get_transitions, list_projects. Consequential (approval required): create_issue, transition_issue.",
+  "hitl_required": true
+}
