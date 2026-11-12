@@ -1,6 +1,6 @@
 """The assistant as a participant. It is a member of a channel like anyone else, and that membership is
 all the permission it has. It never acts: it answers, drafts, or proposes, and a proposal is a
-one-step run in velaris.intel.flow that waits for a named person other than the requester.
+one-step run in velaris.intel.flow that runs only with two keys: the requester's and a second person's.
 
   Trigger     a message from a person that @[assistant:name]-mentions it in a channel it belongs to, or
               any message from a person in a direct conversation with it. Nothing else reaches it.
@@ -11,8 +11,18 @@ one-step run in velaris.intel.flow that waits for a named person other than the 
   Replies     answer: posted in the channel as the assistant (same limits and rate bucket as a person).
               draft ("draft ..." in the request): stored for the requester only, posted under THEIR
               name only if they confirm. propose: the model may name one registered tool; code checks
-              the arguments, and the step waits for approval by the channel's owners/admins or a
-              chat_admin, never the requester (four eyes). The approval names the call by its hash.
+              the arguments. The step runs as the requester, so it needs BOTH keys, each naming the call hash:
+                1. the requester confirms it:  POST /chat/assistant/proposals/{run_id}/confirm {call_hash}
+                   (once; a different or old hash is refused), and
+                2. a second person approves it: POST /chat/assistant/proposals/{run_id}/decide, refused
+                   with `requester_not_confirmed` until key 1 is turned. Either side may reject at any time.
+              Who may be the second person: channel owners/admins (public/private channels only) and
+              chat_admins who have used chat, minus the requester and minus anyone who wrote a message in
+              the context the model read (their ids are kept on the proposal, never their text). In direct
+              and group conversations only chat_admins qualify. Nobody left: status `no_eligible_approver`
+              and the requester gets an assistant_notice. Proposals from before this rule: `needs_reconfirm`.
+  Events      assistant_proposal op=confirm goes to the requester only (the "confirm this" card). Approvers
+              get op=new only after the requester confirmed. op=decided ends it.
   Switches    the channel's ai_enabled flag and the organisation's `ai_enabled` setting, checked on
               every trigger and again when an approved step is about to run.
   Trace       who it acted for, channel and message ids, hashes of what it wrote. Never the text.
@@ -33,7 +43,7 @@ from velaris.chat.policy import CHAT_ADMIN, is_assistant, strip_mention
 from velaris.chat.service import ChatService
 from velaris.core.access import Caller
 from velaris.intel import guard
-from velaris.intel.flow import Flow, FlowError, Tool
+from velaris.intel.flow import Flow, FlowError, Tool, call_hash
 from velaris.intel.llm import LLM, LLMError, extract_json
 
 CONTEXT_MESSAGES = 20
@@ -103,16 +113,39 @@ class Assistant:
                                         "assistant": assistant, "code": code}, org=caller.org)
         return {"assistant": assistant, "status": code}
 
+    def _still_allowed(self, caller: Caller, channel_id: int, assistant: str, *actions: str) -> Optional[Any]:
+        """The channel as it is NOW if the requester may still do `actions` there, the assistant is still a member and
+        the switches are still on; else None. The work runs in the background, so nothing stored is trusted."""
+        svc = self.svc
+        ch = svc.store.channel(caller.org, channel_id)
+        if ch is None or not ch["ai_enabled"] or not svc.org_setting(caller.org, "ai_enabled") \
+                or svc.store.role(ch["id"], assistant) is None:
+            return None
+        try:
+            for action in actions:
+                svc._require(caller, ch, action)
+        except ChatError:
+            return None
+        return ch
+
+    def _refused(self, caller: Caller, ch: Any, row: Any, assistant: str) -> Dict[str, Any]:
+        """Access was lost between the request and the work: do nothing, tell nobody, leave a trace."""
+        self.svc._audit("assistant.notice", assistant, caller.org, for_user=caller.id, channel=ch["id"], message=row["id"],
+                        code="no_longer_allowed")
+        return {"assistant": assistant, "status": "no_longer_allowed"}
+
     def _run(self, caller: Caller, ch: Any, row: Any, assistant: str) -> Dict[str, Any]:
         svc = self.svc
         if not svc.org_setting(caller.org, "ai_enabled") or not ch["ai_enabled"]:
             return self._notice(caller, ch, row, assistant, "disabled")
+        if self._still_allowed(caller, ch["id"], assistant, "view") is None:
+            return self._refused(caller, ch, row, assistant)
         if self.llm is None:
             return self._notice(caller, ch, row, assistant, "not_configured")
         request = strip_mention(row["body"], assistant) or "Summarise the recent messages."
         if guard.scan(request, source="chat.request").blocked:
             return self._notice(caller, ch, row, assistant, "blocked")
-        prompt = self._prompt(caller, ch, row, assistant, request)
+        prompt, authors = self._prompt(caller, ch, row, assistant, request)
         try:
             reply = self.llm.complete(prompt, max_tokens=800, temperature=0.2, purpose="chat.assistant").text
         except LLMError:
@@ -127,19 +160,20 @@ class Assistant:
         if text:
             out = self._deliver(caller, ch, row, assistant, text, draft=request.lower().startswith("draft"))
         if isinstance(proposal, dict) and proposal:
-            out["proposal"] = self._propose(caller, ch, row, assistant, proposal)
+            out["proposal"] = self._propose(caller, ch, row, assistant, proposal, authors)
         elif not text:
             return self._notice(caller, ch, row, assistant, "empty")
         return out
 
-    def _prompt(self, caller: Caller, ch: Any, row: Any, assistant: str, request: str) -> str:
+    def _prompt(self, caller: Caller, ch: Any, row: Any, assistant: str, request: str) -> tuple:
+        """The prompt, and the ids of everyone who wrote a message in the context window (withheld ones too)."""
         svc = self.svc
         where, args = "channel_id=? AND id<? AND deleted_at IS NULL AND erased=0", [ch["id"], row["id"]]
         if ch["kind"] in ("public", "private"):
             where, args = where + " AND topic=?", [*args, row["topic"]]
         rows = svc.store.all(f"SELECT id, sender, body FROM messages WHERE {where} ORDER BY id DESC LIMIT ?",
                              [*args, CONTEXT_MESSAGES])[::-1]
-        lines = []
+        lines, authors = [], sorted({r["sender"] for r in rows if not is_assistant(r["sender"])})
         for r in rows:
             blocked = guard.scan(r["body"], source=f"chat.message.{r['id']}").blocked
             lines.append(f"[{r['id']}] {r['sender']}: {WITHHELD if blocked else guard.redact(r['body'])[0]}")
@@ -152,11 +186,13 @@ class Assistant:
                 f"{preamble}\n\n{block}\n\nRequest from {caller.id}: {guard.redact(request)[0]}\n\n"
                 f"Actions you may suggest:\n{tools}\n\n"
                 'Reply with JSON only: {"text": "<your reply>", "propose": null or {"tool": "<name>", "args": {...}}}. '
-                "If you do not know, say so; do not invent facts.")
+                "If you do not know, say so; do not invent facts."), authors
 
     # ── outcomes ──────────────────────────────────────────────────────────────
     def _deliver(self, caller: Caller, ch: Any, row: Any, assistant: str, text: str, *, draft: bool) -> Dict[str, Any]:
         svc = self.svc
+        if self._still_allowed(caller, ch["id"], assistant, "view", *(() if draft else ("post",))) is None:
+            return self._refused(caller, ch, row, assistant)             # access changed while the model was thinking
         if not draft:
             try:
                 msg = svc.post_as_assistant(caller.org, assistant, ch["id"], text, topic=row["topic"], reply_to=row["id"],
@@ -219,8 +255,27 @@ class Assistant:
     def _execute(self, tool: ChatTool, who: Caller, **args: Any) -> Any:
         return tool.run(self.svc, who, args)
 
-    def _propose(self, caller: Caller, ch: Any, row: Any, assistant: str, proposal: Dict[str, Any]) -> Dict[str, Any]:
+    def _approvers(self, ch: Any, requester: str, authors: List[str]) -> List[str]:
+        """Who may be the second key: owners/admins (named channels only) and known chat_admins, never the
+        requester and never anyone who wrote text the model read."""
+        named = [] if ch["kind"] in ("direct", "group") else [r["user_id"] for r in self.svc.store.all(
+            "SELECT user_id FROM members WHERE channel_id=? AND role IN ('owner','admin')", (ch["id"],))]
+        pool = [*named, *self.svc.store.setting(ch["org"], "chat_admins", [])]
+        return list(dict.fromkeys(u for u in pool if u != requester and u not in authors and not is_assistant(u)))
+
+    def _may_decide(self, caller: Caller, row: Any, ch: Any) -> bool:
+        """Live check (membership and roles as they are now) of the same rule _approvers applies."""
+        if caller.id == row["requester"] or caller.id in json.loads(row["context_authors"]):
+            return False
+        if CHAT_ADMIN in caller.roles:
+            return True
+        return ch is not None and ch["kind"] not in ("direct", "group") and self.svc.store.role(ch["id"], caller.id) in ("owner", "admin")
+
+    def _propose(self, caller: Caller, ch: Any, row: Any, assistant: str, proposal: Dict[str, Any],
+                 authors: List[str]) -> Dict[str, Any]:
         svc = self.svc
+        if self._still_allowed(caller, ch["id"], assistant, "view") is None:
+            return {"status": self._refused(caller, ch, row, assistant)["status"]}
         tool, args = self.tools.get(str(proposal.get("tool"))), proposal.get("args", {})
         if tool is None or not isinstance(args, dict) or set(args) - set(tool.params):
             return {"status": self._notice(caller, ch, row, assistant, "invalid_proposal")["status"]}
@@ -228,56 +283,103 @@ class Assistant:
             args = tool.check(svc, caller, args)
         except (ChatError, ValueError):
             return {"status": self._notice(caller, ch, row, assistant, "invalid_proposal")["status"]}
-        approvers = [r["user_id"] for r in svc.store.all(
-            "SELECT user_id FROM members WHERE channel_id=? AND user_id<>? AND (role IN ('owner','admin') OR ?)",
-            (ch["id"], caller.id, int(ch["kind"] in ("direct", "group"))))
-            if not is_assistant(r["user_id"])]
-        meta = {"caller": {"id": caller.id, "org": caller.org, "roles": sorted(caller.roles)}, "assistant": assistant,
-                "channel": ch["id"], "message": row["id"]}
-        result = self._flow(caller).call(tool.name, args, actor=caller.id, meta=meta)
+        approvers = self._approvers(ch, caller.id, authors)
+        if not approvers:                       # fail closed: no second key exists, so no run is even started
+            run_id, chash, status = uuid.uuid4().hex, call_hash(tool.name, args), "no_eligible_approver"
+        else:
+            meta = {"caller": {"id": caller.id, "org": caller.org, "roles": sorted(caller.roles)}, "assistant": assistant,
+                    "channel": ch["id"], "message": row["id"]}
+            result = self._flow(caller).call(tool.name, args, actor=caller.id, meta=meta)
+            run_id, chash, status = result.run_id, result.pending["call_hash"], "pending"
         with svc._write() as db:
-            db.execute("INSERT INTO ai_proposals VALUES(?,?,?,?,?,?,?,?,?,?,?,?,NULL)", (
-                result.run_id, caller.org, ch["id"], caller.id, json.dumps(sorted(caller.roles)), assistant, tool.name,
-                result.pending["call_hash"], json.dumps(approvers), "pending", svc.clock(), row["id"]))
+            db.execute("INSERT INTO ai_proposals(run_id, org, channel_id, requester, requester_roles, assistant, tool, "
+                       "call_hash, approvers, status, created_at, source_message_id, context_authors) "
+                       "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)", (
+                run_id, caller.org, ch["id"], caller.id, json.dumps(sorted(caller.roles)), assistant, tool.name,
+                chash, json.dumps(approvers), status, svc.clock(), row["id"], json.dumps(authors)))
             svc._audit("assistant.propose", assistant, caller.org, for_user=caller.id, channel=ch["id"], message=row["id"],
-                       run=result.run_id, tool=tool.name, call_hash=result.pending["call_hash"], approvers=approvers)
-            svc._notify([caller.id, *approvers], {"type": "assistant_proposal", "op": "new", "channel_id": ch["id"],
-                        "run_id": result.run_id, "tool": tool.name, "args": args, "call_hash": result.pending["call_hash"],
-                        "requester": caller.id, "approvers": approvers}, caller.org)
-        return {"status": "waiting_approval", "run_id": result.run_id, "call_hash": result.pending["call_hash"]}
+                       run=run_id, tool=tool.name, call_hash=chash, approvers=approvers, status=status)
+            if status == "pending":
+                svc._notify([caller.id], {"type": "assistant_proposal", "op": "confirm", "channel_id": ch["id"],
+                            "run_id": run_id, "tool": tool.name, "args": args, "call_hash": chash,
+                            "requester": caller.id}, caller.org)
+        if status != "pending":
+            self._notice(caller, ch, row, assistant, status)
+            return {"status": status, "run_id": run_id, "call_hash": chash}
+        return {"status": "waiting_approval", "run_id": run_id, "call_hash": chash}
 
     def proposals(self, caller: Caller) -> List[Dict[str, Any]]:
-        """Pending proposals the caller made or may decide."""
+        """Pending proposals the caller made, or may decide (approvers see them only once the requester confirmed)."""
         caller = self.svc._enter(caller)
         out = []
         for r in self.svc.store.all("SELECT * FROM ai_proposals WHERE org=? AND status='pending' ORDER BY created_at", (caller.org,)):
-            approvers = json.loads(r["approvers"])
-            if caller.id != r["requester"] and caller.id not in approvers and CHAT_ADMIN not in caller.roles:
+            if caller.id != r["requester"] and not (r["requester_confirmed"] and self._may_decide(
+                    caller, r, self.svc.store.channel(caller.org, r["channel_id"]))):
                 continue
             start = self._flow(caller).history(r["run_id"])[0]
             out.append({"run_id": r["run_id"], "channel_id": r["channel_id"], "tool": r["tool"], "args": start["direct"]["args"],
-                        "call_hash": r["call_hash"], "requester": r["requester"], "approvers": approvers,
-                        "assistant": r["assistant"]})
+                        "call_hash": r["call_hash"], "requester": r["requester"], "approvers": json.loads(r["approvers"]),
+                        "assistant": r["assistant"], "requester_confirmed": bool(r["requester_confirmed"])})
         return out
 
-    def decide(self, caller: Caller, run_id: Any, call_hash: Any, approve: Any, note: str = "") -> Dict[str, Any]:
+    def _proposal(self, caller: Caller, run_id: Any) -> Any:
+        row = self.svc.store.one("SELECT * FROM ai_proposals WHERE run_id=? AND org=?", (run_id, caller.org)) if isinstance(run_id, str) else None
+        if row is None:
+            raise ChatError(404, "no_such_proposal", "no such proposal")
+        return row
+
+    def confirm_proposal(self, caller: Caller, run_id: Any, call_hash: Any) -> Dict[str, Any]:
+        """Key one: the requester agrees to this exact call. Single use; only now do approvers hear of it."""
         svc = self.svc
         caller = svc._enter(caller)
-        row = svc.store.one("SELECT * FROM ai_proposals WHERE run_id=? AND org=?", (run_id, caller.org)) if isinstance(run_id, str) else None
-        if row is None or not isinstance(call_hash, str) or not isinstance(approve, bool) or not isinstance(note, str):
+        row = self._proposal(caller, run_id)
+        if row["requester"] != caller.id:
+            svc._denied(caller, "proposal.confirm", "not the requester", row["channel_id"])
             raise ChatError(404, "no_such_proposal", "no such proposal")
+        if row["status"] != "pending":
+            raise ChatError(409, "not_waiting", "this proposal is no longer waiting")
+        if row["requester_confirmed"]:
+            raise ChatError(409, "already_confirmed", "this proposal was already confirmed")
+        if not isinstance(call_hash, str) or call_hash != row["call_hash"]:
+            raise ChatError(409, "hash_mismatch", "that is not the call this proposal now holds")
+        ch = svc.store.channel(caller.org, row["channel_id"])
+        if not svc.org_setting(caller.org, "ai_enabled") or ch is None or not ch["ai_enabled"]:
+            raise ChatError(409, "assistant_disabled", "the assistant is switched off here, so this cannot run")
+        start = self._flow(caller).history(run_id)[0]
         approvers = json.loads(row["approvers"])
+        with svc._write() as db:
+            if db.execute("UPDATE ai_proposals SET requester_confirmed=1, confirmed_hash=?, confirmed_at=? WHERE run_id=? "
+                          "AND status='pending' AND requester_confirmed=0", (call_hash, svc.clock(), run_id)).rowcount != 1:
+                raise ChatError(409, "already_confirmed", "this proposal was already confirmed")
+            svc._audit("assistant.proposal_confirmed", row["assistant"], caller.org, for_user=caller.id, run=run_id,
+                       call_hash=call_hash)
+            svc._notify(approvers, {"type": "assistant_proposal", "op": "new", "channel_id": row["channel_id"],
+                        "run_id": run_id, "tool": row["tool"], "args": start["direct"]["args"], "call_hash": call_hash,
+                        "requester": caller.id, "approvers": approvers}, caller.org)
+        return {"run_id": run_id, "status": "confirmed", "call_hash": call_hash}
+
+    def decide(self, caller: Caller, run_id: Any, call_hash: Any, approve: Any, note: str = "") -> Dict[str, Any]:
+        """Key two (approve=True, a different eligible person) or a rejection by either side."""
+        svc = self.svc
+        caller = svc._enter(caller)
+        if not isinstance(call_hash, str) or not isinstance(approve, bool) or not isinstance(note, str):
+            raise ChatError(404, "no_such_proposal", "no such proposal")
+        row = self._proposal(caller, run_id)
+        ch = svc.store.channel(caller.org, row["channel_id"])
         if row["requester"] == caller.id:
-            svc._denied(caller, "proposal.decide", "four eyes", row["channel_id"])
-            raise ChatError(403, "four_eyes", "an action must be approved by someone other than the person it is for")
-        if caller.id not in approvers and CHAT_ADMIN not in caller.roles:
-            svc._denied(caller, "proposal.decide", "not an approver", row["channel_id"])
+            if approve:
+                svc._denied(caller, "proposal.decide", "four eyes", row["channel_id"])
+                raise ChatError(403, "four_eyes", "an action must be approved by someone other than the person it is for")
+        elif not self._may_decide(caller, row, ch):
+            svc._denied(caller, "proposal.decide", "not an eligible approver", row["channel_id"])
             raise ChatError(404, "no_such_proposal", "no such proposal")
         if row["status"] != "pending":
             raise ChatError(409, "not_waiting", "this proposal was already decided")
-        ch = svc.store.channel(caller.org, row["channel_id"])
-        if approve and (not svc.org_setting(caller.org, "ai_enabled") or ch is None or not ch["ai_enabled"]):
-            raise ChatError(409, "assistant_disabled", "the assistant is switched off here, so this cannot run")
+        if approve:
+            if not row["requester_confirmed"] or not (call_hash == row["call_hash"] == row["confirmed_hash"]):
+                raise ChatError(409, "requester_not_confirmed", "the requester has not confirmed this exact call yet")
+            if not svc.org_setting(caller.org, "ai_enabled") or ch is None or not ch["ai_enabled"]:
+                raise ChatError(409, "assistant_disabled", "the assistant is switched off here, so this cannot run")
         requester = Caller(id=row["requester"], org=row["org"], roles=frozenset(json.loads(row["requester_roles"])))
         flow = self._flow(requester)
         try:
@@ -286,11 +388,11 @@ class Assistant:
             raise ChatError(409, "not_waiting", "the proposal is not waiting for that step") from None
         final = flow.history(run_id)[-1]
         status = "rejected" if not approve else ("approved" if final.get("ok") else "failed")
+        seen = [row["requester"], caller.id, *(json.loads(row["approvers"]) if row["requester_confirmed"] else [])]
         with svc._write() as db:
             db.execute("UPDATE ai_proposals SET status=?, decided_by=? WHERE run_id=?", (status, caller.id, run_id))
             svc._audit("assistant.decide", row["assistant"], caller.org, for_user=row["requester"], decided_by=caller.id,
                        run=run_id, call_hash=call_hash, approve=approve, outcome=status)
-            svc._notify([row["requester"], *approvers, caller.id], {"type": "assistant_proposal", "op": "decided",
-                        "channel_id": row["channel_id"], "run_id": run_id, "status": status, "decided_by": caller.id},
-                        caller.org)
+            svc._notify(seen, {"type": "assistant_proposal", "op": "decided", "channel_id": row["channel_id"],
+                        "run_id": run_id, "status": status, "decided_by": caller.id}, caller.org)
         return {"run_id": run_id, "status": status}

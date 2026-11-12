@@ -4,7 +4,8 @@
   POST /chat/assistant/drafts/{id}/confirm            {body?} -> posts under the requester's own name
   POST /chat/assistant/drafts/{id}/discard
   GET  /chat/assistant/proposals                      pending proposals the caller made or may decide
-  POST /chat/assistant/proposals/{run_id}/decide      {call_hash, approve, note?}   (not the requester)
+  POST /chat/assistant/proposals/{run_id}/confirm     {call_hash}   (the requester only: key one)
+  POST /chat/assistant/proposals/{run_id}/decide      {call_hash, approve, note?}   (key two: not the requester; refused until confirmed)
   Channel kill switch: PATCH /chat/channels/{id} {"ai_enabled": false}; add/remove the assistant: members routes.
 
   chat_admin only:
@@ -46,6 +47,11 @@ def add_admin_routes(r: APIRouter, ctx: Ctx) -> None:
     async def proposals(request: Request) -> Any:
         caller, _, _ = await ctx.authed(request)
         return {"proposals": await run(ctx.assistant.proposals, caller)}
+
+    @r.post("/assistant/proposals/{run_id}/confirm")
+    async def confirm_proposal(run_id: str, request: Request) -> Any:
+        caller, body, _ = await ctx.authed(request)
+        return await run(ctx.assistant.confirm_proposal, caller, run_id, fields(body, {"call_hash": True})["call_hash"])
 
     @r.post("/assistant/proposals/{run_id}/decide")
     async def decide(run_id: str, request: Request) -> Any:

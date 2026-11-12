@@ -229,8 +229,16 @@ def test_assistant_over_http_draft_confirm_and_approval():
     posted = ok(send(api, "POST", f"/chat/assistant/drafts/{drafts[0]['draft_id']}/confirm", {}, sub="bob"))["message"]
     assert posted["sender"] == "bob" and posted["ai_assisted"]
     ok(send(api, "POST", f"/chat/channels/{gen}/messages", {"body": f"@[{BOT}] ops please"}, sub="bob"), 201)
-    prop = ok(send(api, "GET", "/chat/assistant/proposals", sub="alice"))["proposals"]
+    assert ok(send(api, "GET", "/chat/assistant/proposals", sub="alice"))["proposals"] == []          # not until bob confirms
+    prop = ok(send(api, "GET", "/chat/assistant/proposals", sub="bob"))["proposals"]
     assert len(prop) == 1 and prop[0]["requester"] == "bob" and prop[0]["args"]["channel_id"] == ops
+    path = f"/chat/assistant/proposals/{prop[0]['run_id']}/decide"
+    err(send(api, "POST", path, {"call_hash": prop[0]["call_hash"], "approve": True}, sub="alice"), 409, "requester_not_confirmed")
+    cpath = f"/chat/assistant/proposals/{prop[0]['run_id']}/confirm"
+    err(send(api, "POST", cpath, {"call_hash": prop[0]["call_hash"]}, sub="alice"), 404, "no_such_proposal")
+    err(send(api, "POST", cpath, {"call_hash": "0" * 64}, sub="bob"), 409, "hash_mismatch")
+    assert ok(send(api, "POST", cpath, {"call_hash": prop[0]["call_hash"]}, sub="bob"))["status"] == "confirmed"
+    assert len(ok(send(api, "GET", "/chat/assistant/proposals", sub="alice"))["proposals"]) == 1
     assert ok(send(api, "GET", f"/chat/channels/{ops}/messages", sub="bob"))["messages"] == []
     path = f"/chat/assistant/proposals/{prop[0]['run_id']}/decide"
     err(send(api, "POST", path, {"call_hash": prop[0]["call_hash"], "approve": True}, sub="bob"), 403, "four_eyes")

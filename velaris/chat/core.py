@@ -13,7 +13,7 @@ from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional
 
 from velaris.chat.errors import ChatError
 from velaris.chat.events import Hub
-from velaris.chat.policy import Decision, Limits, TokenBucket, decide, is_assistant, valid_assistant_id, valid_user_id
+from velaris.chat.policy import CHAT_ADMIN, Decision, Limits, TokenBucket, decide, is_assistant, valid_assistant_id, valid_user_id
 from velaris.chat.store import Store
 from velaris.core import access
 from velaris.core.access import Caller
@@ -71,6 +71,11 @@ class ChatCore:
         if not valid_user_id(caller.id):
             self._audit("denied", caller.id[:64], caller.org, step="enter", reason="user_id")
             raise ChatError(403, "bad_identity", "this user id cannot use chat")
+        if CHAT_ADMIN in caller.roles:
+            known = self.store.setting(caller.org, "chat_admins", [])      # who could approve an assistant proposal
+            if caller.id not in known:
+                with self.store.tx() as db:
+                    self.store.set_setting(db, caller.org, "chat_admins", sorted({*known, caller.id}))
         row = self.store.one("SELECT org, last_seen FROM users WHERE id=?", (caller.id,))
         now = self.clock()
         if row is not None and row["org"] != caller.org:

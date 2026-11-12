@@ -19,6 +19,9 @@ and the three organisations (caller, record, deployment) which must all agree.
   set_role           owner             owner            nobody
   join (yourself)    anyone            nobody           nobody
   leave              member            member           group only
+  The assistant switch (ai_enabled) of a direct/group conversation: any member may turn it off, only its
+  creator (or chat_admin) may turn it on. Assistants are never members of a group; a direct one is made only
+  with exactly caller + assistant.
   Archived channels refuse post, react, edit, invite, pin (reading and deleting still work).
   An admin cannot remove or change an owner. The org role `chat_admin` grants no reading: it
   allows export, legal hold, retention settings and the org-wide assistant switch, each traced.

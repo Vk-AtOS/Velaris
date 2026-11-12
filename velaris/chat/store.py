@@ -60,8 +60,11 @@ CREATE TABLE IF NOT EXISTS ai_drafts(id TEXT PRIMARY KEY, org TEXT NOT NULL, cha
 CREATE TABLE IF NOT EXISTS ai_proposals(run_id TEXT PRIMARY KEY, org TEXT NOT NULL, channel_id INTEGER NOT NULL,
   requester TEXT NOT NULL, requester_roles TEXT NOT NULL, assistant TEXT NOT NULL, tool TEXT NOT NULL,
   call_hash TEXT NOT NULL, approvers TEXT NOT NULL, status TEXT NOT NULL, created_at REAL NOT NULL,
-  source_message_id INTEGER NOT NULL, decided_by TEXT);
+  source_message_id INTEGER NOT NULL, decided_by TEXT, requester_confirmed INTEGER NOT NULL DEFAULT 0,
+  confirmed_hash TEXT, confirmed_at REAL, context_authors TEXT NOT NULL DEFAULT '[]');
 """
+_PROPOSAL_COLUMNS = ("requester_confirmed INTEGER NOT NULL DEFAULT 0", "confirmed_hash TEXT", "confirmed_at REAL",
+                     "context_authors TEXT NOT NULL DEFAULT '[]'")
 _FTS = "CREATE VIRTUAL TABLE IF NOT EXISTS msg_fts USING fts5(body, tokenize='unicode61')"
 _WORD = re.compile(r"\w+")
 
@@ -83,6 +86,7 @@ class Store:
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.execute("PRAGMA foreign_keys=ON")
         self.db.executescript(SCHEMA)
+        self._migrate()
         self.fts = False
         if fts is not False:
             try:
@@ -94,6 +98,18 @@ class Store:
             side = Path(str(self.path) + suffix)
             if side.exists():
                 os.chmod(side, PRIVATE_FILE)
+
+    def _migrate(self) -> None:
+        """Idempotent, in place. Proposals made before the two-key rule have no requester confirmation and no
+        record of whose messages the model read, so those still waiting become `needs_reconfirm` and cannot run."""
+        cols = {r["name"] for r in self.db.execute("PRAGMA table_info(ai_proposals)")}
+        if "context_authors" in cols:
+            return
+        with self.tx() as db:
+            for col in _PROPOSAL_COLUMNS:
+                if col.split()[0] not in cols:
+                    db.execute(f"ALTER TABLE ai_proposals ADD COLUMN {col}")
+            db.execute("UPDATE ai_proposals SET status='needs_reconfirm' WHERE status='pending'")
 
     @contextlib.contextmanager
     def tx(self) -> Iterator[sqlite3.Connection]:

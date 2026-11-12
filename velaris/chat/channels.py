@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional
 from velaris.chat.core import ChatCore, sha
 from velaris.chat.errors import ChatError
 from velaris.chat.events import BadQueue
-from velaris.chat.policy import ROLES, is_assistant
+from velaris.chat.policy import CHAT_ADMIN, ROLES, is_assistant
 from velaris.core.access import Caller
 
 _NAME = re.compile(r"[\w][\w .\-]{0,79}\Z")
@@ -43,6 +43,10 @@ class ChannelsMixin(ChatCore):
         if not isinstance(members, (list, tuple)) or len(members) > self.limits.max_members:
             raise ChatError(400, "bad_members", "members must be a list of user ids")
         others = list(dict.fromkeys(members))
+        if any(is_assistant(o) for o in others) and not (kind == "direct" and len(others) == 1):
+            # an assistant reads a channel: it is added by an owner/admin (or chat_admin) after creation, never at creation
+            self._denied(caller, "channel.create", "assistant in members", None)
+            raise ChatError(403, "forbidden", "an assistant joins a direct conversation with you or is added later by a channel admin")
         dm_key = None
         if kind in ("direct", "group"):
             if name is not None:
@@ -97,7 +101,17 @@ class ChannelsMixin(ChatCore):
         if not isinstance(changes, dict) or not changes or set(changes) - _CHANGES:
             raise ChatError(400, "bad_changes", f"change only: {sorted(_CHANGES)}")
         ch = self._channel(caller, channel_id)
-        self._require(caller, ch, "manage")
+        if ch["kind"] in ("direct", "group") and set(changes) == {"ai_enabled"} and isinstance(changes["ai_enabled"], bool):
+            # conversations have no admins: any member (or chat_admin) may switch the assistant off, only the creator
+            # (or chat_admin) may switch it back on, so one member cannot re-enable what another turned off
+            admin = CHAT_ADMIN in caller.roles
+            if not admin:
+                self._require(caller, ch, "view")
+            if changes["ai_enabled"] and not admin and ch["created_by"] != caller.id:
+                self._denied(caller, "channel.ai_on", "only the creator", ch["id"])
+                raise ChatError(403, "forbidden", "only the person who started this conversation can switch the assistant back on")
+        else:
+            self._require(caller, ch, "manage")
         sets: Dict[str, Any] = {}
         if "name" in changes:
             sets["name"] = " ".join(self._text(changes["name"], what="name", limit=self.limits.max_name).split())

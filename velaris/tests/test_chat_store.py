@@ -328,7 +328,8 @@ def test_user_export_and_erasure_for_dpdp(room):
     assert s.export_user(ADMIN, "bob")["user"] == "bob"
     assert code(s.erase_user, BOB, "bob") == "forbidden"                       # an administrator carries erasure out
     res = s.erase_user(ADMIN, "bob")
-    assert res == {"user": "bob", "messages_erased": 1, "messages_held_by_legal_hold": 0, "channels_left": 1}
+    assert res == {"user": "bob", "messages_erased": 1, "messages_held_by_legal_hold": 0, "channels_left": 1,
+                   "files_kept_by_legal_hold": 0, "reactions_kept_by_legal_hold": 0}
     row = s.store.message(ORG, m["id"])
     assert row["body"] == "" and row["erased"] == 1 and row["sender"].startswith("erased:") and row["sender"] != "bob"
     assert s.store.all("SELECT * FROM edits") == [] and s.store.all("SELECT * FROM drafts") == []

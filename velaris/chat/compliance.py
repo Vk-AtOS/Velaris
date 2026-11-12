@@ -141,7 +141,8 @@ class ComplianceMixin(ChatCore):
 
     def erase_user(self, caller: Caller, user_id: Any) -> Dict[str, Any]:
         """DPDP erasure: the person's message bodies, drafts, reactions, files and memberships go; tombstones stay.
-        Messages in channels under legal hold are kept and counted. The trace keeps ids only and is not rewritten."""
+        Messages in channels under legal hold are kept and counted, and so are the reactions on them and any
+        file (with its blob) they reference; pins are never touched here. The trace keeps ids only and is not rewritten."""
         caller = self._admin(caller, "erase.user")
         row = self.store.one("SELECT org FROM users WHERE id=?", (user_id,)) if isinstance(user_id, str) else None
         if row is None or row["org"] != caller.org:
@@ -149,6 +150,9 @@ class ComplianceMixin(ChatCore):
         pseudonym = "erased:" + hashlib.sha256(f"{caller.org}\n{user_id}".encode()).hexdigest()[:12]
         erased = held = 0
         with self._write() as db:
+            held_msgs = "SELECT m.id FROM messages m JOIN channels c ON c.id=m.channel_id WHERE c.legal_hold=1"
+            held_files = {h for r in db.execute(f"SELECT attachments FROM messages WHERE id IN ({held_msgs}) AND org=?",
+                                                (caller.org,)) for h in json.loads(r["attachments"])}
             for msg in db.execute("SELECT m.*, c.legal_hold AS hold FROM messages m JOIN channels c ON c.id=m.channel_id "
                                   "WHERE m.sender=? AND m.org=?", (user_id, caller.org)).fetchall():
                 if msg["hold"]:
@@ -160,18 +164,27 @@ class ComplianceMixin(ChatCore):
                                                                    "message_id": msg["id"]}, caller.org)
             channels = [r["channel_id"] for r in db.execute("SELECT channel_id FROM members WHERE user_id=?", (user_id,))]
             db.execute("DELETE FROM members WHERE user_id=?", (user_id,))
-            for table, col in (("drafts", "user_id"), ("reactions", "user_id"), ("files", "uploader"),
-                               ("ai_drafts", "requester")):
+            for table, col in (("drafts", "user_id"), ("ai_drafts", "requester")):
                 db.execute(f"DELETE FROM {table} WHERE {col}=?", (user_id,))
+            # evidence in a channel under legal hold stays: reactions on held messages, files (and their blobs) they carry
+            kept_reactions = db.execute(f"SELECT COUNT(*) FROM reactions WHERE user_id=? AND message_id IN ({held_msgs})",
+                                        (user_id,)).fetchone()[0]
+            db.execute(f"DELETE FROM reactions WHERE user_id=? AND message_id NOT IN ({held_msgs})", (user_id,))
+            mine = [r["hash"] for r in db.execute("SELECT hash FROM files WHERE uploader=?", (user_id,))]
+            kept_files = [h for h in mine if h in held_files]
+            for h in mine:
+                if h not in held_files:
+                    db.execute("DELETE FROM files WHERE uploader=? AND hash=?", (user_id, h))
             db.execute("UPDATE users SET display=NULL, erased=1 WHERE id=?", (user_id,))
             for cid in channels:
                 self._notify(self._members_of(cid), {"type": "member", "op": "remove", "channel_id": cid, "user_id": user_id,
                                                      "role": None}, caller.org)
             self._after.append(lambda: self.hub.drop_user(user_id))
             self._audit("user.erase", caller.id, caller.org, subject=user_id, messages_erased=erased, messages_held=held,
-                        channels_left=len(channels))
+                        channels_left=len(channels), files_kept=len(kept_files), reactions_kept=kept_reactions)
         self._drop_orphan_blobs()
-        return {"user": user_id, "messages_erased": erased, "messages_held_by_legal_hold": held, "channels_left": len(channels)}
+        return {"user": user_id, "messages_erased": erased, "messages_held_by_legal_hold": held, "channels_left": len(channels),
+                "files_kept_by_legal_hold": len(kept_files), "reactions_kept_by_legal_hold": kept_reactions}
 
     def _drop_orphan_blobs(self) -> None:
         live = {r["hash"] for r in self.store.all("SELECT DISTINCT hash FROM files")}
