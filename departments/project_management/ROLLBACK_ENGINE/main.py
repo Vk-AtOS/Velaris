@@ -1,10 +1,13 @@
 # ================================================================================
 
 import json
+import logging
 import os
 from typing import List, Dict, Any
 
 from velaris.intel.paths import agent_dir
+
+logger = logging.getLogger("ROLLBACK_ENGINE")
 
 class RollbackEngine:
     """
@@ -29,7 +32,8 @@ class RollbackEngine:
         try:
             with open(self.LOG_PATH, "r") as f:
                 json.load(f)
-        except:
+        except (OSError, ValueError) as e:
+            logger.warning("Rollback log %s is unreadable, resetting it: %s", self.LOG_PATH, e)
             with open(self.LOG_PATH, "w") as f:
                 f.write("[]")
 
@@ -56,7 +60,8 @@ class RollbackEngine:
         with open(self.LOG_PATH, "r+") as f:
             try:
                 data = json.load(f)
-            except:
+            except ValueError as e:
+                logger.warning("Rollback log %s is unreadable, restarting it: %s", self.LOG_PATH, e)
                 data = []
             data.append(entry)
             f.seek(0)

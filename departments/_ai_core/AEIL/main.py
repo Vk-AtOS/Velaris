@@ -21,8 +21,10 @@ def _find_component():
             mod = import_module(f"velaris.agents.{comp}.main")
             logger.debug(f"Loaded {comp}")
             return mod
-        except Exception:
-            continue
+        except ImportError as e:
+            logger.debug("Delegate %s is not available: %s", comp, e)
+        except Exception as e:
+            logger.warning("Delegate %s failed to load: %s", comp, e)
     return None
 
 class AEILAgent:
@@ -35,8 +37,10 @@ class AEILAgent:
         if self._component and hasattr(self._component, "health_check"):
             try:
                 return self._component.health_check()
-            except Exception:
-                pass
+            except Exception as e:
+                # A delegate whose health check fails is not "ok".
+                logger.warning("%s delegate health check failed: %s", self.name, e)
+                return {"agent": self.name, "status": "degraded", "error": str(e), "version": "0.1.0"}
         return {"agent": self.name, "status": "ok", "version": "0.1.0"}
 
     def run(self, method: str, *args, **kwargs):

@@ -1,5 +1,6 @@
 # ================================================================================
 
+import logging
 import os
 import json
 import time
@@ -7,6 +8,8 @@ from typing import Dict, Any, List
 
 from velaris.intel.paths import agent_dir
 
+
+logger = logging.getLogger("TEMPORAL_SNAPSHOTS")
 
 class TemporalSnapshots:
     """
@@ -28,7 +31,8 @@ class TemporalSnapshots:
         try:
             with open(self.SNAP_PATH, "r") as f:
                 self.snaps: List[Dict[str, Any]] = json.load(f)
-        except:
+        except (OSError, ValueError) as e:
+            logger.warning("Snapshot store %s is unreadable, starting empty: %s", self.SNAP_PATH, e)
             self.snaps = []
 
     def _save(self):

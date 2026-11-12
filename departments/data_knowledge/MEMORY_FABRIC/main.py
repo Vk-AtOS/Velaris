@@ -26,17 +26,6 @@ class MEMORY_FABRICAgent:
 
 # ---- appended stub (repair) ----
 
-import logging
-logger = logging.getLogger("MEMORY_FABRIC")
-try:
-    logger.setLevel(logging.DEBUG)
-    if not logger.handlers:
-        import sys
-        h = logging.StreamHandler(sys.stdout)
-        h.setFormatter(logging.Formatter("%(asctime)s - MEMORY_FABRIC - %(levelname)s - %(message)s"))
-        logger.addHandler(h)
-except Exception:
-    pass
 
 class MemoryFabric:
     """

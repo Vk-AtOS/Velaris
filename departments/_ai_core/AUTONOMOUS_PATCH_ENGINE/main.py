@@ -1,10 +1,13 @@
 # ================================================================================
 
+import logging
 import os
 import json
 from typing import Dict, List, Any
 
 from velaris.intel.paths import agent_dir
+
+logger = logging.getLogger("AUTONOMOUS_PATCH_ENGINE")
 
 class AutonomousPatchEngine:
     """
@@ -27,7 +30,8 @@ class AutonomousPatchEngine:
         try:
             with open(self.PATCH_LOG, "r") as f:
                 self.history = json.load(f)
-        except:
+        except (OSError, ValueError) as e:
+            logger.warning("Patch history %s is unreadable, starting empty: %s", self.PATCH_LOG, e)
             self.history = []
 
     def _save_log(self):

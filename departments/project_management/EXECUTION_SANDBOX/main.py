@@ -35,7 +35,7 @@ class ExecutionSandbox:
             entry["status"] = "OK"
             entry["result"] = self.safe_locals.get("_")
             self.last_result = entry["result"]
-        except Exception as e:
+        except Exception:      # any failure of the sandboxed code is the result, recorded in full below
             entry["status"] = "ERROR"
             entry["error"] = traceback.format_exc()
             self.last_error = entry["error"]

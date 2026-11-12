@@ -1,11 +1,14 @@
 # ================================================================================
 
 import json
+import logging
 import os
 from typing import Any, Dict
 
 from velaris.intel.paths import agent_dir
 
+
+logger = logging.getLogger("MEMORY_DRIFT_DETECTOR")
 
 class MemoryDriftDetector:
     """
@@ -28,7 +31,8 @@ class MemoryDriftDetector:
         try:
             with open(self.BASELINE_PATH, "r") as f:
                 self.baseline: Dict[str, Any] = json.load(f)
-        except:
+        except (OSError, ValueError) as e:
+            logger.warning("Drift baseline %s is unreadable, starting empty: %s", self.BASELINE_PATH, e)
             self.baseline = {}
 
     def _save(self):

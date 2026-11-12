@@ -3,24 +3,32 @@
 from dataclasses import dataclass
 from typing import Dict, Any, Optional, Callable
 import hashlib
-import json
-import queue
-import threading
+import logging
+import os
+import tempfile
 import time
+import wave
 
+logger = logging.getLogger("LYRA_VOICE_ENGINE")
+
+# Optional audio packages. Without them the engine still runs in "mock" and "cli" modes;
+# listen() / transcribe() / speak() say so in the log and return their empty result.
 try:
     import sounddevice as sd
-except Exception:
+except (ImportError, OSError) as e:      # OSError: the package is there but the PortAudio library is not
+    logger.info("sounddevice not available, microphone capture is off: %s", e)
     sd = None
 
 try:
     import pyttsx3
-except Exception:
+except ImportError as e:
+    logger.info("pyttsx3 not available, speech output falls back to print: %s", e)
     pyttsx3 = None
 
 try:
     import whisper
-except Exception:
+except ImportError as e:
+    logger.info("whisper not available, speech recognition is off: %s", e)
     whisper = None
 
 @dataclass
@@ -44,14 +52,17 @@ class LyraVoiceEngine:
                 if self.cfg.tts_voice:
                     try:
                         self._engine.setProperty("voice", self.cfg.tts_voice)
-                    except Exception:
-                        pass
-            except Exception:
+                    except Exception as e:
+                        logger.warning("Voice %r could not be selected, using the default: %s",
+                                       self.cfg.tts_voice, e)
+            except Exception as e:
+                logger.warning("Text-to-speech engine failed to start, falling back to print: %s", e)
                 self._engine = None
         if self.cfg.asr_backend == "whisper" and whisper is not None:
             try:
                 self._asr_model = whisper.load_model("small")
-            except Exception:
+            except Exception as e:
+                logger.warning("Whisper model failed to load, speech recognition is off: %s", e)
                 self._asr_model = None
 
     def _hash(self, s: str) -> int:
@@ -68,7 +79,8 @@ class LyraVoiceEngine:
             audio = sd.rec(frames=samples, samplerate=self.cfg.sample_rate, channels=1, dtype='int16')
             sd.wait()
             return audio.tobytes()
-        except Exception:
+        except Exception as e:
+            logger.warning("Microphone capture failed: %s", e)
             return None
 
     def transcribe(self, audio_bytes: Optional[bytes]) -> str:
@@ -80,24 +92,24 @@ class LyraVoiceEngine:
         if audio_bytes is None:
             return ""
         if self._asr_model is not None:
+            fd, wav_path = tempfile.mkstemp(suffix=".wav")      # owner-only; removed below in every case
+            os.close(fd)
             try:
-                import numpy as np
-                arr = np.frombuffer(audio_bytes, dtype='int16').astype('float32') / 32768.0
-                import tempfile, wave, os
-                tf = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-                with wave.open(tf.name, "wb") as wf:
+                with wave.open(wav_path, "wb") as wf:
                     wf.setnchannels(1)
                     wf.setsampwidth(2)
                     wf.setframerate(self.cfg.sample_rate)
                     wf.writeframes(audio_bytes)
-                result = self._asr_model.transcribe(tf.name)
-                try:
-                    os.unlink(tf.name)
-                except Exception:
-                    pass
+                result = self._asr_model.transcribe(wav_path)
                 return result.get("text","").strip()
-            except Exception:
+            except Exception as e:
+                logger.warning("Transcription failed: %s", e)
                 return ""
+            finally:
+                try:
+                    os.unlink(wav_path)
+                except OSError as e:
+                    logger.warning("Could not remove temporary recording %s: %s", wav_path, e)
         return ""
 
     def speak(self, text: str) -> bool:
@@ -109,8 +121,8 @@ class LyraVoiceEngine:
                 self._engine.say(final_text)
                 self._engine.runAndWait()
                 return True
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Speech output failed, printing instead: %s", e)
         print("[LYRA SPEAK]:", final_text)
         return True
 
@@ -141,7 +153,7 @@ class LyraVoiceEngine:
             if user_text is None:
                 try:
                     user_text = input("Lyra (type your command)> ")
-                except Exception:
+                except EOFError:          # no terminal attached: treat as an empty command
                     user_text = ""
             transcribed = user_text.strip()
         else:
@@ -151,7 +163,7 @@ class LyraVoiceEngine:
                 try:
                     user_text = input("Could not transcribe. Type command> ")
                     transcribed = user_text.strip()
-                except Exception:
+                except EOFError:          # no terminal attached: nothing was said
                     transcribed = ""
         intent = self.interpret_intent(transcribed)
         engine_name = {

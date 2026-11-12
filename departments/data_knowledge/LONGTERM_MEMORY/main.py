@@ -17,7 +17,8 @@ class LONGTERM_MEMORYAgent:
             if os.path.exists(self.path):
                 with open(self.path, "r") as f:
                     self._store = json.load(f)
-        except Exception:
+        except (OSError, ValueError) as e:
+            logger.warning("Long-term store %s is unreadable, starting empty: %s", self.path, e)
             self._store = {}
         logger.debug("LONGTERM_MEMORY initialized")
 

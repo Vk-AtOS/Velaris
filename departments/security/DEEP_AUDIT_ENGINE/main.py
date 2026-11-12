@@ -1,11 +1,14 @@
 # ================================================================================
 
+import logging
 import os
 import json
 import hashlib
 from typing import Dict, List, Any
 
 from velaris.intel.paths import agent_dir
+
+logger = logging.getLogger("DEEP_AUDIT_ENGINE")
 
 class DeepAuditEngine:
     """
@@ -28,7 +31,8 @@ class DeepAuditEngine:
         try:
             with open(self.AUDIT_LOG, "r") as f:
                 self.log = json.load(f)
-        except:
+        except (OSError, ValueError) as e:
+            logger.warning("Audit log %s is unreadable, starting empty: %s", self.AUDIT_LOG, e)
             self.log = []
 
     def _save_log(self):

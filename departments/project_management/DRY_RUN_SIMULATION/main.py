@@ -1,10 +1,13 @@
 # ================================================================================
 
 import json
+import logging
 import os
 from typing import List, Dict, Any
 
 from velaris.intel.paths import agent_dir
+
+logger = logging.getLogger("DRY_RUN_SIMULATION")
 
 class DryRunSimulation:
     """
@@ -36,7 +39,8 @@ class DryRunSimulation:
         with open(self.LOG_PATH, "r+") as f:
             try:
                 data = json.load(f)
-            except Exception:
+            except ValueError as e:
+                logger.warning("Dry-run log %s is unreadable, restarting it: %s", self.LOG_PATH, e)
                 data = []
             data.append({"simulated": entry})
             f.seek(0)
@@ -61,7 +65,8 @@ class DryRunSimulation:
             with open(self.LOG_PATH, "r+") as f:
                 try:
                     data = json.load(f)
-                except Exception:
+                except ValueError as e:
+                    logger.warning("Dry-run log %s is unreadable, restarting it: %s", self.LOG_PATH, e)
                     data = []
                 data.append({"executed": exec_entry})
                 f.seek(0)
@@ -76,7 +81,8 @@ class DryRunSimulation:
         with open(self.LOG_PATH, "r") as f:
             try:
                 return json.load(f)
-            except Exception:
+            except ValueError as e:
+                logger.warning("Dry-run log %s is unreadable: %s", self.LOG_PATH, e)
                 return []
 
 

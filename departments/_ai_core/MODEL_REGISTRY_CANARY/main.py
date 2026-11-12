@@ -1,10 +1,13 @@
 # ================================================================================
 
+import logging
 import os
 import json
 from typing import Dict, Any, Optional
 
 from velaris.intel.paths import agent_dir
+
+logger = logging.getLogger("MODEL_REGISTRY_CANARY")
 
 class ModelRegistryCanary:
     """
@@ -28,7 +31,8 @@ class ModelRegistryCanary:
         with open(self.REGISTRY_PATH, "r") as f:
             try:
                 self.registry: Dict[str, Any] = json.load(f)
-            except:
+            except ValueError as e:
+                logger.warning("Model registry %s is unreadable, starting empty: %s", self.REGISTRY_PATH, e)
                 self.registry = {}
 
     def _save_registry(self):

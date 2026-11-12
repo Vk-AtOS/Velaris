@@ -15,7 +15,8 @@ class OFFLINE_REGISTRYAgent:
             if os.path.exists(self.path):
                 with open(self.path,"r") as f:
                     self._data = json.load(f)
-        except Exception:
+        except (OSError, ValueError) as e:
+            logger.warning("Offline registry %s is unreadable, starting empty: %s", self.path, e)
             self._data = {}
 
     def health_check(self):

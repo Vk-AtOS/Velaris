@@ -1,11 +1,14 @@
 # ================================================================================
 
+import logging
 import os
 import json
 import time
 from typing import Dict, Any, List
 
 from velaris.intel.paths import agent_dir
+
+logger = logging.getLogger("TELEMETRY_SPINE")
 
 class TelemetrySpine:
     """
@@ -28,7 +31,8 @@ class TelemetrySpine:
         try:
             with open(self.LOG_PATH, "r") as f:
                 self.events: List[Dict[str, Any]] = json.load(f)
-        except:
+        except (OSError, ValueError) as e:
+            logger.warning("Telemetry log %s is unreadable, starting empty: %s", self.LOG_PATH, e)
             self.events = []
 
     def _save_log(self):
