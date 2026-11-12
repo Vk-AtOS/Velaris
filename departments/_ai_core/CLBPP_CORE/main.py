@@ -6,11 +6,12 @@ them, and every change feeds a utilisation sample to CLBPP_OVERLOAD_MONITOR.
 rebalance_plan() asks CLBPP_PREDICTIVE_BALANCER what to move before anyone overloads.
 State: <VELARIS_DATA>/agents/CLBPP_CORE/state.json.
 """
-from velaris.agentkit.aicore_a_common import JsonState, fail, health, ident, invalid, number, ok
+from velaris.agentkit.checks import ident, number
+from velaris.agentkit.results import fail, health, invalid, ok
+from velaris.agentkit.state import JsonState
 from velaris.agents.CLBPP_DISTRIBUTOR.main import CLBPP_DISTRIBUTORAgent
 from velaris.agents.CLBPP_OVERLOAD_MONITOR.main import CLBPP_OVERLOAD_MONITORAgent
 from velaris.agents.CLBPP_PREDICTIVE_BALANCER.main import CLBPP_PREDICTIVE_BALANCERAgent
-from velaris.intel.paths import agent_dir
 
 NAME = "CLBPP_CORE"
 
@@ -18,7 +19,7 @@ NAME = "CLBPP_CORE"
 class CLBPP_COREAgent:
     def __init__(self, name=NAME):
         self.name = name
-        self._state = JsonState(lambda: agent_dir(NAME) / "state.json", {"workers": {}, "tasks": {}})
+        self._state = JsonState(NAME, "state.json", {"workers": {}, "tasks": {}})
         self._monitor = CLBPP_OVERLOAD_MONITORAgent()
 
     def health_check(self):

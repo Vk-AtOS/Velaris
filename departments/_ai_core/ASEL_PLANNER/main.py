@@ -6,7 +6,9 @@ the total duration. Unknown or circular dependencies make the plan invalid.
 Resources are not modelled: tasks with no dependency between them are assumed
 to run in parallel.
 """
-from velaris.agentkit.aicore_a_common import fail, health, ident, invalid, number, ok, topo_levels
+from velaris.agentkit.checks import ident, number
+from velaris.agentkit.results import fail, health, invalid, ok
+from velaris.agentkit.graph import order as dependency_order
 
 NAME = "ASEL_PLANNER"
 
@@ -31,10 +33,10 @@ class ASEL_PLANNERAgent:
             if not isinstance(deps, list) or not all(isinstance(d, str) for d in deps):
                 return invalid(f"task {tid}: depends_on must be a list of task ids")
             by_id[tid] = {**task, "id": tid, "duration": duration, "depends_on": list(deps)}
-        graph = topo_levels({tid: t["depends_on"] for tid, t in by_id.items()})
-        if graph["missing"] or graph["cycle"]:
+        graph = dependency_order({tid: t["depends_on"] for tid, t in by_id.items()})
+        if graph["missing"] or graph["unordered"]:
             return fail("invalid_plan", "unknown or circular dependencies",
-                        missing=graph["missing"], cycle=graph["cycle"])
+                        missing=graph["missing"], cycle=graph["unordered"])
         for tid in graph["order"]:
             task = by_id[tid]
             task["start"] = max((by_id[d]["finish"] for d in task["depends_on"]), default=0.0)

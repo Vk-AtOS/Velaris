@@ -19,7 +19,9 @@ import hashlib
 import math
 from typing import Any, Dict, Optional
 
-from velaris.agentkit.infra_store import State, fail, invalid, is_name, is_number, ok
+from velaris.agentkit.checks import is_name, is_number
+from velaris.agentkit.results import fail, invalid, ok
+from velaris.agentkit.state import JsonState
 
 NAME = "LOAD_DISTRIBUTOR"
 
@@ -32,7 +34,7 @@ def rendezvous_score(key: str, backend: str, weight: float) -> float:
 class LOAD_DISTRIBUTORAgent:
     def __init__(self, name: str = NAME) -> None:
         self.name = name
-        self._state = State(NAME)
+        self._state = JsonState(NAME)
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": self.name, "status": "ok", "version": "1.0.0"}
@@ -44,11 +46,11 @@ class LOAD_DISTRIBUTORAgent:
         def add(data: Dict[str, Any]) -> None:
             entry = data.setdefault("backends", {}).setdefault(backend, {"healthy": True, "current": 0.0, "picked": 0})
             entry["weight"] = weight
-        self._state.change(add)
+        self._state.update(add)
         return ok(backend=backend, weight=weight)
 
     def remove(self, backend: str) -> Dict[str, Any]:
-        removed = self._state.change(lambda d: d.get("backends", {}).pop(backend, None) if isinstance(backend, str) else None)
+        removed = self._state.update(lambda d: d.get("backends", {}).pop(backend, None) if isinstance(backend, str) else None)
         return ok(backend=backend) if removed else fail("unknown_backend", "no such backend")
 
     def set_health(self, backend: str, healthy: bool) -> Dict[str, Any]:
@@ -63,7 +65,7 @@ class LOAD_DISTRIBUTORAgent:
             if not healthy:
                 entry["current"] = 0.0          # rejoin without a backlog of credit
             return True
-        return ok(backend=backend, healthy=healthy) if self._state.change(mark) else fail("unknown_backend", "no such backend")
+        return ok(backend=backend, healthy=healthy) if self._state.update(mark) else fail("unknown_backend", "no such backend")
 
     def pick(self, key: Optional[str] = None) -> Dict[str, Any]:
         if key is not None and (not isinstance(key, str) or not key):
@@ -85,7 +87,7 @@ class LOAD_DISTRIBUTORAgent:
                 algorithm = "smooth_weighted_round_robin"
             live[chosen]["picked"] += 1
             return ok(backend=chosen, algorithm=algorithm)
-        return self._state.change(choose)
+        return self._state.update(choose)
 
     def backends(self) -> Dict[str, Any]:
         return ok(backends=self._state.load().get("backends", {}))

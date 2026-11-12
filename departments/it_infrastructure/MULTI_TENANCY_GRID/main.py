@@ -12,7 +12,9 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
-from velaris.agentkit.infra_store import State, fail, invalid, is_name, is_number, ok
+from velaris.agentkit.checks import is_name, is_number
+from velaris.agentkit.results import fail, invalid, ok
+from velaris.agentkit.state import JsonState
 
 NAME = "MULTI_TENANCY_GRID"
 OPS = ("create_tenant", "set_quota", "consume", "release", "usage", "suspend", "resume")
@@ -22,7 +24,7 @@ class MultiTenancyGridAgent:
     def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
         self.name = NAME
         self.version = (config or {}).get("version", "1.0.0") if isinstance(config, (dict, type(None))) else "1.0.0"
-        self._state = State(NAME)
+        self._state = JsonState(NAME)
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": NAME, "status": "ok", "version": self.version}
@@ -37,13 +39,13 @@ class MultiTenancyGridAgent:
                 return fail("exists", "tenant already exists")
             tenants[tenant] = {"active": True, "quotas": {}, "used": {}}
             return ok(tenant=tenant)
-        return self._state.change(add)
+        return self._state.update(add)
 
     def _with_tenant(self, tenant: Any, fn) -> Dict[str, Any]:
         def step(data: Dict[str, Any]) -> Dict[str, Any]:
             t = data.get("tenants", {}).get(tenant) if isinstance(tenant, str) else None
             return fn(t) if t is not None else fail("unknown_tenant", "no such tenant")
-        return self._state.change(step)
+        return self._state.update(step)
 
     def set_quota(self, tenant: str, resource: str, limit: float) -> Dict[str, Any]:
         if not is_name(resource) or not is_number(limit, 0):

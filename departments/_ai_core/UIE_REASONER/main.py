@@ -16,7 +16,7 @@ required and the priority (high when the request is marked urgent).
 """
 from typing import Any, Dict, List, Tuple
 
-from velaris.agentkit.aicore_b_common import health
+from velaris.agentkit.results import health
 from velaris.agents.UIE_SEMANTICS.main import UIESemanticsAgent
 
 NAME = "UIE_REASONER"

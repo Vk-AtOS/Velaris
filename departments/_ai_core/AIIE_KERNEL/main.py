@@ -10,7 +10,7 @@ Each run is recorded in the velaris.intel trace (stage names and outcome only).
 import logging
 from importlib import import_module
 
-from velaris.agentkit.aicore_a_common import health, invalid
+from velaris.agentkit.results import health, invalid
 from velaris.intel import trace
 
 NAME = "AIIE_KERNEL"

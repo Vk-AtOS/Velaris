@@ -10,7 +10,7 @@ from __future__ import annotations
 import time
 
 from velaris import agents
-from velaris.agentkit import infra_store
+from velaris.agentkit import checks, results, state
 
 _NAME = "LOCAL_REGISTRY_CACHE"
 
@@ -18,7 +18,7 @@ _NAME = "LOCAL_REGISTRY_CACHE"
 class LocalRegistryCache:
     def __init__(self, name=_NAME):
         self.name = name
-        self._state = infra_store.State(_NAME, "registry.json")
+        self._state = state.JsonState(_NAME, "registry.json")
 
     def health_check(self):
         return {"agent": self.name, "status": "ok", "version": "1.0.0"}
@@ -30,10 +30,10 @@ class LocalRegistryCache:
 
     def update(self, reg):
         """Replace the cached registry with `reg` ({name: JSON value})."""
-        if not isinstance(reg, dict) or not all(infra_store.is_name(k) for k in reg) or not infra_store.is_json(reg):
-            return infra_store.invalid("registry must be an object of JSON values keyed by agent name")
+        if not isinstance(reg, dict) or not all(checks.is_name(k) for k in reg) or not checks.is_json(reg):
+            return results.invalid("registry must be an object of JSON values keyed by agent name")
         self._state.save({"registry": reg, "updated_at": time.time()})
-        return infra_store.ok(entries=len(reg))
+        return results.ok(entries=len(reg))
 
     def refresh(self):
         """Rebuild the registry from the departments/ tree on this machine."""
@@ -47,12 +47,12 @@ class LocalRegistryCache:
     def lookup(self, name):
         entry = self.cache.get(name) if isinstance(name, str) else None
         if entry is None:
-            return infra_store.fail("unknown_agent", "not in the cached registry")
-        return infra_store.ok(agent=name, entry=entry)
+            return results.fail("unknown_agent", "not in the cached registry")
+        return results.ok(agent=name, entry=entry)
 
     def is_stale(self, max_age_s=86400.0, now=None):
         """True when there is no cache or it is older than max_age_s (also true for unusable arguments)."""
         updated = self._state.load().get("updated_at")
-        if updated is None or not infra_store.is_number(max_age_s, 0) or (now is not None and not infra_store.is_number(now)):
+        if updated is None or not checks.is_number(max_age_s, 0) or (now is not None and not checks.is_number(now)):
             return True
         return (time.time() if now is None else now) - updated > max_age_s

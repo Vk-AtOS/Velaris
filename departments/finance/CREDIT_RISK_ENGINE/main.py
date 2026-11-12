@@ -64,7 +64,7 @@ class CreditRiskEngine:
     def validate(self, b: BorrowerProfile) -> List[str]:
         e = kit.dataclass_errors(b, ["income", "liabilities", "credit_history_years",
                                      "delinquency_count", "loan_amount"], texts=["loan_type"])
-        if kit.text(getattr(b, "borrower_id", None), 64) is None:
+        if kit.ident(getattr(b, "borrower_id", None), 64) is None:
             e.append("invalid borrower_id")
         if e:
             return e

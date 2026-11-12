@@ -12,7 +12,8 @@ policy or a missing subject is never "compliant".
 from typing import Any, Dict, List, Optional
 
 from velaris.agentkit import aicore_b_rules as rules
-from velaris.agentkit.aicore_b_common import health, ident
+from velaris.agentkit.checks import ident
+from velaris.agentkit.results import health
 
 NAME = "EOF_POLICY"
 

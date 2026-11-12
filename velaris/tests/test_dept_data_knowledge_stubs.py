@@ -25,6 +25,12 @@ def data_dir(tmp_path, monkeypatch):
     return tmp_path
 
 
+def run_as(who, fn):
+    """Call fn() as the named caller (an empty name still needs someone calling)."""
+    with acting_as(Caller(who or "someone", "kf")):
+        return fn()
+
+
 def make(name, cls=None, **kwargs):
     return getattr(import_module(f"velaris.agents.{name}.main"), cls or f"{name}Agent")(**kwargs)
 
@@ -340,22 +346,22 @@ def test_reallocator_bad_input():
 # ── GLOBAL_STATE_MAP ─────────────────────────────────────────────────────────
 def test_state_map_compare_and_set_prevents_lost_updates():
     g = make("GLOBAL_STATE_MAP")
-    assert g.set("deploy.lock", "free", by="ops")["version"] == 1
-    a = g.set("deploy.lock", "held:agent-a", by="agent-a", expect_version=1)
-    b = make("GLOBAL_STATE_MAP").set("deploy.lock", "held:agent-b", by="agent-b", expect_version=1)
+    assert run_as("ops", lambda: g.set("deploy.lock", "free", by="ops"))["version"] == 1
+    a = run_as("agent-a", lambda: g.set("deploy.lock", "held:agent-a", by="agent-a", expect_version=1))
+    b = run_as("agent-b", lambda: make("GLOBAL_STATE_MAP").set("deploy.lock", "held:agent-b", by="agent-b", expect_version=1))
     assert a["status"] == "ok" and b["status"] == "conflict" and b["version"] == 2
     got = g.get("deploy.lock")
     assert (got["value"], got["by"], got["version"]) == ("held:agent-a", "agent-a", 2)
-    assert g.set("new.key", 1, by="x", expect_version=0)["status"] == "ok"   # 0 = create only
-    assert g.set("new.key", 2, by="x", expect_version=0)["status"] == "conflict"
+    assert run_as("x", lambda: g.set("new.key", 1, by="x", expect_version=0))["status"] == "ok"   # 0 = create only
+    assert run_as("x", lambda: g.set("new.key", 2, by="x", expect_version=0))["status"] == "conflict"
 
 
 def test_state_map_change_feed_and_snapshot():
     g = make("GLOBAL_STATE_MAP")
-    g.set("a", 1, by="x")
-    g.set("b", {"n": 2}, by="y")
-    g.set("a", 3, by="y")
-    g.delete("b", by="x")
+    run_as("x", lambda: g.set("a", 1, by="x"))
+    run_as("y", lambda: g.set("b", {"n": 2}, by="y"))
+    run_as("y", lambda: g.set("a", 3, by="y"))
+    run_as("x", lambda: g.delete("b", by="x"))
     feed = g.changes(since_rev=1)
     assert [(c["rev"], c["key"], c["op"], c["by"]) for c in feed["changes"]] == [
         (2, "b", "set", "y"), (3, "a", "set", "y"), (4, "b", "delete", "x")]
@@ -365,13 +371,25 @@ def test_state_map_change_feed_and_snapshot():
 
 def test_state_map_bad_input():
     g = make("GLOBAL_STATE_MAP")
-    assert g.set("", 1, by="x")["status"] == "invalid_input"
-    assert g.set("k", 1, by="")["status"] == "invalid_input"                # every write names its writer
-    assert g.set("k", object(), by="x")["status"] == "invalid_input"
-    assert g.set("k", 1, by="x", expect_version=-1)["status"] == "invalid_input"
-    assert g.get("k")["status"] == "unknown_key" and g.delete("k", by="x")["status"] == "unknown_key"
+    assert run_as("x", lambda: g.set("", 1, by="x"))["status"] == "invalid_input"
+    assert run_as("", lambda: g.set("k", 1, by=""))["status"] == "invalid_input"                # every write names its writer
+    assert run_as("x", lambda: g.set("k", object(), by="x"))["status"] == "invalid_input"
+    assert run_as("x", lambda: g.set("k", 1, by="x", expect_version=-1))["status"] == "invalid_input"
+    assert g.get("k")["status"] == "unknown_key" and run_as("x", lambda: g.delete("k", by="x"))["status"] == "unknown_key"
     assert g.changes(since_rev="start")["status"] == "invalid_input"
     assert g.snapshot()["rev"] == 0                                         # refused writes did not advance the map
+
+
+def test_state_map_records_the_caller_and_refuses_anonymous_or_borrowed_names():
+    g = make("GLOBAL_STATE_MAP")
+    assert g.set("k", 1)["status"] == "unauthenticated" and g.delete("k")["status"] == "unauthenticated"
+    with acting_as(Caller("agent-a", "kf")):
+        assert g.set("k", 1, by="agent-b")["status"] == "denied"
+        assert g.set("k", 1)["status"] == "ok"
+    with acting_as(Caller("agent-b", "kf")):
+        assert g.delete("k", by="agent-a")["status"] == "denied"
+        assert g.delete("k", expect_version=1)["status"] == "ok"
+    assert [(c["op"], c["by"]) for c in g.changes()["changes"]] == [("set", "agent-a"), ("delete", "agent-b")]
 
 
 # ── STREAM_PROCESSOR ─────────────────────────────────────────────────────────

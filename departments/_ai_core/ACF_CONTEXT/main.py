@@ -10,7 +10,7 @@ import hashlib
 import json
 import time
 
-from velaris.agentkit.aicore_a_common import fail, health
+from velaris.agentkit.results import fail, health
 from velaris.intel import guard
 
 NAME = "ACF_CONTEXT"

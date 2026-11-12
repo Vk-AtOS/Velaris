@@ -10,7 +10,9 @@ A step the conclusion does not rest on is a warning, not a failure.
 Anything that cannot be checked counts as failed. The validator does not judge
 whether a claim's wording is true; it checks that the declared support exists.
 """
-from velaris.agentkit.aicore_a_common import health, holds, invalid, number
+from velaris.agentkit.checks import number
+from velaris.agentkit.conditions import holds
+from velaris.agentkit.results import health, invalid
 from velaris.agents.CRK_CHAIN.main import CRK_CHAINAgent
 
 NAME = "CRK_VALIDATOR"

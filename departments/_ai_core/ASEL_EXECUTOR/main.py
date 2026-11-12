@@ -12,8 +12,10 @@ import logging
 import time
 import uuid
 
-from velaris.agentkit.aicore_a_common import JsonState, fail, health, ident, invalid, ok, topo_levels
-from velaris.intel.paths import agent_dir
+from velaris.agentkit.checks import ident
+from velaris.agentkit.results import fail, health, invalid, ok
+from velaris.agentkit.state import JsonState
+from velaris.agentkit.graph import order as dependency_order
 
 NAME = "ASEL_EXECUTOR"
 logger = logging.getLogger(NAME)
@@ -22,7 +24,7 @@ logger = logging.getLogger(NAME)
 class ASEL_EXECUTORAgent:
     def __init__(self, name=NAME):
         self.name = name
-        self._state = JsonState(lambda: agent_dir(NAME) / "state.json", {"runs": []})
+        self._state = JsonState(NAME, "state.json", {"runs": []})
 
     def health_check(self):
         return health(self.name)
@@ -40,10 +42,10 @@ class ASEL_EXECUTORAgent:
         deps = {sid: s.get("depends_on") or [] for sid, s in by_id.items()}
         if len(by_id) != len(steps) or not all(isinstance(d, list) for d in deps.values()):
             return invalid("step ids must be unique and depends_on a list")
-        graph = topo_levels(deps)
-        if graph["missing"] or graph["cycle"]:
+        graph = dependency_order(deps)
+        if graph["missing"] or graph["unordered"]:
             return fail("invalid_plan", "unknown or circular dependencies",
-                        missing=graph["missing"], cycle=graph["cycle"])
+                        missing=graph["missing"], cycle=graph["unordered"])
         outcome = {}
         for sid in graph["order"]:
             step = by_id[sid]

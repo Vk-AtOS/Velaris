@@ -17,7 +17,9 @@ from __future__ import annotations
 from typing import Any, Dict, Optional
 
 from velaris.agentkit import infra_metrics
-from velaris.agentkit.infra_store import State, invalid, is_number, ok
+from velaris.agentkit.checks import is_number
+from velaris.agentkit.results import invalid, ok
+from velaris.agentkit.state import JsonState
 
 NAME = "ENERGY_MANAGER"
 DEFAULT_LOW_BATTERY = 20.0
@@ -27,7 +29,7 @@ ALLOWED = {"performance": ("critical", "normal", "heavy"), "balanced": ("critica
 class ENERGY_MANAGERAgent:
     def __init__(self, name: str = NAME) -> None:
         self.name = name
-        self._state = State(NAME)
+        self._state = JsonState(NAME)
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": self.name, "status": "ok", "version": "1.0.0"}
@@ -35,7 +37,7 @@ class ENERGY_MANAGERAgent:
     def set_low_battery(self, percent: float) -> Dict[str, Any]:
         if not is_number(percent, 1, 99):
             return invalid("percent must be 1..99")
-        self._state.change(lambda d: d.__setitem__("low_battery", percent))
+        self._state.update(lambda d: d.__setitem__("low_battery", percent))
         return ok(low_battery=percent)
 
     def advise(self, sample: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:

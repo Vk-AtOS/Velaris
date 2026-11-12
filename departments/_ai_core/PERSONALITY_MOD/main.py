@@ -9,12 +9,14 @@ Not a personality. A versioned style profile:
 apply(text) enforces what can be enforced in code: removes banned phrases,
 collapses whitespace, adds greeting and sign-off, cuts the body (at a word
 boundary) so the whole message fits max_chars, and lists what it changed.
-Stored owner-only under this agent's state directory; every change recorded.
+Stored owner-only under this agent's state directory; every change recorded against
+the current caller (velaris.core.access), who must be a governance admin.
 """
 import re
 from typing import Any, Dict, Optional
 
-from velaris.agentkit.aicore_b_common import MAX_TEXT, health, ident, invalid, number
+from velaris.agentkit.checks import ident, MAX_TEXT, number
+from velaris.agentkit.results import health, invalid
 from velaris.agentkit.aicore_b_versioned import VersionedDoc
 
 NAME = "PERSONALITY_MOD"
@@ -43,8 +45,9 @@ class PERSONALITY_MODAgent:
     def health_check(self) -> Dict[str, Any]:
         return health(self.name)
 
-    def update(self, data: Dict[str, Any], by: str = "system") -> Dict[str, Any]:
-        result = self._doc.update(data, by)
+    def update(self, data: Dict[str, Any], by: Optional[str] = None) -> Dict[str, Any]:
+        """Change the house style as the current caller (a governance admin); `by` must be that caller."""
+        result = self._doc.change(NAME, data, by)
         return {"updated": result["status"] == "ok", **result}
 
     def snapshot(self) -> Dict[str, Any]:

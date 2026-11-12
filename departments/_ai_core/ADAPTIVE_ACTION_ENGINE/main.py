@@ -7,7 +7,8 @@ the ranking changes as evidence accumulates. "Adaptive" here means exactly
 that: success counts per situation, no trained model. It keeps no state of its
 own; outcomes live in AUTO_LEARN_CORE and the action journal in AAE_RUNTIME.
 """
-from velaris.agentkit.aicore_a_common import fail, health, ident, invalid, ok
+from velaris.agentkit.checks import ident
+from velaris.agentkit.results import fail, health, invalid, ok
 from velaris.agents.AAE_RUNTIME.main import AAE_RUNTIMEAgent
 from velaris.agents.AUTO_LEARN_CORE.main import AUTO_LEARN_COREAgent
 

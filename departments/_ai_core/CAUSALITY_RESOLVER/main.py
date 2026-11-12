@@ -7,7 +7,9 @@ often each link was reported, refuses a set of paths that contradicts itself
 causes by the share of that effect's paths they start. It organises what was
 reported; it does not test whether a link is truly causal.
 """
-from velaris.agentkit.aicore_a_common import fail, health, ident, topo_levels
+from velaris.agentkit.checks import ident
+from velaris.agentkit.results import fail, health
+from velaris.agentkit.graph import order as dependency_order
 
 NAME = "CAUSALITY_RESOLVER"
 
@@ -33,10 +35,10 @@ class CausalityResolver:
                 links[(cause, result)] = links.get((cause, result), 0) + 1
                 causes_of.setdefault(cause, set())
                 causes_of.setdefault(result, set()).add(cause)
-        order = topo_levels({n: sorted(c) for n, c in causes_of.items()})
-        if order["cycle"]:
+        order = dependency_order({n: sorted(c) for n, c in causes_of.items()})
+        if order["unordered"]:
             return fail("contradiction", "the paths disagree about direction of cause among these events",
-                        resolved=None, events=order["cycle"])
+                        resolved=None, events=order["unordered"])
         final_effects = sorted(n for n in causes_of if not any(n == c for c, _ in links))
         if effect is None and len(final_effects) == 1:
             effect = final_effects[0]

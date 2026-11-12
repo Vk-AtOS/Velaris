@@ -19,7 +19,8 @@ import json
 import re
 from typing import Any, Dict, List
 
-from velaris.agentkit.aicore_b_common import health, ident, invalid, number
+from velaris.agentkit.checks import ident, number
+from velaris.agentkit.results import health, invalid
 from velaris.agentkit.aicore_b_rules import MAX_MATCH_INPUT, pattern_error
 from velaris.intel.llm import LLMError, extract_json
 

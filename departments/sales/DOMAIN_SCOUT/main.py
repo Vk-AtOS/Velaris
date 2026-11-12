@@ -31,7 +31,7 @@ class DOMAIN_SCOUTAgent:
               limit: int = 8) -> Dict[str, Any]:
         if vertical is None or vertical == "":
             return kit.needs_data("no vertical named; the scout does not pick industries itself", results=[])
-        v = kit.text(vertical, 100)
+        v = kit.ident(vertical, 100)
         if v is None or not isinstance(region, str) or len(region) > 100:
             return kit.failed(["vertical must be a short non-empty string and region a short string"])
         queries = [" ".join(t.format(vertical=v, region=region.strip()).split()) for t in QUERY_TEMPLATES]

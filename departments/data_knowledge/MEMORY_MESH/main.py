@@ -19,7 +19,9 @@ import time
 from typing import Any, Dict, List, Optional
 
 from velaris.agentkit import infra_memory
-from velaris.agentkit.infra_store import State, fail, invalid, is_json, is_name, is_number, ok
+from velaris.agentkit.checks import is_json, is_name, is_number
+from velaris.agentkit.results import fail, invalid, ok
+from velaris.agentkit.state import JsonState
 from velaris.intel.memory import MemoryStore
 
 NAME = "MEMORY_MESH"
@@ -31,7 +33,7 @@ class MemoryAgentBase:
     def __init__(self, name: str = NAME) -> None:
         self.name = name
         self.llm = None                 # optional velaris.intel.llm.LLM used by recall_across()
-        self._state = State(NAME, "nodes.json")
+        self._state = JsonState(NAME, "nodes.json")
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": self.name, "status": "ok", "version": "1.0.0"}
@@ -46,7 +48,7 @@ class MemoryAgentBase:
         if now is not None and not is_number(now, 0):
             return invalid("now must be a timestamp")
         node = {"meta": meta, "scopes": scopes, "last_seen": time.time() if now is None else now}
-        self._state.change(lambda d: d.setdefault("nodes", {}).__setitem__(node_id, node))
+        self._state.update(lambda d: d.setdefault("nodes", {}).__setitem__(node_id, node))
         return ok(node=node_id, scopes=scopes)
 
     def nodes(self) -> Dict[str, dict]:
@@ -63,10 +65,10 @@ class MemoryAgentBase:
             if node is not None:
                 node["last_seen"] = now
             return node is not None
-        return ok(node=node_id, last_seen=now) if self._state.change(beat) else fail("unknown_node", "no such node")
+        return ok(node=node_id, last_seen=now) if self._state.update(beat) else fail("unknown_node", "no such node")
 
     def remove_node(self, node_id: str) -> Dict[str, Any]:
-        gone = self._state.change(lambda d: d.get("nodes", {}).pop(node_id, None)) if isinstance(node_id, str) else None
+        gone = self._state.update(lambda d: d.get("nodes", {}).pop(node_id, None)) if isinstance(node_id, str) else None
         return ok(node=node_id) if gone else fail("unknown_node", "no such node")
 
     def route(self, scope: str, ttl_s: float = 60.0, now: Optional[float] = None) -> Dict[str, Any]:

@@ -69,7 +69,7 @@ class PricingOptimizerEngine:
     def validate(self, p: PricingInput) -> List[str]:
         e = kit.dataclass_errors(p, ["base_cost", "demand_index", "competition_index", "season_factor",
                                      "elasticity"], ["constraints"])
-        if kit.text(getattr(p, "product_id", None), 64) is None:
+        if kit.ident(getattr(p, "product_id", None), 64) is None:
             e.append("product_id invalid")
         if e:
             return e
@@ -108,7 +108,7 @@ class PricingOptimizerEngine:
     def optimize_from_demand(self, product_id: Any, unit_cost: Any, points: Any,
                              min_price: Any = None, max_price: Any = None) -> Dict[str, Any]:
         err: List[str] = []
-        if kit.text(product_id, 64) is None:
+        if kit.ident(product_id, 64) is None:
             err.append("product_id invalid")
         cost = kit.number(unit_cost, 0, self.MAX_COST)
         if cost is None:

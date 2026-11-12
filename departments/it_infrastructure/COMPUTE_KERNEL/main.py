@@ -17,7 +17,9 @@ import time
 from typing import Any, Dict, Optional
 
 from velaris.agentkit import infra_metrics
-from velaris.agentkit.infra_store import State, fail, invalid, is_name, is_number, ok
+from velaris.agentkit.checks import is_name, is_number
+from velaris.agentkit.results import fail, invalid, ok
+from velaris.agentkit.state import JsonState
 
 NAME = "COMPUTE_KERNEL"
 
@@ -25,7 +27,7 @@ NAME = "COMPUTE_KERNEL"
 class COMPUTE_KERNELAgent:
     def __init__(self, name: str = NAME) -> None:
         self.name = name
-        self._state = State(NAME)
+        self._state = JsonState(NAME)
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": self.name, "status": "ok", "version": "1.0.0"}
@@ -44,7 +46,7 @@ class COMPUTE_KERNELAgent:
             jobs[job_id] = {"id": job_id, "cpu": cpu, "mem_mb": mem_mb, "priority": priority,
                             "state": "queued", "seq": data["seq"], "submitted_at": time.time()}
             return ok(job=jobs[job_id])
-        return self._state.change(add)
+        return self._state.update(add)
 
     def schedule(self, capacity: Optional[Dict[str, float]] = None) -> Dict[str, Any]:
         """Admit queued jobs into the free capacity. `capacity` is {"cpu": cores, "mem_mb": MB} in total."""
@@ -69,7 +71,7 @@ class COMPUTE_KERNELAgent:
                 else:
                     waiting.append(job["id"])
             return ok(admitted=admitted, waiting=waiting, free={"cpu": round(free_cpu, 4), "mem_mb": round(free_mem, 2)})
-        return self._state.change(run)
+        return self._state.update(run)
 
     def complete(self, job_id: str, succeeded: bool = True) -> Dict[str, Any]:
         """Mark a running job finished, releasing its capacity."""
@@ -81,7 +83,7 @@ class COMPUTE_KERNELAgent:
                 return fail("not_running", f"job is {job['state']}", job=job)
             job["state"], job["finished_at"] = ("done" if succeeded else "failed"), time.time()
             return ok(job=job)
-        return self._state.change(done)
+        return self._state.update(done)
 
     def status(self) -> Dict[str, Any]:
         jobs = self._state.load().get("jobs", {})

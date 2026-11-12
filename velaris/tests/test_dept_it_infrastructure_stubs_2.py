@@ -7,6 +7,7 @@ from importlib import import_module
 
 import pytest
 
+from velaris.core.access import Caller, acting_as
 from velaris.intel import trace
 
 
@@ -14,6 +15,12 @@ from velaris.intel import trace
 def data_dir(tmp_path, monkeypatch):
     monkeypatch.setenv("VELARIS_DATA", str(tmp_path))
     return tmp_path
+
+
+def run_as(who, fn):
+    """Call fn() as the named caller (an empty name still needs someone calling)."""
+    with acting_as(Caller(who or "someone", "kf")):
+        return fn()
 
 
 def make(name, cls=None):
@@ -415,16 +422,16 @@ def test_itsm_priority_is_computed_from_the_stated_formula():
 
 def test_itsm_lifecycle_sla_clocks_and_audit_trail():
     e = make("ITSM_ENGINE", "ITSMEngine")
-    assert e.open_ticket(ticket(), by="asha", now=0)["ticket"]["state"] == "new"       # P2: respond 60m, resolve 8h
+    assert run_as("asha", lambda: e.open_ticket(ticket(), by="asha", now=0))["ticket"]["state"] == "new"       # P2: respond 60m, resolve 8h
     assert e.sla_status("INC-1", now=3000)["response"] == {"state": "running", "seconds_left": 600.0}
     assert e.sla_status("INC-1", now=3700)["response"]["state"] == "breached"
-    e.transition("INC-1", "assigned", by="ravi", now=1800)
-    e.transition("INC-1", "in_progress", by="ravi", now=2000)
-    e.transition("INC-1", "on_hold", by="ravi", note="waiting for vendor", now=10000)
+    run_as("ravi", lambda: e.transition("INC-1", "assigned", by="ravi", now=1800))
+    run_as("ravi", lambda: e.transition("INC-1", "in_progress", by="ravi", now=2000))
+    run_as("ravi", lambda: e.transition("INC-1", "on_hold", by="ravi", note="waiting for vendor", now=10000))
     assert e.sla_status("INC-1", now=99999)["resolution"] == {"state": "paused", "seconds_left": 18800.0}
-    e.transition("INC-1", "in_progress", by="ravi", now=20000)              # 10,000s on hold extends the due time
+    run_as("ravi", lambda: e.transition("INC-1", "in_progress", by="ravi", now=20000))              # 10,000s on hold extends the due time
     assert e.get_ticket("INC-1")["ticket"]["resolve_due"] == 28800 + 10000
-    e.transition("INC-1", "resolved", by="ravi", now=38000)
+    run_as("ravi", lambda: e.transition("INC-1", "resolved", by="ravi", now=38000))
     e2 = make("ITSM_ENGINE", "ITSMEngine")
     status = e2.sla_status("INC-1", now=50000)
     assert status["response"]["state"] == "met" and status["resolution"]["state"] == "met"
@@ -437,31 +444,45 @@ def test_itsm_lifecycle_sla_clocks_and_audit_trail():
 
 def test_itsm_late_resolution_breaches_and_list_orders_by_urgency():
     e = make("ITSM_ENGINE", "ITSMEngine")
-    e.open_ticket(ticket("LOW", impact="minor", urgency="low"), by="a", now=0)
-    e.open_ticket(ticket("HIGH", flags={"recent_outage": True}), by="a", now=0)
+    run_as("a", lambda: e.open_ticket(ticket("LOW", impact="minor", urgency="low"), by="a", now=0))
+    run_as("a", lambda: e.open_ticket(ticket("HIGH", flags={"recent_outage": True}), by="a", now=0))
     assert [t["ticket_id"] for t in e.list_tickets()] == ["HIGH", "LOW"]
-    e.transition("HIGH", "assigned", by="b", now=60)
-    e.transition("HIGH", "in_progress", by="b", now=61)
-    e.transition("HIGH", "resolved", by="b", now=240 * 60 + 1)              # one second past the 4h P1 target
+    run_as("b", lambda: e.transition("HIGH", "assigned", by="b", now=60))
+    run_as("b", lambda: e.transition("HIGH", "in_progress", by="b", now=61))
+    run_as("b", lambda: e.transition("HIGH", "resolved", by="b", now=240 * 60 + 1))              # one second past the 4h P1 target
     assert e.sla_status("HIGH")["resolution"]["state"] == "breached"
     assert [t["ticket_id"] for t in e.list_tickets(state="new")] == ["LOW"]
 
 
 def test_itsm_denies_illegal_moves_and_bad_input():
     e = make("ITSM_ENGINE", "ITSMEngine")
-    e.open_ticket(ticket(), by="asha", now=0)
-    skipped = e.transition("INC-1", "resolved", by="ravi")
+    run_as("asha", lambda: e.open_ticket(ticket(), by="asha", now=0))
+    skipped = run_as("ravi", lambda: e.transition("INC-1", "resolved", by="ravi"))
     assert skipped["status"] == "denied" and skipped["allowed"] == ["assigned", "cancelled"]
     assert e.get_ticket("INC-1")["ticket"]["state"] == "new"
-    e.transition("INC-1", "cancelled", by="asha")
-    assert e.transition("INC-1", "assigned", by="ravi")["status"] == "denied"          # cancelled is final
-    assert e.open_ticket(ticket(), by="asha")["status"] == "duplicate"
-    assert e.transition("INC-1", "assigned", by="")["status"] == "invalid_input"       # every change needs a name
-    assert e.transition("NOPE", "assigned", by="x")["status"] == "unknown_ticket"
+    run_as("asha", lambda: e.transition("INC-1", "cancelled", by="asha"))
+    assert run_as("ravi", lambda: e.transition("INC-1", "assigned", by="ravi"))["status"] == "denied"          # cancelled is final
+    assert run_as("asha", lambda: e.open_ticket(ticket(), by="asha"))["status"] == "duplicate"
+    assert run_as("", lambda: e.transition("INC-1", "assigned", by=""))["status"] == "invalid_input"       # every change needs a name
+    assert run_as("x", lambda: e.transition("NOPE", "assigned", by="x"))["status"] == "unknown_ticket"
     bad = e.assess(ticket(impact="huge", flags={"vip": True}))
     assert bad["status"] == "failed" and "unsupported impact" in bad["errors"]
     assert e.assess({"ticket_id": "x"})["status"] == "failed"
-    assert e.open_ticket(ticket("T2", flags={"known_error": "yes"}), by="a")["status"] == "failed"
+    assert run_as("a", lambda: e.open_ticket(ticket("T2", flags={"known_error": "yes"}), by="a"))["status"] == "failed"
+
+
+def test_itsm_records_the_caller_and_refuses_anonymous_or_borrowed_names():
+    e = make("ITSM_ENGINE", "ITSMEngine")
+    assert e.open_ticket(ticket(), now=0)["status"] == "unauthenticated"
+    with acting_as(Caller("asha", "kf")):
+        assert e.open_ticket(ticket(), by="ravi", now=0)["status"] == "denied"      # cannot open in ravi's name
+        assert e.open_ticket(ticket(), now=0)["status"] == "ok"                     # no name needed: the caller is asha
+    assert e.transition("INC-1", "assigned", now=1)["status"] == "unauthenticated"
+    with acting_as(Caller("ravi", "kf")):
+        assert e.transition("INC-1", "assigned", by="asha", now=1)["status"] == "denied"
+        assert e.transition("INC-1", "assigned", now=1)["status"] == "ok"
+    assert [(h["by"], h["to"]) for h in e.get_ticket("INC-1")["ticket"]["history"]] == [("asha", "new"),
+                                                                                        ("ravi", "assigned")]
 
 
 # ── IT_INFRA_ENGINE ──────────────────────────────────────────────────────────

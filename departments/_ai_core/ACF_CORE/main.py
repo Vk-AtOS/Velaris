@@ -6,7 +6,7 @@ It stops at the first stage that refuses, and says which. A record whose
 sources conflict is still routed, with the conflicts attached and
 `signal.conflicted` set so a routing rule can send it to review.
 """
-from velaris.agentkit.aicore_a_common import fail, health
+from velaris.agentkit.results import fail, health
 from velaris.agents.ACF_CONTEXT.main import ACFContextAgent
 from velaris.agents.ACF_FUSION.main import ACFFusionAgent
 from velaris.agents.ACF_ROUTER.main import ACFRouterAgent

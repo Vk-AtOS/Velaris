@@ -18,7 +18,8 @@ import time
 from typing import Any, Dict, Optional
 
 from velaris.agentkit.aicore_b_authz import task_digest
-from velaris.agentkit.aicore_b_common import JsonState, fail, health, invalid
+from velaris.agentkit.results import fail, health, invalid
+from velaris.agentkit.state import JsonState
 from velaris.agents.VCAS_AUTOPILOT.main import VCASAutopilotAgent
 from velaris.agents.VCAS_ROUTER.main import VCASRouterAgent
 from velaris.agents.VCAS_SUPERVISOR.main import VCASSupervisorAgent

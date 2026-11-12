@@ -8,7 +8,7 @@ Signing      generate_test_keypair() makes an in-memory RSA-2048 key; sign_messa
 
 Policy       evaluate_policy(context) applies config["policies"], a list of
              {"id": ..., "effect": "allow"|"deny", "when": {conditions}}
-             (conditions as in velaris.agentkit.infra_policy). A matching deny
+             (conditions as in velaris.agentkit.conditions). A matching deny
              wins; otherwise a matching allow is needed. No policies, a malformed
              policy list, or context["untrusted_source"] being set: denied.
              (POLICY_CONTROLLER is the stored, versioned policy set; this is a
@@ -32,8 +32,9 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
 from velaris import agents
-from velaris.agentkit import infra_policy
-from velaris.agentkit.infra_store import State, fail, invalid
+from velaris.agentkit import conditions
+from velaris.agentkit.results import fail, invalid
+from velaris.agentkit.state import JsonState
 from velaris.core.utils import sha256_of_file
 
 logger = logging.getLogger("VIGILIS")
@@ -52,7 +53,7 @@ class VigilisAgent:
         self.version = self.config.get("version", "1.0.0")
         self._private_key_pem: Optional[bytes] = None
         self._public_key_pem: Optional[bytes] = None
-        self._state = State(NAME, "baseline.json")
+        self._state = JsonState(NAME, "baseline.json")
 
     def health_check(self) -> dict:
         return {"agent": self.name, "version": self.version, "status": "ok"}
@@ -99,10 +100,10 @@ class VigilisAgent:
             return denied("no_policy", "no policies configured: denied by default")
         well_formed = isinstance(policies, list) and all(
             isinstance(p, dict) and isinstance(p.get("id"), str) and p.get("effect") in ("allow", "deny")
-            and not infra_policy.problems(p.get("when")) for p in policies)
+            and not conditions.problems(p.get("when")) for p in policies)
         if not well_formed:
             return denied("invalid_policy", "configured policies are malformed: denied")
-        matching = [p for p in policies if infra_policy.evaluate(p["when"], context, p["effect"])[0]]
+        matching = [p for p in policies if conditions.evaluate(p["when"], context, p["effect"])[0]]
         for effect in ("deny", "allow"):
             hit = next((p for p in matching if p["effect"] == effect), None)
             if hit:

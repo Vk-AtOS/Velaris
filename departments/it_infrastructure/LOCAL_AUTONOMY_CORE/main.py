@@ -18,7 +18,7 @@ import time
 import uuid
 
 from velaris import agents
-from velaris.agentkit import infra_metrics, infra_store
+from velaris.agentkit import checks, infra_metrics, results
 from velaris.intel import paths, trace
 
 _NAME = "LOCAL_AUTONOMY_CORE"
@@ -55,22 +55,22 @@ class LocalAutonomyCore:
 
     def readiness(self, required_agents=None, min_free_disk_mb=200, min_free_mem_mb=256, sample=None):
         required = [] if required_agents is None else required_agents
-        if not isinstance(required, list) or not all(infra_store.is_name(a) for a in required):
-            return infra_store.invalid("required_agents must be a list of agent names", mode="degraded")
-        if not infra_store.is_number(min_free_disk_mb, 0) or not infra_store.is_number(min_free_mem_mb, 0):
-            return infra_store.invalid("minimums must be numbers >= 0", mode="degraded")
+        if not isinstance(required, list) or not all(checks.is_name(a) for a in required):
+            return results.invalid("required_agents must be a list of agent names", mode="degraded")
+        if not checks.is_number(min_free_disk_mb, 0) or not checks.is_number(min_free_mem_mb, 0):
+            return results.invalid("minimums must be numbers >= 0", mode="degraded")
         s = infra_metrics.checked(sample)
-        if s is None or not all(infra_store.is_number(s.get(k), 0) for k in ("disk_free_mb", "mem_available_mb")):
-            return infra_store.invalid("sample needs numeric disk_free_mb and mem_available_mb", mode="degraded")
+        if s is None or not all(checks.is_number(s.get(k), 0) for k in ("disk_free_mb", "mem_available_mb")):
+            return results.invalid("sample needs numeric disk_free_mb and mem_available_mb", mode="degraded")
         present = {f.name for d in agents.department_dirs() for f in d.iterdir() if (f / "main.py").is_file()}
         missing = sorted(set(required) - present)
-        checks = [
+        probes = [
             ("data_dir_writable",) + self._writable(),
             ("disk_space", s["disk_free_mb"] >= min_free_disk_mb, f"{s['disk_free_mb']} MB free, {min_free_disk_mb} needed"),
             ("memory", s["mem_available_mb"] >= min_free_mem_mb, f"{s['mem_available_mb']} MB available, {min_free_mem_mb} needed"),
             ("agents_present", not missing, "all present" if not missing else "missing: " + ", ".join(missing)),
             ("trace_intact",) + self._trace_ok(),
         ]
-        failed = [name for name, passed, _ in checks if not passed]
-        return infra_store.ok(mode="degraded" if failed else "autonomous", failed=failed,
-                              checks=[{"check": n, "passed": bool(p), "detail": d} for n, p, d in checks])
+        failed = [name for name, passed, _ in probes if not passed]
+        return results.ok(mode="degraded" if failed else "autonomous", failed=failed,
+                              checks=[{"check": n, "passed": bool(p), "detail": d} for n, p, d in probes])

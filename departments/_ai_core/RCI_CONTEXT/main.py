@@ -13,7 +13,8 @@ import json
 import time
 from typing import Any, Dict, List, Optional
 
-from velaris.agentkit.aicore_b_common import health, invalid, number
+from velaris.agentkit.checks import number
+from velaris.agentkit.results import health, invalid
 from velaris.agents.RCI_STREAM.main import MAX_READ, RCI_STREAMAgent
 
 NAME = "RCI_CONTEXT"

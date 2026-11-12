@@ -17,7 +17,9 @@ import threading
 import time
 from typing import Any, Dict, List
 
-from velaris.agentkit.aicore_b_common import append_line, fail, health, invalid, jsonable, peek_dir, read_lines
+from velaris.agentkit.checks import is_json
+from velaris.agentkit.results import fail, health, invalid
+from velaris.agentkit.state import append_line, peek_dir, read_lines
 from velaris.intel.paths import agent_dir
 
 logger = logging.getLogger("RCI_STREAM")
@@ -34,7 +36,7 @@ class RCI_STREAMAgent:
     def publish(self, topic: str, event: Dict[str, Any]) -> Dict[str, Any]:
         if not isinstance(topic, str) or not _TOPIC.match(topic):
             return invalid("topic must be 1-64 characters of a-z, 0-9, '_', '.', '-'")
-        if not isinstance(event, dict) or not event or not jsonable(event):
+        if not isinstance(event, dict) or not event or not is_json(event):
             return invalid("event must be a non-empty JSON object")
         try:
             with _publish_lock:

@@ -9,7 +9,8 @@ checked against something that is not a generated policy is non-compliant.
 import hashlib
 import json
 
-from velaris.agentkit.aicore_a_common import dig, fail, health, ident, number
+from velaris.agentkit.checks import dig, ident, number
+from velaris.agentkit.results import fail, health
 
 NAME = "CSM_POLICY"
 

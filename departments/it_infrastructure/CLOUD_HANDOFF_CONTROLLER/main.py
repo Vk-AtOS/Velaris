@@ -16,7 +16,7 @@ from __future__ import annotations
 import time
 import uuid
 
-from velaris.agentkit import infra_store
+from velaris.agentkit import checks, infra_store, results, state
 
 _NAME = "CLOUD_HANDOFF_CONTROLLER"
 _MAX_PENDING = 1000
@@ -25,16 +25,16 @@ _MAX_PENDING = 1000
 class CloudHandoffController:
     def __init__(self, name=_NAME):
         self.name = name
-        self._state = infra_store.State(_NAME, "outbox.json")
+        self._state = state.JsonState(_NAME, "outbox.json")
 
     def health_check(self):
         return {"agent": self.name, "status": "ok", "version": "1.0.0"}
 
     def enqueue(self, data):
-        if not isinstance(data, dict) or not data or not infra_store.is_json(data):
-            return infra_store.invalid("item must be a non-empty JSON object")
+        if not isinstance(data, dict) or not data or not checks.is_json(data):
+            return results.invalid("item must be a non-empty JSON object")
         if data.get("sensitivity") not in infra_store.MAY_LEAVE_MACHINE:
-            return infra_store.fail("refused", "only items labelled sensitivity "
+            return results.fail("refused", "only items labelled sensitivity "
                                     f"{' or '.join(infra_store.MAY_LEAVE_MACHINE)} are handed off")
         item = {"id": uuid.uuid4().hex, "queued_at": time.time(), "attempts": 0,
                 "data": infra_store.redact_json(data)}
@@ -42,10 +42,10 @@ class CloudHandoffController:
         def add(state):
             pending = state.setdefault("pending", [])
             if len(pending) >= _MAX_PENDING:
-                return infra_store.fail("full", f"outbox already holds {_MAX_PENDING} items")
+                return results.fail("full", f"outbox already holds {_MAX_PENDING} items")
             pending.append(item)
-            return infra_store.ok(id=item["id"], pending=len(pending))
-        return self._state.change(add)
+            return results.ok(id=item["id"], pending=len(pending))
+        return self._state.update(add)
 
     def pending(self):
         return list(self._state.load().get("pending", []))
@@ -61,7 +61,7 @@ class CloudHandoffController:
             return {"status": "not_configured", "synced": False, "delivered": 0, "pending": len(self.pending()),
                     "reason": "no sender was supplied; items stay queued"}
         if not callable(sender):
-            return infra_store.invalid("sender must be callable", synced=False)
+            return results.invalid("sender must be callable", synced=False)
         delivered, error = 0, ""
         with self._state.lock:
             state = self._state.load()

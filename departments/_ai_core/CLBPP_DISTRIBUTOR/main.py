@@ -5,7 +5,8 @@ room, and would end up least utilised (load / capacity). A task that fits
 nowhere is returned as unassigned with the reason, never squeezed in.
 Deterministic greedy heuristic, not an optimal bin-packing.
 """
-from velaris.agentkit.aicore_a_common import health, ident, invalid, number, ok
+from velaris.agentkit.checks import ident, number
+from velaris.agentkit.results import health, invalid, ok
 
 NAME = "CLBPP_DISTRIBUTOR"
 

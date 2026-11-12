@@ -11,8 +11,9 @@ import json
 import time
 from typing import Any, Dict
 
-from velaris.agentkit.aicore_a_common import JsonState, fail, health, ident
-from velaris.intel.paths import agent_dir
+from velaris.agentkit.checks import ident
+from velaris.agentkit.results import fail, health
+from velaris.agentkit.state import JsonState
 
 NAME = "CONTEXTUAL_SELF_MODEL"
 
@@ -20,7 +21,7 @@ NAME = "CONTEXTUAL_SELF_MODEL"
 class CONTEXTUAL_SELF_MODELAgent:
     def __init__(self):
         self.name = NAME
-        self._state = JsonState(lambda: agent_dir(NAME) / "state.json", {"base": {}, "contexts": {}, "log": []})
+        self._state = JsonState(NAME, "state.json", {"base": {}, "contexts": {}, "log": []})
 
     def health_check(self) -> Dict[str, Any]:
         return health(self.name)

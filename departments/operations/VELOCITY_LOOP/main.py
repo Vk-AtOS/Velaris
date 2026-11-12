@@ -53,7 +53,7 @@ class VelocityLoop:
         errors: List[str] = []
         rows = []
         for i, s in enumerate(stages):
-            if not isinstance(s, dict) or kit.text(s.get("name")) is None:
+            if not isinstance(s, dict) or kit.ident(s.get("name")) is None:
                 errors.append(f"stages[{i}].name must be a non-empty string")
                 continue
             entered, left = _when(s.get("entered")), _when(s.get("left"))

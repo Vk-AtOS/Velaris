@@ -7,7 +7,8 @@ measured value counts as missed. Verdict:
   partial  some steps done, and no KPI missed by more than its tolerance
   missed   nothing done, or a KPI missed beyond tolerance (or not measured)
 """
-from velaris.agentkit.aicore_a_common import health, invalid, number
+from velaris.agentkit.checks import number
+from velaris.agentkit.results import health, invalid
 
 NAME = "ASEL_EVALUATOR"
 

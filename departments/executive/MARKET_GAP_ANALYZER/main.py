@@ -28,9 +28,9 @@ def _coverage(rows: Any, label: str, who_key: str, errors: List[str]) -> Dict[st
         errors.append(f"{label} must be a list of at most {MAX_ROWS} records")
         return out
     for i, r in enumerate(rows):
-        who = kit.text(r.get(who_key)) if isinstance(r, dict) else None
+        who = kit.ident(r.get(who_key)) if isinstance(r, dict) else None
         covers = r.get("covers") if isinstance(r, dict) else None
-        if who is None or not isinstance(covers, (list, tuple)) or any(kit.text(c) is None for c in covers):
+        if who is None or not isinstance(covers, (list, tuple)) or any(kit.ident(c) is None for c in covers):
             errors.append(f"{label}[{i}] needs '{who_key}' and a 'covers' list of need names")
             continue
         for need in covers:
@@ -53,7 +53,7 @@ class MARKET_GAP_ANALYZERAgent:
             return kit.failed([f"needs must be a list of at most {MAX_ROWS} records"])
         demand: Dict[str, Dict[str, Any]] = {}
         for i, n in enumerate(needs):
-            name = kit.text(n.get("need")) if isinstance(n, dict) else None
+            name = kit.ident(n.get("need")) if isinstance(n, dict) else None
             amount = kit.number(n.get("demand"), 0) if isinstance(n, dict) else None
             if name is None or amount is None:
                 errors.append(f"needs[{i}] needs a 'need' name and a non-negative 'demand'")

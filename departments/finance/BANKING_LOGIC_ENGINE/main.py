@@ -43,7 +43,7 @@ class BankingLogicEngine:
     def validate(self, a: AccountProfile) -> List[str]:
         e = kit.dataclass_errors(a, ["balance", "overdraft_limit", "interest_rate"],
                                  texts=["account_type", "status"])
-        if kit.text(getattr(a, "account_id", None), 64) is None:
+        if kit.ident(getattr(a, "account_id", None), 64) is None:
             e.append("invalid account_id")
         if e:
             return e

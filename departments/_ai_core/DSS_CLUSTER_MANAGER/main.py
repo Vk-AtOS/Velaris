@@ -7,8 +7,9 @@ State: <VELARIS_DATA>/agents/DSS_CLUSTER_MANAGER/state.json.
 """
 import time
 
-from velaris.agentkit.aicore_a_common import JsonState, fail, health, ident, invalid, number, ok
-from velaris.intel.paths import agent_dir
+from velaris.agentkit.checks import ident, number
+from velaris.agentkit.results import fail, health, invalid, ok
+from velaris.agentkit.state import JsonState
 
 NAME = "DSS_CLUSTER_MANAGER"
 METRICS = ("cpu", "mem", "error_rate", "active", "capacity")
@@ -17,7 +18,7 @@ METRICS = ("cpu", "mem", "error_rate", "active", "capacity")
 class DSS_CLUSTER_MANAGERAgent:
     def __init__(self, name=NAME):
         self.name = name
-        self._state = JsonState(lambda: agent_dir(NAME) / "state.json", {"nodes": {}})
+        self._state = JsonState(NAME, "state.json", {"nodes": {}})
 
     def health_check(self):
         return health(self.name)

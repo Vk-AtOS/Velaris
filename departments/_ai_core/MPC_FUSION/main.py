@@ -11,7 +11,8 @@ says which source each fused value came from.
 import json
 from typing import Any, Dict, List
 
-from velaris.agentkit.aicore_b_common import health, ident, invalid, number
+from velaris.agentkit.checks import ident, number
+from velaris.agentkit.results import health, invalid
 
 NAME = "MPC_FUSION"
 

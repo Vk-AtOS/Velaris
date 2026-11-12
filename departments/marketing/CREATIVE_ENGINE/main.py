@@ -20,7 +20,6 @@ from typing import Any, Dict, List, Optional
 from velaris.agentkit import biz_common as kit
 from velaris.agentkit import biz_language as lang
 from velaris.intel.llm import LLM
-from velaris.intel.paths import agent_dir
 
 logger = logging.getLogger("CREATIVE_ENGINE")
 MAX_HISTORY = 500
@@ -30,7 +29,7 @@ MAX_VARIATIONS = 10
 class CreativeEngine:
     def __init__(self, llm: Optional[LLM] = None):
         self._llm = llm
-        self._state = kit.JsonState(lambda: agent_dir("CREATIVE_ENGINE") / "history.json", {"history": []})
+        self._state = kit.JsonState("CREATIVE_ENGINE", "history.json", {"history": []})
         self.last_status = "ok"
 
     def health_check(self) -> Dict[str, Any]:
@@ -38,7 +37,7 @@ class CreativeEngine:
 
     def _ask(self, texts: Dict[str, str], instruction: str, purpose: str, want_json: bool = False) -> Dict[str, Any]:
         """Screen the caller's texts, fence them, ask the model. Sets last_status."""
-        if any(kit.text(t, 500) is None for t in texts.values()):
+        if any(kit.ident(t, 500) is None for t in texts.values()):
             got: Dict[str, Any] = kit.failed([f"{', '.join(texts)} must be non-empty strings of at most 500 characters"])
         elif lang.blocked_fields(texts, "CREATIVE_ENGINE"):
             got = {"status": "blocked", "reason": "input was blocked by the guard"}

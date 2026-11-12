@@ -10,7 +10,8 @@ compares progress with time used:
   missed     time is up, target not reached       -> replan
 It also returns the run-rate needed from here. A fixed decision table, nothing more.
 """
-from velaris.agentkit.aicore_a_common import fail, health, number
+from velaris.agentkit.checks import number
+from velaris.agentkit.results import fail, health
 
 NAME = "CSM_REASONER"
 POSTURE = {"achieved": "sustain", "on_track": "hold_course", "at_risk": "accelerate",

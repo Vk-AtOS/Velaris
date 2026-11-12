@@ -7,7 +7,8 @@ without its audit entry. history(subject) reads past assessments back.
 """
 from typing import Any, Dict, List, Optional
 
-from velaris.agentkit.aicore_b_common import fail, health, ident, invalid
+from velaris.agentkit.checks import ident
+from velaris.agentkit.results import fail, health, invalid
 from velaris.agents.EAC_AUDIT.main import EAC_AUDITAgent
 from velaris.agents.EAC_COMPLIANCE.main import EAC_COMPLIANCEAgent
 

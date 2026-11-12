@@ -24,7 +24,9 @@ from __future__ import annotations
 import unicodedata
 from typing import Any, Dict, List, Optional
 
-from velaris.agentkit.infra_store import State, invalid, is_name, is_number, ok
+from velaris.agentkit.checks import is_name, is_number
+from velaris.agentkit.results import invalid, ok
+from velaris.agentkit.state import JsonState
 from velaris.core.access import GOVERNANCE_ADMINS, check_caller
 from velaris.intel import guard
 from velaris.intel.llm import LLM, LLMError, extract_json
@@ -42,7 +44,7 @@ class EACPE_ALIGNMENTAgent:
     def __init__(self, llm: Optional[LLM] = None) -> None:
         self.name = NAME
         self.llm = llm
-        self._state = State(NAME)
+        self._state = JsonState(NAME)
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": NAME, "status": "ok", "version": "1.0.0"}
@@ -58,7 +60,7 @@ class EACPE_ALIGNMENTAgent:
         if refused:
             return refused
         mandate = {"classes": action_classes, "max_amount": max_amount, "prohibited": [_norm(t) for t in targets]}
-        self._state.change(lambda d: d.setdefault("mandates", {}).__setitem__(agent, mandate))
+        self._state.update(lambda d: d.setdefault("mandates", {}).__setitem__(agent, mandate))
         return ok(agent=agent, **mandate)
 
     def set_principles(self, principles: List[str]) -> Dict[str, Any]:
@@ -68,7 +70,7 @@ class EACPE_ALIGNMENTAgent:
         _, refused = check_caller(NAME, "set_principles", {"count": len(principles)}, roles=GOVERNANCE_ADMINS)
         if refused:
             return refused
-        self._state.change(lambda d: d.__setitem__("principles", principles))
+        self._state.update(lambda d: d.__setitem__("principles", principles))
         return ok(principles=len(principles))
 
     def _review(self, text: str, principles: List[str]) -> Dict[str, Any]:

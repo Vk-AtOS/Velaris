@@ -10,7 +10,8 @@ against". A non-ok "status" on the input is passed through, never upgraded.
 """
 import copy
 
-from velaris.agentkit.aicore_a_common import fail, health, number
+from velaris.agentkit.checks import number
+from velaris.agentkit.results import fail, health
 
 NAME = "BEHAVIOR_SHAPING_NETWORK"
 

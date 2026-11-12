@@ -36,7 +36,7 @@ class AdaptiveBrandingAgent:
         if not isinstance(payload, dict):
             return kit.failed(["payload must be an object"])
         errors: List[str] = []
-        message, channel = kit.text(payload.get("message"), 4000), payload.get("channel")
+        message, channel = kit.ident(payload.get("message"), 4000), payload.get("channel")
         audience, tone = payload.get("audience", ""), payload.get("tone", "plain")
         if message is None:
             errors.append("message must be a non-empty string of at most 4000 characters")

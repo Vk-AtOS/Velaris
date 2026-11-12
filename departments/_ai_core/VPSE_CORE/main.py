@@ -9,7 +9,8 @@ only outcome is the driver itself.
 """
 from typing import Any, Dict, List, Optional
 
-from velaris.agentkit.aicore_b_common import health, ident, invalid
+from velaris.agentkit.checks import ident
+from velaris.agentkit.results import health, invalid
 from velaris.agents.VPSE_MODELER.main import VPSE_MODELERAgent
 from velaris.agents.VPSE_SCENARIO.main import VPSE_SCENARIOAgent
 

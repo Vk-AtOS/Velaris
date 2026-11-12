@@ -6,7 +6,7 @@ and the same field once cleaned, so they no longer show up as conflicts.
 """
 from typing import Any, Dict
 
-from velaris.agentkit.aicore_b_common import health, invalid
+from velaris.agentkit.results import health, invalid
 from velaris.agents.MPC_FUSION.main import MPC_FUSIONAgent
 from velaris.agents.MPC_PREPROC.main import MPC_PREPROCAgent
 

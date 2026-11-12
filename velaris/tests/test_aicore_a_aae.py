@@ -71,19 +71,41 @@ def test_runtime_gates_denied_unapproved_unhandled_and_failing_actions():
     assert rt.run({"id": "d1", "type": "delete_ledger"})["status"] == "denied"
     held = rt.run({"id": "r1", "type": "refund", "params": {"amount": 5000}})
     assert held["status"] == "needs_approval" and rt.history("r1")["status"] == "not_found"
+    assert held["requested_by"] is None                                             # nobody asked: nothing recorded
     refund = {"id": "r1", "type": "refund", "params": {"amount": 5000}}
     assert rt.run(refund, approved_by="cfo")["status"] == "unauthenticated"           # naming an approver is not enough
+    with acting_as(Caller("cfo", "kf")):
+        assert rt.run(refund, approved_by="cfo")["status"] == "no_request"           # nobody requested it yet
     with acting_as(Caller("clerk", "kf")):
+        assert rt.run(refund)["requested_by"] == "clerk"
         assert rt.run(refund, approved_by="cfo")["status"] == "denied"               # nor naming someone else
     assert rt.history("r1")["status"] == "not_found"
     with acting_as(Caller("cfo", "kf")):
+        swapped = {**refund, "params": {"amount": 9000}}
+        assert rt.run(swapped, approved_by="cfo")["status"] == "no_request"          # only what was requested
         paid = rt.run(refund, approved_by="cfo")
     assert paid["result"] == {"refunded": 5000} and rt.history("r1")["approved_by"] == "cfo"
-    assert rt.run({"id": "s1", "type": "send_sms"})["status"] == "no_handler"
+    assert rt.history("r1")["requested_by"] == "clerk"
+    # a missing `night` cannot dodge the night-time SMS ban (deny rules fail closed); with it, no handler
+    assert rt.run({"id": "s0", "type": "send_sms"})["status"] == "denied"
+    assert rt.run({"id": "s1", "type": "send_sms", "night": False})["status"] == "no_handler"
     failed = rt.run({"id": "c1", "type": "call"})
     assert failed["status"] == "failed" and "ZeroDivisionError" in failed["reason"]
     rt.register("call", lambda params: "connected")
     assert rt.run({"id": "c1", "type": "call"})["result"] == "connected"            # a failed action may be retried
+
+
+def test_runtime_requester_cannot_approve_their_own_request():
+    rt, _ = runtime()
+    refund = {"id": "r9", "type": "refund", "params": {"amount": 5000}}
+    with acting_as(Caller("clerk", "kf", roles={"governance_admin"})):
+        assert rt.run(refund)["status"] == "needs_approval"
+        own = rt.run(refund, approved_by="clerk")
+    assert own["status"] == "denied" and "requested" in own["reason"]
+    assert rt.history("r9")["status"] == "not_found"
+    assert any(e["action"] == "approval.refused" for e in trace.entries() if e["actor"] == "AAE_RUNTIME")
+    with acting_as(Caller("cfo", "kf")):
+        assert rt.run(refund, approved_by="cfo")["status"] == "ok"
 
 
 def test_runtime_bad_input():

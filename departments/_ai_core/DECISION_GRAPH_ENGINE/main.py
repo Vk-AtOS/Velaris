@@ -5,7 +5,9 @@ ASEL_PLANNER produce) or {"plan": [names]} (taken as a strict sequence). It
 returns nodes, edges, the levels of steps that can proceed together, roots and
 leaves, and refuses plans with unknown or circular dependencies.
 """
-from velaris.agentkit.aicore_a_common import fail, health, ident, topo_levels
+from velaris.agentkit.checks import ident
+from velaris.agentkit.results import fail, health
+from velaris.agentkit.graph import order as dependency_order
 
 NAME = "DECISION_GRAPH_ENGINE"
 
@@ -39,10 +41,10 @@ class DecisionGraphEngine:
             deps[sid] = needs
         if not deps:
             return refuse("empty", "the plan has no steps")
-        order = topo_levels(deps)
-        if order["missing"] or order["cycle"]:
+        order = dependency_order(deps)
+        if order["missing"] or order["unordered"]:
             return refuse("invalid_plan", "unknown or circular dependencies",
-                          missing=order["missing"], cycle=order["cycle"])
+                          missing=order["missing"], cycle=order["unordered"])
         edges = sorted([d, sid] for sid, needs in deps.items() for d in set(needs))
         depended_on = {d for d, _ in edges}
         return {"status": "ok", "graph": {

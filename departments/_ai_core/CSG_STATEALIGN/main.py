@@ -9,7 +9,7 @@ supported; switch to path lists if such keys ever appear.
 """
 import copy
 
-from velaris.agentkit.aicore_a_common import fail, health
+from velaris.agentkit.results import fail, health
 from velaris.agentkit.aicore_a_fusion import flatten
 
 NAME = "CSG_STATEALIGN"

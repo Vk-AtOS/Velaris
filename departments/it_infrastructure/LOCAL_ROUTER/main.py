@@ -15,7 +15,7 @@ cloud. route(task) returns just the verdict: "offline", "cloud", "defer" or "rej
 """
 from __future__ import annotations
 
-from velaris.agentkit import infra_metrics, infra_store
+from velaris.agentkit import checks, infra_metrics, infra_store, results
 
 _NAME = "LOCAL_ROUTER"
 
@@ -29,28 +29,28 @@ class LocalRouter:
 
     def decide(self, task, sample=None):
         if not isinstance(task, dict):
-            return infra_store.invalid("task must be an object", route="reject")
+            return results.invalid("task must be an object", route="reject")
         flags = {k: task.get(k, False) for k in ("needs_network", "cloud_available")}
         mem = task.get("est_mem_mb", 0)
-        if not all(isinstance(v, bool) for v in flags.values()) or not infra_store.is_number(mem, 0):
-            return infra_store.invalid("needs_network and cloud_available must be true/false, est_mem_mb >= 0",
+        if not all(isinstance(v, bool) for v in flags.values()) or not checks.is_number(mem, 0):
+            return results.invalid("needs_network and cloud_available must be true/false, est_mem_mb >= 0",
                                        route="reject")
         may_leave = task.get("sensitivity", "restricted") in infra_store.MAY_LEAVE_MACHINE
         if not may_leave:
             if flags["needs_network"]:
-                return infra_store.fail("rejected", "restricted work cannot use the network", route="reject")
-            return infra_store.ok(route="offline", reason="restricted or unclassified work stays on this machine")
+                return results.fail("rejected", "restricted work cannot use the network", route="reject")
+            return results.ok(route="offline", reason="restricted or unclassified work stays on this machine")
         elsewhere = "cloud" if flags["cloud_available"] else "defer"
         if flags["needs_network"]:
-            return infra_store.ok(route=elsewhere, reason="task needs the network")
+            return results.ok(route=elsewhere, reason="task needs the network")
         if mem:
             s = infra_metrics.checked(sample)
-            if s is None or not infra_store.is_number(s.get("mem_available_mb"), 0):
-                return infra_store.invalid("sample needs a numeric mem_available_mb", route="reject")
+            if s is None or not checks.is_number(s.get("mem_available_mb"), 0):
+                return results.invalid("sample needs a numeric mem_available_mb", route="reject")
             if mem > s["mem_available_mb"]:
-                return infra_store.ok(route=elsewhere,
+                return results.ok(route=elsewhere,
                                       reason=f"needs {mem} MB, {s['mem_available_mb']} MB available locally")
-        return infra_store.ok(route="offline", reason="fits on this machine")
+        return results.ok(route="offline", reason="fits on this machine")
 
     def route(self, task, sample=None):
         return self.decide(task, sample)["route"]

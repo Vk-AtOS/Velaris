@@ -3,13 +3,15 @@
 Keys such as name, organisation, region and owner, each a short string. A
 random instance_id is assigned on first use and can never be changed, so logs
 and messages from this installation can be told apart from another's. Every
-change is recorded with who made it (velaris.agentkit.aicore_b_versioned);
+change is recorded with who made it (velaris.agentkit.aicore_b_versioned): the
+current caller (velaris.core.access), who must be a governance admin;
 stored owner-only under this agent's state directory; survives restart.
 """
 import uuid
 from typing import Any, Dict, Optional
 
-from velaris.agentkit.aicore_b_common import health, ident
+from velaris.agentkit.checks import ident
+from velaris.agentkit.results import health
 from velaris.agentkit.aicore_b_versioned import VersionedDoc
 
 NAME = "SELF_IDENTITY"
@@ -39,10 +41,11 @@ class SELF_IDENTITYAgent:
     def get_identity(self) -> Dict[str, Any]:
         return dict(self.identity)
 
-    def set_identity(self, key: str, value: str, by: str = "system") -> bool:
-        """True when the value was stored (or already held); False for a bad value or a frozen key."""
+    def set_identity(self, key: str, value: str, by: Optional[str] = None) -> bool:
+        """True when the value was stored (or already held); False for a bad value, a frozen key, or a
+        caller who is not a governance admin (`by`, if given, must be that caller)."""
         self.identity                                     # make sure instance_id exists before any other change
-        return self._doc.update({key: value}, by)["status"] in ("ok", "unchanged")
+        return self._doc.change(NAME, {key: value}, by)["status"] in ("ok", "unchanged")
 
     def history(self, key: Optional[str] = None):
         return self._doc.history(key)

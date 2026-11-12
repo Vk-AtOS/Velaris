@@ -16,7 +16,9 @@ from __future__ import annotations
 import math
 from typing import Any, Dict, List, Optional
 
-from velaris.agentkit.infra_store import State, fail, invalid, is_name, is_number, ok
+from velaris.agentkit.checks import is_name, is_number
+from velaris.agentkit.results import fail, invalid, ok
+from velaris.agentkit.state import JsonState
 
 NAME = "STREAM_PROCESSOR"
 MAX_BATCH = 10000
@@ -26,7 +28,7 @@ MAX_WINDOWS = 5000
 class STREAM_PROCESSORAgent:
     def __init__(self, name: str = NAME) -> None:
         self.name = name
-        self._state = State(NAME)
+        self._state = JsonState(NAME)
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": self.name, "status": "ok", "version": "1.0.0"}
@@ -45,7 +47,7 @@ class STREAM_PROCESSORAgent:
                 return fail("exists", "stream is already defined differently; its windows would not be comparable")
             streams.setdefault(stream, {"spec": spec, "max_ts": None, "windows": {}, "late": 0, "invalid": 0})
             return ok(stream=stream, **spec)
-        return self._state.change(put)
+        return self._state.update(put)
 
     def ingest(self, stream: str, events: List[Dict[str, Any]]) -> Dict[str, Any]:
         if not isinstance(events, list) or len(events) > MAX_BATCH:
@@ -76,7 +78,7 @@ class STREAM_PROCESSORAgent:
             for old in sorted(st["windows"], key=lambda k: st["windows"][k]["start"])[:max(0, len(st["windows"]) - MAX_WINDOWS)]:
                 del st["windows"][old]
             return ok(accepted=accepted, late=late, invalid=bad)
-        return self._state.change(take)
+        return self._state.update(take)
 
     def results(self, stream: str, closed_only: bool = True) -> Dict[str, Any]:
         """Window aggregates in time order; by default only closed windows, whose values are final."""

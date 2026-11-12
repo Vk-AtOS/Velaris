@@ -11,7 +11,7 @@ import logging
 import sqlite3
 from typing import Any, Dict, List, Optional
 
-from velaris.agentkit.infra_store import fail, invalid, ok
+from velaris.agentkit.results import fail, invalid, ok
 from velaris.intel.llm import LLM
 from velaris.intel.memory import MemoryStore
 

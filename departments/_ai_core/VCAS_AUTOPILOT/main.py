@@ -23,7 +23,9 @@ import time
 from typing import Any, Callable, Dict, Optional
 
 from velaris.agentkit.aicore_b_authz import task_digest
-from velaris.agentkit.aicore_b_common import JsonState, fail, health, ident, invalid, jsonable
+from velaris.agentkit.checks import ident, is_json
+from velaris.agentkit.results import fail, health, invalid
+from velaris.agentkit.state import JsonState
 from velaris.agents.VCAS_SUPERVISOR.main import task_error
 from velaris.core.access import current_caller
 from velaris.intel import trace
@@ -102,7 +104,7 @@ class VCASAutopilotAgent:
             return {**base, **fail("not_approved", "this approval was already used")}
         try:
             output = handler(dict(task.get("params") or {}))
-            run = {"state": "done", "result": output if jsonable(output) else repr(output)}
+            run = {"state": "done", "result": output if is_json(output) else repr(output)}
         except Exception as e:      # a handler is outside code: record the failure, never crash the caller
             logger.warning("VCAS_AUTOPILOT: handler for %s failed: %s", task["action"], e)
             run = {"state": "failed", "error": f"{type(e).__name__}: {e}"[:300]}

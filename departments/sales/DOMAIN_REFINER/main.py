@@ -38,7 +38,7 @@ class DOMAIN_REFINERAgent:
         if not isinstance(labels, (list, tuple)) or len(labels) > MAX_LABELS \
                 or any(not isinstance(x, str) for x in labels):
             errors.append(f"labels must be a list of at most {MAX_LABELS} strings")
-        if not isinstance(canonical, (list, tuple)) or any(kit.text(c, 100) is None for c in canonical):
+        if not isinstance(canonical, (list, tuple)) or any(kit.ident(c, 100) is None for c in canonical):
             errors.append("canonical must be a list of non-empty strings")
         if kit.number(cutoff, 0.5, 1.0) is None:
             errors.append("cutoff must be between 0.5 and 1.0")

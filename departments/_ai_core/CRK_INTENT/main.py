@@ -11,7 +11,7 @@ import logging
 import os
 import re
 
-from velaris.agentkit.aicore_a_common import fail, health, invalid, ok
+from velaris.agentkit.results import fail, health, invalid, ok
 from velaris.intel import guard
 from velaris.intel.llm import LLM, LLMError, extract_json
 

@@ -8,7 +8,7 @@ bounded context built by RCI_CONTEXT.
 """
 from typing import Any, Dict, Iterator
 
-from velaris.agentkit.aicore_b_common import fail, health, invalid
+from velaris.agentkit.results import fail, health, invalid
 from velaris.agents.RCI_CONTEXT.main import RCI_CONTEXTAgent
 from velaris.agents.RCI_STREAM.main import RCI_STREAMAgent
 from velaris.intel import guard

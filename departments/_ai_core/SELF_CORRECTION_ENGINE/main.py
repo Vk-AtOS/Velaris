@@ -14,7 +14,8 @@ says so. Fields the schema does not mention are left alone.
 import re
 from typing import Any, Dict, Optional, Tuple
 
-from velaris.agentkit.aicore_b_common import health, invalid, number
+from velaris.agentkit.checks import number
+from velaris.agentkit.results import health, invalid
 
 NAME = "SELF_CORRECTION_ENGINE"
 TYPES = ("number", "integer", "string", "boolean")

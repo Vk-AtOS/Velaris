@@ -6,7 +6,8 @@ over the runner-up is not greater than `min_margin` the result is "undecided"
 and names the contenders, so a near-tie goes to a person instead of being
 settled by ordering.
 """
-from velaris.agentkit.aicore_a_common import fail, health, ident, number
+from velaris.agentkit.checks import ident, number
+from velaris.agentkit.results import fail, health
 
 NAME = "DECISION_COLLAPSE_ENGINE"
 

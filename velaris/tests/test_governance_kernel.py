@@ -2,7 +2,8 @@ from importlib import import_module
 
 import pytest
 
-from velaris.core.access import GOVERNANCE_ADMIN, Caller, acting_as
+from velaris.core.access import GOVERNANCE_ADMIN, SECURITY_ADMIN, Caller, acting_as
+from velaris.intel import trace
 
 AGENTS = [
     ("GOVERNANCE_KERNEL", "GOVERNANCE_KERNELAgent"),
@@ -25,13 +26,34 @@ def test_governance_health():
 
 def test_governance_basic_ops(tmp_path):
     gk = import_module("live.agents.GOVERNANCE_KERNEL.main").GOVERNANCE_KERNELAgent()
-    gk.register_policy("p1", {"rule":"ok"})
-    assert gk.evaluate_request("p1", {}) is True
+    assert gk.register_policy("p1", {"effect": "allow", "when": {"rule": "ok"}})["status"] == "unauthenticated"
+    with acting_as(Caller("clerk", "kf")):
+        assert gk.register_policy("p1", {"effect": "allow", "when": {"rule": "ok"}})["status"] == "denied"
+    assert gk.evaluate_request("p1", {"rule": "ok"}) is False                # nothing was registered
+    with acting_as(Caller("cfo", "kf", frozenset({GOVERNANCE_ADMIN}))):
+        assert gk.register_policy("p1", {"effect": "allow", "when": {"rule": "ok"}})["status"] == "ok"
+        assert gk.register_policy("doc", {"rule": "ok"})["status"] == "ok"   # a plain document decides nothing
+    assert gk.evaluate_request("p1", {"rule": "ok"}) is True                 # POLICY_CONTROLLER decides
+    assert gk.evaluate_request("p1", {"rule": "other"}) is False
+    assert gk.evaluate_request("p1", {}) is False
+    assert gk.evaluate_request("doc", {"rule": "ok"}) is False
+    with acting_as(Caller("cfo", "kf", frozenset({GOVERNANCE_ADMIN}))):
+        gk.register_policy("stop", {"effect": "deny", "priority": 5, "when": {"night": True}})
+    assert gk.evaluate_request("p1", {"rule": "ok", "night": True}) is False  # a higher-priority deny wins
 
     df = import_module("live.agents.DECISION_FIREWALL.main").DECISION_FIREWALLAgent()
-    df.block("x")
+    assert df.block("x")["status"] == "unauthenticated"
+    with acting_as(Caller("clerk", "kf")):
+        assert df.block("x")["status"] == "denied"
+    assert df.allow("x") is True
+    with acting_as(Caller("sec", "kf", frozenset({SECURITY_ADMIN}))):
+        assert df.block("x")["by"] == "sec"
     assert df.allow("y") is True
     assert df.allow("x") is False
+    assert import_module("live.agents.DECISION_FIREWALL.main").DECISION_FIREWALLAgent().allow("x") is False  # kept
+    assert df.allow(None) is False
+    decisions = [e["action"] for e in trace.entries() if e["payload"].get("agent") == "DECISION_FIREWALL"]
+    assert decisions == ["change.denied", "change.denied", "change.granted"]
 
     om = import_module("live.agents.OVERSIGHT_MONITOR.main").OVERSIGHT_MONITORAgent()
     om.record({"e":"test"})

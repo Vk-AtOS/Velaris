@@ -14,7 +14,9 @@ from __future__ import annotations
 import heapq
 from typing import Any, Dict, List, Tuple
 
-from velaris.agentkit.infra_store import State, fail, invalid, is_name, is_number, ok
+from velaris.agentkit.checks import is_name, is_number
+from velaris.agentkit.results import fail, invalid, ok
+from velaris.agentkit.state import JsonState
 
 NAME = "NETWORK_OPTIMIZER"
 
@@ -26,7 +28,7 @@ def link_key(a: str, b: str) -> str:
 class NETWORK_OPTIMIZERAgent:
     def __init__(self, name: str = NAME) -> None:
         self.name = name
-        self._state = State(NAME)
+        self._state = JsonState(NAME)
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": self.name, "status": "ok", "version": "1.0.0"}
@@ -38,13 +40,13 @@ class NETWORK_OPTIMIZERAgent:
         if not is_number(latency_ms, 0) or not is_number(loss, 0, 0.999) or not isinstance(up, bool):
             return invalid("latency_ms must be >= 0, loss in 0..0.999 and up true or false")
         link = {"a": a, "b": b, "latency_ms": latency_ms, "loss": loss, "up": up}
-        self._state.change(lambda d: d.setdefault("links", {}).__setitem__(link_key(a, b), link))
+        self._state.update(lambda d: d.setdefault("links", {}).__setitem__(link_key(a, b), link))
         return ok(link=link, cost=round(latency_ms / (1 - loss), 4))
 
     def remove_link(self, a: str, b: str) -> Dict[str, Any]:
         if not (isinstance(a, str) and isinstance(b, str)):
             return invalid("a and b must be node names")
-        gone = self._state.change(lambda d: d.get("links", {}).pop(link_key(a, b), None))
+        gone = self._state.update(lambda d: d.get("links", {}).pop(link_key(a, b), None))
         return ok(removed=True) if gone else fail("unknown_link", "no such link")
 
     def best_path(self, src: str, dst: str) -> Dict[str, Any]:

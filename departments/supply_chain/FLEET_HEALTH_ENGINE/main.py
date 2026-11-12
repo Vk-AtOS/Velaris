@@ -56,7 +56,7 @@ class FleetHealthEngine:
     def validate(self, v: VehicleStatus) -> List[str]:
         e = kit.dataclass_errors(v, ["mileage", "engine_hours"], ["fault_codes", "wear_metrics"],
                                  texts=["usage_pattern"])
-        if kit.text(getattr(v, "vehicle_id", None), 64) is None:
+        if kit.ident(getattr(v, "vehicle_id", None), 64) is None:
             e.append("vehicle_id invalid")
         if e:
             return e

@@ -43,7 +43,7 @@ class CandidateProfile:
 def _skill_list(raw: Any, name: str, errors: List[str]) -> List[str]:
     if raw is None:
         return []
-    if not isinstance(raw, (list, tuple)) or len(raw) > MAX_SKILLS or any(kit.text(s, 80) is None for s in raw):
+    if not isinstance(raw, (list, tuple)) or len(raw) > MAX_SKILLS or any(kit.ident(s, 80) is None for s in raw):
         errors.append(f"requirements.{name} must be a list of at most {MAX_SKILLS} skill names")
         return []
     return list(dict.fromkeys(s.strip() for s in raw))
@@ -62,7 +62,7 @@ class HRTalentEngine:
     def validate(self, c: CandidateProfile) -> List[str]:
         e = kit.dataclass_errors(c, ["experience_years"], ["skills", "cultural_flags"],
                                  texts=["education_level", "role"])
-        if kit.text(getattr(c, "candidate_id", None), 64) is None:
+        if kit.ident(getattr(c, "candidate_id", None), 64) is None:
             e.append("candidate_id invalid")
         if e:
             return e

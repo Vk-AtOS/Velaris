@@ -12,6 +12,9 @@ extends the due time. States and allowed moves are in TRANSITIONS.
 
 Every change is appended to the ticket's own history (who, when, from, to, note)
 and to the hash-chained trace, so the record of a ticket cannot be quietly rewritten.
+"Who" is the current caller (velaris.core.access): any authenticated person or service
+may open and move tickets, nobody can do it anonymously, and a legacy `by` argument
+must name that same caller.
 """
 from __future__ import annotations
 
@@ -19,7 +22,11 @@ import time
 from dataclasses import asdict, dataclass
 from typing import Any, Dict, List, Optional
 
-from velaris.agentkit.infra_store import State, audit, fail, invalid, is_name, is_number, ok
+from velaris.agentkit.checks import is_name, is_number
+from velaris.agentkit.results import fail, invalid, ok
+from velaris.agentkit.state import JsonState
+from velaris.core.access import check_caller
+from velaris.agentkit.infra_store import audit
 
 NAME = "ITSM_ENGINE"
 PRIORITY_BANDS = ((900, "P1"), (600, "P2"), (300, "P3"), (0, "P4"))
@@ -58,7 +65,7 @@ class ITSMEngine:
 
     def __init__(self) -> None:
         self.name = NAME
-        self._state = State(NAME, "tickets.json")
+        self._state = JsonState(NAME, "tickets.json")
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": NAME, "status": "ok", "version": "1.0.0"}
@@ -101,12 +108,16 @@ class ITSMEngine:
         return ok(ticket_id=t.ticket_id, score=score, parts=parts, computed_priority=priority,
                   reported_priority=t.priority, respond_within_min=respond, resolve_within_min=resolve)
 
-    def open_ticket(self, t: Ticket, by: str, now: Optional[float] = None) -> Dict[str, Any]:
+    def open_ticket(self, t: Ticket, by: Optional[str] = None, now: Optional[float] = None) -> Dict[str, Any]:
         assessed = self.assess(t)
         if assessed["status"] != "ok":
             return assessed
-        if not is_name(by) or (now is not None and not is_number(now, 0)):
+        if (by is not None and not is_name(by)) or (now is not None and not is_number(now, 0)):
             return invalid("'by' must name who opened the ticket and now be a timestamp")
+        caller, refused = check_caller(NAME, "open_ticket", {"ticket": t.ticket_id}, claimed=by)
+        if refused:
+            return refused
+        by = caller.id
         now = time.time() if now is None else now
 
         def add(data: Dict[str, Any]) -> Dict[str, Any]:
@@ -121,14 +132,20 @@ class ITSMEngine:
                 "resolve_due": now + assessed["resolve_within_min"] * 60,
                 "history": [{"ts": now, "by": by, "from": None, "to": "new", "note": "opened"}]}
             return ok(ticket=tickets[t.ticket_id])
-        result = self._state.change(add)
+        result = self._state.update(add)
         if result["status"] == "ok":
             audit(NAME, "ticket.open", {"ticket": t.ticket_id, "by": by, "priority": assessed["computed_priority"]})
         return result
 
-    def transition(self, ticket_id: str, to: str, by: str, note: str = "", now: Optional[float] = None) -> Dict[str, Any]:
-        if not is_name(by) or not isinstance(note, str) or (now is not None and not is_number(now, 0)):
+    def transition(self, ticket_id: str, to: str, by: Optional[str] = None, note: str = "",
+                   now: Optional[float] = None) -> Dict[str, Any]:
+        if (by is not None and not is_name(by)) or not isinstance(note, str) or (now is not None and not is_number(now, 0)):
             return invalid("'by' must name who is acting, note be text and now a timestamp")
+        caller, refused = check_caller(NAME, "transition", {"ticket": str(ticket_id)[:64], "to": str(to)[:32]},
+                                       claimed=by)
+        if refused:
+            return refused
+        by = caller.id
         now = time.time() if now is None else now
 
         def move(data: Dict[str, Any]) -> Dict[str, Any]:
@@ -149,7 +166,7 @@ class ITSMEngine:
             tk["history"].append({"ts": now, "by": by, "from": tk["state"], "to": to, "note": note[:500]})
             tk["state"] = to
             return ok(ticket=tk)
-        result = self._state.change(move)
+        result = self._state.update(move)
         if result["status"] == "ok":
             audit(NAME, "ticket.transition", {"ticket": ticket_id, "by": by, "to": to})
         return result

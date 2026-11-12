@@ -2,6 +2,8 @@ from importlib import import_module
 
 import pytest
 
+from velaris.core.access import Caller, acting_as
+
 
 @pytest.fixture(autouse=True)
 def _data(tmp_path, monkeypatch):
@@ -27,7 +29,8 @@ def test_eof_orchestrate_and_policy_and_route():
 
     # ADME is not an agent in this repository; the stubs "routed" to it anyway. Real agents are used now.
     plan = {"task":"deploy","target":"ORCHESTRIX"}
-    res = core.orchestrate(plan)
+    with acting_as(Caller("asha", "kf")):
+        res = core.orchestrate(plan)
     assert res["result"] == "ok"
     assert core.orchestrate({"task":"deploy","target":"ADME"})["result"] == "invalid"
 
@@ -37,6 +40,7 @@ def test_eof_orchestrate_and_policy_and_route():
     assert pe["status"] == "no_subject"  # was "not_implemented": the check is real now but needs a step to check
     assert policy.evaluate(p, {"task": "sync", "autonomous": True, "approved_by": "asha"})["compliant"] is True
 
-    gr = gateway.route("PRIME","ORCHESTRIX",{"job":"sync"})
-    assert gr["routed"] is True
-    assert gateway.route("PRIME","ADME",{"job":"sync"})["routed"] is False
+    with acting_as(Caller("PRIME", "kf")):                # senders are callers or agent objects, never names
+        gr = gateway.route("ORCHESTRIX", {"job": "sync"})
+        assert gr["routed"] is True and gr["src"] == "PRIME"
+        assert gateway.route("ADME", {"job": "sync"})["routed"] is False

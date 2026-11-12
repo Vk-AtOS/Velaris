@@ -14,7 +14,8 @@ stored or shown to a model), and what was found.
 from typing import Any, Dict
 
 from velaris.agentkit import aicore_b_text as textkit
-from velaris.agentkit.aicore_b_common import MAX_TEXT, health
+from velaris.agentkit.checks import MAX_TEXT
+from velaris.agentkit.results import health
 from velaris.intel import guard
 
 NAME = "UIE_SIGNAL"

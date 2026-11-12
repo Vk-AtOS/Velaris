@@ -61,7 +61,7 @@ class MacroEconModel:
     def compute_index(self, m: MacroInput, sources: Optional[List[str]] = None) -> Dict[str, Any]:
         err = self.validate(m)
         if sources is not None and not (isinstance(sources, (list, tuple))
-                                        and all(kit.text(s, 500) for s in sources)):
+                                        and all(kit.ident(s, 500) for s in sources)):
             err.append("sources must be a list of non-empty strings")
         if err:
             return kit.failed(err)

@@ -19,7 +19,6 @@ import operator
 from typing import Any, Dict, List
 
 from velaris.agentkit import biz_common as kit
-from velaris.intel.paths import agent_dir
 
 logger = logging.getLogger("BUSINESS_AUTOPILOT")
 OPS = {">": operator.gt, ">=": operator.ge, "<": operator.lt, "<=": operator.le, "==": operator.eq}
@@ -34,17 +33,17 @@ def _rule_errors(rules: Any) -> List[str]:
         if not isinstance(r, dict):
             errors.append(f"rules[{i}] must be an object")
             continue
-        rid = kit.text(r.get("id"), 80)
+        rid = kit.ident(r.get("id"), 80)
         if rid is None or rid in seen:
             errors.append(f"rules[{i}].id must be a unique non-empty string")
         seen.add(rid)
-        if kit.text(r.get("metric"), 80) is None:
+        if kit.ident(r.get("metric"), 80) is None:
             errors.append(f"rules[{i}].metric must be a non-empty string")
         if not isinstance(r.get("op"), str) or r["op"] not in OPS:
             errors.append(f"rules[{i}].op must be one of {sorted(OPS)}")
         if kit.number(r.get("threshold")) is None:
             errors.append(f"rules[{i}].threshold must be a finite number")
-        if kit.text(r.get("action"), 500) is None:
+        if kit.ident(r.get("action"), 500) is None:
             errors.append(f"rules[{i}].action must be a non-empty string")
     return errors
 
@@ -52,7 +51,7 @@ def _rule_errors(rules: Any) -> List[str]:
 class BusinessAutopilotAgent:
     def __init__(self, config: Dict[str, Any] = None):
         self.version = (config or {}).get("version", kit.VERSION)
-        self._state = kit.JsonState(lambda: agent_dir("BUSINESS_AUTOPILOT") / "rules.json", {"rules": []})
+        self._state = kit.JsonState("BUSINESS_AUTOPILOT", "rules.json", {"rules": []})
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": "BUSINESS_AUTOPILOT", "status": "ok", "version": self.version}

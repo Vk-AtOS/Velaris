@@ -58,7 +58,7 @@ class ClaimsAssessmentEngine:
     def validate(self, c: ClaimCase) -> List[str]:
         e = kit.dataclass_errors(c, ["claim_amount", "incident_severity"],
                                  ["documentation_flags", "claimant_history_flags"], texts=["policy_type"])
-        if kit.text(getattr(c, "claim_id", None), 64) is None:
+        if kit.ident(getattr(c, "claim_id", None), 64) is None:
             e.append("claim_id invalid")
         if e:
             return e

@@ -6,7 +6,7 @@ file. This class adds no rules of its own.
 """
 from typing import Any, Dict
 
-from velaris.agentkit.aicore_a_common import fail, health
+from velaris.agentkit.results import fail, health
 from velaris.agents.AGENT_LIFECYCLE_MANAGER.main import LifecycleManager
 
 NAME = "AGENT_LIFECYCLE"

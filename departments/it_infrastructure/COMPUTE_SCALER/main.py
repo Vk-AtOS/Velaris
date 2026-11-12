@@ -15,7 +15,9 @@ import math
 import time
 from typing import Any, Dict, Optional
 
-from velaris.agentkit.infra_store import State, fail, invalid, is_name, is_number, ok
+from velaris.agentkit.checks import is_name, is_number
+from velaris.agentkit.results import fail, invalid, ok
+from velaris.agentkit.state import JsonState
 
 NAME = "COMPUTE_SCALER"
 TOLERANCE = 0.10
@@ -24,7 +26,7 @@ TOLERANCE = 0.10
 class COMPUTE_SCALERAgent:
     def __init__(self, name: str = NAME) -> None:
         self.name = name
-        self._state = State(NAME)
+        self._state = JsonState(NAME)
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": self.name, "status": "ok", "version": "1.0.0"}
@@ -39,7 +41,7 @@ class COMPUTE_SCALERAgent:
         if not is_number(target_utilization, 1, 100) or not is_number(cooldown_s, 0):
             return invalid("target_utilization must be 1..100 and cooldown_s >= 0")
         policy = {"min": min_replicas, "max": max_replicas, "target": target_utilization, "cooldown_s": cooldown_s}
-        self._state.change(lambda d: d.setdefault("groups", {}).setdefault(group, {}).update(policy=policy))
+        self._state.update(lambda d: d.setdefault("groups", {}).setdefault(group, {}).update(policy=policy))
         return ok(group=group, policy=policy)
 
     def decide(self, group: str, current_replicas: int, utilization: float,
@@ -73,4 +75,4 @@ class COMPUTE_SCALERAgent:
                 entry["last_change"] = now
             entry["last_decision"] = {"ts": now, "action": action, "desired": desired}
             return ok(group=group, action=action, desired=desired, current=current_replicas, reason=reason)
-        return self._state.change(step)
+        return self._state.update(step)

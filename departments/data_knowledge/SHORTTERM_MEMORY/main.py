@@ -15,7 +15,9 @@ import time
 from typing import Any, Dict, List, Optional
 
 from velaris.agentkit import infra_memory
-from velaris.agentkit.infra_store import State, invalid, is_json, is_name, is_number, ok
+from velaris.agentkit.checks import is_json, is_name, is_number
+from velaris.agentkit.results import invalid, ok
+from velaris.agentkit.state import JsonState
 
 NAME = "SHORTTERM_MEMORY"
 MAX_CAPACITY = 10000
@@ -27,7 +29,7 @@ class SHORTTERM_MEMORYAgent:
         valid = is_number(capacity, 1, MAX_CAPACITY) and not isinstance(capacity, float)
         self.capacity = capacity if valid else 100
         self.llm = None                 # optional velaris.intel.llm.LLM used by promote()
-        self._state = State(NAME)
+        self._state = JsonState(NAME)
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": self.name, "status": "ok", "version": "1.0.0"}
@@ -45,7 +47,7 @@ class SHORTTERM_MEMORYAgent:
             sessions = data.setdefault("sessions", {})
             sessions[session] = (sessions.get(session, []) + [entry])[-self.capacity:]
             return len(sessions[session])
-        return ok(session=session, size=self._state.change(add))
+        return ok(session=session, size=self._state.update(add))
 
     def _alive(self, session: Any, now: Optional[float]) -> List[Dict[str, Any]]:
         now = time.time() if not is_number(now, 0) else now
@@ -59,7 +61,7 @@ class SHORTTERM_MEMORYAgent:
         return [e["item"] for e in self._alive(session, now)][-n:]
 
     def clear(self, session: str = "default") -> Dict[str, Any]:
-        dropped = self._state.change(lambda d: len(d.get("sessions", {}).pop(session, []))
+        dropped = self._state.update(lambda d: len(d.get("sessions", {}).pop(session, []))
                                      if isinstance(session, str) else 0)
         return ok(session=session, dropped=dropped)
 

@@ -49,7 +49,7 @@ class SupplyChainEngine:
     def validate(self, sc: SupplyChainInput) -> List[str]:
         e = kit.dataclass_errors(sc, ["lead_time_days", "safety_stock", "holding_cost", "shortage_cost",
                                       "max_capacity"], lists=["demand_forecast"])
-        if kit.text(getattr(sc, "chain_id", None), 64) is None:
+        if kit.ident(getattr(sc, "chain_id", None), 64) is None:
             e.append("chain_id invalid")
         if e:
             return e

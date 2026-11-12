@@ -5,7 +5,7 @@ returns the fields they agree on or that only one has, which source each came
 from, and the conflicting fields with both values. Conflicts are left out of
 the merged record; CCSF_RESOLVER can settle them by a declared rule.
 """
-from velaris.agentkit.aicore_a_common import health
+from velaris.agentkit.results import health
 from velaris.agentkit.aicore_a_fusion import clean_sources, fuse
 
 NAME = "ACF_FUSION"

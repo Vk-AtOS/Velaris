@@ -13,7 +13,9 @@ history. Counts are stored under this agent's state directory.
 import math
 from typing import Any, Dict
 
-from velaris.agentkit.aicore_b_common import JsonState, health, ident, invalid, number
+from velaris.agentkit.checks import ident, number
+from velaris.agentkit.results import health, invalid
+from velaris.agentkit.state import JsonState
 
 NAME = "META_REINFORCEMENT_CORE"
 

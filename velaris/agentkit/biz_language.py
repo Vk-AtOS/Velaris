@@ -80,7 +80,7 @@ def term_list(value: Any, name: str, errors: List[str], limit: int = 50) -> List
     """A validated list of short strings (required/banned terms and the like)."""
     if value is None:
         return []
-    if not isinstance(value, (list, tuple)) or len(value) > limit or any(kit.text(v, 100) is None for v in value):
+    if not isinstance(value, (list, tuple)) or len(value) > limit or any(kit.ident(v, 100) is None for v in value):
         errors.append(f"{name} must be a list of at most {limit} short strings")
         return []
     return [v.strip() for v in value]

@@ -5,7 +5,8 @@ has. Each step goes to the capable handler with the fewest steps so far (name
 breaks ties), respecting an optional `max_steps` per handler. Steps nobody can
 take are returned as unroutable; they are not given to a default handler.
 """
-from velaris.agentkit.aicore_a_common import fail, health, ident, invalid
+from velaris.agentkit.checks import ident
+from velaris.agentkit.results import fail, health, invalid
 
 NAME = "ASEL_ROUTER"
 

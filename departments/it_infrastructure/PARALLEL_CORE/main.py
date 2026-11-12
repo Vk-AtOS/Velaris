@@ -16,7 +16,8 @@ import os
 import time
 from typing import Any, Callable, Dict, Optional, Sequence
 
-from velaris.agentkit.infra_store import invalid, is_number, ok
+from velaris.agentkit.checks import is_number
+from velaris.agentkit.results import invalid
 
 NAME = "PARALLEL_CORE"
 MAX_WORKERS = 32

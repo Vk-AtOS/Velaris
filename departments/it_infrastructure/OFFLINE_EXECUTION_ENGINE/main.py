@@ -13,7 +13,7 @@ from __future__ import annotations
 import time
 import uuid
 
-from velaris.agentkit import infra_store
+from velaris.agentkit import checks, results, state
 from velaris.agents.OFFLINE_SANDBOX import main as sandbox
 
 _NAME = "OFFLINE_EXECUTION_ENGINE"
@@ -23,7 +23,7 @@ _MAX_JOURNAL = 500
 class OfflineExecutionEngine:
     def __init__(self, name=_NAME):
         self.name = name
-        self._state = infra_store.State(_NAME, "journal.json")
+        self._state = state.JsonState(_NAME, "journal.json")
         self._sandbox = sandbox.OfflineSandbox()
 
     def health_check(self):
@@ -31,10 +31,10 @@ class OfflineExecutionEngine:
 
     def execute(self, task: dict):
         if not isinstance(task, dict) or "argv" not in task:
-            return infra_store.invalid("task must be an object with an 'argv' list", executed=False)
+            return results.invalid("task must be an object with an 'argv' list", executed=False)
         task_id = task.get("id", uuid.uuid4().hex)
-        if not infra_store.is_name(task_id):
-            return infra_store.invalid("task id must be a short name", executed=False)
+        if not checks.is_name(task_id):
+            return results.invalid("task id must be a short name", executed=False)
         with self._state.lock:
             state = self._state.load()
             jobs = state.setdefault("jobs", {})
@@ -52,10 +52,10 @@ class OfflineExecutionEngine:
 
     def get(self, task_id):
         job = self._state.load().get("jobs", {}).get(task_id) if isinstance(task_id, str) else None
-        return job if job else infra_store.fail("unknown_task", "no such task in the journal")
+        return job if job else results.fail("unknown_task", "no such task in the journal")
 
     def history(self, n=20):
-        if not infra_store.is_number(n, 1) or isinstance(n, float):
+        if not checks.is_number(n, 1) or isinstance(n, float):
             return []
         jobs = self._state.load().get("jobs", {})
         return sorted(jobs.values(), key=lambda j: j["finished_at"])[-n:]

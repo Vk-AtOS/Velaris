@@ -30,7 +30,10 @@ import time
 import uuid
 from typing import Any, Dict, List, Optional
 
-from velaris.agentkit.infra_store import State, audit, fail, invalid, is_json, is_name, is_number, ok
+from velaris.agentkit.checks import is_json, is_name, is_number
+from velaris.agentkit.results import fail, invalid, ok
+from velaris.agentkit.state import JsonState
+from velaris.agentkit.infra_store import audit
 from velaris.core.access import GOVERNANCE_ADMINS, check_caller
 
 NAME = "EACPE_HUMAN_GUARD"
@@ -46,7 +49,7 @@ def action_hash(action: Dict[str, Any]) -> str:
 class EACPE_HUMAN_GUARDAgent:
     def __init__(self) -> None:
         self.name = NAME
-        self._state = State(NAME)
+        self._state = JsonState(NAME)
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": self.name, "status": "ok", "version": "1.0.0"}
@@ -63,7 +66,7 @@ class EACPE_HUMAN_GUARDAgent:
         if refused:
             return refused
         by = caller.id
-        self._state.change(lambda d: d.__setitem__("classes", {**self._classes(d),
+        self._state.update(lambda d: d.__setitem__("classes", {**self._classes(d),
                                                               action_class: {"mode": "guarded", "approvers": approvers}}))
         audit(NAME, "class.guarded", {"class": action_class, "approvers": approvers, "by": by})
         return ok(action_class=action_class, approvers=approvers)
@@ -76,7 +79,7 @@ class EACPE_HUMAN_GUARDAgent:
         if refused:
             return refused
         by = caller.id
-        self._state.change(lambda d: d.__setitem__("classes", {**self._classes(d),
+        self._state.update(lambda d: d.__setitem__("classes", {**self._classes(d),
                                                               action_class: {"mode": "exempt", "approvers": []}}))
         audit(NAME, "class.exempt", {"class": action_class, "by": by})
         return ok(action_class=action_class, mode="exempt")
@@ -105,7 +108,7 @@ class EACPE_HUMAN_GUARDAgent:
             return fail("not_guarded", "this class is exempt or unclassified; nothing to approve")
         rid = uuid.uuid4().hex
         entry = {"action": action, "hash": action_hash(action), "state": "pending", "ts": time.time()}
-        self._state.change(lambda d: d.setdefault("requests", {}).__setitem__(rid, entry))
+        self._state.update(lambda d: d.setdefault("requests", {}).__setitem__(rid, entry))
         audit(NAME, "request", {"id": rid, "class": action["class"], "by": action["requested_by"], "hash": entry["hash"]})
         return {"status": "pending", "request_id": rid, "approvers": cls["approvers"], "action_hash": entry["hash"]}
 
@@ -137,7 +140,7 @@ class EACPE_HUMAN_GUARDAgent:
                 return fail("error", "the decision could not be recorded; nothing changed")
             req.update(state="approved" if approve else "rejected", approver=approver, decided_at=now, trace=recorded)
             return ok(request_id=request_id, state=req["state"])
-        return self._state.change(apply)
+        return self._state.update(apply)
 
     def validate(self, action: dict, now: Optional[float] = None) -> Dict[str, Any]:
         """May this exact action go ahead now? Consumes the approval it relies on."""
@@ -166,4 +169,4 @@ class EACPE_HUMAN_GUARDAgent:
                     return {"approved": True, "action": action, "status": "ok", "approver": req["approver"],
                             "request_id": rid, "reason": f"approved by {req['approver']}"}
             return no("pending_approval", "no unused approval by a named approver for this exact action")
-        return self._state.change(check)
+        return self._state.update(check)

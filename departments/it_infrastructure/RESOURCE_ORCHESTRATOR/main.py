@@ -9,7 +9,9 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
-from velaris.agentkit.infra_store import State, fail, invalid, is_name, is_number, ok
+from velaris.agentkit.checks import is_name, is_number
+from velaris.agentkit.results import fail, invalid, ok
+from velaris.agentkit.state import JsonState
 
 NAME = "RESOURCE_ORCHESTRATOR"
 
@@ -17,7 +19,7 @@ NAME = "RESOURCE_ORCHESTRATOR"
 class RESOURCE_ORCHESTRATORAgent:
     def __init__(self, name: str = NAME) -> None:
         self.name = name
-        self._state = State(NAME)
+        self._state = JsonState(NAME)
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": self.name, "status": "ok", "version": "1.0.0"}
@@ -34,7 +36,7 @@ class RESOURCE_ORCHESTRATORAgent:
                 return fail("denied", f"{used} is already granted; capacity cannot drop below that")
             p["capacity"] = capacity
             return ok(pool=pool, capacity=capacity, used=used)
-        return self._state.change(define)
+        return self._state.update(define)
 
     def allocate(self, pool: str, owner: str, amount: float) -> Dict[str, Any]:
         if not is_name(owner) or not is_number(amount) or amount <= 0:
@@ -49,7 +51,7 @@ class RESOURCE_ORCHESTRATORAgent:
                 return fail("denied", f"requested {amount}, only {free} free", free=free)
             p["grants"][owner] = p["grants"].get(owner, 0) + amount
             return ok(pool=pool, owner=owner, granted=p["grants"][owner], free=free - amount)
-        return self._state.change(grant)
+        return self._state.update(grant)
 
     def release(self, pool: str, owner: str, amount: Optional[float] = None) -> Dict[str, Any]:
         """Give back `amount` of an owner's grant, or all of it when amount is omitted."""
@@ -69,7 +71,7 @@ class RESOURCE_ORCHESTRATORAgent:
             else:
                 del p["grants"][owner]
             return ok(pool=pool, owner=owner, released=held - left, still_held=left)
-        return self._state.change(free)
+        return self._state.update(free)
 
     def usage(self, pool: str) -> Dict[str, Any]:
         p = self._state.load().get("pools", {}).get(pool) if isinstance(pool, str) else None

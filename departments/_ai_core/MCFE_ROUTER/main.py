@@ -7,7 +7,7 @@ default department.
 """
 from typing import Any, Dict, Optional
 
-from velaris.agentkit.aicore_b_common import health
+from velaris.agentkit.results import health
 from velaris.agents import department_dirs
 
 NAME = "MCFE_ROUTER"

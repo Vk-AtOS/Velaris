@@ -7,8 +7,9 @@ State: <VELARIS_DATA>/agents/CLBPP_OVERLOAD_MONITOR/state.json.
 """
 import time
 
-from velaris.agentkit.aicore_a_common import JsonState, fail, health, ident, invalid, number, ok
-from velaris.intel.paths import agent_dir
+from velaris.agentkit.checks import ident, number
+from velaris.agentkit.results import fail, health, invalid, ok
+from velaris.agentkit.state import JsonState
 
 NAME = "CLBPP_OVERLOAD_MONITOR"
 
@@ -17,7 +18,7 @@ class CLBPP_OVERLOAD_MONITORAgent:
     def __init__(self, name=NAME, high=0.9, low=0.7, sustain=3, window=50):
         self.name = name
         self.high, self.low, self.sustain, self.window = high, low, sustain, window
-        self._state = JsonState(lambda: agent_dir(NAME) / "state.json", {"workers": {}})
+        self._state = JsonState(NAME, "state.json", {"workers": {}})
 
     def health_check(self):
         return health(self.name)

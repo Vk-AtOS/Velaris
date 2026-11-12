@@ -14,7 +14,9 @@ import math
 from typing import Any, Dict, List, Optional
 
 from velaris.agentkit import infra_metrics
-from velaris.agentkit.infra_store import State, invalid, is_number, ok
+from velaris.agentkit.checks import is_number
+from velaris.agentkit.results import invalid, ok
+from velaris.agentkit.state import JsonState
 
 NAME = "SYSTEM_TELEMETRY"
 MAX_SAMPLES = 1000
@@ -30,7 +32,7 @@ def percentile(values: List[float], p: float) -> float:
 class SYSTEM_TELEMETRYAgent:
     def __init__(self, name: str = NAME) -> None:
         self.name = name
-        self._state = State(NAME, "samples.json")
+        self._state = JsonState(NAME, "samples.json")
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": self.name, "status": "ok", "version": "1.0.0"}
@@ -44,7 +46,7 @@ class SYSTEM_TELEMETRYAgent:
         def add(data: Dict[str, Any]) -> int:
             data["samples"] = (data.get("samples", []) + [s])[-MAX_SAMPLES:]
             return len(data["samples"])
-        return ok(sample=s, stored=self._state.change(add))
+        return ok(sample=s, stored=self._state.update(add))
 
     def history(self, n: int = 20) -> List[Dict[str, Any]]:
         """The latest n samples, oldest first."""

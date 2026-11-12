@@ -9,15 +9,16 @@ State: <VELARIS_DATA>/agents/ALK_ADAPT/state.json.
 """
 import time
 
-from velaris.agentkit.aicore_a_common import JsonState, fail, health, ident, invalid, number, ok
-from velaris.intel.paths import agent_dir
+from velaris.agentkit.checks import ident, number
+from velaris.agentkit.results import fail, health, invalid, ok
+from velaris.agentkit.state import JsonState
 
 NAME = "ALK_ADAPT"
 
 
 class ALK_ADAPTAgent:
     def __init__(self):
-        self._state = JsonState(lambda: agent_dir(NAME) / "state.json", {"params": {}})
+        self._state = JsonState(NAME, "state.json", {"params": {}})
 
     def health_check(self):
         return health(NAME)

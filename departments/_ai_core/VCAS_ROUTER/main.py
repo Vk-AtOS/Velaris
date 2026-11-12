@@ -9,7 +9,7 @@ new VCAS_AUTOPILOT, which has none.
 """
 from typing import Any, Dict, Iterable, Optional
 
-from velaris.agentkit.aicore_b_common import health
+from velaris.agentkit.results import health
 from velaris.agents.VCAS_SUPERVISOR.main import task_error
 
 NAME = "VCAS_ROUTER"

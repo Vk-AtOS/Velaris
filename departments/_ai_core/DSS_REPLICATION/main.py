@@ -8,7 +8,8 @@ node each missing copy should be rebuilt on. It plans; it does not move data.
 """
 import hashlib
 
-from velaris.agentkit.aicore_a_common import fail, health, ident, invalid, ok
+from velaris.agentkit.checks import ident
+from velaris.agentkit.results import fail, health, invalid, ok
 
 NAME = "DSS_REPLICATION"
 

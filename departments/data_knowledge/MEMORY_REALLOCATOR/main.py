@@ -19,7 +19,9 @@ import math
 from typing import Any, Dict, Optional
 
 from velaris.agentkit import infra_metrics
-from velaris.agentkit.infra_store import State, fail, invalid, is_name, is_number, ok
+from velaris.agentkit.checks import is_name, is_number
+from velaris.agentkit.results import fail, invalid, ok
+from velaris.agentkit.state import JsonState
 
 NAME = "MEMORY_REALLOCATOR"
 
@@ -27,7 +29,7 @@ NAME = "MEMORY_REALLOCATOR"
 class MEMORY_REALLOCATORAgent:
     def __init__(self, name: str = NAME) -> None:
         self.name = name
-        self._state = State(NAME)
+        self._state = JsonState(NAME)
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": self.name, "status": "ok", "version": "1.0.0"}
@@ -39,11 +41,11 @@ class MEMORY_REALLOCATORAgent:
         if demand_mb is not None and (not is_number(demand_mb, 0) or demand_mb < min_mb):
             return invalid("demand_mb must be a number >= min_mb")
         entry = {"min_mb": min_mb, "weight": weight, "demand_mb": demand_mb}
-        self._state.change(lambda d: d.setdefault("consumers", {}).__setitem__(consumer, entry))
+        self._state.update(lambda d: d.setdefault("consumers", {}).__setitem__(consumer, entry))
         return ok(consumer=consumer, **entry)
 
     def remove_consumer(self, consumer: str) -> Dict[str, Any]:
-        gone = self._state.change(lambda d: d.get("consumers", {}).pop(consumer, None)) if isinstance(consumer, str) else None
+        gone = self._state.update(lambda d: d.get("consumers", {}).pop(consumer, None)) if isinstance(consumer, str) else None
         return ok(consumer=consumer) if gone else fail("unknown_consumer", "no such consumer")
 
     def reallocate(self, total_mb: Optional[float] = None) -> Dict[str, Any]:
@@ -73,5 +75,5 @@ class MEMORY_REALLOCATORAgent:
             left -= given
             active = [n for n in active if cap[n] - alloc[n] > 1e-9]
         plan = {n: round(v, 3) for n, v in alloc.items()}
-        self._state.change(lambda d: d.__setitem__("last_plan", {"total_mb": total_mb, "plan": plan}))
+        self._state.update(lambda d: d.__setitem__("last_plan", {"total_mb": total_mb, "plan": plan}))
         return ok(plan=plan, total_mb=total_mb, unallocated_mb=round(max(0.0, left), 3), overcommitted=False)

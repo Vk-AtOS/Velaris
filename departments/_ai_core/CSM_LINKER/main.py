@@ -8,15 +8,16 @@ State: <VELARIS_DATA>/agents/CSM_LINKER/state.json.
 """
 from collections import deque
 
-from velaris.agentkit.aicore_a_common import JsonState, fail, health, ident, ok
-from velaris.intel.paths import agent_dir
+from velaris.agentkit.checks import ident
+from velaris.agentkit.results import fail, health, ok
+from velaris.agentkit.state import JsonState
 
 NAME = "CSM_LINKER"
 
 
 class CSMLinkerAgent:
     def __init__(self):
-        self._state = JsonState(lambda: agent_dir(NAME) / "state.json", {"links": []})
+        self._state = JsonState(NAME, "state.json", {"links": []})
 
     def health_check(self):
         return health(NAME)

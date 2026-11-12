@@ -18,7 +18,9 @@ import statistics
 from bisect import bisect_right
 from typing import Any, Dict, List
 
-from velaris.agentkit.aicore_b_common import JsonState, fail, health, ident, invalid, numbers
+from velaris.agentkit.checks import ident, numbers
+from velaris.agentkit.results import fail, health, invalid
+from velaris.agentkit.state import JsonState
 
 NAME = "NEURAL_DRIFT_MONITOR"
 MIN_BASELINE, MIN_RECENT = 20, 5

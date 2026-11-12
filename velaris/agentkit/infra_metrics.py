@@ -13,7 +13,7 @@ from typing import Any, Dict, Optional
 
 import psutil
 
-from velaris.agentkit.infra_store import is_number
+from velaris.agentkit.checks import is_number
 from velaris.intel.paths import data_dir
 
 logger = logging.getLogger("velaris.agentkit.infra")

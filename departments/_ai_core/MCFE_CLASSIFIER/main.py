@@ -15,7 +15,9 @@ answer on the word-list path.
 from typing import Any, Dict, Optional
 
 from velaris.agentkit import aicore_b_text as textkit
-from velaris.agentkit.aicore_b_common import ask_json, health, invalid, model_or_none, text as as_text
+from velaris.agentkit.checks import text as as_text
+from velaris.agentkit.models import ask_json, model_or_none
+from velaris.agentkit.results import health, invalid
 from velaris.intel.llm import LLM
 
 NAME = "MCFE_CLASSIFIER"

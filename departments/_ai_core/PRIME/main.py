@@ -27,7 +27,9 @@ import time
 from typing import Any, Dict, List, Optional
 
 from velaris.agentkit import aicore_b_authz as authz
-from velaris.agentkit.aicore_b_common import JsonState, fail, ident, invalid, new_id, number
+from velaris.agentkit.checks import ident, new_id, number
+from velaris.agentkit.results import fail, invalid
+from velaris.agentkit.state import JsonState
 from velaris.agents.ENGINE.main import VelarisEngine
 from velaris.core.access import GOVERNANCE_ADMINS, check_caller, has_role
 from velaris.intel import trace

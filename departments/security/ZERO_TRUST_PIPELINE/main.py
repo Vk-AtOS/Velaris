@@ -22,7 +22,7 @@ Resources are "/"-separated names. A resource holding "..", an empty segment, a
 backslash or NUL is denied; policy patterns match segment by segment ("*" never
 crosses "/", a final "**" matches the rest). Device and context facts are
 supplied by the enforcement point that calls this agent; conditions over them
-use velaris.agentkit.infra_policy (an absent field never satisfies an allow policy's
+use velaris.agentkit.conditions (an absent field never satisfies an allow policy's
 condition and always satisfies a deny policy's).
 No policy, an unknown subject, a malformed request: all deny.
 """
@@ -31,8 +31,11 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List
 
-from velaris.agentkit import infra_policy
-from velaris.agentkit.infra_store import State, audit, fail, invalid, is_name, ok
+from velaris.agentkit import conditions
+from velaris.agentkit.checks import is_name
+from velaris.agentkit.results import fail, invalid, ok
+from velaris.agentkit.state import JsonState
+from velaris.agentkit.infra_store import audit
 from velaris.agents.SECURE_ACTION_TOKENS.main import SecureActionTokens
 from velaris.core.access import SECURITY_ADMINS, check_caller, resource_error, resource_matches
 from velaris.intel.paths import agent_dir, load_or_create_key
@@ -58,7 +61,7 @@ def _names(value: Any) -> bool:
 class ZERO_TRUST_PIPELINEAgent:
     def __init__(self) -> None:
         self.name = NAME
-        self._state = State(NAME)
+        self._state = JsonState(NAME)
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": self.name, "status": "ok", "version": "1.0.0"}
@@ -70,7 +73,7 @@ class ZERO_TRUST_PIPELINEAgent:
         _, refused = check_caller(NAME, "enroll", {"subject": subject, "roles": roles}, roles=SECURITY_ADMINS)
         if refused:
             return refused
-        self._state.change(lambda d: d.setdefault("subjects", {}).__setitem__(subject, {"roles": roles, "active": True}))
+        self._state.update(lambda d: d.setdefault("subjects", {}).__setitem__(subject, {"roles": roles, "active": True}))
         return ok(subject=subject, roles=roles)
 
     def revoke(self, subject: str) -> Dict[str, Any]:
@@ -82,7 +85,7 @@ class ZERO_TRUST_PIPELINEAgent:
             if s is not None:
                 s["active"] = False
             return s is not None
-        return ok(subject=subject, active=False) if self._state.change(off) else fail("unknown_subject", "not enrolled")
+        return ok(subject=subject, active=False) if self._state.update(off) else fail("unknown_subject", "not enrolled")
 
     def _subject(self, subject: Any) -> Dict[str, Any]:
         s = self._state.load().get("subjects", {}).get(subject) if isinstance(subject, str) else None
@@ -121,7 +124,7 @@ class ZERO_TRUST_PIPELINEAgent:
         problems += [f"{k} must be a non-empty list of names" for k in ("resources", "actions", "roles")
                      if not _names(policy.get(k))]
         for part in ("device", "context"):
-            problems += [f"{part}: {p}" for p in infra_policy.problems(policy.get(part, {}))]
+            problems += [f"{part}: {p}" for p in conditions.problems(policy.get(part, {}))]
         if _names(policy.get("resources")):
             problems += [f"resource pattern {p!r}: {resource_error(p.replace('**', 'x'))}"
                          for p in policy["resources"] if resource_error(p.replace("**", "x"))]
@@ -133,14 +136,14 @@ class ZERO_TRUST_PIPELINEAgent:
         if refused:
             return refused
         stored = {"device": {}, "context": {}, **policy}
-        self._state.change(lambda d: d.setdefault("policies", {}).__setitem__(policy_id, stored))
+        self._state.update(lambda d: d.setdefault("policies", {}).__setitem__(policy_id, stored))
         return ok(policy_id=policy_id)
 
     def remove_policy(self, policy_id: str) -> Dict[str, Any]:
         _, refused = check_caller(NAME, "remove_policy", {"policy_id": str(policy_id)[:128]}, roles=SECURITY_ADMINS)
         if refused:
             return refused
-        gone = self._state.change(lambda d: d.get("policies", {}).pop(policy_id, None)) if isinstance(policy_id, str) else None
+        gone = self._state.update(lambda d: d.get("policies", {}).pop(policy_id, None)) if isinstance(policy_id, str) else None
         return ok(policy_id=policy_id) if gone else fail("unknown_policy", "no such policy")
 
     def _decide(self, request: Any) -> Dict[str, Any]:
@@ -165,7 +168,7 @@ class ZERO_TRUST_PIPELINEAgent:
                     and request["action"] in pol["actions"] and set(pol["roles"]) & set(subject["roles"])):
                 continue
             failed = [f"{part}.{f}" for part in ("device", "context")
-                      for f in infra_policy.evaluate(pol[part], facts[part], pol["effect"])[1]]
+                      for f in conditions.evaluate(pol[part], facts[part], pol["effect"])[1]]
             if pol["effect"] == "deny" and not failed:
                 return {"decision": "deny", "stage": "policy", "policy_id": pid, "reasons": [f"denied by policy {pid}"]}
             if pol["effect"] == "allow" and not failed and allowed_by is None:

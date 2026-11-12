@@ -12,8 +12,8 @@ RECURSIVE_GOAL_PLANNER takes).
 """
 from typing import Any, Dict, List, Optional, Tuple
 
-from velaris.agentkit import aicore_b_graph as graphkit
-from velaris.agentkit.aicore_b_common import health
+from velaris.agentkit import graph as graphkit
+from velaris.agentkit.results import health
 
 NAME = "HYPER_REASONER"
 MAX_NODES = 2000

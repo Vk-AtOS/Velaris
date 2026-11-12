@@ -57,7 +57,7 @@ class QualityControlEngine:
     def validate(self, q: QCInput) -> List[str]:
         e = kit.dataclass_errors(q, ["sample_size", "inspection_rigour", "process_stability"],
                                  ["defects_found", "regulatory_flags"])
-        if kit.text(getattr(q, "batch_id", None), 64) is None:
+        if kit.ident(getattr(q, "batch_id", None), 64) is None:
             e.append("batch_id invalid")
         if e:
             return e

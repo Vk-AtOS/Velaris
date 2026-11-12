@@ -16,6 +16,8 @@ finance head's approval") with a scope, a source and a validity period.
                         weighted by recency; only currently valid memories
                         unless `at` asks for the state at an earlier time
   history(id)           the chain of versions behind a memory
+  list_scope(scope)     every memory of one scope (valid now, or at `at`), oldest
+                        first, for export; never more than that one scope
 
 Nothing is ever deleted, so "what did we believe on 1 March, and who told us?"
 always has an answer. Scopes keep one company's or person's memories apart:
@@ -112,6 +114,18 @@ class MemoryStore:
         out.sort(key=lambda m: m.score, reverse=True)
         trace.append("memory", "recall", {"scope": scope, "query_chars": len(query), "returned": len(out[:k])})
         return out[:k]
+
+    def list_scope(self, scope: str, *, at: Optional[float] = None) -> List[Memory]:
+        """Every memory in exactly `scope` that is valid now (or was at time `at`), oldest first.
+
+        The scope is matched exactly (no prefixes or patterns), so listing one scope never
+        returns another's memories. Raises ValueError for a scope that is not a non-empty string.
+        """
+        if not isinstance(scope, str) or not scope.strip():
+            raise ValueError("scope must be a non-empty string")
+        rows = sorted(self._rows(scope, at), key=lambda r: (r["created_at"], r["id"]))
+        trace.append("memory", "list", {"scope": scope, "returned": len(rows)})
+        return [self._mem(r) for r in rows]
 
     def history(self, memory_id: str) -> List[Memory]:
         """This memory and every earlier version it replaced, newest first."""

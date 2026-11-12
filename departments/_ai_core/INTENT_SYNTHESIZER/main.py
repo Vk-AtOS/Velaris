@@ -15,7 +15,9 @@ The model never fills in action, amounts or dates.
 from typing import Any, Dict, Optional
 
 from velaris.agentkit import aicore_b_text as textkit
-from velaris.agentkit.aicore_b_common import ask_json, health, text as as_text
+from velaris.agentkit.checks import text as as_text
+from velaris.agentkit.models import ask_json
+from velaris.agentkit.results import health
 from velaris.intel.llm import LLM
 
 NAME = "INTENT_SYNTHESIZER"

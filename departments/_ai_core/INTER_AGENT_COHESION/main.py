@@ -11,7 +11,9 @@ owner-only under this agent's state directory; survives restart.
 import time
 from typing import Any, Dict, Optional
 
-from velaris.agentkit.aicore_b_common import JsonState, fail, health, ident, invalid, jsonable, number
+from velaris.agentkit.checks import ident, is_json, number
+from velaris.agentkit.results import fail, health, invalid
+from velaris.agentkit.state import JsonState
 
 NAME = "INTER_AGENT_COHESION"
 
@@ -32,7 +34,7 @@ class Cohesion:
     def link(self, namespace: str, key: str, metadata: Any, ttl: Optional[float] = None, agent: str = "unknown",
              expected_version: Optional[int] = None) -> Dict[str, Any]:
         """Store `metadata` under namespace/key. Returns the new version, or "conflict" with the current entry."""
-        if ident(namespace, 100) is None or ident(key, 200) is None or not jsonable(metadata):
+        if ident(namespace, 100) is None or ident(key, 200) is None or not is_json(metadata):
             return invalid("namespace and key must be names and the value JSON")
         if ttl is not None and (number(ttl) is None or ttl <= 0):
             return invalid("ttl must be a positive number of seconds")

@@ -14,7 +14,7 @@ import json
 import re
 from typing import Any, Dict, List, Tuple
 
-from velaris.agentkit.aicore_b_common import health, invalid
+from velaris.agentkit.results import health, invalid
 from velaris.intel import guard
 
 NAME = "MPC_PREPROC"

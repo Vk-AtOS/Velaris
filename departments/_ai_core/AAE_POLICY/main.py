@@ -4,28 +4,30 @@ Rules are {"id", "effect": allow|deny|require_approval, "if": [conditions]}.
 For an action, a matching deny wins, then a matching require_approval, then a
 matching allow. An action no rule matches is denied, and so is everything when
 no rules are loaded or the stored rules are unreadable. Conditions read the
-action's fields ("type", "params.amount", "actor", ...).
+action's fields ("type", "params.amount", "actor", ...) and are three-valued
+(velaris.agentkit.conditions): a deny or require_approval rule none of whose
+conditions is false, but one of which cannot be evaluated (field missing, text
+where a number is compared, a list where a scalar is), denies the action outright;
+an allow rule needs every condition to hold.
 State (the rule set): <VELARIS_DATA>/agents/AAE_POLICY/state.json.
 """
-from velaris.agentkit.aicore_a_common import (JsonState, condition_error, dig, health, holds, ident, invalid,
-                                              number, ok)
-from velaris.intel.paths import agent_dir
+from velaris.agentkit.checks import ident
+from velaris.agentkit.conditions import check, condition_error
+from velaris.agentkit.results import health, invalid, ok
+from velaris.agentkit.state import JsonState
 
 NAME = "AAE_POLICY"
 EFFECTS = ("deny", "require_approval", "allow")      # strongest first
-ORDER_OPS = ("<", "<=", ">", ">=")
 
 
 def _undecidable(rule, action):
-    """A deny/approval rule whose other conditions hold but whose comparison cannot be made.
+    """A deny/approval rule none of whose conditions is false but at least one cannot be evaluated.
 
     Without this, {"amount": "5000"} or a missing amount slips past "amount > 1000 needs
     approval" and lands on a broader allow rule. Such an action is denied instead.
     """
-    ordered = [c for c in rule["if"] if c.get("op") in ORDER_OPS]
-    if not ordered or not all(holds(c, action) for c in rule["if"] if c not in ordered):
-        return False
-    return any(number(dig(action, c["field"])[1]) is None for c in ordered)
+    states = [check(c, action) for c in rule["if"]]
+    return None in states and False not in states
 
 
 def rules_error(rules):
@@ -50,7 +52,7 @@ class AAE_POLICYAgent:
     def __init__(self, rules=None):
         """`rules` given here are used as they are and not stored; otherwise the stored set is used."""
         self._fixed = rules
-        self._state = JsonState(lambda: agent_dir(NAME) / "state.json", {"rules": []})
+        self._state = JsonState(NAME, "state.json", {"rules": []})
 
     def health_check(self):
         return health(NAME)
@@ -81,9 +83,9 @@ class AAE_POLICYAgent:
         guard = next((r for r in rules if r["effect"] != "allow" and _undecidable(r, action)), None)
         if guard:
             return result("deny", guard["id"],
-                          f"rule {guard['id']} ({guard['effect']}) cannot be evaluated: a compared field "
-                          "is missing or not a number")
-        matching = [r for r in rules if all(holds(c, action) for c in r["if"])]
+                          f"rule {guard['id']} ({guard['effect']}) cannot be evaluated: a field it reads "
+                          "is missing or of the wrong type")
+        matching = [r for r in rules if all(check(c, action) is True for c in r["if"])]
         for effect in EFFECTS:
             hit = next((r for r in matching if r["effect"] == effect), None)
             if hit:

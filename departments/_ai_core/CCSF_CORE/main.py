@@ -9,10 +9,11 @@ State: <VELARIS_DATA>/agents/CCSF_CORE/state.json.
 """
 import time
 
-from velaris.agentkit.aicore_a_common import JsonState, fail, health, ident, invalid, number, ok
+from velaris.agentkit.checks import ident, number
+from velaris.agentkit.results import fail, health, invalid, ok
+from velaris.agentkit.state import JsonState
 from velaris.agents.CCSF_FUSION.main import CCSF_FUSIONAgent
 from velaris.agents.CCSF_RESOLVER.main import CCSF_RESOLVERAgent
-from velaris.intel.paths import agent_dir
 
 NAME = "CCSF_CORE"
 
@@ -20,7 +21,7 @@ NAME = "CCSF_CORE"
 class CCSF_COREAgent:
     def __init__(self, strategies=None, default_strategy="manual"):
         self.strategies, self.default_strategy = strategies or {}, default_strategy
-        self._state = JsonState(lambda: agent_dir(NAME) / "state.json", {"entities": {}})
+        self._state = JsonState(NAME, "state.json", {"entities": {}})
 
     def health_check(self):
         return health(NAME)

@@ -11,7 +11,8 @@ capacity is being wasted.
 """
 from typing import Any, Dict, List
 
-from velaris.agentkit.aicore_b_common import health, invalid, number
+from velaris.agentkit.checks import number
+from velaris.agentkit.results import health, invalid
 from velaris.agents.VHOE_ROUTER.main import VHOE_ROUTERAgent, item_error, worker_error
 
 NAME = "VHOE_OPTIMIZER"

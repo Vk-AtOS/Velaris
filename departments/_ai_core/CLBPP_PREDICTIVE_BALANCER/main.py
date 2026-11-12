@@ -6,7 +6,8 @@ trend extrapolation, not a trained model, and it knows nothing about
 seasonality. plan() then proposes moving load from workers forecast above the
 threshold to those forecast furthest below it.
 """
-from velaris.agentkit.aicore_a_common import health, invalid, number, ok
+from velaris.agentkit.checks import number
+from velaris.agentkit.results import health, invalid, ok
 
 NAME = "CLBPP_PREDICTIVE_BALANCER"
 

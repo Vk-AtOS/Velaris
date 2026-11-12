@@ -11,7 +11,8 @@ non-numeric values, no listed source) leaves the field unresolved with the reaso
 """
 import json
 
-from velaris.agentkit.aicore_a_common import health, invalid, number
+from velaris.agentkit.checks import number
+from velaris.agentkit.results import health, invalid
 
 NAME = "CCSF_RESOLVER"
 SIMPLE = ("latest", "majority", "max", "min", "manual")

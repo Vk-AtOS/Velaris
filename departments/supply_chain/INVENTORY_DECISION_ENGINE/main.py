@@ -54,7 +54,7 @@ class InventoryDecisionEngine:
     def validate(self, i: InventoryInput) -> List[str]:
         e = kit.dataclass_errors(i, ["avg_demand", "demand_variance", "lead_time", "holding_cost",
                                      "shortage_cost", "order_cost", "max_capacity"], ["constraints"])
-        if kit.text(getattr(i, "item_id", None), 64) is None:
+        if kit.ident(getattr(i, "item_id", None), 64) is None:
             e.append("item_id invalid")
         if e:
             return e

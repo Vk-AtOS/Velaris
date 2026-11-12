@@ -46,7 +46,7 @@ class MachineLifecycleEngine:
     def validate(self, m: MachineLifecycleInput, as_of_year: Optional[int] = None) -> List[str]:
         e = kit.dataclass_errors(m, ["install_year", "operating_hours", "load_factor"],
                                  ["maintenance_events", "component_age"])
-        if kit.text(getattr(m, "machine_id", None), 64) is None:
+        if kit.ident(getattr(m, "machine_id", None), 64) is None:
             e.append("machine_id invalid")
         if e:
             return e

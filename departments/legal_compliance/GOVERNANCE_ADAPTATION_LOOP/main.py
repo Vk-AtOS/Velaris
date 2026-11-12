@@ -18,7 +18,10 @@ import time
 import uuid
 from typing import Any, Dict, List, Optional
 
-from velaris.agentkit.infra_store import State, audit, fail, invalid, is_name, ok
+from velaris.agentkit.checks import is_name
+from velaris.agentkit.results import fail, invalid, ok
+from velaris.agentkit.state import JsonState
+from velaris.agentkit.infra_store import audit
 from velaris.core.access import GOVERNANCE_ADMINS, check_caller
 
 NAME = "GOVERNANCE_ADAPTATION_LOOP"
@@ -30,7 +33,7 @@ MAX_OUTCOMES = 20000
 class GovernanceAdaptationLoop:
     def __init__(self, name: str = NAME) -> None:
         self.name = name
-        self._state = State(NAME)
+        self._state = JsonState(NAME)
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": self.name, "status": "ok", "version": "1.0.0"}
@@ -45,7 +48,7 @@ class GovernanceAdaptationLoop:
             return invalid("outcomes must be a list")
         good = [{"rule": o["rule"], "decision": o["decision"], "overridden": o["overridden"], "ts": time.time()}
                 for o in outcomes if self._valid(o)]
-        self._state.change(lambda d: d.__setitem__("outcomes", (d.get("outcomes", []) + good)[-MAX_OUTCOMES:]))
+        self._state.update(lambda d: d.__setitem__("outcomes", (d.get("outcomes", []) + good)[-MAX_OUTCOMES:]))
         return ok(recorded=len(good), rejected=len(outcomes) - len(good))
 
     def adapt(self, shaped: Optional[dict] = None) -> Dict[str, Any]:
@@ -80,7 +83,7 @@ class GovernanceAdaptationLoop:
                 proposals[p["id"]] = p
                 out.append(dict(p))
             return out
-        proposals = self._state.change(propose)
+        proposals = self._state.update(propose)
         return {"status": "ok", "adaptive_policy": shaped, "proposals": proposals,
                 **({"recorded": recorded["recorded"]} if recorded else {})}
 
@@ -104,7 +107,7 @@ class GovernanceAdaptationLoop:
                 return fail("denied", f"proposal is already {p['state']}")
             p.update(state="accepted" if accept else "rejected", by=by)
             return ok(proposal=dict(p))
-        result = self._state.change(apply)
+        result = self._state.update(apply)
         if result["status"] == "ok":
             audit(NAME, "proposal.resolved", {"id": proposal_id, "accept": accept, "by": by})
         return result

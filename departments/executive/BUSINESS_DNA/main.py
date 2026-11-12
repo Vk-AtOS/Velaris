@@ -16,7 +16,6 @@ import time
 from typing import Any, Dict, List
 
 from velaris.agentkit import biz_common as kit
-from velaris.intel.paths import agent_dir
 
 logger = logging.getLogger("BUSINESS_DNA")
 
@@ -33,11 +32,11 @@ def _profile_errors(profile: Any) -> List[str]:
     errors = []
     for key, value in profile.items():
         if key in TEXT_FIELDS:
-            if kit.text(value, TEXT_FIELDS[key]) is None:
+            if kit.ident(value, TEXT_FIELDS[key]) is None:
                 errors.append(f"{key} must be a non-empty string of at most {TEXT_FIELDS[key]} characters")
         elif key in LIST_FIELDS:
             if not isinstance(value, list) or not value or len(value) > 50 \
-                    or any(kit.text(v, 200) is None for v in value):
+                    or any(kit.ident(v, 200) is None for v in value):
                 errors.append(f"{key} must be a list of 1 to 50 non-empty strings")
         elif key in INT_FIELDS:
             lo, hi = INT_FIELDS[key]
@@ -51,8 +50,7 @@ def _profile_errors(profile: Any) -> List[str]:
 class BusinessDnaAgent:
     def __init__(self, config: Dict[str, Any] = None):
         self.version = (config or {}).get("version", kit.VERSION)
-        self._state = kit.JsonState(lambda: agent_dir("BUSINESS_DNA") / "profile.json",
-                                    {"profile": {}, "version": 0, "updated_at": None})
+        self._state = kit.JsonState("BUSINESS_DNA", "profile.json", {"profile": {}, "version": 0, "updated_at": None})
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": "BUSINESS_DNA", "status": "ok", "version": self.version}

@@ -4,6 +4,11 @@ Every change is a new version {"version", "ts", "by", "changes": {key: [old, new
 nothing is overwritten, so "what was it on 1 March and who changed it" always has
 an answer, and rollback() is itself a recorded change. Stored owner-only under
 agent_dir(agent) through JsonState.
+
+change() and revert() are update() and rollback() made by the current caller
+(velaris.core.access): the version records the caller's id, the caller must hold one
+of `roles` (governance admins by default), a legacy `by` argument must be that same
+id, and the decision is traced either way.
 ponytail: keeps every full version in one JSON file; fine for small settings
 documents, move to SQLite if a document grows past a few hundred kB.
 """
@@ -11,9 +16,12 @@ from __future__ import annotations
 
 import copy
 import time
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, FrozenSet, List, Optional
 
-from velaris.agentkit.aicore_b_common import JsonState, fail, ident, invalid, jsonable
+from velaris.agentkit.checks import ident, is_json
+from velaris.agentkit.results import fail, invalid
+from velaris.agentkit.state import JsonState
+from velaris.core.access import GOVERNANCE_ADMINS, check_caller
 
 MAX_VERSIONS = 1000
 
@@ -37,7 +45,7 @@ class VersionedDoc:
         """Apply `changes` (merge, or replace the whole document) as a new version recorded against `by`."""
         if ident(by) is None:
             return invalid("'by' must name who made the change")
-        if not isinstance(changes, dict) or not jsonable(changes) or (not changes and not replace):
+        if not isinstance(changes, dict) or not is_json(changes) or (not changes and not replace):
             return invalid("changes must be a non-empty JSON object")
         if any(ident(k, 80) is None for k in changes):
             return invalid("keys must be non-empty strings of at most 80 characters")
@@ -86,3 +94,16 @@ class VersionedDoc:
         if target is None or isinstance(version, bool):
             return fail("not_found", f"no version {version!r}")
         return self.update(target["doc"], by, replace=True)
+
+    def change(self, agent: str, changes: Any, claimed: Any = None, *,
+               roles: FrozenSet[str] = GOVERNANCE_ADMINS) -> Dict[str, Any]:
+        """update() as the current caller. Refused (and traced) without a caller holding one of `roles`."""
+        keys = sorted(str(k)[:80] for k in changes)[:20] if isinstance(changes, dict) else []
+        caller, refused = check_caller(agent, "update", {"keys": keys}, roles=roles, claimed=claimed)
+        return refused or self.update(changes, caller.id)
+
+    def revert(self, agent: str, version: int, claimed: Any = None, *,
+               roles: FrozenSet[str] = GOVERNANCE_ADMINS) -> Dict[str, Any]:
+        """rollback() as the current caller, with the same checks as change()."""
+        caller, refused = check_caller(agent, "rollback", {"version": str(version)[:20]}, roles=roles, claimed=claimed)
+        return refused or self.rollback(version, caller.id)

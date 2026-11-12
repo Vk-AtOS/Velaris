@@ -17,7 +17,10 @@ import uuid
 from typing import Any, Dict, List, Optional
 
 from velaris.agentkit import infra_memory
-from velaris.agentkit.infra_store import State, invalid, is_json, is_number, ok, redact_json
+from velaris.agentkit.checks import is_json, is_number
+from velaris.agentkit.results import invalid, ok
+from velaris.agentkit.state import JsonState
+from velaris.agentkit.infra_store import redact_json
 
 NAME = "EPISODIC_MEMORY"
 MAX_EPISODES = 5000
@@ -27,7 +30,7 @@ class EPISODIC_MEMORYAgent:
     def __init__(self) -> None:
         self.name = NAME
         self.llm = None                 # optional velaris.intel.llm.LLM used by consolidate()
-        self._state = State(NAME, "episodes.json")
+        self._state = JsonState(NAME, "episodes.json")
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": self.name, "status": "ok", "version": "1.0.0"}
@@ -39,7 +42,7 @@ class EPISODIC_MEMORYAgent:
             return invalid("now must be a timestamp")
         stored = {**redact_json(episode), "_id": uuid.uuid4().hex, "_ts": time.time() if now is None else now,
                   "_consolidated": False}
-        self._state.change(lambda d: d.__setitem__("episodes", (d.get("episodes", []) + [stored])[-MAX_EPISODES:]))
+        self._state.update(lambda d: d.__setitem__("episodes", (d.get("episodes", []) + [stored])[-MAX_EPISODES:]))
         return ok(id=stored["_id"], ts=stored["_ts"])
 
     def list_episodes(self, since: Optional[float] = None, until: Optional[float] = None,

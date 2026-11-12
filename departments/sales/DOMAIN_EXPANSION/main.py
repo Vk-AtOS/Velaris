@@ -35,8 +35,8 @@ class DOMAIN_EXPANSIONAgent:
             errors.append("market_sizes must map a vertical to {'size', 'source'}")
         for name, entry in (market_sizes if isinstance(market_sizes, dict) else {}).items():
             size = kit.money(entry.get("size")) if isinstance(entry, dict) else None
-            source = kit.text(entry.get("source"), 500) if isinstance(entry, dict) else None
-            if kit.text(name, 100) is None or size is None or size <= 0:
+            source = kit.ident(entry.get("source"), 500) if isinstance(entry, dict) else None
+            if kit.ident(name, 100) is None or size is None or size <= 0:
                 errors.append(f"market_sizes[{name!r}] needs a positive 'size'")
             elif source is None:
                 errors.append(f"market_sizes[{name!r}] needs the 'source' the size came from")

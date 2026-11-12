@@ -5,7 +5,7 @@ import time
 import pytest
 
 from velaris.agentkit import aicore_b_rules as rules
-from velaris.agentkit import infra_policy
+from velaris.agentkit import conditions
 from velaris.agents.HUMAN_APPROVAL_WORKFLOW.main import HumanApproval
 from velaris.agents.MRF_EVAL.main import MRF_EVALAgent
 from velaris.agents.VIGILIS.main import VigilisAgent
@@ -19,18 +19,18 @@ def _data(tmp_path, monkeypatch):
     return tmp_path
 
 
-# ---- infra_policy: a deny rule cannot be dodged by leaving a field out --------
+# ---- conditions: a deny rule cannot be dodged by leaving a field out --------
 
 def test_deny_rule_matches_when_its_field_is_missing():
     cond = {"device.jailbroken": True, "network": {"in": ["public"]}}
-    assert infra_policy.evaluate(cond, {}, "deny")[0] is True                    # nothing supplied: deny applies
-    assert infra_policy.evaluate(cond, {"device": {"jailbroken": True}}, "deny")[0] is True
-    assert infra_policy.evaluate(cond, {"device": {"jailbroken": False}, "network": "office"}, "deny")[0] is False
-    assert infra_policy.evaluate(cond, {}, "allow")[0] is False                  # allow rules still need the facts
-    assert infra_policy.evaluate({"x": {"exists": True}}, {}, "deny")[0] is False  # presence tests read as written
-    assert infra_policy.evaluate({"x": {"between": 1}}, {}, "deny")[0] is True   # malformed deny: fails closed
+    assert conditions.evaluate(cond, {}, "deny")[0] is True                    # nothing supplied: deny applies
+    assert conditions.evaluate(cond, {"device": {"jailbroken": True}}, "deny")[0] is True
+    assert conditions.evaluate(cond, {"device": {"jailbroken": False}, "network": "office"}, "deny")[0] is False
+    assert conditions.evaluate(cond, {}, "allow")[0] is False                  # allow rules still need the facts
+    assert conditions.evaluate({"x": {"exists": True}}, {}, "deny")[0] is False  # presence tests read as written
+    assert conditions.evaluate({"x": {"between": 1}}, {}, "deny")[0] is True   # malformed deny: fails closed
     with pytest.raises(ValueError):
-        infra_policy.evaluate({}, {}, "maybe")
+        conditions.evaluate({}, {}, "maybe")
 
 
 def test_vigilis_deny_policy_applies_when_the_context_omits_the_field():

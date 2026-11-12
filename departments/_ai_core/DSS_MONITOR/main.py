@@ -7,7 +7,8 @@ Works on a node list passed in, or on the DSS_CLUSTER_MANAGER registry.
 """
 import time
 
-from velaris.agentkit.aicore_a_common import health, ident, invalid, number, ok
+from velaris.agentkit.checks import ident, number
+from velaris.agentkit.results import health, invalid, ok
 from velaris.agents.DSS_CLUSTER_MANAGER.main import DSS_CLUSTER_MANAGERAgent
 
 NAME = "DSS_MONITOR"

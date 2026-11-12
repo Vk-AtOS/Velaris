@@ -8,7 +8,8 @@ budget are listed as truncated instead of silently lost.
 """
 import json
 
-from velaris.agentkit.aicore_a_common import health, ident, invalid, ok
+from velaris.agentkit.checks import ident
+from velaris.agentkit.results import health, invalid, ok
 from velaris.intel import guard
 
 NAME = "CRK_CONTEXT"

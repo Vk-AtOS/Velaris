@@ -15,8 +15,10 @@ returns not_configured.
 """
 from typing import Any, Dict, List, Optional
 
-from velaris.agentkit import aicore_b_graph as graphkit
-from velaris.agentkit.aicore_b_common import NOT_CONFIGURED, ask_json, fail, health, model_or_none, text as as_text
+from velaris.agentkit import graph as graphkit
+from velaris.agentkit.checks import text as as_text
+from velaris.agentkit.models import ask_json, model_or_none, NOT_CONFIGURED
+from velaris.agentkit.results import fail, health
 from velaris.intel.llm import LLM
 
 NAME = "RECURSIVE_GOAL_PLANNER"

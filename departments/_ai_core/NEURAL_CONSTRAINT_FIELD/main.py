@@ -9,7 +9,7 @@ constraints the action is not "satisfied": nothing was checked.
 from typing import Any, Dict, List, Optional
 
 from velaris.agentkit import aicore_b_rules as rules
-from velaris.agentkit.aicore_b_common import fail, health, invalid
+from velaris.agentkit.results import fail, health, invalid
 
 NAME = "NEURAL_CONSTRAINT_FIELD"
 

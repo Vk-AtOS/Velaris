@@ -32,7 +32,7 @@ import subprocess
 import tempfile
 import time
 
-from velaris.agentkit import infra_store
+from velaris.agentkit import checks, infra_store, results
 
 _NAME = "OFFLINE_SANDBOX"
 # command -> {flag: takes a numeric value}. A command not listed takes no flags at all.
@@ -78,7 +78,7 @@ def _files_problem(files):
     if not isinstance(files, dict):
         return "files must be an object of {name: text}"
     for name, text in files.items():
-        if not infra_store.is_name(name, 100) or name.startswith((".", "-")) or ".." in name or not isinstance(text, str):
+        if not checks.is_name(name, 100) or name.startswith((".", "-")) or ".." in name or not isinstance(text, str):
             return "file names must be plain names and contents text"
     if sum(len(t) for t in files.values()) > _MAX_INPUT:
         return "files are larger than 1 MB in total"
@@ -105,16 +105,16 @@ class OfflineSandbox:
         """Run an allow-listed command. `files` ({name: text}) are placed in its working directory."""
         files = {} if files is None else files
         reason = _refusal(argv) or _files_problem(files)
-        if not reason and (not infra_store.is_number(timeout_s, 0.01, _MAX_TIMEOUT_S)):
+        if not reason and (not checks.is_number(timeout_s, 0.01, _MAX_TIMEOUT_S)):
             reason = f"timeout_s must be between 0.01 and {_MAX_TIMEOUT_S}"
         if not reason and (not isinstance(stdin, str) or len(stdin) > _MAX_INPUT):
             reason = "stdin must be text of at most 1 MB"
         if reason:
             infra_store.audit(_NAME, "refused", {"reason": reason})
-            return infra_store.fail("refused", reason, ran=False)
+            return results.fail("refused", reason, ran=False)
         binary = shutil.which(argv[0], path=_SEARCH_PATH)
         if binary is None:
-            return infra_store.fail("unavailable", f"{argv[0]} is not installed in {_SEARCH_PATH}", ran=False)
+            return results.fail("unavailable", f"{argv[0]} is not installed in {_SEARCH_PATH}", ran=False)
         start = time.monotonic()
         with tempfile.TemporaryDirectory(prefix="velaris-sbx-") as work, \
                 tempfile.TemporaryDirectory(prefix="velaris-out-") as out_dir:
@@ -135,7 +135,7 @@ class OfflineSandbox:
                         os.killpg(proc.pid, signal.SIGKILL)     # the group this call created, nothing else
                         proc.communicate()
             except OSError as e:
-                return infra_store.fail("error", f"could not start the command: {e}", ran=False)
+                return results.fail("error", f"could not start the command: {e}", ran=False)
             captured = {}
             for label, path in (("stdout", out_path), ("stderr", err_path)):
                 with open(path, "rb") as f:

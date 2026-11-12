@@ -20,7 +20,6 @@ from typing import Any, Dict, List, Optional
 
 from velaris.agentkit import biz_common as kit
 from velaris.intel import web
-from velaris.intel.paths import agent_dir
 
 logger = logging.getLogger("COMPETITIVE_SCANNER")
 MAX_COMPETITORS = 25
@@ -30,7 +29,7 @@ MAX_FIELDS = 12
 class COMPETITIVE_SCANNERAgent:
     def __init__(self, name="COMPETITIVE_SCANNER"):
         self.name = name
-        self._state = kit.JsonState(lambda: agent_dir("COMPETITIVE_SCANNER") / "snapshots.json", {"pages": {}})
+        self._state = kit.JsonState("COMPETITIVE_SCANNER", "snapshots.json", {"pages": {}})
 
     def health_check(self):
         return kit.health(self.name)
@@ -43,13 +42,13 @@ class COMPETITIVE_SCANNERAgent:
             return kit.needs_data("no competitors supplied; the scanner does not guess who they are", results=[])
         errors: List[str] = []
         for i, c in enumerate(competitors):
-            url = kit.text(c.get("url"), 500) if isinstance(c, dict) else None
-            if not isinstance(c, dict) or kit.text(c.get("name")) is None:
+            url = kit.ident(c.get("url"), 500) if isinstance(c, dict) else None
+            if not isinstance(c, dict) or kit.ident(c.get("name")) is None:
                 errors.append(f"competitors[{i}].name must be a non-empty string")
             if url is None or not url.startswith(("http://", "https://")):
                 errors.append(f"competitors[{i}].url must be an http(s) address")
         if fields is not None and not (isinstance(fields, dict) and 0 < len(fields) <= MAX_FIELDS and all(
-                kit.text(k, 60) and kit.text(v, 300) for k, v in fields.items())):
+                kit.ident(k, 60) and kit.ident(v, 300) for k, v in fields.items())):
             errors.append(f"fields must map 1 to {MAX_FIELDS} field names to plain descriptions")
         if errors:
             return kit.failed(errors)

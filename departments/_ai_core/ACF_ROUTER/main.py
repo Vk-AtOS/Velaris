@@ -8,7 +8,9 @@ an ACF_CONTEXT result that was blocked, is quarantined and never routed.
 Conditions read the signal's fields, e.g. "kind", "risk", "content.amount",
 "context.source".
 """
-from velaris.agentkit.aicore_a_common import condition_error, fail, health, holds, ident, number
+from velaris.agentkit.checks import ident, number
+from velaris.agentkit.conditions import condition_error, holds
+from velaris.agentkit.results import fail, health
 from velaris.intel import guard
 
 NAME = "ACF_ROUTER"

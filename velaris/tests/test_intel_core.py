@@ -76,6 +76,23 @@ def test_memory_refuses_injection_and_masks_identifiers():
     assert "ABCDE1234F" not in text and "[PAN]" in text
 
 
+def test_memory_list_scope_is_exact_ordered_and_time_aware():
+    m = store()
+    old_id = m.remember(OLD, scope="acme")[0]["id"]
+    m.remember("Payroll runs on the last working day of the month.", scope="acme:hr")
+    m.remember("Another company's secret rule.", scope="acmex")
+    before = time.time()
+    time.sleep(0.01)
+    m.remember(NEW, scope="acme")                                   # supersedes OLD
+    assert [x.text for x in m.list_scope("acme")] == [NEW]          # only valid memories, only this scope
+    assert [x.text for x in m.list_scope("acme", at=before)] == [OLD] and m.list_scope("acme", at=before)[0].id == old_id
+    assert [x.scope for x in m.list_scope("acme:hr")] == ["acme:hr"] and m.list_scope("nobody") == []
+    for bad in ("", "  ", None, 5):
+        with pytest.raises(ValueError):
+            m.list_scope(bad)
+    assert any(e["action"] == "list" and e["actor"] == "memory" for e in trace.entries())
+
+
 def test_memory_forget_keeps_history():
     m = store()
     mid = m.remember(OLD, scope="acme")[0]["id"]

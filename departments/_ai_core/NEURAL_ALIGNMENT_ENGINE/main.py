@@ -12,7 +12,9 @@ Objectives are stored under this agent's state directory.
 """
 from typing import Any, Dict, Iterator, List, Optional
 
-from velaris.agentkit.aicore_b_common import JsonState, fail, health, ident, invalid
+from velaris.agentkit.checks import ident
+from velaris.agentkit.results import fail, health, invalid
+from velaris.agentkit.state import JsonState
 from velaris.agentkit.aicore_b_text import words
 
 NAME = "NEURAL_ALIGNMENT_ENGINE"

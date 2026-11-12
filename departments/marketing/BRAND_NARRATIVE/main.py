@@ -26,7 +26,7 @@ def _brief(facts: Dict[str, Any], errors: List[str]) -> str:
     lines = []
     for key, value in facts.items():
         items = value if isinstance(value, (list, tuple)) else [value]
-        if kit.text(key, 60) is None or not items or any(
+        if kit.ident(key, 60) is None or not items or any(
                 isinstance(v, bool) or not isinstance(v, (str, int, float)) or not str(v).strip()
                 or len(str(v)) > 500 for v in items):
             errors.append(f"facts[{key!r}] must be a short string, a number, or a list of them")

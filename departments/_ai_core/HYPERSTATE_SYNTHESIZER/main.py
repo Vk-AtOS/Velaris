@@ -9,7 +9,7 @@ path, with the value kept. Lists are replaced, not concatenated.
 import copy
 from typing import Any, Dict, List
 
-from velaris.agentkit.aicore_b_common import health, invalid
+from velaris.agentkit.results import health, invalid
 
 NAME = "HYPERSTATE_SYNTHESIZER"
 MAX_DEPTH = 20

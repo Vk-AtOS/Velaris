@@ -39,13 +39,13 @@ class RouteOptimizationEngine:
 
     def validate(self, r: RouteRequest) -> List[str]:
         e = kit.dataclass_errors(r, [], ["distances", "time_windows", "traffic_factors"], ["locations"])
-        if kit.text(getattr(r, "request_id", None), 64) is None:
+        if kit.ident(getattr(r, "request_id", None), 64) is None:
             e.append("request_id invalid")
         if e:
             return e
         if len(r.locations) < 2 or len(r.locations) > self.MAX_LOC:
             e.append("invalid location count")
-        if any(kit.text(x) is None for x in r.locations) or len(set(r.locations)) != len(r.locations):
+        if any(kit.ident(x) is None for x in r.locations) or len(set(r.locations)) != len(r.locations):
             e.append("locations must be distinct non-empty strings")
         for a, row in r.distances.items():
             if not isinstance(row, dict):

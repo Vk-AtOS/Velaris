@@ -11,7 +11,8 @@ candidate texts by cosine similarity to a query.
 """
 from typing import Any, Dict, List, Optional
 
-from velaris.agentkit.aicore_b_common import MAX_TEXT, health, invalid
+from velaris.agentkit.checks import MAX_TEXT
+from velaris.agentkit.results import health, invalid
 from velaris.intel.llm import LLM, cosine, hashed_embedding
 
 NAME = "LOCAL_EMBEDDING_ENGINE"

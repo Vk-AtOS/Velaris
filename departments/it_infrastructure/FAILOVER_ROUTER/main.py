@@ -17,7 +17,9 @@ from __future__ import annotations
 import time
 from typing import Any, Dict, List, Optional
 
-from velaris.agentkit.infra_store import State, fail, invalid, is_name, is_number, ok
+from velaris.agentkit.checks import is_name, is_number
+from velaris.agentkit.results import fail, invalid, ok
+from velaris.agentkit.state import JsonState
 
 NAME = "FAILOVER_ROUTER"
 
@@ -25,7 +27,7 @@ NAME = "FAILOVER_ROUTER"
 class FAILOVER_ROUTERAgent:
     def __init__(self, name: str = NAME) -> None:
         self.name = name
-        self._state = State(NAME)
+        self._state = JsonState(NAME)
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": self.name, "status": "ok", "version": "1.0.0"}
@@ -45,7 +47,7 @@ class FAILOVER_ROUTERAgent:
             data["services"][service] = {
                 "targets": targets, "failure_threshold": failure_threshold, "recovery_s": recovery_s,
                 "circuits": {t: old.get(t, {"state": "closed", "failures": 0, "opened_at": None}) for t in targets}}
-        self._state.change(put)
+        self._state.update(put)
         return ok(service=service, targets=targets)
 
     @staticmethod
@@ -71,7 +73,7 @@ class FAILOVER_ROUTERAgent:
                     return ok(service=service, target=target, probe=c["state"] == "half_open",
                               failed_over=target != svc["targets"][0])
             return fail("unavailable", "every target's circuit is open", service=service)
-        return self._state.change(choose)
+        return self._state.update(choose)
 
     def report(self, service: str, target: str, success: bool, now: Optional[float] = None) -> Dict[str, Any]:
         """Tell the router how a call to `target` went."""
@@ -91,7 +93,7 @@ class FAILOVER_ROUTERAgent:
                 if c["state"] == "half_open" or c["failures"] >= svc["failure_threshold"]:
                     c.update(state="open", opened_at=now)
             return ok(service=service, target=target, circuit=dict(c))
-        return self._state.change(update)
+        return self._state.update(update)
 
     def status(self, service: str) -> Dict[str, Any]:
         svc = self._state.load().get("services", {}).get(service) if isinstance(service, str) else None

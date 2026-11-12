@@ -15,7 +15,9 @@ from __future__ import annotations
 import time
 from typing import Any, Dict, Optional
 
-from velaris.agentkit.infra_store import State, fail, invalid, is_name, is_number, ok
+from velaris.agentkit.checks import is_name, is_number
+from velaris.agentkit.results import fail, invalid, ok
+from velaris.agentkit.state import JsonState
 
 NAME = "THROUGHPUT_MANAGER"
 
@@ -23,7 +25,7 @@ NAME = "THROUGHPUT_MANAGER"
 class THROUGHPUT_MANAGERAgent:
     def __init__(self, name: str = NAME) -> None:
         self.name = name
-        self._state = State(NAME)
+        self._state = JsonState(NAME)
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": self.name, "status": "ok", "version": "1.0.0"}
@@ -35,7 +37,7 @@ class THROUGHPUT_MANAGERAgent:
         def put(data: Dict[str, Any]) -> None:
             b = data.setdefault("buckets", {}).setdefault(key, {"tokens": burst, "last": None, "allowed": 0, "refused": 0})
             b.update(rate=rate_per_s, burst=burst, tokens=min(b["tokens"], burst))
-        self._state.change(put)
+        self._state.update(put)
         return ok(key=key, rate_per_s=rate_per_s, burst=burst)
 
     def acquire(self, key: str, tokens: float = 1.0, now: Optional[float] = None) -> Dict[str, Any]:
@@ -60,7 +62,7 @@ class THROUGHPUT_MANAGERAgent:
             b["refused"] += 1
             return fail("rate_limited", "bucket is empty", allowed=False, remaining=round(b["tokens"], 6),
                         retry_after_s=round((tokens - b["tokens"]) / b["rate"], 6))
-        return self._state.change(take)
+        return self._state.update(take)
 
     def stats(self, key: str) -> Dict[str, Any]:
         b = self._state.load().get("buckets", {}).get(key) if isinstance(key, str) else None

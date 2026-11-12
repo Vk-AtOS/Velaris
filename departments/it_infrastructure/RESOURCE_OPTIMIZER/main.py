@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import math
 
-from velaris.agentkit import infra_metrics, infra_store
+from velaris.agentkit import checks, infra_metrics, results
 
 _NAME = "RESOURCE_OPTIMIZER"
 _RESERVE_MB = 512        # memory left for the rest of the machine
@@ -35,10 +35,10 @@ class ResourceOptimizer:
         """Advised worker count for `sample` (measured when omitted) and any resource findings."""
         s = infra_metrics.checked(sample)
         needed = ("cpu_percent", "cpu_count", "mem_available_mb")
-        if s is None or not all(infra_store.is_number(s.get(k), 0) for k in needed) or s["cpu_count"] < 1:
-            return infra_store.invalid(f"sample needs numeric {', '.join(needed)}")
-        if not infra_store.is_number(per_worker_mb, 1):
-            return infra_store.invalid("per_worker_mb must be a number of at least 1")
+        if s is None or not all(checks.is_number(s.get(k), 0) for k in needed) or s["cpu_count"] < 1:
+            return results.invalid(f"sample needs numeric {', '.join(needed)}")
+        if not checks.is_number(per_worker_mb, 1):
+            return results.invalid("per_worker_mb must be a number of at least 1")
         cores = int(s["cpu_count"])
         by_cpu = math.floor(cores * (100 - s["cpu_percent"]) / 100)
         by_memory = math.floor((s["mem_available_mb"] - _RESERVE_MB) / per_worker_mb)
@@ -49,7 +49,7 @@ class ResourceOptimizer:
                              "detail": f"only {s['mem_available_mb']} MB available; one worker at most"})
         if by_cpu < 1:
             findings.append({"severity": "medium", "issue": "cpu", "detail": f"CPU at {s['cpu_percent']}%"})
-        if infra_store.is_number(s.get("disk_percent")) and s["disk_percent"] >= 90:
+        if checks.is_number(s.get("disk_percent")) and s["disk_percent"] >= 90:
             findings.append({"severity": "high", "issue": "disk", "detail": f"disk {s['disk_percent']}% full"})
-        return infra_store.ok(workers=workers, limited_by="memory" if by_memory < by_cpu else "cpu",
+        return results.ok(workers=workers, limited_by="memory" if by_memory < by_cpu else "cpu",
                               by_cpu=by_cpu, by_memory=by_memory, findings=findings)

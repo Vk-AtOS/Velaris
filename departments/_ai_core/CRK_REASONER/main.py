@@ -8,7 +8,9 @@ recorded as a step in a CRK_CHAIN, and when a `goal` field is derived the chain
 is checked by CRK_VALIDATOR. This is rule evaluation: it derives exactly what
 the supplied rules entail and nothing else.
 """
-from velaris.agentkit.aicore_a_common import condition_error, dig, health, holds, ident, invalid
+from velaris.agentkit.checks import dig, ident
+from velaris.agentkit.conditions import condition_error, holds
+from velaris.agentkit.results import health, invalid
 from velaris.agents.CRK_CHAIN.main import CRK_CHAINAgent
 from velaris.agents.CRK_VALIDATOR.main import CRK_VALIDATORAgent
 

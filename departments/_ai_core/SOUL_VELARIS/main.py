@@ -5,14 +5,16 @@ Guardrails are rule objects (velaris.agentkit.aicore_b_rules), e.g.
 {"id": "no-weekend-mail", "when": [{"field": "action", "op": "==", "value": "message.send"}],
  "require": [{"field": "day", "op": "not_in", "value": ["sat", "sun"]}]}.
 The charter is versioned (who changed what, when) and stored owner-only under
-this agent's state directory. check(action) returns the guardrails the action
+this agent's state directory. Only a governance admin may change it, and the
+change is recorded against the current caller (velaris.core.access), never an argument. check(action) returns the guardrails the action
 breaks; with no guardrails declared nothing is "allowed" (fail closed). There
 is no ethics engine here: only the rules a person wrote.
 """
 from typing import Any, Dict, Optional
 
 from velaris.agentkit import aicore_b_rules as rules
-from velaris.agentkit.aicore_b_common import fail, health, ident, invalid
+from velaris.agentkit.checks import ident
+from velaris.agentkit.results import fail, health, invalid
 from velaris.agentkit.aicore_b_versioned import VersionedDoc
 
 NAME = "SOUL_VELARIS"
@@ -51,11 +53,12 @@ class Soul:
         """The current charter: mission, guidelines, guardrails and its version number."""
         return {**self._charter.current(), "charter_version": self._charter.version()}
 
-    def set_charter(self, by: str, mission: Optional[str] = None, guidelines: Optional[list] = None,
+    def set_charter(self, by: Optional[str] = None, mission: Optional[str] = None, guidelines: Optional[list] = None,
                     guardrails: Optional[list] = None) -> Dict[str, Any]:
+        """Change the charter as the current caller (a governance admin). `by`, if given, must be that caller."""
         changes = {k: v for k, v in (("mission", mission), ("guidelines", guidelines),
                                       ("guardrails", guardrails)) if v is not None}
-        return self._charter.update(changes, by)
+        return self._charter.change(NAME, changes, by)
 
     def check(self, action: Any) -> Dict[str, Any]:
         """Does `action` (an object) keep to every guardrail? allowed False lists what it breaks."""

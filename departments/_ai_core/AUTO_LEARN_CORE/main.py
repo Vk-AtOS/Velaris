@@ -8,15 +8,28 @@ This is counting and a confidence bound. No model is trained and nothing is
 predicted beyond "this has worked more reliably so far".
 State: <VELARIS_DATA>/agents/AUTO_LEARN_CORE/state.json.
 """
-from velaris.agentkit.aicore_a_common import JsonState, fail, health, ident, invalid, ok, wilson_lower
-from velaris.intel.paths import agent_dir
+import math
+
+from velaris.agentkit.checks import ident
+from velaris.agentkit.results import fail, health, invalid, ok
+from velaris.agentkit.state import JsonState
 
 NAME = "AUTO_LEARN_CORE"
 
 
+def wilson_lower(successes, trials, z=1.96):
+    """Lower bound of the Wilson score interval: a success rate that is not fooled by small samples."""
+    if trials <= 0:
+        return 0.0
+    p = successes / trials
+    centre = p + z * z / (2 * trials)
+    spread = z * math.sqrt((p * (1 - p) + z * z / (4 * trials)) / trials)
+    return max(0.0, (centre - spread) / (1 + z * z / trials))
+
+
 class AUTO_LEARN_COREAgent:
     def __init__(self):
-        self._state = JsonState(lambda: agent_dir(NAME) / "state.json", {"contexts": {}})
+        self._state = JsonState(NAME, "state.json", {"contexts": {}})
 
     def health_check(self):
         return health(NAME)

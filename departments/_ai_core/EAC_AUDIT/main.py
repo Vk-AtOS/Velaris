@@ -9,7 +9,8 @@ identifiers before they are written.
 import logging
 from typing import Any, Dict, Optional
 
-from velaris.agentkit.aicore_b_common import fail, health, ident, invalid, jsonable, number
+from velaris.agentkit.checks import ident, is_json, number
+from velaris.agentkit.results import fail, health, invalid
 from velaris.intel import guard, trace
 
 logger = logging.getLogger("EAC_AUDIT")
@@ -36,7 +37,7 @@ class EAC_AUDITAgent:
         if ident(event, 80) is None or ident(actor, 80) is None:
             return invalid("event and actor must be non-empty strings")
         details = {} if details is None else details
-        if not isinstance(details, dict) or not jsonable(details):
+        if not isinstance(details, dict) or not is_json(details):
             return invalid("details must be a JSON object")
         try:
             entry = trace.append(actor.strip(), PREFIX + event.strip(), _masked(details))

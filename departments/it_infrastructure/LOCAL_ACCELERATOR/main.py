@@ -13,7 +13,9 @@ from __future__ import annotations
 import time
 from typing import Any, Callable, Dict, Optional
 
-from velaris.agentkit.infra_store import State, fail, invalid, is_json, is_number, ok
+from velaris.agentkit.checks import is_json, is_number
+from velaris.agentkit.results import fail, invalid, ok
+from velaris.agentkit.state import JsonState
 
 NAME = "LOCAL_ACCELERATOR"
 MAX_ENTRIES = 500
@@ -23,7 +25,7 @@ DEFAULT_TTL_S = 3600.0
 class LOCAL_ACCELERATORAgent:
     def __init__(self, name: str = NAME) -> None:
         self.name = name
-        self._state = State(NAME, "cache.json")
+        self._state = JsonState(NAME, "cache.json")
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": self.name, "status": "ok", "version": "1.0.0"}
@@ -54,7 +56,7 @@ class LOCAL_ACCELERATORAgent:
             entry["used"] = now
             stats["hits"] += 1
             return ok(hit=True, value=entry["value"])
-        return self._state.change(read)
+        return self._state.update(read)
 
     def put(self, key: str, value: Any, ttl_s: float = DEFAULT_TTL_S, now: Optional[float] = None) -> Dict[str, Any]:
         problem = self._args_problem(key, ttl_s, now)
@@ -68,7 +70,7 @@ class LOCAL_ACCELERATORAgent:
             for old in sorted(entries, key=lambda k: entries[k]["used"])[:max(0, len(entries) - MAX_ENTRIES)]:
                 del entries[old]
             return len(entries)
-        return ok(entries=self._state.change(write))
+        return ok(entries=self._state.update(write))
 
     def compute(self, key: str, fn: Callable[[], Any], ttl_s: float = DEFAULT_TTL_S,
                 now: Optional[float] = None) -> Dict[str, Any]:

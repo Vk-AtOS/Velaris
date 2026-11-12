@@ -7,7 +7,8 @@ reports actions that can never run with the facts they are missing. Actions may
 also come from a playbook registered for the intent name. With no actions and
 no playbook the plan is empty and the status says so; steps are never invented.
 """
-from velaris.agentkit.aicore_a_common import fail, health, ident, ok
+from velaris.agentkit.checks import ident
+from velaris.agentkit.results import fail, health, ok
 
 NAME = "ACTION_MODELING_CORE"
 

@@ -15,7 +15,6 @@ from typing import Any, Callable, Dict, Optional
 
 from velaris.agentkit import biz_common as kit
 from velaris.agentkit import biz_outside
-from velaris.intel.paths import agent_dir
 
 logger = logging.getLogger("ECON_INTEL_CORE")
 _PERIOD = re.compile(r"^\d{4}(-(0[1-9]|1[0-2]|Q[1-4]))?$")     # 2026, 2026-09, 2026-Q2
@@ -25,21 +24,21 @@ MAX_PER_SERIES = 2000
 class ECON_INTEL_COREAgent:
     def __init__(self, name="ECON_INTEL_CORE"):
         self.name = name
-        self._state = kit.JsonState(lambda: agent_dir("ECON_INTEL_CORE") / "indicators.json", {"series": {}})
+        self._state = kit.JsonState("ECON_INTEL_CORE", "indicators.json", {"series": {}})
 
     def health_check(self):
         return kit.health(self.name)
 
     def record_indicator(self, name: Any, period: Any, value: Any, source_url: Any, unit: str = "") -> Dict[str, Any]:
         errors = []
-        key = kit.text(name, 80)
+        key = kit.ident(name, 80)
         if key is None:
             errors.append("name must be a non-empty string")
         if not isinstance(period, str) or not _PERIOD.match(period):
             errors.append("period must look like 2026, 2026-09 or 2026-Q2")
         if kit.number(value) is None:
             errors.append("value must be a finite number")
-        url = kit.text(source_url, 500)
+        url = kit.ident(source_url, 500)
         if url is None or not url.startswith(("http://", "https://")):
             errors.append("source_url must be the http(s) address the figure was read from")
         if not isinstance(unit, str) or len(unit) > 40:
@@ -56,7 +55,7 @@ class ECON_INTEL_COREAgent:
         return {"status": "ok", "name": key.lower(), "period": period, "replaced": replaced}
 
     def series(self, name: Any) -> Dict[str, Any]:
-        key = kit.text(name, 80)
+        key = kit.ident(name, 80)
         if key is None:
             return kit.failed(["name must be a non-empty string"])
         rows = self._state.load()["series"].get(key.lower(), {})

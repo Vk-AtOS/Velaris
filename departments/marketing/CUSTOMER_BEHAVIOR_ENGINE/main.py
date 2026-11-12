@@ -59,7 +59,7 @@ class CustomerBehaviorEngine:
     def validate(self, c: CustomerBehaviorInput) -> List[str]:
         e = kit.dataclass_errors(c, ["purchase_freq", "avg_order_value", "return_rate", "complaints",
                                      "engagement_score"], ["behavior_flags"])
-        if kit.text(getattr(c, "customer_id", None), 64) is None:
+        if kit.ident(getattr(c, "customer_id", None), 64) is None:
             e.append("customer_id invalid")
         if e:
             return e

@@ -7,7 +7,9 @@ criterion weight and summed. The result shows each criterion's contribution, so
 the choice can be explained and challenged. It is arithmetic over the numbers
 supplied; it does not judge whether those numbers are right.
 """
-from velaris.agentkit.aicore_a_common import condition_error, fail, first_failed, health, ident, invalid, number, ok
+from velaris.agentkit.checks import ident, number
+from velaris.agentkit.conditions import condition_error, first_failed
+from velaris.agentkit.results import fail, health, invalid, ok
 
 NAME = "ASEL_STRATEGIST"
 

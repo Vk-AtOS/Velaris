@@ -13,7 +13,8 @@ worker: {"id", "skills": [...], "capacity": hours, "load": hours (default 0)}
 """
 from typing import Any, Dict, List, Optional
 
-from velaris.agentkit.aicore_b_common import fail, health, ident, invalid, number
+from velaris.agentkit.checks import ident, number
+from velaris.agentkit.results import fail, health, invalid
 
 NAME = "VHOE_ROUTER"
 

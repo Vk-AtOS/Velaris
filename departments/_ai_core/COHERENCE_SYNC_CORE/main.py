@@ -13,10 +13,11 @@ import hashlib
 import json
 import time
 
-from velaris.agentkit.aicore_a_common import JsonState, fail, health, ident, number, ok
+from velaris.agentkit.checks import ident, number
+from velaris.agentkit.results import fail, health, ok
+from velaris.agentkit.state import JsonState
 from velaris.agents.CSG_STATEALIGN.main import CSG_STATEALIGNAgent
 from velaris.agents.CSG_TEMPORAL.main import CSG_TEMPORALAgent
-from velaris.intel.paths import agent_dir
 
 NAME = "COHERENCE_SYNC_CORE"
 
@@ -27,7 +28,7 @@ def _digest(state):
 
 class COHERENCE_SYNC_COREAgent:
     def __init__(self):
-        self._state = JsonState(lambda: agent_dir(NAME) / "state.json", {"replicas": {}})
+        self._state = JsonState(NAME, "state.json", {"replicas": {}})
 
     def health_check(self):
         return health(NAME)

@@ -75,7 +75,7 @@ class InsurancePolicyEngine:
     def validate(self, p: PolicyApplication) -> List[str]:
         e = kit.dataclass_errors(p, ["applicant_age", "applicant_income", "sum_assured", "tenure_years"],
                                  ["health_flags"], texts=["policy_type"])
-        if kit.text(getattr(p, "policy_id", None), 64) is None:
+        if kit.ident(getattr(p, "policy_id", None), 64) is None:
             e.append("policy_id invalid")
         if e:
             return e

@@ -18,8 +18,9 @@ import ast
 import operator
 from typing import Any, Callable, Dict, List, Optional
 
-from velaris.agentkit import aicore_b_graph as graph
-from velaris.agentkit.aicore_b_common import health, ident, invalid, number
+from velaris.agentkit import graph as graph
+from velaris.agentkit.checks import ident, number
+from velaris.agentkit.results import health, invalid
 
 NAME = "VPSE_SCENARIO"
 MAX_FORMULA = 300

@@ -34,7 +34,10 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from velaris.agentkit import infra_memory
-from velaris.agentkit.infra_store import State, audit, fail, invalid, is_json, is_name, ok
+from velaris.agentkit.checks import is_json, is_name
+from velaris.agentkit.results import fail, invalid, ok
+from velaris.agentkit.state import JsonState
+from velaris.agentkit.infra_store import audit
 from velaris.core.access import GOVERNANCE_ADMINS, check_caller, may_write_scope
 from velaris.intel.memory import MemoryStore
 from velaris.intel.paths import agent_dir, load_or_create_key, read_private, write_private
@@ -90,7 +93,7 @@ class MEMORY_CLOUD_EXPANDAgent:
     def __init__(self) -> None:
         self.name = NAME
         self.llm = None                 # optional velaris.intel.llm.LLM used when importing
-        self._state = State(NAME, "index.json")
+        self._state = JsonState(NAME, "index.json")
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": self.name, "status": "ok", "version": "1.0.0"}
@@ -99,7 +102,7 @@ class MEMORY_CLOUD_EXPANDAgent:
         """Merge entries into the placement index ({key: JSON value})."""
         if not isinstance(meta, dict) or not all(isinstance(k, str) and k for k in meta) or not is_json(meta):
             return invalid("meta must be a JSON object with non-empty string keys")
-        size = self._state.change(lambda d: (d.setdefault("index", {}).update(meta), len(d["index"]))[1])
+        size = self._state.update(lambda d: (d.setdefault("index", {}).update(meta), len(d["index"]))[1])
         return ok(entries=size)
 
     def meta(self) -> Dict[str, Any]:
@@ -123,13 +126,11 @@ class MEMORY_CLOUD_EXPANDAgent:
         if refused:
             return refused
         try:
-            # ponytail: MemoryStore has no public "list a scope" call, so this reads its
-            # private _rows(). Replace with the public method once the core has one.
-            rows = MemoryStore(self.llm)._rows(scope, None)
+            rows = MemoryStore(self.llm).list_scope(scope)
         except (sqlite3.Error, OSError) as e:
             return fail("error", f"long-term memory unavailable: {type(e).__name__}")
-        body = "".join(json.dumps({"text": r["text"], "source": r["source"], "created_at": r["created_at"]},
-                                  sort_keys=True) + "\n" for r in sorted(rows, key=lambda r: (r["created_at"], r["id"])))
+        body = "".join(json.dumps({"text": m.text, "source": m.source, "created_at": m.created_at},
+                                  sort_keys=True) + "\n" for m in rows)
         digest = hashlib.sha256(body.encode()).hexdigest()
         header = {"format": "velaris-memory-bundle-1", "scope": scope, "count": len(rows), "sha256": digest,
                   "exported_at": time.time()}

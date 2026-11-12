@@ -24,7 +24,9 @@ import time
 from dataclasses import asdict, dataclass
 from typing import Any, Dict, List, Optional
 
-from velaris.agentkit.infra_store import State, fail, invalid, is_name, ok
+from velaris.agentkit.checks import is_name
+from velaris.agentkit.results import fail, invalid, ok
+from velaris.agentkit.state import JsonState
 
 NAME = "IT_INFRA_ENGINE"
 VM_SIZES = {"small": {"vcpu": 1, "mem_gb": 2}, "medium": {"vcpu": 2, "mem_gb": 8},
@@ -49,7 +51,7 @@ class ITInfraEngine:
 
     def __init__(self) -> None:
         self.name = NAME
-        self._state = State(NAME, "plans.json")
+        self._state = JsonState(NAME, "plans.json")
 
     @staticmethod
     def _network(cidr: Any) -> Optional[ipaddress.IPv4Network]:
@@ -99,7 +101,7 @@ class ITInfraEngine:
         size = VM_SIZES[cfg.vm_type]
         plan = {"infra_id": infra_id, "spec": spec, "vms": vms, "planned_at": time.time(),
                 "totals": {"vms": cfg.vm_count, "vcpu": size["vcpu"] * cfg.vm_count, "mem_gb": size["mem_gb"] * cfg.vm_count}}
-        self._state.change(lambda d: d.setdefault("plans", {}).setdefault(infra_id, plan))
+        self._state.update(lambda d: d.setdefault("plans", {}).setdefault(infra_id, plan))
         return {"status": "planned", "created": False, "infra_id": infra_id, "vms": vms, "totals": plan["totals"],
                 "note": "plan stored; no cloud provider is attached, so nothing was created"}
 

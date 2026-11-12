@@ -15,7 +15,8 @@ caller can refuse a poor fit.
 import statistics
 from typing import Any, Dict
 
-from velaris.agentkit.aicore_b_common import health, invalid, numbers
+from velaris.agentkit.checks import numbers
+from velaris.agentkit.results import health, invalid
 
 NAME = "VPSE_MODELER"
 MIN_POINTS, MAX_HORIZON = 3, 120

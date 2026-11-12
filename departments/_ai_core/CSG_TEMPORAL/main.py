@@ -7,7 +7,8 @@ It returns the ids in time order. It reports problems; it does not repair them.
 """
 import time
 
-from velaris.agentkit.aicore_a_common import fail, health, ident, number
+from velaris.agentkit.checks import ident, number
+from velaris.agentkit.results import fail, health
 
 NAME = "CSG_TEMPORAL"
 

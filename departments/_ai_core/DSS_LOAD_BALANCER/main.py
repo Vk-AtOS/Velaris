@@ -5,7 +5,8 @@ Down nodes are never chosen; degraded nodes only when no healthy node has room;
 a node at or over its capacity is skipped. When nothing has room the request is
 shed (status "shed") instead of being piled onto a full node.
 """
-from velaris.agentkit.aicore_a_common import fail, health, number
+from velaris.agentkit.checks import number
+from velaris.agentkit.results import fail, health
 from velaris.agents.DSS_MONITOR.main import DSS_MONITORAgent
 
 NAME = "DSS_LOAD_BALANCER"

@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 from typing import Any, Dict, List, Union
 
-from velaris.agentkit.aicore_a_common import ident, number
+from velaris.agentkit.checks import ident, number
 
 
 def flatten(data: Dict[str, Any], prefix: str = "") -> Dict[str, Any]:

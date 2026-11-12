@@ -24,7 +24,7 @@ def parse_deals(raw: Any) -> Tuple[List[Dict[str, Any]], List[str]]:
         if not isinstance(d, dict):
             errors.append(f"deals[{i}] must be an object")
             continue
-        vertical, amount = kit.text(d.get("vertical"), 100), kit.money(d.get("amount"))
+        vertical, amount = kit.ident(d.get("vertical"), 100), kit.money(d.get("amount"))
         opened, closed = kit.as_date(d.get("opened")), kit.as_date(d.get("closed"))
         if vertical is None:
             errors.append(f"deals[{i}].vertical must be a non-empty string")

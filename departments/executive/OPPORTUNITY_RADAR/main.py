@@ -17,7 +17,6 @@ from typing import Any, Callable, Dict, List, Optional
 
 from velaris.agentkit import biz_common as kit
 from velaris.agentkit import biz_outside
-from velaris.intel.paths import agent_dir
 
 logger = logging.getLogger("OPPORTUNITY_RADAR")
 MAX_SEEN = 20_000
@@ -26,7 +25,7 @@ MAX_SEEN = 20_000
 class OpportunityRadarAgent:
     def __init__(self, config: Dict[str, Any] = None):
         self.version = (config or {}).get("version", kit.VERSION)
-        self._state = kit.JsonState(lambda: agent_dir("OPPORTUNITY_RADAR") / "seen.json", {"seen": {}})
+        self._state = kit.JsonState("OPPORTUNITY_RADAR", "seen.json", {"seen": {}})
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": "OPPORTUNITY_RADAR", "status": "ok", "version": self.version}
@@ -36,7 +35,7 @@ class OpportunityRadarAgent:
             return kit.failed(["payload must be an object"])
         keywords = payload.get("keywords", [])
         if not isinstance(keywords, (list, tuple)) or len(keywords) > 50 \
-                or any(kit.text(k, 100) is None for k in keywords):
+                or any(kit.ident(k, 100) is None for k in keywords):
             return kit.failed(["keywords must be a list of at most 50 short strings"])
         got = biz_outside.sourced_search(payload.get("queries", []), search_fn=search_fn,
                                          limit=payload.get("limit", 8))

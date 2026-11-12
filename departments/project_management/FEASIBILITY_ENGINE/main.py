@@ -63,7 +63,7 @@ class FEASIBILITY_ENGINEAgent:
         return kit.health(self.name)
 
     def assess(self, project: Any) -> Dict[str, Any]:
-        if not isinstance(project, dict) or kit.text(project.get("name")) is None:
+        if not isinstance(project, dict) or kit.ident(project.get("name")) is None:
             return kit.failed(["project must be an object with a 'name'"])
         supplied = project.get("criteria", {})
         if not isinstance(supplied, dict) or any(k not in CRITERIA for k in supplied):

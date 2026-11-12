@@ -10,7 +10,9 @@ Not a reasoning engine. It is a bounded loop around MRF_EVAL and MRF_REFLECT:
 """
 from typing import Any, Dict, List, Optional
 
-from velaris.agentkit.aicore_b_common import NOT_CONFIGURED, ask_json, fail, health, invalid, model_or_none, text
+from velaris.agentkit.checks import text
+from velaris.agentkit.models import ask_json, model_or_none, NOT_CONFIGURED
+from velaris.agentkit.results import fail, health, invalid
 from velaris.agents.MRF_EVAL.main import MRF_EVALAgent, rubric_error
 from velaris.agents.MRF_REFLECT.main import MRF_REFLECTAgent
 from velaris.intel.llm import LLM

@@ -43,7 +43,7 @@ class BUSINESS_MODEL_ENGINEAgent:
             if not isinstance(s, dict):
                 errors.append(f"streams[{i}] must be an object")
                 continue
-            name, revenue = kit.text(s.get("name")), kit.money(s.get("revenue"))
+            name, revenue = kit.ident(s.get("name")), kit.money(s.get("revenue"))
             cost = kit.money(s.get("direct_cost", 0))
             customer = s.get("customer")
             if name is None:
@@ -54,7 +54,7 @@ class BUSINESS_MODEL_ENGINEAgent:
                 errors.append(f"streams[{i}].revenue must be a non-negative amount")
             if cost is None or cost < 0:
                 errors.append(f"streams[{i}].direct_cost must be a non-negative amount")
-            if customer is not None and kit.text(customer) is None:
+            if customer is not None and kit.ident(customer) is None:
                 errors.append(f"streams[{i}].customer must be a non-empty string when given")
             rows.append((name, s.get("kind"), revenue, cost, customer))
         if errors:

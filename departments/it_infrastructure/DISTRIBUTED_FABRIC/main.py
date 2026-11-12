@@ -15,7 +15,9 @@ import bisect
 import hashlib
 from typing import Any, Dict, List, Tuple
 
-from velaris.agentkit.infra_store import State, fail, invalid, is_name, is_number, ok
+from velaris.agentkit.checks import is_name, is_number
+from velaris.agentkit.results import fail, invalid, ok
+from velaris.agentkit.state import JsonState
 
 NAME = "DISTRIBUTED_FABRIC"
 
@@ -27,7 +29,7 @@ def ring_hash(text: str) -> int:
 class DISTRIBUTED_FABRICAgent:
     def __init__(self, name: str = NAME) -> None:
         self.name = name
-        self._state = State(NAME)
+        self._state = JsonState(NAME)
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": self.name, "status": "ok", "version": "1.0.0"}
@@ -35,11 +37,11 @@ class DISTRIBUTED_FABRICAgent:
     def join(self, node: str, vnodes: int = 64) -> Dict[str, Any]:
         if not is_name(node) or not is_number(vnodes, 1, 1024) or isinstance(vnodes, float):
             return invalid("node must be a short name and vnodes a whole number 1..1024")
-        count = self._state.change(lambda d: (d.setdefault("nodes", {}).__setitem__(node, vnodes), len(d["nodes"]))[1])
+        count = self._state.update(lambda d: (d.setdefault("nodes", {}).__setitem__(node, vnodes), len(d["nodes"]))[1])
         return ok(node=node, nodes=count)
 
     def leave(self, node: str) -> Dict[str, Any]:
-        gone = self._state.change(lambda d: d.get("nodes", {}).pop(node, None) if isinstance(node, str) else None)
+        gone = self._state.update(lambda d: d.get("nodes", {}).pop(node, None) if isinstance(node, str) else None)
         return ok(node=node) if gone else fail("unknown_node", "no such node")
 
     def _ring(self) -> List[Tuple[int, str]]:

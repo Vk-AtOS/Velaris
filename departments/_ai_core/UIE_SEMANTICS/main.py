@@ -12,7 +12,8 @@ not on the list gives action None; nothing is guessed.
 from typing import Any, Dict
 
 from velaris.agentkit import aicore_b_text as textkit
-from velaris.agentkit.aicore_b_common import health, text as as_text
+from velaris.agentkit.checks import text as as_text
+from velaris.agentkit.results import health
 
 NAME = "UIE_SEMANTICS"
 

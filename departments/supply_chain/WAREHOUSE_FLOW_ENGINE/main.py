@@ -52,7 +52,7 @@ class WarehouseFlowEngine:
     def validate(self, w: WarehouseFlowInput) -> List[str]:
         e = kit.dataclass_errors(w, ["inbound_units", "outbound_units", "storage_capacity",
                                      "picking_efficiency", "putaway_efficiency"], ["congestion_flags"])
-        if kit.text(getattr(w, "warehouse_id", None), 64) is None:
+        if kit.ident(getattr(w, "warehouse_id", None), 64) is None:
             e.append("warehouse_id invalid")
         if e:
             return e

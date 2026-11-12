@@ -22,7 +22,9 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from typing import Any, Dict, List, Optional
 
-from velaris.agentkit.infra_store import State, is_name, is_number, ok
+from velaris.agentkit.checks import is_name, is_number
+from velaris.agentkit.results import ok
+from velaris.agentkit.state import JsonState
 
 NAME = "CYBER_RISK_ENGINE"
 CRITICALITY_IMPACT = {"low": 0.25, "medium": 0.5, "high": 0.75, "critical": 1.0}
@@ -47,7 +49,7 @@ class CyberRiskEngine:
 
     def __init__(self) -> None:
         self.name = NAME
-        self._state = State(NAME, "register.json")
+        self._state = JsonState(NAME, "register.json")
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": NAME, "status": "ok", "version": "1.0.0"}
@@ -108,7 +110,7 @@ class CyberRiskEngine:
         result = self.compute_risk(p, threats)
         if result["status"] == "ok":
             entry = {"profile": asdict(p), "threats": threats or [], "score": result["score"], "band": result["band"]}
-            self._state.change(lambda d: d.setdefault("assets", {}).__setitem__(p.asset_id, entry))
+            self._state.update(lambda d: d.setdefault("assets", {}).__setitem__(p.asset_id, entry))
         return result
 
     def top_risks(self, n: int = 10) -> List[Dict[str, Any]]:

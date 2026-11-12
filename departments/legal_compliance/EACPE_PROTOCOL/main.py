@@ -22,7 +22,9 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
-from velaris.agentkit.infra_store import State, invalid, is_name, is_number, ok
+from velaris.agentkit.checks import is_name, is_number
+from velaris.agentkit.results import invalid, ok
+from velaris.agentkit.state import JsonState
 
 NAME = "EACPE_PROTOCOL"
 
@@ -30,7 +32,7 @@ NAME = "EACPE_PROTOCOL"
 class EACPE_PROTOCOLAgent:
     def __init__(self) -> None:
         self.name = NAME
-        self._state = State(NAME, "protocols.json")
+        self._state = JsonState(NAME, "protocols.json")
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": self.name, "status": "ok", "version": "1.0.0"}
@@ -51,7 +53,7 @@ class EACPE_PROTOCOLAgent:
             entry = data.setdefault("protocols", {}).setdefault(protocol, {"version": 0})
             entry.update(version=entry["version"] + 1, steps=steps)
             return entry["version"]
-        return ok(protocol=protocol, version=self._state.change(put))
+        return ok(protocol=protocol, version=self._state.update(put))
 
     def evaluate_protocol(self, data: dict) -> Dict[str, Any]:
         def unsafe(status: str, reason: str, findings: List[Dict[str, str]]) -> Dict[str, Any]:

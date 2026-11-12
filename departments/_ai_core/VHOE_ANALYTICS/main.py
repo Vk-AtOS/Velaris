@@ -9,7 +9,8 @@ Records with missing or impossible times are skipped and counted, never guessed.
 import statistics
 from typing import Any, Dict, List
 
-from velaris.agentkit.aicore_b_common import health, invalid, number
+from velaris.agentkit.checks import number
+from velaris.agentkit.results import health, invalid
 
 NAME = "VHOE_ANALYTICS"
 

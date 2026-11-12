@@ -68,7 +68,7 @@ class StockMarketSignalEngine:
 
     def validate(self, m: MarketSnapshot) -> List[str]:
         e = kit.dataclass_errors(m, [], lists=["prices", "volumes"], texts=["sector"])
-        if kit.text(getattr(m, "symbol", None), 10) is None:
+        if kit.ident(getattr(m, "symbol", None), 10) is None:
             e.append("symbol invalid")
         if e:
             return e

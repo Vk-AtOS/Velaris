@@ -17,7 +17,6 @@ import time
 from typing import Any, Dict, List
 
 from velaris.agentkit import biz_common as kit
-from velaris.intel.paths import agent_dir
 
 logger = logging.getLogger("INITIATIVE_ENGINE")
 MAX_INITIATIVES = 1000
@@ -26,8 +25,7 @@ MAX_INITIATIVES = 1000
 class InitiativeEngine:
     def __init__(self, name="INITIATIVE_ENGINE"):
         self.name = name
-        self._state = kit.JsonState(lambda: agent_dir("INITIATIVE_ENGINE") / "register.json",
-                                    {"ranked": [], "ranked_at": None})
+        self._state = kit.JsonState("INITIATIVE_ENGINE", "register.json", {"ranked": [], "ranked_at": None})
 
     def health_check(self):
         return kit.health(self.name)
@@ -44,7 +42,7 @@ class InitiativeEngine:
         errors: List[str] = []
         ranked, names = [], set()
         for i, it in enumerate(items):
-            name = kit.text(it.get("name")) if isinstance(it, dict) else None
+            name = kit.ident(it.get("name")) if isinstance(it, dict) else None
             reach, impact, confidence, effort = (
                 kit.number(it.get(k), lo, hi) if isinstance(it, dict) else None
                 for k, lo, hi in (("reach", 0, None), ("impact", 0, None), ("confidence", 0, 1), ("effort", 0, None)))

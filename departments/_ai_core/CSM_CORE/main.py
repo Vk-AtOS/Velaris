@@ -7,18 +7,19 @@ optional record against the goal's policy, and lists what the goal is linked
 to in CSM_LINKER. Each review is kept, so the trend of a goal can be read back.
 State: <VELARIS_DATA>/agents/CSM_CORE/state.json.
 """
-from velaris.agentkit.aicore_a_common import JsonState, fail, health, ident, ok
+from velaris.agentkit.checks import ident
+from velaris.agentkit.results import fail, health, ok
+from velaris.agentkit.state import JsonState
 from velaris.agents.CSM_LINKER.main import CSMLinkerAgent
 from velaris.agents.CSM_POLICY.main import CSMPolicyAgent
 from velaris.agents.CSM_REASONER.main import CSMReasonerAgent
-from velaris.intel.paths import agent_dir
 
 NAME = "CSM_CORE"
 
 
 class CSMCoreAgent:
     def __init__(self):
-        self._state = JsonState(lambda: agent_dir(NAME) / "state.json", {"goals": {}})
+        self._state = JsonState(NAME, "state.json", {"goals": {}})
         self.linker = CSMLinkerAgent()
 
     def health_check(self):

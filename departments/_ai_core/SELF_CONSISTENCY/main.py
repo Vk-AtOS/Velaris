@@ -14,7 +14,9 @@ import re
 from collections import Counter
 from typing import Any, Dict, List, Optional
 
-from velaris.agentkit.aicore_b_common import NOT_CONFIGURED, ask_json, fail, health, invalid, model_or_none, number, text
+from velaris.agentkit.checks import number, text
+from velaris.agentkit.models import ask_json, model_or_none, NOT_CONFIGURED
+from velaris.agentkit.results import fail, health, invalid
 from velaris.intel.llm import LLM
 
 NAME = "SELF_CONSISTENCY"

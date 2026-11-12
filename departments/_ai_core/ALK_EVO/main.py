@@ -8,8 +8,9 @@ generated here: people (or other code) propose variants, this agent keeps the
 evidence and decides which one is in force.
 State: <VELARIS_DATA>/agents/ALK_EVO/state.json.
 """
-from velaris.agentkit.aicore_a_common import JsonState, fail, health, ident, invalid, number, ok
-from velaris.intel.paths import agent_dir
+from velaris.agentkit.checks import ident, number
+from velaris.agentkit.results import fail, health, invalid, ok
+from velaris.agentkit.state import JsonState
 
 NAME = "ALK_EVO"
 
@@ -21,8 +22,7 @@ def _mean(scores):
 class ALK_EVOAgent:
     def __init__(self, min_samples=5, margin=0.0):
         self.min_samples, self.margin = min_samples, margin
-        self._state = JsonState(lambda: agent_dir(NAME) / "state.json",
-                                {"variants": {}, "champion": None, "previous": []})
+        self._state = JsonState(NAME, "state.json", {"variants": {}, "champion": None, "previous": []})
 
     def health_check(self):
         return health(NAME)

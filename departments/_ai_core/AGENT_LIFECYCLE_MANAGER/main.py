@@ -9,8 +9,9 @@ State: <VELARIS_DATA>/agents/AGENT_LIFECYCLE_MANAGER/state.json.
 import time
 from typing import Any, Dict
 
-from velaris.agentkit.aicore_a_common import JsonState, health, ident
-from velaris.intel.paths import agent_dir
+from velaris.agentkit.checks import ident
+from velaris.agentkit.results import health
+from velaris.agentkit.state import JsonState
 
 NAME = "AGENT_LIFECYCLE_MANAGER"
 TRANSITIONS = {
@@ -28,7 +29,7 @@ class LifecycleManager:
     def __init__(self, config: Dict[str, Any] = None):
         self.config = config or {}
         self.version = self.config.get("version", "1.0.0")
-        self._state = JsonState(lambda: agent_dir(NAME) / "state.json", {"agents": {}})
+        self._state = JsonState(NAME, "state.json", {"agents": {}})
 
     def health_check(self):
         return health(NAME, version=self.version)

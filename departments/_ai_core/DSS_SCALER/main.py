@@ -9,8 +9,9 @@ State (time of the last change): <VELARIS_DATA>/agents/DSS_SCALER/state.json.
 import math
 import time
 
-from velaris.agentkit.aicore_a_common import JsonState, health, invalid, number, ok
-from velaris.intel.paths import agent_dir
+from velaris.agentkit.checks import number
+from velaris.agentkit.results import health, invalid, ok
+from velaris.agentkit.state import JsonState
 
 NAME = "DSS_SCALER"
 
@@ -19,7 +20,7 @@ class DSS_SCALERAgent:
     def __init__(self, name=NAME, cooldown_s=300.0, tolerance=0.1):
         self.name = name
         self.cooldown_s, self.tolerance = cooldown_s, tolerance
-        self._state = JsonState(lambda: agent_dir(NAME) / "state.json", {"last_change_at": None, "history": []})
+        self._state = JsonState(NAME, "state.json", {"last_change_at": None, "history": []})
 
     def health_check(self):
         return health(self.name)

@@ -15,7 +15,9 @@ from __future__ import annotations
 import math
 from typing import Any, Dict, List
 
-from velaris.agentkit.infra_store import State, fail, invalid, is_name, is_number, ok
+from velaris.agentkit.checks import is_name, is_number
+from velaris.agentkit.results import fail, invalid, ok
+from velaris.agentkit.state import JsonState
 
 NAME = "LATENCY_CONTROLLER"
 WINDOW = 500
@@ -31,7 +33,7 @@ def percentile(values: List[float], p: float) -> float:
 class LATENCY_CONTROLLERAgent:
     def __init__(self, name: str = NAME) -> None:
         self.name = name
-        self._state = State(NAME)
+        self._state = JsonState(NAME)
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": self.name, "status": "ok", "version": "1.0.0"}
@@ -44,7 +46,7 @@ class LATENCY_CONTROLLERAgent:
         def put(data: Dict[str, Any]) -> None:
             entry = data.setdefault("ops", {}).setdefault(op, {"samples": []})
             entry.update(slo_ms=p95_ms, limit=start_limit, max_limit=max_limit)
-        self._state.change(put)
+        self._state.update(put)
         return ok(op=op, slo_ms=p95_ms, limit=start_limit)
 
     def record(self, op: str, ms: float) -> Dict[str, Any]:
@@ -55,7 +57,7 @@ class LATENCY_CONTROLLERAgent:
             entry = data.setdefault("ops", {}).setdefault(op, {"samples": []})
             entry["samples"] = (entry["samples"] + [ms])[-WINDOW:]
             return len(entry["samples"])
-        return ok(op=op, samples=self._state.change(add))
+        return ok(op=op, samples=self._state.update(add))
 
     def stats(self, op: str) -> Dict[str, Any]:
         entry = self._state.load().get("ops", {}).get(op) if isinstance(op, str) else None
@@ -81,4 +83,4 @@ class LATENCY_CONTROLLERAgent:
             return ok(op=op, p95=p95, slo_ms=entry["slo_ms"], breached=breached, previous_limit=before,
                       limit=entry["limit"], action="decrease" if entry["limit"] < before else
                       "increase" if entry["limit"] > before else "hold")
-        return self._state.change(step)
+        return self._state.update(step)

@@ -5,7 +5,7 @@ reporting systems agree on (with which systems reported each) and the fields
 they disagree on, with every system's value and timestamp. It does not pick a
 winner; that is CCSF_RESOLVER's job.
 """
-from velaris.agentkit.aicore_a_common import health, invalid
+from velaris.agentkit.results import health, invalid
 from velaris.agentkit.aicore_a_fusion import clean_sources, fuse
 
 NAME = "CCSF_FUSION"

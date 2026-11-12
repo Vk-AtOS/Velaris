@@ -35,7 +35,7 @@ import json
 from fnmatch import fnmatchcase
 from typing import Any, Dict, Iterable, List, Optional
 
-from velaris.agentkit.aicore_b_common import ident, number
+from velaris.agentkit.checks import ident, number
 from velaris.core.access import resource_matches
 
 ALLOW, NEEDS_APPROVAL, DENY = "allow", "needs_approval", "deny"
@@ -210,20 +210,37 @@ def _covers(held: str, wanted: str, match) -> bool:
     return wanted == held or (not _is_pattern(wanted) and match(held, wanted))
 
 
+def _within(held: Dict[str, Any], grant: Dict[str, Any]) -> bool:
+    """Is every constraint of `grant` at most what `held` allows? (actions, resources, autonomy,
+    period, amount limit, currency and approver; a held limit can never be dropped or raised)"""
+    if not all(any(_covers(x, a, lambda p, v: fnmatchcase(v, p)) for x in held["actions"]) for a in grant["actions"]):
+        return False
+    if not all(any(_covers(x, r, resource_matches) for x in held.get("resources", ["**"]))
+               for r in grant.get("resources", ["**"])):
+        return False
+    if _RANK.index(grant["autonomy"]) > _RANK.index(held["autonomy"]):
+        return False
+    if grant["valid_from"] < held["valid_from"] or grant["valid_until"] > held["valid_until"]:
+        return False
+    if held.get("max_amount") is not None and (grant.get("max_amount") is None
+                                              or grant["max_amount"] > held["max_amount"]):
+        return False
+    if grant.get("max_amount") is not None and held.get("max_amount") is None:
+        return False                     # an unlimited held grant gives no amount authority to pass on
+    if grant.get("currency") != held.get("currency"):
+        return False
+    return grant["approver"] == held["approver"]
+
+
 def delegation_error(held: Iterable[Dict[str, Any]], grant: Dict[str, Any], now: float) -> Optional[str]:
-    """Why `grant["grantor"]` may not give `grant` from what they hold, or None if one held grant covers it all."""
+    """Why `grant["grantor"]` may not give `grant` from what they hold, or None if one held grant covers it all.
+
+    The covering grant must be live, delegable, name the grantor as its principal, and bound every
+    constraint of the new grant (_within): the delegate never gets more than the grantor holds,
+    and the same person (approver) is asked when the delegate's grant does not cover a request.
+    """
     for h in live_grants(held, now):
-        if h["principal"] != grant["grantor"] or h.get("delegable") is not True:
-            continue
-        if not all(any(_covers(x, a, lambda p, v: fnmatchcase(v, p)) for x in h["actions"]) for a in grant["actions"]):
-            continue
-        if not all(any(_covers(x, r, resource_matches) for x in h.get("resources", ["**"])) for r in grant["resources"]):
-            continue
-        if _RANK.index(grant["autonomy"]) > _RANK.index(h["autonomy"]) or grant["valid_until"] > h["valid_until"]:
-            continue
-        if grant.get("max_amount") is not None and (h.get("max_amount") is None
-                                                    or grant["max_amount"] > h["max_amount"]):
-            continue
-        return None
+        if h["principal"] == grant["grantor"] and h.get("delegable") is True and _within(h, grant):
+            return None
     return (f"{grant['grantor']} holds no live, delegable grant covering these actions, resources, autonomy, "
-            "amount and period")
+            "period, amount, currency and approver")

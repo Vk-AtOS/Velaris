@@ -2,6 +2,8 @@ from importlib import import_module
 
 import pytest
 
+from velaris.core.access import GOVERNANCE_ADMINS, Caller, acting_as
+
 
 @pytest.fixture(autouse=True)
 def _data(tmp_path, monkeypatch):
@@ -26,7 +28,9 @@ def test_identity_health():
 
 def test_identity_base_ops():
     si = import_module("live.agents.SELF_IDENTITY.main").SELF_IDENTITYAgent()
-    si.set_identity("mode", "core")
+    assert si.set_identity("mode", "core") is False                      # changing identity needs an admin caller
+    with acting_as(Caller("admin", "kf", GOVERNANCE_ADMINS)):
+        assert si.set_identity("mode", "core") is True
     assert si.get_identity()["mode"] == "core"
 
     sh = import_module("live.agents.SELF_HISTORY.main").SELF_HISTORYAgent()

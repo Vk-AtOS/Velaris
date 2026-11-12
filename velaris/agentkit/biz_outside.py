@@ -27,7 +27,7 @@ def cited_research(question: Any, *, llm: Optional[LLM] = None, search_fn: Optio
     status: ok (at least one verified finding), no_findings, not_configured, failed.
     `limits`: max_subquestions, max_sources, max_rounds.
     """
-    q = kit.text(question, 500)
+    q = kit.ident(question, 500)
     if q is None:
         return kit.failed(["question must be a non-empty string of at most 500 characters"])
     bad = [k for k, v in limits.items() if k not in ("max_subquestions", "max_sources", "max_rounds")
@@ -54,7 +54,7 @@ def sourced_search(queries: Any, *, search_fn: Optional[Callable] = None, limit:
         return kit.failed(["queries must be a string or a list of strings"])
     if not queries:
         return kit.needs_data("no search queries supplied", results=[])
-    clean = [kit.text(q, 300) for q in queries]
+    clean = [kit.ident(q, 300) for q in queries]
     if None in clean or len(clean) > MAX_QUERIES:
         return kit.failed([f"queries must be 1 to {MAX_QUERIES} non-empty strings of at most 300 characters"])
     if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 50:

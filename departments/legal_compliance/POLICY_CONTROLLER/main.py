@@ -6,7 +6,7 @@ earlier revision of the policy set. A policy that has an "effect" is a rule:
 
     {"effect": "allow" | "deny", "priority": int (default 0), "when": {conditions}}
 
-with conditions as in velaris.agentkit.infra_policy (an absent field never
+with conditions as in velaris.agentkit.conditions (an absent field never
 matches an allow rule and always matches a deny rule). A policy without "effect" is stored as a plain document and takes no
 part in decisions. A rule-shaped policy that is malformed is refused at write time.
 
@@ -23,8 +23,11 @@ from __future__ import annotations
 import time
 from typing import Any, Dict, List, Optional
 
-from velaris.agentkit import infra_policy
-from velaris.agentkit.infra_store import State, audit, fail, invalid, is_json, is_name, is_number, ok
+from velaris.agentkit import conditions
+from velaris.agentkit.checks import is_json, is_name, is_number
+from velaris.agentkit.results import fail, invalid, ok
+from velaris.agentkit.state import JsonState
+from velaris.agentkit.infra_store import audit
 from velaris.core.access import GOVERNANCE_ADMINS, check_caller
 
 NAME = "POLICY_CONTROLLER"
@@ -40,13 +43,13 @@ def rule_problems(policy: Dict[str, Any]) -> List[str]:
     priority = policy.get("priority", 0)
     if not is_number(priority, -1000000, 1000000) or isinstance(priority, float):
         problems.append("priority must be a whole number")
-    return problems + infra_policy.problems(policy.get("when", {}))
+    return problems + conditions.problems(policy.get("when", {}))
 
 
 class POLICY_CONTROLLERAgent:
     def __init__(self) -> None:
         self.name = NAME
-        self._state = State(NAME, "policies.json")
+        self._state = JsonState(NAME, "policies.json")
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": self.name, "status": "ok", "version": "1.0.0"}
@@ -67,7 +70,7 @@ class POLICY_CONTROLLERAgent:
             versions.append({"version": len(versions) + 1, "rev": data["rev"], "policy": policy, "by": by,
                              "ts": time.time()})
             return ok(policy_id=pid, version=len(versions), rev=data["rev"])
-        result = self._state.change(add)
+        result = self._state.update(add)
         if result["status"] == "ok":
             audit(NAME, "policy.retire" if policy is None else "policy.put",
                   {"policy_id": pid, "version": result["version"], "by": by})
@@ -119,7 +122,7 @@ class POLICY_CONTROLLERAgent:
                 rules.append((pid, current[-1]))
         rules.sort(key=lambda r: (-r[1]["policy"].get("priority", 0), r[1]["policy"]["effect"] != "deny", r[0]))
         for pid, v in rules:
-            if infra_policy.evaluate(v["policy"].get("when", {}), context, v["policy"]["effect"])[0]:
+            if conditions.evaluate(v["policy"].get("when", {}), context, v["policy"]["effect"])[0]:
                 return ok(decision=v["policy"]["effect"], allowed=v["policy"]["effect"] == "allow", rule=pid,
                           rule_version=v["version"], rev=rev, considered=len(rules))
         return ok(decision="deny", allowed=False, rule="default_deny", rule_version=None, rev=rev, considered=len(rules))

@@ -7,7 +7,7 @@ workers above 90% utilisation, and a late rate above 20%.
 """
 from typing import Any, Dict, List, Optional
 
-from velaris.agentkit.aicore_b_common import health
+from velaris.agentkit.results import health
 from velaris.agents.VHOE_ANALYTICS.main import VHOE_ANALYTICSAgent
 from velaris.agents.VHOE_OPTIMIZER.main import VHOE_OPTIMIZERAgent
 

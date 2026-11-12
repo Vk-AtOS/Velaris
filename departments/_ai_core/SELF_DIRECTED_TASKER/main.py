@@ -11,7 +11,9 @@ tracks state; it does not execute the tasks itself.
 """
 from typing import Any, Dict, List, Optional
 
-from velaris.agentkit.aicore_b_common import JsonState, fail, health, invalid, new_id
+from velaris.agentkit.checks import new_id
+from velaris.agentkit.results import fail, health, invalid
+from velaris.agentkit.state import JsonState
 
 NAME = "SELF_DIRECTED_TASKER"
 

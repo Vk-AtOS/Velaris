@@ -3,7 +3,8 @@
 orchestrate(plan) validates the steps, orders them by their dependencies
 (cycles and unknown dependencies are errors), checks every step against the
 policy if one is given (EOF_POLICY), and only when all of that passes queues
-each step for its target through EOF_GATEWAY. All or nothing: a plan with one
+each step for its target through EOF_GATEWAY, as itself (`via=self`) on behalf of
+the current caller, who must be authenticated. All or nothing: a plan with one
 bad step dispatches no step. It orders and hands off; it does not run the
 steps or wait for them.
 
@@ -12,8 +13,9 @@ A plan is either one step {"task", "target", ...} or
 """
 from typing import Any, Dict, List, Optional
 
-from velaris.agentkit import aicore_b_graph as graph
-from velaris.agentkit.aicore_b_common import health, ident, known_agents, new_id
+from velaris.agentkit import graph as graph
+from velaris.agentkit.checks import ident, known_agents, new_id
+from velaris.agentkit.results import health
 from velaris.agents.EOF_GATEWAY.main import EOF_GATEWAYAgent
 from velaris.agents.EOF_POLICY.main import EOF_POLICYAgent
 
@@ -81,7 +83,7 @@ class EOF_COREAgent:
             s = by_id[i]
             payload = {"plan_id": plan_id, "step": i, "task": s["task"], "depends_on": s["depends_on"],
                        "payload": s.get("payload", {})}
-            sent = self.gateway.route(NAME, s["target"], payload)
+            sent = self.gateway.route(s["target"], payload, via=self)
             if not sent["routed"]:
                 return {**out, "result": "failed", "status": sent["status"], "plan_id": plan_id,
                         "order": ordered["order"], "failed_step": i, "reason": sent.get("reason", "")}

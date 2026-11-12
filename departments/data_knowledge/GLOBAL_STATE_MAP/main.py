@@ -11,15 +11,21 @@ guarantees:
                                           in order, so a reader can catch up without
                                           re-reading the map
 
-Each change records who made it. The map and its change log are on disk; the log
-keeps the latest MAX_LOG changes.
+Each change records who made it: the current caller (velaris.core.access). Any
+authenticated person or service may write (the map is shared coordination state, and
+compare-and-set, not ownership, is what keeps writers apart); nobody may write
+anonymously, and a legacy `by` argument must name that same caller. The map and its
+change log are on disk; the log keeps the latest MAX_LOG changes.
 """
 from __future__ import annotations
 
 import time
 from typing import Any, Dict, Optional
 
-from velaris.agentkit.infra_store import State, fail, invalid, is_json, is_name, is_number, ok
+from velaris.agentkit.checks import is_json, is_name, is_number
+from velaris.agentkit.results import fail, invalid, ok
+from velaris.agentkit.state import JsonState
+from velaris.core.access import check_caller
 
 NAME = "GLOBAL_STATE_MAP"
 MAX_LOG = 2000
@@ -28,16 +34,20 @@ MAX_LOG = 2000
 class GLOBAL_STATE_MAPAgent:
     def __init__(self, name: str = NAME) -> None:
         self.name = name
-        self._state = State(NAME)
+        self._state = JsonState(NAME)
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": self.name, "status": "ok", "version": "1.0.0"}
 
     def _write(self, key: Any, by: Any, expect_version: Any, value: Any, delete: bool) -> Dict[str, Any]:
-        if not isinstance(key, str) or not key or len(key) > 256 or not is_name(by):
+        if not isinstance(key, str) or not key or len(key) > 256 or (by is not None and not is_name(by)):
             return invalid("key must be a non-empty string and 'by' name the writer")
         if expect_version is not None and (not is_number(expect_version, 0) or isinstance(expect_version, float)):
             return invalid("expect_version must be a whole number >= 0")
+        caller, refused = check_caller(NAME, "delete" if delete else "set", {"key": key[:128]}, claimed=by)
+        if refused:
+            return refused
+        by = caller.id
 
         def apply(data: Dict[str, Any]) -> Dict[str, Any]:
             keys = data.setdefault("keys", {})
@@ -57,15 +67,15 @@ class GLOBAL_STATE_MAPAgent:
                 change["value"] = value
             data["log"] = (data.get("log", []) + [change])[-MAX_LOG:]
             return ok(key=key, version=version + 1, rev=data["rev"])
-        return self._state.change(apply)
+        return self._state.update(apply)
 
-    def set(self, key: str, value: Any, by: str, expect_version: Optional[int] = None) -> Dict[str, Any]:
+    def set(self, key: str, value: Any, by: Optional[str] = None, expect_version: Optional[int] = None) -> Dict[str, Any]:
         """Write a key. With expect_version, only if the key is at that version (0 = must not exist yet)."""
         if not is_json(value):
             return invalid("value must be JSON")
         return self._write(key, by, expect_version, value, delete=False)
 
-    def delete(self, key: str, by: str, expect_version: Optional[int] = None) -> Dict[str, Any]:
+    def delete(self, key: str, by: Optional[str] = None, expect_version: Optional[int] = None) -> Dict[str, Any]:
         return self._write(key, by, expect_version, None, delete=True)
 
     def get(self, key: str) -> Dict[str, Any]:

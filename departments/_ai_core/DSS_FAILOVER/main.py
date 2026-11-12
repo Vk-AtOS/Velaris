@@ -8,9 +8,10 @@ State: <VELARIS_DATA>/agents/DSS_FAILOVER/state.json.
 """
 import time
 
-from velaris.agentkit.aicore_a_common import JsonState, fail, health, number, ok
+from velaris.agentkit.checks import number
+from velaris.agentkit.results import fail, health, ok
+from velaris.agentkit.state import JsonState
 from velaris.agents.DSS_MONITOR.main import DSS_MONITORAgent
-from velaris.intel.paths import agent_dir
 
 NAME = "DSS_FAILOVER"
 
@@ -18,8 +19,7 @@ NAME = "DSS_FAILOVER"
 class DSS_FAILOVERAgent:
     def __init__(self, name=NAME):
         self.name = name
-        self._state = JsonState(lambda: agent_dir(NAME) / "state.json",
-                                {"primary": None, "term": 0, "history": []})
+        self._state = JsonState(NAME, "state.json", {"primary": None, "term": 0, "history": []})
 
     def health_check(self):
         return health(self.name)

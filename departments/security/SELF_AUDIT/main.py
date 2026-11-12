@@ -23,7 +23,10 @@ import stat
 import time
 from typing import Any, Dict, List, Optional
 
-from velaris.agentkit.infra_store import State, audit, invalid, is_name
+from velaris.agentkit.checks import is_name
+from velaris.agentkit.results import invalid
+from velaris.agentkit.state import JsonState
+from velaris.agentkit.infra_store import audit
 from velaris.agents.router import AgentRouter
 from velaris.intel import paths, trace
 
@@ -41,7 +44,7 @@ def _finding(severity: str, check: str, detail: str) -> Dict[str, str]:
 class SELF_AUDITAgent:
     def __init__(self) -> None:
         self.name = NAME
-        self._state = State(NAME, "audit.json")
+        self._state = JsonState(NAME, "audit.json")
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": self.name, "status": "ok", "version": "1.0.0"}
@@ -90,7 +93,7 @@ class SELF_AUDITAgent:
         counts = {s: sum(1 for f in findings if f["severity"] == s) for s in SEVERITIES}
         report = {"ts": time.time(), "clean": not findings, "counts": counts, "total": len(findings),
                   "findings": findings[:MAX_FINDINGS], "truncated": len(findings) > MAX_FINDINGS}
-        self._state.change(lambda d: d.__setitem__("last_audit", report))
+        self._state.update(lambda d: d.__setitem__("last_audit", report))
         audit(NAME, "audit", {"total": len(findings), "counts": counts})
         return {"status": "ok", **report}
 
@@ -101,7 +104,7 @@ class SELF_AUDITAgent:
         if not valid:
             return {**invalid(f"need check (a name), severity ({', '.join(SEVERITIES)}) and detail (text)"), "updated": False}
         entry = {"ts": time.time(), **_finding(data["severity"], data["check"], data["detail"][:500])}
-        self._state.change(lambda d: d.__setitem__("reported", (d.get("reported", []) + [entry])[-MAX_REPORTED:]))
+        self._state.update(lambda d: d.__setitem__("reported", (d.get("reported", []) + [entry])[-MAX_REPORTED:]))
         return {"status": "ok", "updated": True}
 
     def snapshot(self) -> Dict[str, Any]:

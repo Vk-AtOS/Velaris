@@ -10,7 +10,9 @@ It checks structure only; CRK_VALIDATOR checks whether the steps are justified.
 import hashlib
 import json
 
-from velaris.agentkit.aicore_a_common import fail, health, ident, invalid, ok, topo_levels
+from velaris.agentkit.checks import ident
+from velaris.agentkit.results import fail, health, invalid, ok
+from velaris.agentkit.graph import order as dependency_order
 
 NAME = "CRK_CHAIN"
 KINDS = ("premise", "inference", "conclusion")
@@ -48,10 +50,10 @@ class CRK_CHAINAgent:
                 by_id[sid] = {**step, "id": sid, "depends_on": list(step.get("depends_on", [])),
                               "evidence": list(step.get("evidence", []))}
         if not problems:
-            graph = topo_levels({sid: s["depends_on"] for sid, s in by_id.items()})
+            graph = dependency_order({sid: s["depends_on"] for sid, s in by_id.items()})
             problems += [{"step": sid, "reason": f"depends on unknown step(s) {deps}"}
                          for sid, deps in sorted(graph["missing"].items())]
-            problems += [{"step": sid, "reason": "circular dependency"} for sid in graph["cycle"]]
+            problems += [{"step": sid, "reason": "circular dependency"} for sid in graph["unordered"]]
         if problems:
             return fail("invalid_chain", problems[0]["reason"], problems=problems)
         ordered, previous = [], ""

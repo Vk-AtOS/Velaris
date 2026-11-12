@@ -253,7 +253,7 @@ def test_a_non_admin_may_delegate_only_what_they_hold():
                max_amount=20_000, autonomy="with_approval", valid_for_seconds=DAY, now=T0 + 1)
     for wider in ({"actions": ["payment.execute"]}, {"actions": ["invoice.*"]}, {"resources": ["hr/x"]},
                   {"resources": ["**"]}, {"max_amount": 45_000}, {"autonomy": "act"},
-                  {"valid_for_seconds": 20 * DAY}):
+                  {"valid_for_seconds": 20 * DAY}, {"max_amount": None}, {"approver": "ravi"}):
         r = _grant(prime, **{**sub, **wider})
         assert r["status"] == "denied", wider
     assert _grant(prime, **sub)["status"] == "ok"

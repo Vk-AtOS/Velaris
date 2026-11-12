@@ -8,7 +8,7 @@ up as a count under "pii", not as a value).
 """
 from typing import Any, Dict
 
-from velaris.agentkit.aicore_b_common import health
+from velaris.agentkit.results import health
 from velaris.agents.UIE_REASONER.main import UIEReasonerAgent
 from velaris.agents.UIE_SEMANTICS.main import UIESemanticsAgent
 from velaris.agents.UIE_SIGNAL.main import UIESignalAgent
