@@ -593,6 +593,43 @@ def test_ingest_skips_restricted_pages_and_pages_under_restricted_parents():
     assert lib.calls[0][1].startswith("Source: Confluence space ENG, page 3")
 
 
+def test_an_ancestor_outside_the_listing_is_walked_and_a_failed_lookup_is_restricted():
+    """Page 2's parent 50 is not in the space listing; 50 is itself restricted-through its parent 60."""
+    def route(req):
+        if req.url.path == "/wiki/api/v2/spaces/10/pages":
+            kid = page("2", "Child", "<p>Child of an outside parent with enough words to keep.</p>")
+            kid["parentId"] = "50"
+            return httpx.Response(200, json={"results": [kid]})
+        if req.url.path == "/wiki/api/v2/pages/50":
+            return httpx.Response(200, json={"id": "50", "parentId": "60"})
+        if req.url.path == "/wiki/api/v2/pages/60":
+            return httpx.Response(200, json={"id": "60", "parentId": None})
+        return space_route(req)
+
+    RESTRICTED.add("60")
+    try:
+        lib = RecordingLibrary()
+        c, _ = confluence(route, lib)
+        out = _run_in_execute_as(lambda: c.ingest_space("ENG", scope="acme"))
+    finally:
+        RESTRICTED.clear()
+    assert lib.calls == [] and [r["id"] for r in out["restricted"]] == ["2"]
+
+    def broken(req):                                    # the ancestor lookup itself fails
+        if req.url.path == "/wiki/api/v2/spaces/10/pages":
+            kid = page("2", "Child", "<p>Child of an outside parent with enough words to keep.</p>")
+            kid["parentId"] = "50"
+            return httpx.Response(200, json={"results": [kid]})
+        if req.url.path == "/wiki/api/v2/pages/50":
+            return httpx.Response(500)
+        return space_route(req)
+
+    lib2 = RecordingLibrary()
+    c2, _ = confluence(broken, lib2)
+    out2 = _run_in_execute_as(lambda: c2.ingest_space("ENG", scope="acme"))
+    assert lib2.calls == [] and [r["id"] for r in out2["restricted"]] == ["2"]
+
+
 def test_ingest_fails_closed_when_the_restriction_check_fails():
     def route(req):
         if "/restriction/" in req.url.path:

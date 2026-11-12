@@ -83,14 +83,25 @@ class ConfluenceConnector:
         return any((found.get(k) or {}).get("results") for k in ("user", "group"))
 
     def _hidden(self, page_id: Any, parents: Dict[str, Any], seen: Dict[str, bool]) -> bool:
-        """Restricted itself or through an ancestor. Parents outside the listing are checked by id and end the walk."""
+        """Restricted itself or through ANY ancestor. A parent outside the fetched listing is looked up
+        by id and the walk continues from its own parent; a failed lookup or a chain that cannot be
+        established counts as restricted (fail closed)."""
         pid = str(page_id)
         for _ in range(50):
             if pid not in seen:
                 seen[pid] = self._read_restricted(pid)
             if seen[pid]:
                 return True
-            if pid not in parents or not parents[pid]:
+            if pid not in parents:
+                try:
+                    info = self.client.request("GET", f"/wiki/api/v2/pages/{pid}") or {}
+                except AtlassianError as e:
+                    logger.warning("ancestor lookup of page %s failed: %s", pid, e.reason)
+                    return True
+                if not isinstance(info, dict):
+                    return True
+                parents[pid] = info.get("parentId")
+            if not parents[pid]:
                 return False
             pid = str(parents[pid])
         return True                                     # too deep to trust
