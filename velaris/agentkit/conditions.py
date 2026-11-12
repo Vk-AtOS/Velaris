@@ -77,7 +77,12 @@ def _kind(v: Any) -> Optional[str]:
     if isinstance(v, bool):
         return "bool"
     if isinstance(v, (int, float, Decimal)):
-        return "num" if math.isfinite(v) else None
+        try:
+            # float() so a huge int or Decimal that cannot be a float is "cannot evaluate" (fail closed),
+            # not an OverflowError out of the policy check.
+            return "num" if math.isfinite(float(v)) else None
+        except (OverflowError, ValueError):
+            return None
     if isinstance(v, str):
         return "str"
     return None                              # lists, objects and anything else are not scalars

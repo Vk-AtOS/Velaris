@@ -55,3 +55,12 @@ def test_compare_is_three_valued():
     assert conditions.compare("contains", [1, 2], 2) is True and conditions.compare("contains", 5, 2) is None
     assert conditions.compare("gt", conditions.MISSING, 1) is None
     assert conditions.resolve(None, "deny") is True and conditions.resolve(None) is False
+
+
+def test_a_number_too_large_for_a_float_cannot_be_evaluated_and_never_raises():
+    """A huge int in a request must make a deny rule hold (cannot evaluate), not raise out of the policy check."""
+    from decimal import Decimal
+    from velaris.agentkit import conditions
+    huge = 10 ** 400
+    for value in (huge, -huge, Decimal("1e999")):
+        assert conditions._kind(value) is None
