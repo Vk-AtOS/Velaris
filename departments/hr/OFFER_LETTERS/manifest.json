@@ -1,0 +1,9 @@
+{
+  "name": "OFFER_LETTERS",
+  "version": "1.0.0",
+  "domain": "hr",
+  "description": "Offer letters from safe templates: CTC breakdown with arithmetic (statutory amounts read from PAYROLL_ENGINE, unverified = needs_review), two-person approval chain, versions, expiry, accept/decline recording, HTML and PDF output. Sends nothing itself.",
+  "entrypoint": "main.py:OfferLetters",
+  "hitl_required": true,
+  "tags": ["offer", "hr", "recruitment", "compensation", "pdf"]
+}

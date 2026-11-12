@@ -1,0 +1,9 @@
+{
+  "name": "ONBOARDING_FLOW",
+  "version": "1.0.0",
+  "domain": "hr",
+  "description": "Onboarding checklists per role and location with owners, due dates relative to the join date, dependencies, reminders (drafted, not sent), completion percentage and blocked-state reporting. Collects PAN, bank account, Aadhaar (last four plus keyed hash only), documents and tax/PF/ESI forms as data capture: identifiers AES-GCM sealed at rest and masked unless authorize_read allows.",
+  "entrypoint": "main.py:OnboardingFlow",
+  "hitl_required": true,
+  "tags": ["onboarding", "hr", "checklist", "dpdp", "identity"]
+}

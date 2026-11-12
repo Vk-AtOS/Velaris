@@ -1,0 +1,9 @@
+{
+  "name": "ESIGN",
+  "version": "1.0.0",
+  "domain": "hr",
+  "description": "Click-to-accept signing requests with e-mail-token identity checks, optional OTP, consent/intent evidence, hash-chain seal with an appended evidence page and a verifier. Platform-certificate PDF signing is a hook that reports not_configured. Click-accept evidence is NOT an IT Act s.3A signature; needs a lawyer.",
+  "entrypoint": "main.py:Esign",
+  "hitl_required": true,
+  "tags": ["esign", "hr", "evidence", "contracts", "pdf"]
+}

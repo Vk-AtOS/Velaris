@@ -1,0 +1,9 @@
+{
+  "name": "POLICY_ACKS",
+  "version": "1.0.0",
+  "domain": "hr",
+  "description": "Versioned policy documents, per-employee acknowledgement evidence (hash of the exact text shown), drafted reminders and a compliance report. Audience is resolved from the employee master.",
+  "entrypoint": "main.py:PolicyAcks",
+  "hitl_required": false,
+  "tags": ["policy", "hr", "compliance", "acknowledgement"]
+}

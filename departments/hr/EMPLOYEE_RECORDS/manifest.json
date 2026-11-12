@@ -1,0 +1,9 @@
+{
+  "name": "EMPLOYEE_RECORDS",
+  "version": "1.0.0",
+  "domain": "hr",
+  "description": "Employee master: candidate-to-employee conversion only through a proposed-then-approved act by two different HR administrators (consent carried over, purpose changed, lawful basis flagged for a lawyer), change history with who and why, offboarding checklist and access-revocation task list (tasks only, no system is changed), data-subject export and erasure honouring a dated retention registry (statutory periods are unverified, so those classes are held and flagged needs_review).",
+  "entrypoint": "main.py:EmployeeRecords",
+  "hitl_required": true,
+  "tags": ["employee", "hr", "dpdp", "retention", "offboarding"]
+}
