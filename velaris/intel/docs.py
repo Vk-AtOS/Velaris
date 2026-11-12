@@ -46,11 +46,16 @@ from velaris.intel.paths import data_dir
 from velaris.intel.research_report import verify_report
 from velaris.intel.web_markdown import chunk, html_to_markdown
 
-MAX_BYTES = 50_000_000        # one file
-MAX_MEMBER = 200_000_000      # one unpacked part of an Office file (zip-bomb limit)
+MAX_BYTES = 50_000_000        # one file, as stored
+MAX_MEMBER = 64_000_000       # one unpacked part of an Office file
+MAX_UNPACKED = 256_000_000    # every part read from one Office file, together
+MAX_MEMBERS = 10_000          # entries in one Office file's archive
 MAX_CHUNKS = 5000             # per file
 MAX_SLIDES = 2000             # per presentation
+MAX_PDF_PAGES = 2000          # per PDF
+MAX_CELLS = 5_000_000         # per workbook, counting the gaps a sparse row spans
 CHUNK_CHARS = 2000
+MAX_TEXT_CHARS = MAX_CHUNKS * CHUNK_CHARS      # text taken from one file; more could not be ingested anyway
 RRF_K = 60
 
 W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
@@ -62,6 +67,44 @@ R_ID = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id"
 
 class DocError(RuntimeError):
     pass
+
+
+class DocTooLarge(DocError):
+    """The file breaks a size limit (a zip bomb, or simply too big). It is refused outright;
+    no other converter is tried on it."""
+
+
+class _Zip(zipfile.ZipFile):
+    """An Office file opened with limits on how much it may unpack.
+
+    Before anything is read: the number of entries, and each part's declared size against the
+    per-part limit and what is left of the total. While reading: the bytes that actually come
+    out are counted against the same two limits, so a part that declares a small size and
+    unpacks to a large one is cut off at the limit, not trusted.
+    """
+
+    def __init__(self, data: bytes) -> None:
+        super().__init__(io.BytesIO(data))
+        self.unpacked = 0
+        if len(self.infolist()) > MAX_MEMBERS:
+            raise DocTooLarge(f"archive has {len(self.infolist())} entries (limit {MAX_MEMBERS})")
+
+    def part(self, member: str) -> bytes:
+        info = self.getinfo(member)
+        if info.file_size > MAX_MEMBER:
+            raise DocTooLarge(f"{member} is {info.file_size} bytes unpacked (limit {MAX_MEMBER})")
+        if self.unpacked + info.file_size > MAX_UNPACKED:
+            raise DocTooLarge(f"the file unpacks to more than {MAX_UNPACKED} bytes in total")
+        body = bytearray()
+        with self.open(info) as f:
+            while block := f.read(1 << 20):
+                body += block
+                self.unpacked += len(block)
+                if len(body) > MAX_MEMBER:
+                    raise DocTooLarge(f"{member} unpacks to more than {MAX_MEMBER} bytes")
+                if self.unpacked > MAX_UNPACKED:
+                    raise DocTooLarge(f"the file unpacks to more than {MAX_UNPACKED} bytes in total")
+        return bytes(body)
 
 
 # ── converters: bytes -> markdown ────────────────────────────────────────────
@@ -84,10 +127,8 @@ def _text(data: bytes) -> str:
         raise DocError("not a text file") from e
 
 
-def _xml(z: zipfile.ZipFile, member: str) -> ET.Element:
-    if z.getinfo(member).file_size > MAX_MEMBER:
-        raise DocError(f"{member} is too large when unpacked")
-    return safe_xml(z.read(member))      # defusedxml: entity declarations and external references are refused
+def _xml(z: _Zip, member: str) -> ET.Element:
+    return safe_xml(z.part(member))      # defusedxml: entity declarations and external references are refused
 
 
 def _wtext(el: ET.Element) -> str:
@@ -97,7 +138,7 @@ def _wtext(el: ET.Element) -> str:
 
 def _docx(data: bytes) -> str:
     out: List[str] = []
-    with zipfile.ZipFile(io.BytesIO(data)) as z:
+    with _Zip(data) as z:
         body = _xml(z, "word/document.xml").find(W + "body")
     for el in (body if body is not None else []):
         if el.tag == W + "tbl":
@@ -138,7 +179,7 @@ def _date_kind(code: str) -> str:
     return "datetime" if calendar and clock else "date" if calendar else "time" if clock else ""
 
 
-def _date_styles(z: zipfile.ZipFile, member: str) -> List[str]:
+def _date_styles(z: _Zip, member: str) -> List[str]:
     """For every cell style index (a cell's s="n"): 'date' | 'time' | 'datetime' | ''."""
     if member not in z.namelist():
         return []
@@ -178,7 +219,9 @@ def _serial_to_iso(text: str, kind: str, date1904: bool) -> str:
 
 def _xlsx(data: bytes) -> str:
     out: List[str] = []
-    with zipfile.ZipFile(io.BytesIO(data)) as z:
+    chars = grid = 0    # a tiny sheet can point a million cells at one long shared string, or put
+                        # one cell in the last column of every row
+    with _Zip(data) as z:
         shared = (["".join(t.text or "" for t in si.iter(S + "t")) for si in _xml(z, "xl/sharedStrings.xml")]
                   if "xl/sharedStrings.xml" in z.namelist() else [])
         rel_nodes = list(_xml(z, "xl/_rels/workbook.xml.rels"))
@@ -210,6 +253,11 @@ def _xlsx(data: bytes) -> str:
                                   _serial_to_iso(v.text, shown_as, date1904) if shown_as and kind in (None, "n")
                                   else v.text)
                 if any(cells.values()):
+                    chars += sum(len(v) for v in cells.values())
+                    grid += max(cells) + 1
+                    if chars > MAX_TEXT_CHARS or grid > MAX_CELLS:
+                        raise DocTooLarge(f"workbook holds more than {MAX_TEXT_CHARS} characters of cell "
+                                          f"text or spans more than {MAX_CELLS} cells")
                     rows.append([cells.get(i, "") for i in range(max(cells) + 1)])
             if rows:
                 out.append(f"## {sheet.get('name', 'Sheet')}\n\n{table(rows)}")
@@ -218,7 +266,7 @@ def _xlsx(data: bytes) -> str:
 
 def _pptx(data: bytes) -> str:
     out: List[str] = []
-    with zipfile.ZipFile(io.BytesIO(data)) as z:
+    with _Zip(data) as z:
         # Shown order is the presentation's slide id list, each id resolved through its relationship.
         rels = ({r.get("Id"): r.get("Target", "") for r in _xml(z, "ppt/_rels/presentation.xml.rels")}
                 if "ppt/_rels/presentation.xml.rels" in z.namelist() else {})
@@ -231,7 +279,7 @@ def _pptx(data: bytes) -> str:
         present = set(z.namelist())
         names = [n for n in dict.fromkeys(names) if n in present]
         if len(names) > MAX_SLIDES:
-            raise DocError(f"presentation has {len(names)} slides (limit {MAX_SLIDES})")
+            raise DocTooLarge(f"presentation has {len(names)} slides (limit {MAX_SLIDES})")
         for i, n in enumerate(names, 1):
             paras = ["".join(t.text or "" for t in p.iter(A + "t")).strip() for p in _xml(z, n).iter(A + "p")]
             if any(paras):
@@ -244,7 +292,18 @@ def _pdf(data: bytes) -> str:
         from pypdf import PdfReader
     except ImportError as e:
         raise DocError("reading PDF needs the 'pypdf' package") from e
-    pages = [(p.extract_text() or "").strip() for p in PdfReader(io.BytesIO(data)).pages]
+    reader = PdfReader(io.BytesIO(data))
+    if len(reader.pages) > MAX_PDF_PAGES:
+        raise DocTooLarge(f"PDF has {len(reader.pages)} pages (limit {MAX_PDF_PAGES})")
+    # ponytail: the limits are on page count and on text as it accumulates. One page whose
+    # content stream alone unpacks enormously is left to pypdf's own handling.
+    pages, chars = [], 0
+    for page in reader.pages:
+        text = (page.extract_text() or "").strip()
+        chars += len(text)
+        if chars > MAX_TEXT_CHARS:
+            raise DocTooLarge(f"PDF holds more than {MAX_TEXT_CHARS} characters of text")
+        pages.append(text)
     return "\n\n".join(f"## Page {i}\n\n{t}" for i, t in enumerate(pages, 1) if t)
 
 
@@ -252,7 +311,7 @@ def _zip_with(member: str) -> Callable[[str, bytes], bool]:
     def accepts(name: str, data: bytes) -> bool:
         if data[:2] != b"PK":
             return False
-        with zipfile.ZipFile(io.BytesIO(data)) as z:
+        with _Zip(data) as z:
             return member in z.namelist()
     return accepts
 
@@ -277,18 +336,26 @@ CONVERTERS: List[Tuple[str, Callable[[str, bytes], bool], Callable[[bytes], str]
 
 
 def convert(name: str, data: bytes) -> Tuple[str, str]:
-    """(markdown, converter used). Raises DocError listing every converter that was tried and why it failed."""
+    """(markdown, converter used). Raises DocError listing every converter that was tried and why it failed.
+
+    A file that breaks a size limit (stored size, entries, unpacked size per part and in total,
+    slides, PDF pages, extracted text) raises DocTooLarge at once and nothing more is tried.
+    """
     if len(data) > MAX_BYTES:
-        raise DocError(f"{name} is larger than {MAX_BYTES // 1_000_000} MB")
+        raise DocTooLarge(f"{name} is larger than {MAX_BYTES // 1_000_000} MB")
     failed: List[str] = []
     for kind, accepts, to_markdown in CONVERTERS:
         try:
             if not accepts(name, data):
                 continue
             markdown = to_markdown(data)
+            if len(markdown) > MAX_TEXT_CHARS:
+                raise DocTooLarge(f"holds more than {MAX_TEXT_CHARS} characters of text")
             if markdown.strip():
                 return markdown, kind
             failed.append(f"{kind}: no text in it")
+        except DocTooLarge as e:
+            raise DocTooLarge(f"{name} refused: {e}") from e
         except Exception as e:  # a hostile or damaged file can fail anywhere in a parser; try the next one
             failed.append(f"{kind}: {type(e).__name__}: {str(e)[:80]}")
     raise DocError(f"could not read {name} ({'; '.join(failed)})")
@@ -442,9 +509,9 @@ class DocStore:
                    for n, p in enumerate(found, 1)]
         if not found:
             return {"answer": "", "sources": [], "unsupported": [], "reason": "nothing relevant in the library"}
-        listing = "\n\n".join(
-            f"[{n}] {p.document}" + (f" > {p.heading}" if p.heading else "") + "\n"
-            + (guard.redact(p.text)[0] if redact else p.text) for n, p in enumerate(found, 1))
+        shown = {n: f"{p.document}" + (f" > {p.heading}" if p.heading else "") + "\n"
+                 + (guard.redact(p.text)[0] if redact else p.text) for n, p in enumerate(found, 1)}
+        listing = "\n\n".join(f"[{n}] {text}" for n, text in shown.items())
         preamble, block = guard.wrap(listing, label="numbered passages from the company's documents")
         prompt = (f"{preamble}\n\n{block}\n\nQuestion: {question}\n\nAnswer using ONLY those passages. End every "
                   "sentence with the number of the passage it rests on, like [1] or [1][2]. If the passages do "
@@ -452,7 +519,8 @@ class DocStore:
         answer, unsupported, reason = "", [], ""
         try:
             draft = self.llm.complete(prompt, model=model, max_tokens=700, temperature=0.0, purpose="docs.ask").text
-            answer, unsupported = verify_report(draft, set(range(1, len(found) + 1)))
+            # A sentence is kept only if it cites a passage and states no figure that passage lacks.
+            answer, unsupported = verify_report(draft, set(shown), shown)
             reason = "" if answer else "the passages found do not support an answer"
         except LLMError as e:
             reason = f"model unavailable: {str(e)[:120]}"
