@@ -412,7 +412,7 @@ def test_a_context_author_cannot_approve_even_as_channel_owner():
     w.s.post(CARA, w.gen, "ops needs to hear hello")                              # cara's text is in the context window
     p = proposal(w)
     run, h = p["run_id"], p["call_hash"]
-    assert row(w, run)["context_authors"] == json.dumps(["cara"])
+    assert row(w, run)["context_authors"] == json.dumps(["bob", "cara"])   # the window, plus whoever posted lately
     w.a.confirm_proposal(BOB, run, h)
     assert code(w.a.decide, CARA, run, h, True) == "no_such_proposal" and w.a.proposals(CARA) == []
     assert w.a.proposals(ALICE)[0]["approvers"] == ["alice"]
@@ -549,7 +549,7 @@ def test_assistants_cannot_be_put_in_a_channel_at_creation_except_a_direct_one()
     assert BOT in [m["id"] for m in w.s.add_member(ALICE, ch, BOT)["members"]]
 
 
-def test_group_ai_switch_any_member_off_only_creator_or_admin_on():
+def test_group_ai_switch_any_member_off_only_creator_on():
     s = service()
     g = s.create_channel(ALICE, "group", None, ["bob", "cara"])["id"]
     assert s.update_channel(BOB, g, {"ai_enabled": False})["ai_enabled"] is False
@@ -558,7 +558,13 @@ def test_group_ai_switch_any_member_off_only_creator_or_admin_on():
     assert code(s.update_channel, BOB, g, {"name": "x"}) == "forbidden"
     assert s.update_channel(ALICE, g, {"ai_enabled": True})["ai_enabled"] is True
     s.update_channel(CARA, g, {"ai_enabled": False})
-    assert s.update_channel(ADMIN, g, {"ai_enabled": True})["ai_enabled"] is True
+    for change in ({"ai_enabled": False}, {"ai_enabled": True}):             # a chat_admin who is no member: no view, no list
+        assert code(s.update_channel, ADMIN, g, change) == "no_such_channel"
+    assert s.get_channel(ALICE, g)["ai_enabled"] is False
+    assert s.update_channel(ALICE, g, {"ai_enabled": True})["ai_enabled"] is True
+    g2 = s.create_channel(ALICE, "group", None, ["root", "bob"])["id"]       # a chat_admin who IS a member, not the creator
+    s.update_channel(ADMIN, g2, {"ai_enabled": False})
+    assert code(s.update_channel, ADMIN, g2, {"ai_enabled": True}) == "forbidden"   # back on: creator, or the org-wide switch
 
 
 def test_a_requester_removed_after_asking_is_not_processed():
@@ -590,3 +596,4 @@ def test_assistant_removed_after_the_request_does_nothing():
     m = w.s.post(BOB, w.gen, MENTION + "again")
     w.s.update_channel(ALICE, w.gen, {"ai_enabled": False})
     assert w.a.handle(BOB, m["id"])[0]["status"] == "disabled" and w.llm.calls == []
+

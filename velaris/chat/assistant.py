@@ -158,7 +158,7 @@ class Assistant:
         text = guard.redact(text)[0].strip()[:svc.limits.max_body]
         out: Dict[str, Any] = {"assistant": assistant, "status": "empty"}
         if text:
-            out = self._deliver(caller, ch, row, assistant, text, draft=request.lower().startswith("draft"))
+            out = self._deliver(caller, ch, row, assistant, text, authors, draft=request.lower().startswith("draft"))
         if isinstance(proposal, dict) and proposal:
             out["proposal"] = self._propose(caller, ch, row, assistant, proposal, authors)
         elif not text:
@@ -168,12 +168,13 @@ class Assistant:
     def _prompt(self, caller: Caller, ch: Any, row: Any, assistant: str, request: str) -> tuple:
         """The prompt, and the ids of everyone who wrote a message in the context window (withheld ones too)."""
         svc = self.svc
-        where, args = "channel_id=? AND id<? AND deleted_at IS NULL AND erased=0", [ch["id"], row["id"]]
-        if ch["kind"] in ("public", "private"):
-            where, args = where + " AND topic=?", [*args, row["topic"]]
-        rows = svc.store.all(f"SELECT id, sender, body FROM messages WHERE {where} ORDER BY id DESC LIMIT ?",
-                             [*args, CONTEXT_MESSAGES])[::-1]
-        lines, authors = [], sorted({r["sender"] for r in rows if not is_assistant(r["sender"])})
+        rows = self._window(ch, row["topic"], row["id"], "id, sender, body, ai_assisted, context_authors", True)
+        lines, found = [], {r["sender"] for r in rows if not is_assistant(r["sender"])}
+        for r in rows:               # AI text was derived from other people's messages: their authors count too
+            if r["ai_assisted"]:     # (each stored set is already the closure of its own window; unknown provenance: widen)
+                found.update(json.loads(r["context_authors"]) if r["context_authors"] else
+                             {m["sender"] for m in self._window(ch, row["topic"], r["id"], "sender", False)})
+        authors = sorted(u for u in found if not is_assistant(u))
         for r in rows:
             blocked = guard.scan(r["body"], source=f"chat.message.{r['id']}").blocked
             lines.append(f"[{r['id']}] {r['sender']}: {WITHHELD if blocked else guard.redact(r['body'])[0]}")
@@ -188,15 +189,26 @@ class Assistant:
                 'Reply with JSON only: {"text": "<your reply>", "propose": null or {"tool": "<name>", "args": {...}}}. '
                 "If you do not know, say so; do not invent facts."), authors
 
+    def _window(self, ch: Any, topic: str, before_id: int, cols: str, live_only: bool) -> List[Any]:
+        """The CONTEXT_MESSAGES messages before `before_id` in the channel (this topic, for named channels), oldest first."""
+        where, args = "channel_id=? AND id<?", [ch["id"], before_id]
+        if live_only:
+            where += " AND deleted_at IS NULL AND erased=0"
+        if ch["kind"] in ("public", "private"):
+            where, args = where + " AND topic=?", [*args, topic]
+        return self.svc.store.all(f"SELECT {cols} FROM messages WHERE {where} ORDER BY id DESC LIMIT ?",
+                                  [*args, CONTEXT_MESSAGES])[::-1]
+
     # ── outcomes ──────────────────────────────────────────────────────────────
-    def _deliver(self, caller: Caller, ch: Any, row: Any, assistant: str, text: str, *, draft: bool) -> Dict[str, Any]:
+    def _deliver(self, caller: Caller, ch: Any, row: Any, assistant: str, text: str, authors: List[str], *,
+                 draft: bool) -> Dict[str, Any]:
         svc = self.svc
         if self._still_allowed(caller, ch["id"], assistant, "view", *(() if draft else ("post",))) is None:
             return self._refused(caller, ch, row, assistant)             # access changed while the model was thinking
         if not draft:
             try:
                 msg = svc.post_as_assistant(caller.org, assistant, ch["id"], text, topic=row["topic"], reply_to=row["id"],
-                                            for_user=caller.id)
+                                            for_user=caller.id, context_authors=[*authors, caller.id])
             except ChatError as e:
                 return self._notice(caller, ch, row, assistant, "post_refused:" + e.code)
             svc._audit("assistant.answer", assistant, caller.org, for_user=caller.id, channel=ch["id"], message=row["id"],
@@ -260,8 +272,15 @@ class Assistant:
         requester and never anyone who wrote text the model read."""
         named = [] if ch["kind"] in ("direct", "group") else [r["user_id"] for r in self.svc.store.all(
             "SELECT user_id FROM members WHERE channel_id=? AND role IN ('owner','admin')", (ch["id"],))]
-        pool = [*named, *self.svc.store.setting(ch["org"], "chat_admins", [])]
+        pool = [*named, *self.svc.chat_admins(ch["org"])]    # admins: last verified request carried the role
         return list(dict.fromkeys(u for u in pool if u != requester and u not in authors and not is_assistant(u)))
+
+    def _recent_posters(self, ch: Any, topic: str) -> List[str]:
+        """Belt and braces: anyone who posted in this topic lately may have steered the model, whatever the window held."""
+        since = self.svc.clock() - self.svc.org_setting(ch["org"], "approver_exclude_hours") * 3600
+        return [r["sender"] for r in self.svc.store.all(
+            "SELECT DISTINCT sender FROM messages WHERE channel_id=? AND topic=? AND created_at>=?", (ch["id"], topic, since))
+            if not is_assistant(r["sender"])]
 
     def _may_decide(self, caller: Caller, row: Any, ch: Any) -> bool:
         """Live check (membership and roles as they are now) of the same rule _approvers applies."""
@@ -283,6 +302,7 @@ class Assistant:
             args = tool.check(svc, caller, args)
         except (ChatError, ValueError):
             return {"status": self._notice(caller, ch, row, assistant, "invalid_proposal")["status"]}
+        authors = sorted({*authors, *self._recent_posters(ch, row["topic"])})
         approvers = self._approvers(ch, caller.id, authors)
         if not approvers:                       # fail closed: no second key exists, so no run is even started
             run_id, chash, status = uuid.uuid4().hex, call_hash(tool.name, args), "no_eligible_approver"
@@ -346,14 +366,18 @@ class Assistant:
         if not svc.org_setting(caller.org, "ai_enabled") or ch is None or not ch["ai_enabled"]:
             raise ChatError(409, "assistant_disabled", "the assistant is switched off here, so this cannot run")
         start = self._flow(caller).history(run_id)[0]
-        approvers = json.loads(row["approvers"])
+        still = set(self._approvers(ch, row["requester"], json.loads(row["context_authors"])))   # as of now, not as stored
+        approvers = [u for u in json.loads(row["approvers"]) if u in still]
+        inside = [u for u in approvers if svc.store.role(ch["id"], u) is not None]
+        outside = [u for u in approvers if u not in inside]
         with svc._write() as db:
             if db.execute("UPDATE ai_proposals SET requester_confirmed=1, confirmed_hash=?, confirmed_at=? WHERE run_id=? "
                           "AND status='pending' AND requester_confirmed=0", (call_hash, svc.clock(), run_id)).rowcount != 1:
                 raise ChatError(409, "already_confirmed", "this proposal was already confirmed")
             svc._audit("assistant.proposal_confirmed", row["assistant"], caller.org, for_user=caller.id, run=run_id,
-                       call_hash=call_hash)
-            svc._notify(approvers, {"type": "assistant_proposal", "op": "new", "channel_id": row["channel_id"],
+                       call_hash=call_hash, notified=approvers)
+            svc._notify(outside, {"type": "assistant_proposal", "op": "waiting", "run_id": run_id}, caller.org)   # no details
+            svc._notify(inside, {"type": "assistant_proposal", "op": "new", "channel_id": row["channel_id"],
                         "run_id": run_id, "tool": row["tool"], "args": start["direct"]["args"], "call_hash": call_hash,
                         "requester": caller.id, "approvers": approvers}, caller.org)
         return {"run_id": run_id, "status": "confirmed", "call_hash": call_hash}

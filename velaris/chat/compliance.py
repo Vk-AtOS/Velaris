@@ -23,7 +23,8 @@ from velaris.chat.policy import CHAT_ADMIN
 from velaris.core.access import Caller
 
 DAY = 86400.0
-DEFAULTS: Dict[str, Any] = {"retention_days": None, "purge_grace_days": 30, "ai_enabled": True, "unfurl_hosts": []}
+DEFAULTS: Dict[str, Any] = {"retention_days": None, "purge_grace_days": 30, "ai_enabled": True, "unfurl_hosts": [],
+                       "approver_exclude_hours": 24}
 SWEEP_BATCH = 10_000
 
 
@@ -50,6 +51,7 @@ class ComplianceMixin(ChatCore):
             ok = ((key == "retention_days" and (value is None or _days(value, 1)))
                   or (key == "purge_grace_days" and _days(value, 0))
                   or (key == "ai_enabled" and isinstance(value, bool))
+                  or (key == "approver_exclude_hours" and _days(value, 0))
                   or (key == "unfurl_hosts" and isinstance(value, list) and len(value) <= 50
                       and all(isinstance(h, str) and 0 < len(h) <= 253 for h in value)))
             if not ok:

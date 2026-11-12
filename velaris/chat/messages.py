@@ -4,7 +4,7 @@ from __future__ import annotations
 import re
 import sqlite3
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence
 
 from velaris.chat.core import ChatCore, sha
 from velaris.chat.errors import ChatError
@@ -43,7 +43,8 @@ class MessagesMixin(ChatCore):
                           attachments=attachments, ai_assisted=ai_assisted)
 
     def post_as_assistant(self, org: str, assistant: str, channel_id: int, body: str, *, topic: Optional[str] = None,
-                          reply_to: Optional[int] = None, for_user: str = "") -> Dict[str, Any]:
+                          reply_to: Optional[int] = None, for_user: str = "",
+                          context_authors: Sequence[str] = ()) -> Dict[str, Any]:
         """The assistant speaks in a channel it is a member of: same policy, limits and rate bucket as a person.
         Only the assistant module calls this; the HTTP API never does."""
         if assistant not in self.assistants:
@@ -52,10 +53,12 @@ class MessagesMixin(ChatCore):
         ch = self._channel(who, channel_id)
         role = self._require(who, ch, "post")
         return self._post(who, ch, role, body, topic=topic, local_id=None, reply_to=reply_to, attachments=(),
-                          ai_assisted=True, on_behalf_of=for_user)
+                          ai_assisted=True, on_behalf_of=for_user,
+                          context_authors=sorted(set(context_authors)))
 
     def _post(self, caller: Caller, ch: sqlite3.Row, role: Optional[str], body: Any, *, topic: Any, local_id: Any,
-              reply_to: Any, attachments: Any, ai_assisted: bool, on_behalf_of: str = "") -> Dict[str, Any]:
+              reply_to: Any, attachments: Any, ai_assisted: bool, on_behalf_of: str = "",
+              context_authors: Optional[List[str]] = None) -> Dict[str, Any]:
         local = self._local_id(local_id)
         if local and (dup := self.store.one("SELECT * FROM messages WHERE channel_id=? AND sender=? AND local_id=?",
                                             (ch["id"], caller.id, local))):
@@ -73,10 +76,11 @@ class MessagesMixin(ChatCore):
         with self._write() as db:
             cur = db.execute(
                 "INSERT INTO messages(org, channel_id, topic, sender, body, created_at, reply_to, thread_root, local_id, "
-                "mentions, attachments, ai_assisted) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                "mentions, attachments, ai_assisted, context_authors) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (caller.org, ch["id"], topic, caller.id, body, self.clock(), reply_to,
                  (parent["thread_root"] or parent["id"]) if parent else None, local, json.dumps(mentioned),
-                 json.dumps(files), int(ai_assisted)))
+                 json.dumps(files), int(ai_assisted),
+                 None if context_authors is None else json.dumps(context_authors)))
             mid = cur.lastrowid
             self.store.index(db, mid, body)
             self._audit("message.post", caller.id, caller.org, channel=ch["id"], message=mid, bytes=len(body.encode()),

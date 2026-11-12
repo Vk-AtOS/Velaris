@@ -23,6 +23,7 @@ logger = logging.getLogger("velaris.chat")
 _LOCAL_ID = re.compile(r"[A-Za-z0-9_.:\-]{1,64}\Z")
 _CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 _TOUCH_EVERY_S = 60.0
+ADMIN_SEEN_MAX_S = 7 * 86400.0      # a chat_admin counts as one only if their last verified request carried the role this recently
 
 
 def sha(text: str) -> str:
@@ -71,11 +72,6 @@ class ChatCore:
         if not valid_user_id(caller.id):
             self._audit("denied", caller.id[:64], caller.org, step="enter", reason="user_id")
             raise ChatError(403, "bad_identity", "this user id cannot use chat")
-        if CHAT_ADMIN in caller.roles:
-            known = self.store.setting(caller.org, "chat_admins", [])      # who could approve an assistant proposal
-            if caller.id not in known:
-                with self.store.tx() as db:
-                    self.store.set_setting(db, caller.org, "chat_admins", sorted({*known, caller.id}))
         row = self.store.one("SELECT org, last_seen FROM users WHERE id=?", (caller.id,))
         now = self.clock()
         if row is not None and row["org"] != caller.org:
@@ -84,7 +80,27 @@ class ChatCore:
         if row is None or now - row["last_seen"] > _TOUCH_EVERY_S:
             with self.store.tx() as db:
                 self._ensure_user(db, caller.id, caller.org)
+        self._track_admin(caller, now)              # only after every identity and organisation check has passed
         return caller
+
+    def _track_admin(self, caller: Caller, now: float) -> None:
+        """Candidate list of chat_admins: id -> time of their last verified request that carried the role. A registered
+        id whose request lacks the role is removed on that request, so the list never outlives a revoked role."""
+        has = CHAT_ADMIN in caller.roles
+        with self.store.lock:
+            seen = self.store.setting(caller.org, "chat_admin_seen", {})
+            if (has and now - seen.get(caller.id, -_TOUCH_EVERY_S * 2) <= _TOUCH_EVERY_S) or (not has and caller.id not in seen):
+                return
+            seen = {k: v for k, v in seen.items() if k != caller.id}
+            if has:
+                seen[caller.id] = now
+            with self.store.tx() as db:
+                self.store.set_setting(db, caller.org, "chat_admin_seen", seen)
+
+    def chat_admins(self, org: str) -> List[str]:
+        """Chat admins still in good standing: their last verified request carried the role, recently enough."""
+        now = self.clock()
+        return [u for u, t in self.store.setting(org, "chat_admin_seen", {}).items() if 0 <= now - t <= ADMIN_SEEN_MAX_S]
 
     def _ensure_user(self, db: sqlite3.Connection, user_id: str, org: str) -> None:
         """Record a person (or a registered assistant) the first time they are seen or invited."""

@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional
 from velaris.chat.core import ChatCore, sha
 from velaris.chat.errors import ChatError
 from velaris.chat.events import BadQueue
-from velaris.chat.policy import CHAT_ADMIN, ROLES, is_assistant
+from velaris.chat.policy import ROLES, is_assistant
 from velaris.core.access import Caller
 
 _NAME = re.compile(r"[\w][\w .\-]{0,79}\Z")
@@ -102,12 +102,11 @@ class ChannelsMixin(ChatCore):
             raise ChatError(400, "bad_changes", f"change only: {sorted(_CHANGES)}")
         ch = self._channel(caller, channel_id)
         if ch["kind"] in ("direct", "group") and set(changes) == {"ai_enabled"} and isinstance(changes["ai_enabled"], bool):
-            # conversations have no admins: any member (or chat_admin) may switch the assistant off, only the creator
-            # (or chat_admin) may switch it back on, so one member cannot re-enable what another turned off
-            admin = CHAT_ADMIN in caller.roles
-            if not admin:
-                self._require(caller, ch, "view")
-            if changes["ai_enabled"] and not admin and ch["created_by"] != caller.id:
+            # conversations have no admins: any MEMBER may switch the assistant off, only the creator may switch it back
+            # on, so one member cannot re-enable what another turned off. chat_admin is no exception here: it has the
+            # org-wide, traced switch (set_org_settings) and sees no member lists through this call.
+            self._require(caller, ch, "view")
+            if changes["ai_enabled"] and ch["created_by"] != caller.id:
                 self._denied(caller, "channel.ai_on", "only the creator", ch["id"])
                 raise ChatError(403, "forbidden", "only the person who started this conversation can switch the assistant back on")
         else:

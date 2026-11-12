@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY AUTOINCREMENT, org TE
   channel_id INTEGER NOT NULL, topic TEXT NOT NULL, sender TEXT NOT NULL, body TEXT NOT NULL,
   created_at REAL NOT NULL, edited_at REAL, deleted_at REAL, deleted_by TEXT, erased INTEGER NOT NULL DEFAULT 0,
   reply_to INTEGER, thread_root INTEGER, local_id TEXT, mentions TEXT NOT NULL DEFAULT '[]',
-  attachments TEXT NOT NULL DEFAULT '[]', ai_assisted INTEGER NOT NULL DEFAULT 0);
+  attachments TEXT NOT NULL DEFAULT '[]', ai_assisted INTEGER NOT NULL DEFAULT 0, context_authors TEXT);
 CREATE INDEX IF NOT EXISTS messages_ch ON messages(channel_id, id);
 CREATE UNIQUE INDEX IF NOT EXISTS messages_local ON messages(channel_id, sender, local_id) WHERE local_id IS NOT NULL;
 CREATE TABLE IF NOT EXISTS edits(message_id INTEGER NOT NULL, version INTEGER NOT NULL, body TEXT NOT NULL,
@@ -102,6 +102,8 @@ class Store:
     def _migrate(self) -> None:
         """Idempotent, in place. Proposals made before the two-key rule have no requester confirmation and no
         record of whose messages the model read, so those still waiting become `needs_reconfirm` and cannot run."""
+        if "context_authors" not in {r["name"] for r in self.db.execute("PRAGMA table_info(messages)")}:
+            self.db.execute("ALTER TABLE messages ADD COLUMN context_authors TEXT")   # NULL: provenance of old AI text unknown
         cols = {r["name"] for r in self.db.execute("PRAGMA table_info(ai_proposals)")}
         if "context_authors" in cols:
             return
