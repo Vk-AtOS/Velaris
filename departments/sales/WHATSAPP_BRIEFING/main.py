@@ -9,6 +9,8 @@ import sqlite3
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 
+import httpx
+
 logger = logging.getLogger("WHATSAPP_BRIEFING")
 
 
@@ -75,25 +77,24 @@ class WhatsAppBriefingSystem:
         if not all([token, phone_id, to]):
             logger.info("WhatsApp not configured — briefing preview logged")
             return {"status": "preview", "message": message}
+        url = f"https://graph.facebook.com/v17.0/{phone_id}/messages"
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": to.replace("+", ""),
+            "type": "text",
+            "text": {"body": message},
+        }
         try:
-            import aiohttp  # optional dep — only needed for live WhatsApp send
-            url = f"https://graph.facebook.com/v17.0/{phone_id}/messages"
-            payload = {
-                "messaging_product": "whatsapp",
-                "to": to.replace("+", ""),
-                "type": "text",
-                "text": {"body": message},
-            }
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    url, headers={"Authorization": f"Bearer {token}"}, json=payload
-                ) as r:
-                    status = r.status
-                    logger.info("WhatsApp sent: HTTP %d", status)
-                    return {"status": "sent", "http_status": status}
-        except Exception as e:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                r = await client.post(url, headers={"Authorization": f"Bearer {token}"}, json=payload)
+        except httpx.HTTPError as e:
             logger.warning("WhatsApp send failed: %s", e)
             return {"status": "error", "error": str(e)}
+        if r.status_code >= 400:      # the API refused it: that is not "sent"
+            logger.warning("WhatsApp send refused: HTTP %d", r.status_code)
+            return {"status": "error", "http_status": r.status_code, "error": f"HTTP {r.status_code}"}
+        logger.info("WhatsApp sent: HTTP %d", r.status_code)
+        return {"status": "sent", "http_status": r.status_code}
 
 
 class WhatsAppBriefingAgent:

@@ -47,15 +47,20 @@ class CallTranscriber:
         }
 
     def _load_model(self):
-        if self._model is None:
+        if self._model is not None:
+            return
+        package = "faster-whisper" if self._use_faster else "openai-whisper"
+        try:        # optional packages: neither is in requirements.txt
             if self._use_faster:
                 from faster_whisper import WhisperModel
                 self._model = WhisperModel(self.model_size, device="cpu", compute_type="int8")
-                logger.info("faster-whisper model loaded: %s", self.model_size)
             else:
                 import whisper
                 self._model = whisper.load_model(self.model_size)
-                logger.info("whisper model loaded: %s", self.model_size)
+        except ImportError as e:
+            raise RuntimeError(f"transcription needs the '{package}' package, which is not installed "
+                               f"(pip install {package})") from e
+        logger.info("%s model loaded: %s", package, self.model_size)
 
     def transcribe(self, filepath: str, language: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -66,9 +71,9 @@ class CallTranscriber:
         if not os.path.exists(filepath):
             return {"error": f"file_not_found: {filepath}"}
         lang = language or self.language
-        self._load_model()
-        logger.info("Transcribing: %s lang=%s", filepath, lang)
         try:
+            self._load_model()
+            logger.info("Transcribing: %s lang=%s", filepath, lang)
             if self._use_faster:
                 segments, info = self._model.transcribe(filepath, language=lang, beam_size=5)
                 seg_list = [{"start": s.start, "end": s.end, "text": s.text.strip()} for s in segments]
@@ -82,7 +87,6 @@ class CallTranscriber:
                     "duration_sec": info.duration,
                 }
             else:
-                import whisper
                 result = self._model.transcribe(filepath, language=lang, verbose=False)
                 seg_list = [{"start": s["start"], "end": s["end"], "text": s["text"].strip()}
                             for s in result.get("segments", [])]

@@ -1,3 +1,17 @@
-psutil>=5.9.0
-cryptography>=41.0.0
-defusedxml>=0.7.1
+# Runtime: imported unconditionally by code under velaris/ or departments/.
+httpx>=0.27.0          # velaris.intel.llm, velaris.intel.web_fetch, WHATSAPP_BRIEFING
+pydantic>=2.0          # velaris.intel.workflow
+defusedxml>=0.7.1      # velaris.intel.docs (DOCX/XLSX/PPTX are read with zipfile + defusedxml)
+psutil>=5.9.0          # velaris.agentkit.infra_metrics
+
+# Tests.
+pytest>=7.0
+cryptography>=41.0.0   # test_intel_web_fetch builds a TLS certificate; VIGILIS uses it when present
+
+# Optional: imported only where used; without the package the feature says so and the rest works.
+# Kept out of the install list on purpose (velaris/tests/test_requirements.py checks this file).
+#   pypdf            velaris.intel.docs: PDF text. Without it a PDF is refused with a clear error.
+#   playwright       velaris.intel.web: pages that need a browser to render. Without it the static page is used.
+#   openai-whisper / faster-whisper   CALL_TRANSCRIBER, LYRA_VOICE_ENGINE: speech to text.
+#   sounddevice, pyttsx3              LYRA_VOICE_ENGINE: microphone and speech output.
+#   openpyxl, python-pptx             only test_intel_docs, to build sample files (skipped when absent).
