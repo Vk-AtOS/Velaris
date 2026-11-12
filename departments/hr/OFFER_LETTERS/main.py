@@ -277,6 +277,12 @@ class OfferLetters:
         return self.store.update("offers", offer_id, who.org, _do)
 
     # ---- sending, responses, expiry ----------------------------------------------------------
+    def get_offer_status(self, offer_id: str, org: str) -> Optional[str]:
+        """An offer's status for another agent (ONBOARDING_FLOW, EMPLOYEE_RECORDS through hr_wiring); not an HTTP method.
+        None for an unknown offer or another organisation's."""
+        o = self.store.get("offers", offer_id, org)
+        return o["status"] if o else None
+
     def send_offer(self, offer_id: str, delivered_manually: bool = False) -> Dict[str, Any]:
         """Release an approved offer. Delivery needs an injected sender; without one the message is returned as a draft
         (`not_configured`) unless HR confirms with delivered_manually=True that they sent it themselves."""
@@ -298,7 +304,7 @@ class OfferLetters:
                 return fail("not_configured", "no message sender is configured; the offer was not sent", draft=message)
             if sender.send(**message) is not True:
                 return fail("delivery_failed", "the message sender did not accept the message", draft=message)
-            channel = "sender"
+            channel = "mail_draft" if getattr(sender, "drafts_only", False) else "sender"
 
         def _do(r: Dict[str, Any]) -> Dict[str, Any]:
             if r["status"] != "approved":
@@ -309,6 +315,8 @@ class OfferLetters:
 
         out = self.store.update("offers", offer_id, who.org, _do)
         trace.append(_AGENT, "offer.sent", {"offer": offer_id, "org": who.org, "via": channel, "sha256": sha256_hex(content["pdf"])})
+        if channel == "mail_draft" and out.get("status") == "ok":
+            out["delivery"] = "drafted only: a person must send the draft from the mailbox; nothing has left the building yet"
         return out
 
     def record_response(self, offer_id: str, response: str, evidence_ref: str = "", note: str = "") -> Dict[str, Any]:

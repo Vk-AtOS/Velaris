@@ -153,17 +153,37 @@ def test_erasure_removes_the_person_but_keeps_anonymous_counts(ats):
     assert "asha" not in trace_text().lower() and "example.com" not in trace_text()           # the ledger never held the person
 
 
-def test_export_and_contact_reads_are_identity_reads(ats):
+def test_contact_and_export_reads_use_the_candidate_category(ats):
     rid, c = bootstrap(ats)
     cid = add(ats, rid, c["rec"])["candidate_id"]
-    with as_(c["rec"]):
-        assert ats.candidate_contact(candidate_id=cid)["status"] == "denied"                  # recruiter has no 'identity' read
-        assert ats.export_candidate(candidate_id=cid)["status"] == "denied"
+    with as_(c["rec"]):                                                                       # recruiters see contact details
+        assert ats.candidate_contact(candidate_id=cid)["email"] == "asha@example.com"
+        assert ats.export_candidate(candidate_id=cid)["export"]["contact"]["email"] == "asha@example.com"
         piped = ats.pipeline(requisition_id=rid)
+    with as_(c["mgr"]):                                                                       # hiring managers and interviewers do not
+        assert ats.candidate_contact(candidate_id=cid)["status"] == "denied"
+    with as_(who("interviewer")):
+        assert ats.candidate_contact(candidate_id=cid)["status"] == "denied"
+        assert ats.export_candidate(candidate_id=cid)["status"] == "denied"
     assert piped["stages"]["applied"][0]["candidate_id"] == cid and "email" not in json.dumps(piped)
     assert piped["order"].endswith("not a ranking")
     clean_keys(piped)
-    assert "sensitive_read.denied" in trace_text()
+
+
+def test_hiring_manager_export_only_for_own_requisition_and_without_contact(ats):
+    rid, c = bootstrap(ats)                                                                   # c["mgr"] approved rid
+    cid = add(ats, rid, c["rec"])["candidate_id"]
+    other = who("hiring_manager", id="other-mgr")
+    with as_(c["mgr"]):
+        out = ats.export_candidate(candidate_id=cid)
+        assert out["status"] == "ok"
+        assert "contact" not in out["export"] and "asha@example.com" not in json.dumps(out)
+        assert out["export"]["applications"][0]["requisition_id"] == rid
+    with as_(other):                                                                          # not their requisition
+        assert ats.export_candidate(candidate_id=cid)["status"] == "denied"
+    with as_(who("hiring_manager", id="m", org="globex")):                                    # another organisation
+        assert ats.export_candidate(candidate_id=cid)["status"] == "not_found"
+    assert "candidate.exported_to_manager" in trace_text() and "sensitive_read.denied" in trace_text()
 
 
 def test_ledger_holds_hashes_only_and_every_change_is_traced(ats):

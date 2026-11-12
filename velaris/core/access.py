@@ -63,6 +63,7 @@ READ_OTHERS: Dict[str, FrozenSet[str]] = {
     "bank": frozenset({"payroll_admin"}),                     # account numbers, IFSC
     "identity": frozenset({"hr_admin"}),                      # PAN, Aadhaar, passport, full employee records
     "health": frozenset({"hr_admin"}),                        # medical details, sick and maternity leave
+    "candidate": frozenset({"hr_admin", "recruiter"}),        # a job candidate's contact details and full data export (not an employee)
 }
 
 # Roles that may make privileged changes. Defined here only; agents import these names.

@@ -97,8 +97,8 @@ class ScreeningForms:
 
     @reads(AGENT, HIRING)
     def public_routes(self, caller) -> Dict[str, Any]:
-        """The routes a gateway would expose for candidates, and why they are not in this API."""
-        return ok(routes=hf.PUBLIC_ROUTES, functions="velaris.agentkit.hiring_intake",
+        """The routes served for candidates by velaris.api.public (a separate app), and why they are not in this API."""
+        return ok(routes=hf.PUBLIC_ROUTES, functions="velaris.agentkit.hiring_intake", served_by="velaris.api.public.create_public_app",
                   why="candidates are not Callers; they hold a public form id, a solved proof-of-work and later a hashed expiring token")
 
     # ---- submissions ------------------------------------------------------------------------------------

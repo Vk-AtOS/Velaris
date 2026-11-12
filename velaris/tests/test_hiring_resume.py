@@ -68,14 +68,38 @@ def test_unknown_skills_are_reported_never_guessed_and_the_alias_flow_is_reviewe
         assert res.review_alias(proposal_id=pr["id"], approve=True)["status"] == "denied"      # recruiter may not review
     assert "Terraform" not in [s["label"] for s in parse(res, c, cid)["parsed"]["skills"]]      # proposed is not used yet
     with as_(who("hr_admin")):
-        assert res.review_alias(proposal_id=pr["id"], approve=True, esco_id="http://data.europa.eu/esco/skill/x")["proposal"]["status"] == "reviewed"
+        assert res.review_alias(proposal_id=pr["id"], approve=True)["status"] == "invalid_input"        # needs an ESCO id or no_esco_match
+        assert res.review_alias(proposal_id=pr["id"], approve=True, no_esco_match=True)["proposal"]["status"] == "reviewed"
     p2 = parse(res, c, cid)["parsed"]
     assert "Terraform" in [s["label"] for s in p2["skills"]] and p2["unknown_skill_phrases"] == ["Ansible"]
     with as_(c["rec"]):
         again = res.propose_alias(surface="Ansible", new_skill="Ansible")["proposal"]
     with as_(who("hr_admin", id="proposer")):
         again2 = res.propose_alias(surface="Ansible Tower", new_skill="Ansible Tower")["proposal"]
-        assert res.review_alias(proposal_id=again2["id"], approve=True)["status"] == "denied"  # nobody reviews their own proposal
+        assert res.review_alias(proposal_id=again2["id"], approve=True, no_esco_match=True)["status"] == "denied"  # nobody reviews their own proposal
+
+
+FAKE_UUID = "0a1b2c3d-1111-2222-3333-444455556666"       # test value in ESCO's shape; not a real ESCO concept
+
+
+def test_review_alias_esco_id_shape_or_explicit_no_match_stored_with_who_and_when(env):
+    ats, res, rid, cid, c = env
+    with as_(c["rec"]):
+        ids = [res.propose_alias(surface=f"Tool{i}", new_skill=f"Tool{i}")["proposal"]["id"] for i in range(5)]
+    with as_(who("hr_admin", id="adm")):
+        for bad in ("x", "http://example.com/esco/skill/" + FAKE_UUID, FAKE_UUID[:-1], "S1.2.3"):
+            assert res.review_alias(proposal_id=ids[0], approve=True, esco_id=bad)["status"] == "invalid_input", bad
+        assert res.review_alias(proposal_id=ids[0], approve=True, esco_id=FAKE_UUID, no_esco_match=True)["status"] == "invalid_input"   # not both
+        assert res.review_alias(proposal_id=ids[0], approve=False, no_esco_match=True)["status"] == "invalid_input"
+        row = res.review_alias(proposal_id=ids[0], approve=True, esco_id="https://data.europa.eu/esco/skill/" + FAKE_UUID.upper())["proposal"]
+        assert row["esco_id"] == "http://data.europa.eu/esco/skill/" + FAKE_UUID and row["esco"]["by"] == "adm" and row["esco"]["at"] > 0
+        row2 = res.review_alias(proposal_id=ids[1], approve=True, no_esco_match=True)["proposal"]
+        assert row2["esco"]["no_match"] is True and row2["esco_id"] is None and row2["esco"]["by"] == "adm"
+        assert res.review_alias(proposal_id=ids[2], approve=False)["proposal"]["status"] == "rejected"
+        listed = {s["label"]: s["esco_id"] for s in res.list_skills()["skills"]}
+    assert listed["Tool0"].endswith(FAKE_UUID) and listed["Tool1"] is None
+    from velaris.agentkit.hiring_skills import SEED_PATH
+    assert all(sk["esco_id"] is None for sk in json.loads(SEED_PATH.read_text())["skills"])      # no id was invented
 
 
 def test_pdf_docx_and_size_limits_go_through_the_existing_converters(env):

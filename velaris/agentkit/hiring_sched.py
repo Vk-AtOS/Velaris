@@ -2,6 +2,12 @@
 candidate self-schedule tokens, reminders, no-shows. State file `scheduler.json` under agent_dir("INTERVIEW_SCHEDULER"); every
 record carries `org`. Candidate e-mail addresses are never stored here: drafts carry the placeholders {candidate_name} and
 {candidate_email}, filled in by whoever sends the approved draft (the mail layer), so erasing a person removes only ids.
+
+Fair slots: candidates at the same stage of the same requisition are offered the same slots. The first schedule token issued for
+(requisition, stage) opens a round (it lasts as long as that token) and records the offered slot set, the panel and the length;
+every later token in the round for the same panel and length gets that recorded set (minus slots since taken, which is the same
+loss for everyone). A token that asks for a different panel or length is refused unless an hr_admin gives a reason, which is
+recorded with who and when; that candidate then gets a set of their own.
 """
 from __future__ import annotations
 
@@ -18,7 +24,7 @@ MAX_TOKEN_DAYS = 30
 
 
 def st() -> Any:
-    return store(AGENT, "scheduler.json", {"interviewers": {}, "bookings": {}, "drafts": {}, "tokens": {}, "reminders_sent": {}})
+    return store(AGENT, "scheduler.json", {"interviewers": {}, "bookings": {}, "drafts": {}, "tokens": {}, "reminders_sent": {}, "rounds": {}})
 
 
 def key(org: str, ident: str) -> str:
@@ -73,14 +79,42 @@ def draft(d: Dict[str, Any], b: Dict[str, Any], kind: str, panel: List[Dict[str,
     return dr
 
 
-def issue_token(d: Dict[str, Any], org: str, application_id: str, candidate_id: str, ids: List[str], duration_min: int, days: int,
-                title: str, location: str, at: float) -> str:
+def offered_set(d: Dict[str, Any], app: Dict[str, Any], ids: List[str], duration_min: int, days: int, at: float,
+                reason: str, admin: bool, by: str) -> Dict[str, Any]:
+    """The slot starts this token may offer, under the fair-slot rule (see the module docstring)."""
+    org, panel = app["org"], sorted(ids)
+    key = f"{org}|{app['requisition_id']}|{app['stage']}"
+    rnd = d["rounds"].get(key)
+    if rnd and rnd["expires"] > at and (rnd["panel"] != panel or rnd["duration_min"] != duration_min):
+        if not reason.strip():
+            raise HiringError("conflict", "other candidates at this stage of this requisition were offered different slots (another panel or length); "
+                                          "an hr_admin may issue this one with divergence_reason")
+        if not admin:
+            raise HiringError("denied", "only an hr_admin may give a different slot set than the round's, and only with a recorded reason")
+        starts = [s["start"] for s in sl.propose_slots(panel_for(d, org, ids), org_bookings(d, org), duration_min, at, at + 14 * DAY, at, limit=30)]
+        rnd["exceptions"].append({"application_id": app["id"], "panel": panel, "duration_min": duration_min, "reason": reason.strip()[:300],
+                                  "by": by, "at": at})
+        return {"round": key, "starts": starts, "exception": True}
+    if reason.strip():
+        raise bad("divergence_reason is only for a token that differs from its round")
+    if not rnd or rnd["expires"] <= at:
+        starts = [s["start"] for s in sl.propose_slots(panel_for(d, org, ids), org_bookings(d, org), duration_min, at, at + 14 * DAY, at, limit=30)]
+        rnd = d["rounds"][key] = {"org": org, "requisition_id": app["requisition_id"], "stage": app["stage"], "panel": panel,
+                                  "duration_min": duration_min, "starts": starts, "opened_at": at, "expires": at + days * DAY,
+                                  "opened_by": by, "exceptions": []}
+    return {"round": key, "starts": list(rnd["starts"]), "exception": False}
+
+
+def issue_token(d: Dict[str, Any], app: Dict[str, Any], ids: List[str], duration_min: int, days: int, title: str, location: str,
+                at: float, by: str, reason: str = "", admin: bool = False) -> str:
+    org = app["org"]
     if isinstance(days, bool) or not isinstance(days, int) or not 1 <= days <= MAX_TOKEN_DAYS:
         raise bad(f"days must be 1 to {MAX_TOKEN_DAYS}")
+    offer = offered_set(d, app, ids, duration_min, days, at, reason, admin, by)
     raw = secrets.token_urlsafe(24)
-    d["tokens"][sha(raw)] = {"org": org, "application_id": application_id, "candidate_id": candidate_id, "interviewers": ids,
+    d["tokens"][sha(raw)] = {"org": org, "application_id": app["id"], "candidate_id": app["candidate_id"], "interviewers": ids,
                              "duration_min": duration_min, "title": title, "location": location, "expires": at + days * DAY,
-                             "booking_id": None}
+                             "booking_id": None, "round": offer["round"], "starts": offer["starts"]}
     return raw
 
 
@@ -154,16 +188,18 @@ def _token(d: Dict[str, Any], raw: Any, at: float) -> Optional[Dict[str, Any]]:
 
 
 def public_slots(token: str) -> Dict[str, Any]:
-    """Candidate side (no login): the free slots for the panel behind this token. Same slots for every candidate of the stage."""
+    """Candidate side (no login): the slots recorded for this token's round that are still free. Same set for every candidate of the stage."""
     at, d = now(), st().load()
     t = _token(d, token, at)
     if not t:
         return {"status": "not_found", "reason": "this link is not valid or has expired"}
     try:
-        slots = sl.propose_slots(panel_for(d, t["org"], t["interviewers"]), org_bookings(d, t["org"]), t["duration_min"], at,
-                                 at + 14 * DAY, at, limit=30)
+        free = sl.propose_slots(panel_for(d, t["org"], t["interviewers"]), org_bookings(d, t["org"]), t["duration_min"], at,
+                                at + 14 * DAY, at, limit=1000)
     except HiringError as e:
         return {"status": e.status, "reason": e.reason}
+    offered = set(t["starts"])
+    slots = [s for s in free if s["start"] in offered]       # the recorded set, minus what has been taken since
     return {"status": "ok", "title": t["title"], "duration_min": t["duration_min"], "slots": [s["start_ist"] + " IST" for s in slots],
             "starts": [s["start"] for s in slots]}
 
@@ -178,6 +214,8 @@ def public_pick(token: str, start: float) -> Dict[str, Any]:
                 raise HiringError("not_found", "this link is not valid or has expired")
             if isinstance(start, bool) or not isinstance(start, (int, float)):
                 raise bad("start must be one of the offered starts")
+            if not any(abs(start - x) < 1 for x in t["starts"]):
+                raise HiringError("conflict", "that time was not offered on this link")
             out = create_booking(d, t["org"], "candidate-token", t["application_id"], t["interviewers"], float(start), t["duration_min"],
                                  t["title"], t["location"], "", at, replace=t["booking_id"])
             t["booking_id"] = out["booking"]["id"]

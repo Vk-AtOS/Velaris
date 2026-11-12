@@ -12,7 +12,9 @@ from velaris.agentkit.hiring_common import HiringError, audit, bad, hid, need_te
 from velaris.agentkit.results import fail, ok
 
 PUBLIC = ["POST /interview/{token}/consent  -> candidate_consent", "POST /interview/{token}/events  -> ingest_event",
-          "POST /interview/{token}/audio   -> ingest_audio", "POST /interview/{token}/withdraw -> candidate_withdraw"]
+          "POST /interview/{token}/withdraw -> candidate_withdraw"]
+# served by velaris.api.public.create_public_app. ingest_audio is NOT served there (uploads of up to MAX_AUDIO need a streaming
+# ingress with its own limits); until one exists audio tracks are registered by staff (INTERVIEW_RECORD.register_audio_track).
 
 
 def issue_token(d: Dict[str, Any], org: str, session_id: str, participant: str, hours: int) -> str:

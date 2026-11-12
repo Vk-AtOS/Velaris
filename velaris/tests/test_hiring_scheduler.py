@@ -296,3 +296,35 @@ def test_erasure_keeps_capacity_history_and_drops_the_candidate(env):
     assert st["drafts"] == {} and st["tokens"] == {}
     b = list(st["bookings"].values())[0]
     assert b["candidate_id"] is None and b["application_id"] is None and b["notes"] == "" and b["org"] == ORG and b["start"] == ts("14:00")
+
+
+def test_fair_slots_same_set_per_stage_round_and_divergence_needs_an_hr_admin_reason(env, monkeypatch):
+    ats, sch, rid, apps, c = env
+    tok = lambda a, who_=("iv-a",), **kw: sch.issue_schedule_token(application_id=a, interviewer_ids=list(who_), duration_min=kw.pop("dur", 60), title="R1", days=kw.pop("days", 3), **kw)
+    with as_(c["rec"]):
+        t0, t1 = tok(apps[0])["token"], tok(apps[1])["token"]
+        assert hs.public_slots(t0)["starts"] == hs.public_slots(t1)["starts"] and hs.public_slots(t0)["starts"]
+        assert tok(apps[2], ("iv-b",))["status"] == "conflict"                              # a different panel: not the same slots
+        assert tok(apps[2], dur=30)["status"] == "conflict"                                 # a different length too
+        assert tok(apps[2], ("iv-b",), divergence_reason="needs the security lead")["status"] == "denied"   # recruiters cannot divert
+        assert tok(apps[2], divergence_reason="why")["status"] == "invalid_input"           # a reason only for a divergent token
+    with as_(c["adm"]):
+        assert tok(apps[2], ("iv-b",))["status"] == "conflict"                              # even an hr_admin needs the reason
+        t2 = tok(apps[2], ("iv-b",), divergence_reason="  ")["status"]
+        assert t2 == "conflict"
+        t2 = tok(apps[2], ("iv-b",), divergence_reason="candidate needs the security lead")["token"]
+    rnd = list(json.loads((agent_dir("INTERVIEW_SCHEDULER") / "scheduler.json").read_text())["rounds"].values())
+    assert len(rnd) == 1 and rnd[0]["exceptions"][0]["by"] == c["adm"].id and rnd[0]["exceptions"][0]["reason"].startswith("candidate needs")
+    assert rnd[0]["exceptions"][0]["at"] > 0 and rnd[0]["panel"] == ["iv-a"]
+    # a slot taken by one candidate leaves everyone else's set, nothing else changes
+    s0 = hs.public_slots(t0)["starts"]
+    assert hs.public_pick(t0, s0[0])["status"] == "ok"
+    assert hs.public_slots(t1)["starts"] == [x for x in hs.public_slots(t0)["starts"]] and s0[0] not in hs.public_slots(t1)["starts"]
+    assert hs.public_pick(t1, s0[0] + 1800 * 100)["status"] == "conflict"                  # not on the offered list
+    # a new stage is a new round; an expired round is a new round
+    with as_(c["rec"]):
+        assert ats.move_stage(application_id=apps[1], to_stage="screening")["status"] == "ok"
+        assert tok(apps[1], ("iv-b",))["status"] == "ok"
+    advance(monkeypatch, 4 * hc.DAY)
+    with as_(c["rec"]):
+        assert tok(apps[0], ("iv-b",))["status"] == "ok"

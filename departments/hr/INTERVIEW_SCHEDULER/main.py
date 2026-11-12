@@ -205,17 +205,23 @@ class InterviewScheduler:
     # ---- self-schedule and reminders -------------------------------------------------------------------------
     @acts(AGENT, RECRUITING)
     def issue_schedule_token(self, caller, application_id: str, interviewer_ids: List[str], duration_min: int, title: str,
-                             location: str = "", days: int = 7) -> Dict[str, Any]:
-        """A link token for the candidate to pick (or move, or cancel) a slot with this panel. Returned once; stored hashed."""
+                             location: str = "", days: int = 7, divergence_reason: str = "") -> Dict[str, Any]:
+        """A link token for the candidate to pick (or move, or cancel) a slot with this panel. Returned once; stored hashed.
+        Fair slots: every candidate at the same stage of the same requisition is offered the same recorded slot set. A different
+        panel or length is refused unless an hr_admin passes `divergence_reason` (recorded with who and when)."""
         app = hc.application_known(caller.org, application_id)
         if not app or not app.get("candidate_id"):
             raise HiringError("not_found", "no such application")
 
         def go(d: Dict[str, Any]) -> str:
             hs.panel_for(d, caller.org, interviewer_ids)
-            audit(AGENT, "schedule_token.issued", caller.org, caller, application=hid(caller.org, application_id))
-            return hs.issue_token(d, caller.org, application_id, app["candidate_id"], interviewer_ids, duration_min, days, title, location, now())
-        return ok(token=hs.st().update(go), valid_days=days, public_functions="velaris.agentkit.hiring_sched.public_slots / public_pick / public_cancel")
+            tok = hs.issue_token(d, app, interviewer_ids, duration_min, days, title, location, now(), caller.id,
+                                 str(divergence_reason or ""), hc.HR_ADMIN in caller.roles)
+            audit(AGENT, "schedule_token.issued", caller.org, caller, application=hid(caller.org, application_id),
+                  divergence=bool(str(divergence_reason or "").strip()))
+            return tok
+        return ok(token=hs.st().update(go), valid_days=days, public_functions="velaris.agentkit.hiring_sched.public_slots / public_pick / public_cancel",
+                  routes="GET /schedule/{token}/slots, POST /schedule/{token}/pick, POST /schedule/{token}/cancel (velaris.api.public)")
 
     @reads(AGENT, HIRING)
     def reminders(self, caller, within_hours: float = 24) -> Dict[str, Any]:

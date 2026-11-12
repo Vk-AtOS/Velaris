@@ -24,6 +24,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional, Protocol
 
+from velaris.core.access import Caller, current_caller, org_denied
+
 
 class AtsAdapter(Protocol):
     def get_candidate(self, application_id: str, org: str) -> Optional[Dict[str, Any]]: ...
@@ -51,23 +53,31 @@ class EsignView(Protocol):
     def request_info(self, request_id: str, org: str) -> Optional[Dict[str, Any]]: ...
 
 
+def own_org(org: Any) -> bool:
+    """True only when the current Caller exists, may use this deployment and belongs to `org`. The real views answer
+    nothing (None) otherwise: they never look into an organisation other than the one the caller is acting for."""
+    who = current_caller()
+    return isinstance(who, Caller) and not org_denied(who) and who.org == org
+
+
 class PolicyAcksReader:
-    """The real PolicyAckView: POLICY_ACKS's public `ack_evidence` (its own store, no second copy)."""
+    """The real PolicyAckView: POLICY_ACKS's public `ack_evidence` (its own store, no second copy). Same organisation as
+    the current Caller only; no caller or another organisation: None (the onboarding agent then refuses)."""
 
     def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
         from velaris.agents.POLICY_ACKS.main import PolicyAcks      # late: the agent packages import this module
         self._agent = PolicyAcks(config)
 
     def ack_evidence(self, org: str, employee_id: str, policy_key: str) -> Optional[Dict[str, Any]]:
-        return self._agent.ack_evidence(org, employee_id, policy_key)
+        return self._agent.ack_evidence(org, employee_id, policy_key) if own_org(org) else None
 
 
 class EsignReader:
-    """The real EsignView: ESIGN's public `request_info`."""
+    """The real EsignView: ESIGN's public `request_info`. Same organisation as the current Caller only, else None."""
 
     def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
         from velaris.agents.ESIGN.main import Esign                # late: the agent packages import this module
         self._agent = Esign(config)
 
     def request_info(self, request_id: str, org: str) -> Optional[Dict[str, Any]]:
-        return self._agent.request_info(request_id, org)
+        return self._agent.request_info(request_id, org) if own_org(org) else None

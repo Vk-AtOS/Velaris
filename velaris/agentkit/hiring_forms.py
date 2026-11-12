@@ -34,10 +34,10 @@ CANDIDATE_STAGE_TEXT = {"applied": "Received", "screening": "Being reviewed", "i
 PUBLIC_ROUTES = [
     "GET  /careers/forms/{form_id}            -> public_form(form_id): the fields and the consent notice to show",
     "GET  /careers/challenge/{form_id}        -> public_challenge(form_id)",
-    "POST /careers/apply/{form_id}            -> public_submit(form_id, answers, pow_solution, file_name, file_bytes)",
+    "POST /careers/apply/{form_id}            -> public_submit: JSON {answers, pow_solution, file_name?, file_base64?}",
     "GET  /careers/status/{token}             -> public_status(token)",
     "POST /careers/withdraw/{token}           -> public_withdraw(token)   (withdraws consent; needs no login)",
-]
+]  # served by velaris.api.public.create_public_app (a separate app and port, never the identity-authenticated API)
 _EMAIL = re.compile(r"[^@\s]{1,64}@[^@\s]{1,190}\.[^@\s]{2,24}")
 _PHONE = re.compile(r"\+?[0-9][0-9 ()-]{7,18}[0-9]")
 _NAME = re.compile(r"[a-z][a-z0-9_]{0,39}")

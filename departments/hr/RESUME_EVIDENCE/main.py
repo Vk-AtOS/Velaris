@@ -88,10 +88,13 @@ class ResumeEvidence:
         return ok(proposal=row)
 
     @acts(AGENT, frozenset())
-    def review_alias(self, caller, proposal_id: str, approve: bool, esco_id: str = "") -> Dict[str, Any]:
-        """HR admin approves or rejects a proposal (not their own). Approved aliases are used from the next parse."""
-        audit(AGENT, "alias.reviewed", caller.org, caller, alias=hid(caller.org, proposal_id), approve=bool(approve))
-        return ok(proposal=sk.review(caller.org, caller.id, proposal_id, bool(approve), esco_id or None))
+    def review_alias(self, caller, proposal_id: str, approve: bool, esco_id: str = "", no_esco_match: bool = False) -> Dict[str, Any]:
+        """HR admin approves or rejects a proposal (not their own). Approving needs an ESCO skill URI/UUID from an ESCO release
+        in `esco_id`, or `no_esco_match=true` (the admin looked and there is none); stored with who and when. No id is ever
+        supplied by the code. Approved aliases are used from the next parse."""
+        audit(AGENT, "alias.reviewed", caller.org, caller, alias=hid(caller.org, proposal_id), approve=bool(approve),
+              esco_no_match=no_esco_match is True)
+        return ok(proposal=sk.review(caller.org, caller.id, proposal_id, bool(approve), esco_id or None, no_esco_match is True))
 
     @reads(AGENT, HIRING)
     def list_skills(self, caller) -> Dict[str, Any]:

@@ -188,9 +188,11 @@ def test_real_policy_acks_reader_resolves_through_the_public_api():
     with acting_as(HR1):
         assert pa.publish_policy("code_of_conduct", "CoC", "text v1", "2026-11-01")["status"] == "ok"
     view = PolicyAcksReader({"clock": clock})
-    assert view.ack_evidence(ORG, "E7", "code_of_conduct") == {"current_version": 1, "acks": []}
-    assert view.ack_evidence(ORG, "E7", "nope")["current_version"] is None
-    assert view.ack_evidence("globex", "E7", "code_of_conduct")["current_version"] is None
+    assert view.ack_evidence(ORG, "E7", "code_of_conduct") is None               # no caller: nothing
+    with acting_as(HR1):
+        assert view.ack_evidence(ORG, "E7", "code_of_conduct") == {"current_version": 1, "acks": []}
+        assert view.ack_evidence(ORG, "E7", "nope")["current_version"] is None
+        assert view.ack_evidence("globex", "E7", "code_of_conduct") is None      # never another organisation's data
 
 
 def test_case_completes_when_every_required_task_is_done():

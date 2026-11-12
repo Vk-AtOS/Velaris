@@ -397,5 +397,9 @@ def test_real_esign_reader_gives_status_and_document_ref_only():
     from velaris.agentkit.onboarding_adapters import EsignReader
     e, sender, _, rid = setup()
     view = EsignReader({"clock": Clock()})
-    assert view.request_info(rid, ORG) == {"status": "sent", "document_ref": "ofr-1"}
-    assert view.request_info(rid, "globex") is None and view.request_info("sig-none", ORG) is None
+    assert view.request_info(rid, ORG) is None                                   # no caller: nothing
+    with acting_as(HR1):
+        assert view.request_info(rid, ORG) == {"status": "sent", "document_ref": "ofr-1"}
+        assert view.request_info(rid, "globex") is None and view.request_info("sig-none", ORG) is None
+    with acting_as(OTHER_ORG_HR):                                                # another organisation's caller cannot look in
+        assert view.request_info(rid, ORG) is None

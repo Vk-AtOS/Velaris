@@ -390,7 +390,7 @@ def test_policy_org_scoping():
 
 # ---- allowlist ----------------------------------------------------------------------------------------------------------------------
 AGENTS = {"OFFER_LETTERS": OfferLetters, "ESIGN": Esign, "ONBOARDING_FLOW": OnboardingFlow, "EMPLOYEE_RECORDS": EmployeeRecords, "POLICY_ACKS": PolicyAcks}
-NOT_OVER_HTTP = {"health_check", "dsr_export", "dsr_erase", "ack_evidence", "request_info",       # cross-agent views take an org argument
+NOT_OVER_HTTP = {"health_check", "dsr_export", "dsr_erase", "ack_evidence", "request_info", "get_offer_status",     # cross-agent views take an org argument
                  "open_signing", "request_otp", "verify_otp", "give_consent", "sign_document", "decline_signing"}        # tokens, not Callers
 
 

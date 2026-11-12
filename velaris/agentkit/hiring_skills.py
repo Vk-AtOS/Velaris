@@ -5,7 +5,9 @@ that both the table and the résumé go through the same tokeniser. There is no 
 that is not in the table is reported as unknown, and a person adds it (proposal -> review). Only `reviewed`
 rows are used for matching. The shipped seed (departments/hr/RESUME_EVIDENCE/skills_seed.json) is reviewed by
 whoever ships it; its `esco_id` fields are null until an admin fills them from an ESCO release (not bundled:
-no network at build time, and a made-up id would be worse than none).
+no network at build time, and a made-up id would be worse than none). The admin path is review(): approving an alias needs
+an `esco_id` in ESCO skill URI / UUID form, or the explicit flag `no_esco_match`, and the choice is stored with who and when.
+Nothing validates an id against ESCO itself (no network); only its shape is checked.
 """
 from __future__ import annotations
 
@@ -20,6 +22,8 @@ from velaris.agentkit.hiring_common import HiringError, bad, new_id, now, need_t
 SEED_PATH = Path(__file__).resolve().parents[2] / "departments" / "hr" / "RESUME_EVIDENCE" / "skills_seed.json"
 TOKEN = re.compile(r"\.net|[a-z0-9]+(?:\+\+|#)?", re.I)
 MAX_PHRASE = 5
+ESCO_ID = re.compile(r"(?:https?://data\.europa\.eu/esco/skill/)?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})", re.I)
+ESCO_BASE = "http://data.europa.eu/esco/skill/"
 Key = Tuple[str, ...]
 
 
@@ -94,6 +98,8 @@ def load_table(org: str) -> Table:
             skills[r["skill_id"]] = {"label": r["new_skill"], "esco_id": r.get("esco_id"), "source": "reviewed"}
     for r in rows.values():
         if r.get("org") == org and r.get("status") == "reviewed" and r["skill_id"] in skills:
+            if r.get("esco_id") and not skills[r["skill_id"]]["esco_id"]:       # admin-supplied; a shipped id is never overridden
+                skills[r["skill_id"]]["esco_id"] = r["esco_id"]
             index.setdefault(tuple(r["key"]), (r["skill_id"], "reviewed"))
     return Table(skills, index)
 
@@ -131,8 +137,23 @@ def propose(org: str, by: str, surface: str, skill_id: Optional[str] = None, new
     return row
 
 
-def review(org: str, by: str, row_id: str, approve: bool, esco_id: Optional[str] = None) -> Dict[str, Any]:
-    """Approve or reject a proposal. The reviewer must differ from the proposer."""
+def esco_uri(value: Any) -> str:
+    """The canonical ESCO skill URI for an ESCO skill URI or bare UUID, else a refusal. Shape only, not looked up."""
+    m = ESCO_ID.fullmatch(value.strip()) if isinstance(value, str) else None
+    if not m:
+        raise bad("esco_id must be an ESCO skill URI (http://data.europa.eu/esco/skill/<uuid>) or its UUID")
+    return ESCO_BASE + m.group(1).lower()
+
+
+def review(org: str, by: str, row_id: str, approve: bool, esco_id: Optional[str] = None, no_esco_match: bool = False) -> Dict[str, Any]:
+    """Approve or reject a proposal. The reviewer must differ from the proposer. Approving needs an ESCO id of the
+    right shape, or no_esco_match=True (never both); the choice is stored with who and when. Rejecting takes neither."""
+    if approve:
+        if bool(esco_id) == bool(no_esco_match):
+            raise bad("approving needs exactly one of esco_id (from an ESCO release) or no_esco_match=true")
+        esco = {"id": esco_uri(esco_id) if esco_id else None, "no_match": bool(no_esco_match), "by": by, "at": now()}
+    elif esco_id or no_esco_match:
+        raise bad("a rejection takes no ESCO decision")
     def apply(d: Dict[str, Any]) -> Dict[str, Any]:
         r = d["rows"].get(row_id)
         if not r or r["org"] != org:
@@ -142,8 +163,8 @@ def review(org: str, by: str, row_id: str, approve: bool, esco_id: Optional[str]
         if r["proposed_by"] == by:
             raise HiringError("denied", "a proposal is reviewed by someone other than its proposer")
         r.update(status="reviewed" if approve else "rejected", reviewed_by=by, reviewed_at=now())
-        if approve and esco_id:
-            r["esco_id"] = need_text(esco_id, "esco_id", 200)
+        if approve:
+            r["esco"], r["esco_id"] = esco, esco["id"]
         return dict(r)
     return _state().update(apply)
 

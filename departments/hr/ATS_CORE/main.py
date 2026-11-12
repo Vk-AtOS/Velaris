@@ -10,7 +10,7 @@ Rules in code: consent (purpose, notice version, future retention date) before a
 stage moves only along TRANSITIONS; a rejection needs a reason code from a closed list; offer and hired need a
 hiring manager or HR admin; a requisition is approved by someone other than its creator; the acting person is always
 the authenticated Caller. A model has no method here that moves anyone: every state change is an `act` in the API
-allowlist and waits for a person's approval. Contact reads and exports go through access.authorize_read("identity").
+allowlist and waits for a person's approval. Contact reads and exports go through access.authorize_read("candidate") (hr_admin, recruiter).
 The ledger (velaris.intel.trace) receives opaque hashes only.
 """
 import logging
@@ -18,9 +18,9 @@ from typing import Any, Dict, List, Optional
 
 from velaris.agentkit import hiring_ats as ats
 from velaris.agentkit import hiring_common as hc
-from velaris.agentkit.hiring_common import DECIDERS, HIRING, RECRUITING, HiringError, acts, audit, bad, hid, mine, now, reads
+from velaris.agentkit.hiring_common import DECIDERS, HIRING, HIRING_MANAGER, RECRUITING, HiringError, acts, audit, bad, hid, mine, now, reads
 from velaris.agentkit.results import ok
-from velaris.core.access import authorize_read
+from velaris.core.access import AccessDenied, authorize_read
 from velaris.agentkit.state import JsonState
 
 logger = logging.getLogger("ATS_CORE")
@@ -48,6 +48,12 @@ def _app(d: Dict[str, Any], org: str, aid: Any) -> Dict[str, Any]:
     if not a or a["org"] != org:
         raise HiringError("not_found", "no such application")
     return a
+
+
+def _owns(d: Dict[str, Any], org: str, caller, rid: Any) -> bool:
+    """A requisition is a hiring manager's own when they created or approved it (there is no other owner field)."""
+    r = d["requisitions"].get(str(rid))
+    return bool(r and r["org"] == org and (r["created_by"] == caller.id or any(x["by"] == caller.id for x in r["approvals"])))
 
 
 def _public_req(r: Dict[str, Any]) -> Dict[str, Any]:
@@ -313,25 +319,71 @@ class AtsCore:
         which a person approves."""
         return ok(due=ats.due_for_deletion(_ev().load()["candidates"], caller.org, now()))
 
-    @reads(AGENT, HIRING)
+    @reads(AGENT, RECRUITING)
     def candidate_contact(self, caller, candidate_id: str) -> Dict[str, Any]:
-        """Name and contact details of one candidate. Identity data: access.authorize_read('identity') decides and traces."""
-        authorize_read("identity", candidate_id, agent=AGENT, caller=caller, org=caller.org)
+        """Name and contact details of one candidate (recruiters and HR admins). access.authorize_read('candidate') decides and traces."""
+        authorize_read("candidate", candidate_id, agent=AGENT, caller=caller, org=caller.org)
         p = _people().load()["people"].get(str(candidate_id))
         if not p or p["org"] != caller.org:
             raise HiringError("not_found", "no contact record (never stored, or erased)")
         return ok(candidate_id=candidate_id, name=p["name"], email=p["email"], phone=p["phone"], profile_url=p["profile_url"])
 
+    @reads(AGENT, RECRUITING)
+    def candidate_summary(self, caller, application_id: str) -> Dict[str, Any]:
+        """What the paperwork agents need about the person behind an application: name, contact, the role and the consent record
+        (OFFER_LETTERS, EMPLOYEE_RECORDS, through velaris.agentkit.hr_wiring). Refused when consent was withdrawn or has run out."""
+        d, org, at = _ev().load(), caller.org, now()
+        a = _app(d, org, application_id)
+        c = d["candidates"].get(str(a["candidate_id"]))
+        if not c or c["org"] != org or c["status"] == "erased":
+            raise HiringError("not_found", "no candidate behind this application (erased or never stored)")
+        authorize_read("candidate", c["id"], agent=AGENT, caller=caller, org=org)
+        k = c["consent"]
+        if k.get("withdrawn_at") or k["retention_ts"] <= at:
+            raise HiringError("denied", "consent was withdrawn or has expired")
+        p = _people().load()["people"].get(c["id"])
+        if not p or p["org"] != org:
+            raise HiringError("not_found", "no contact record (never stored, or erased)")
+        req = d["requisitions"].get(a["requisition_id"]) or {}
+        return ok(application_id=a["id"], name=p["name"], email=p["email"], phone=p["phone"], role_title=req.get("title"),
+                  department=req.get("department") or None,
+                  consent={"purpose": k["purpose"], "notice_version": k["notice_version"], "given_at": hc.iso(k["given_at"]),
+                           "retention_until": k["retention_until"]})
+
+    @acts(AGENT, frozenset())
+    def record_offer_outcome(self, caller, application_id: str, outcome: str, offer_id: str) -> Dict[str, Any]:
+        """Note on an application that its offer was accepted, declined, expired or withdrawn (OFFER_LETTERS calls this). It moves
+        no stage: moving to hired or rejected stays a person's decision through move_stage."""
+        if outcome not in ("accepted", "declined", "expired", "withdrawn"):
+            raise bad("outcome must be accepted, declined, expired or withdrawn")
+        org, at = caller.org, now()
+
+        def go(d: Dict[str, Any]) -> Dict[str, Any]:
+            a = _app(d, org, application_id)
+            audit(AGENT, "offer.outcome_noted", org, caller, application=hid(org, a["id"]), outcome=outcome, offer=hid(org, offer_id))
+            a.setdefault("offer_outcomes", []).append({"offer_id": str(offer_id)[:80], "outcome": outcome, "at": at, "by": caller.id})
+            return {"application_id": a["id"], "stage": a["stage"], "outcome": outcome}
+        return ok(**_ev().update(go))
+
     @reads(AGENT, HIRING)
     def export_candidate(self, caller, candidate_id: str) -> Dict[str, Any]:
-        """Everything held about one candidate (DPDP right to a summary), from this agent and every hiring module."""
-        authorize_read("identity", candidate_id, agent=AGENT, caller=caller, org=caller.org)
+        """Everything held about one candidate (DPDP right to a summary), from this agent and every hiring module.
+        Recruiters and HR admins get all of it (access category 'candidate'). A hiring manager gets only the candidate stub,
+        applications and decisions, and only for a candidate who applied to a requisition of theirs; never contact details."""
         org, d = caller.org, _ev().load()
         c = d["candidates"].get(str(candidate_id))
         if not c or c["org"] != org:
             raise HiringError("not_found", "no such candidate")
         apps = [a for a in mine(d["applications"].values(), org) if a["candidate_id"] == candidate_id]
         ids = {a["id"] for a in apps}
+        try:
+            authorize_read("candidate", candidate_id, agent=AGENT, caller=caller, org=org)
+        except AccessDenied:
+            if not (HIRING_MANAGER in caller.roles and any(_owns(d, org, caller, a["requisition_id"]) for a in apps)):
+                raise
+            audit(AGENT, "candidate.exported_to_manager", org, caller, candidate=hid(org, candidate_id))
+            return ok(export={"candidate": c, "applications": apps, "decisions": [x for x in d["decisions"] if x["application_id"] in ids]},
+                      limited="hiring manager view: no contact details")
         out: Dict[str, Any] = {"candidate": c, "contact": _people().load()["people"].get(str(candidate_id)),
                                "applications": apps, "decisions": [x for x in d["decisions"] if x["application_id"] in ids]}
         for m in hc.person_modules():

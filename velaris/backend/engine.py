@@ -13,6 +13,7 @@ import os
 from typing import Any, Dict, Optional
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
+from velaris.agentkit.hr_wiring import hr_config
 from velaris.agents.router import router
 from velaris.core.access import Caller, acting_as
 
@@ -51,7 +52,8 @@ class BackendEngine:
         """Call agent.method(**params) on behalf of `caller` (None: nobody, refused for sensitive data).
 
         Private methods (leading underscore) cannot be called. The agent is created fresh for
-        the call, with `config` if its constructor takes one. An async method is run to
+        the call, with `config` if its constructor takes one; with no `config` the HR agents get their real collaborators
+        from velaris.agentkit.hr_wiring (an explicit config, even {}, is used exactly as given). An async method is run to
         completion, so do not call this from inside a running event loop.
         """
         if not isinstance(method, str) or not method.isidentifier() or method.startswith("_"):
@@ -60,7 +62,7 @@ class BackendEngine:
         takes_config = any(p.kind in (p.POSITIONAL_OR_KEYWORD, p.POSITIONAL_ONLY)
                            for p in list(inspect.signature(cls.__init__).parameters.values())[1:])
         with acting_as(caller):
-            instance = cls(config or {}) if takes_config else cls()
+            instance = cls(hr_config(agent) if config is None else config) if takes_config else cls()
             fn = getattr(instance, method, None)
             if not callable(fn):
                 raise AttributeError(f"agent {agent!r} has no method {method!r}")
