@@ -213,6 +213,8 @@ class OfferLetters:
                 raise Refused(invalid(str(e)))
             o["terms"] = t
             o["history"].append(snap)
+            # whoever changes the terms is an author of this version: they may not approve it (four-eyes)
+            o["authors"] = sorted(set(o.get("authors", [])) | {who.id})
             o.update(version=o["version"] + 1, status="draft", approvals=[])
             return ok(offer=self._summary(o), needs_review=o["comp"]["status"] == "needs_review")
 
@@ -252,8 +254,8 @@ class OfferLetters:
                 raise Refused(fail("conflict", f"offer is {o['status']}, not waiting for approval"))
             step = len(o["approvals"])
             want = o["approvers"][step]
-            if who.id == o["created_by"]:
-                raise Refused(fail("denied", "the drafter cannot approve or reject their own offer"))
+            if who.id == o["created_by"] or who.id in o.get("authors", []):
+                raise Refused(fail("denied", "the drafter or a reviser cannot approve or reject their own offer"))
             if who.id in [a["approver"] for a in o["approvals"]]:
                 raise Refused(fail("denied", "one person cannot approve two steps"))
             if who.id != want["id"]:

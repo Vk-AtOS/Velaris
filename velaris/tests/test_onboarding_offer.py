@@ -307,3 +307,19 @@ def test_deployment_org_is_enforced(monkeypatch):
     with acting_as(OTHER_ORG_HR):
         assert o.create_offer("B", "b@x.in", "r", "d", "l", "2026-12-01", "100000", "m", "h2")["status"] == "denied"
         assert o.list_offers()["status"] == "denied"
+
+
+def test_a_reviser_cannot_approve_the_offer_they_changed():
+    """HR2 (a named approver) changes the terms of HR1's draft: HR2 is then an author and may not approve it."""
+    o, _ = make()
+    oid = draft(o)["offer"]["id"]
+    with acting_as(HR2):
+        assert o.revise_offer(oid, "raise the CTC", annual_ctc="1500000")["status"] == "ok"
+    with acting_as(HR1):
+        o.submit_for_approval(oid)
+    with acting_as(MGR):
+        assert o.approve(oid, acknowledge_review=True)["status"] == "ok"
+    with acting_as(HR2):
+        r = o.approve(oid, acknowledge_review=True)
+        assert r["status"] == "denied" and "reviser" in r["reason"]
+        assert o.reject(oid, "no")["status"] == "denied"
