@@ -114,15 +114,19 @@ class ConfluenceConnector:
             raise ValueError("limit must be 1 to 500")
         cql = scope_query(cql, "space", self.client.scope("confluence_spaces"))
         raw = self.client.paged("/wiki/rest/api/search", params={"cql": cql, "limit": 25}, items_key="results", limit=limit)
-        results = []
+        results, restricted, checked = [], 0, {}
         for r in raw:
             content = r.get("content") or {}
+            cid = content.get("id")
+            if cid is not None and self._hidden(cid, {}, checked):    # restricted or not checkable: leave it out
+                restricted += 1
+                continue
             title = screen(str(r.get("title") or content.get("title") or ""), "confluence:search:title")
             excerpt = screen(html.unescape(re.sub(r"<[^>]+>", "", str(r.get("excerpt") or ""))), "confluence:search:excerpt")
             results.append({"id": content.get("id"), "type": content.get("type") or r.get("entityType"),
                             "title": title["text"], "excerpt": excerpt["text"], "url": r.get("url"),
                             "guard": max((title["guard"], excerpt["guard"]), key=("none", "low", "high", "block").index)})
-        return {"status": "ok", "count": len(results), "results": results}
+        return {"status": "ok", "count": len(results), "results": results, "restricted_omitted": restricted}
 
     def get_page_markdown(self, page_id: str) -> Dict[str, Any]:
         """One page as markdown (version, space and title included)."""
@@ -134,6 +138,9 @@ class ConfluenceConnector:
         page = self.client.request("GET", f"/wiki/api/v2/pages/{page_id}", params={"body-format": "storage"})
         if str((page or {}).get("spaceId")) not in spaces:
             raise AtlassianError("out_of_scope", "page is not in a configured Confluence space")
+        # same rule as ingest: a page restricted itself or through any ancestor is not readable here
+        if self._hidden(page_id, {str(page_id): (page or {}).get("parentId")}, {}):
+            raise AtlassianError("restricted", "the page has view restrictions")
         return {"status": "ok", **self._page(page)}
 
     def list_spaces(self, *, limit: int = 100) -> Dict[str, Any]:

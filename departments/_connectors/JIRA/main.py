@@ -90,6 +90,15 @@ class JiraConnector:
         if not in_scope(key.rsplit("-", 1)[0], self._projects()):
             raise AtlassianError("out_of_scope", "project is not in the configured Jira scope")
 
+    def _check_live_project(self, key: str) -> None:
+        """The key prefix is only where an issue was created: a moved issue answers to its old key.
+        Judge by the project the issue is in now, and refuse when that cannot be established."""
+        self._check_key(key)
+        raw = self.client.request("GET", f"/rest/api/3/issue/{key}", params={"fields": "project"}) or {}
+        if not in_scope((((raw.get("fields") if isinstance(raw, dict) else None) or {}).get("project") or {}).get("key"),
+                        self._projects()):
+            raise AtlassianError("out_of_scope", "project is not in the configured Jira scope")
+
     # ── read-only ────────────────────────────────────────────────────────
     def search_issues(self, jql: str, *, max_results: int = 50, fields: str = SEARCH_FIELDS) -> Dict[str, Any]:
         """Issues matching a JQL query, token-paged up to max_results (1-1000)."""
@@ -113,7 +122,7 @@ class JiraConnector:
 
     def get_transitions(self, key: str) -> Dict[str, Any]:
         """The transitions the issue can take now: needed to pick the id for transition_issue."""
-        self._check_key(key)
+        self._check_live_project(key)
         data = self.client.request("GET", f"/rest/api/3/issue/{key}/transitions")
         return {"status": "ok", "transitions": [{"id": t.get("id"), "name": t.get("name"),
                                                  "to": (t.get("to") or {}).get("name")}
@@ -155,7 +164,7 @@ class JiraConnector:
         refusal = refuse_unless_approved("JIRA", "transition_issue", {"key": str(key)[:20]})
         if refusal:
             return refusal
-        self._check_key(key)
+        self._check_live_project(key)
         if not re.fullmatch(r"[0-9]{1,6}", str(transition_id)):
             raise ValueError("transition_id must be the numeric id from get_transitions")
         trace.append("jira", "transition_issue", {"key": key, "transition": str(transition_id)})

@@ -242,6 +242,8 @@ def test_approved_step_with_a_caller_runs_the_write():
     from velaris.core.access import Caller, acting_as
 
     def route(req):
+        if req.method == "GET" and req.url.path == "/rest/api/3/issue/ABC-10":        # live project check
+            return httpx.Response(200, json={"fields": {"project": {"key": "ABC"}}})
         if req.url.path == "/rest/api/3/issue":
             body = json.loads(req.content)
             assert body["fields"]["project"] == {"key": "ABC"} and body["fields"]["summary"] == "Title"
@@ -344,6 +346,10 @@ def test_storage_format_becomes_markdown():
 
 def test_get_page_markdown_search_and_spaces():
     def route(req):
+        if req.url.path.endswith("/restriction/byOperation/read"):
+            return httpx.Response(200, json={"restrictions": {"user": {"results": []}, "group": {"results": []}}})
+        if req.url.path in ("/wiki/api/v2/pages/1", "/wiki/api/v2/pages/2"):      # ancestor lookup for search hits
+            return httpx.Response(200, json={"id": req.url.path.rsplit("/", 1)[1], "parentId": None})
         if req.url.path == "/wiki/api/v2/pages/123":
             assert req.url.params["body-format"] == "storage"
             return httpx.Response(200, json=page("123", "Runbook", "<p>Restart the worker, then check the queue length twice.</p>"))
@@ -361,7 +367,8 @@ def test_get_page_markdown_search_and_spaces():
     assert got["title"] == "Runbook" and "Restart the worker" in got["markdown"] and got["version"] == 3
     found = c.search("type=page")
     assert [r["id"] for r in found["results"]] == ["1", "2"] and found["results"][0]["excerpt"] == "hit text"
-    assert site.requests[2].url.params["cql"] == 'space in ("ENG") AND (type=page)'
+    assert [r.url.params["cql"] for r in site.requests if r.url.path == "/wiki/rest/api/search"][0] == \
+        'space in ("ENG") AND (type=page)'
     assert c.list_spaces()["spaces"][0]["key"] == "ENG"
     with pytest.raises(ValueError):
         c.get_page_markdown("12/../3")
@@ -657,3 +664,46 @@ def test_api_reads_need_the_atlassian_reader_role(agent, cls, method, params):
     for role in ATLASSIAN_READERS:
         assert allowlist.prepare(agent, method, fn, params, Caller("u1", "acme", frozenset({role}))) == params
     assert "governance_admin" in ATLASSIAN_READERS and "atlassian_reader" in ATLASSIAN_READERS
+
+
+def test_transitions_judge_the_project_the_issue_is_in_now():
+    """A moved issue answers to its old key: get_transitions and transition_issue must not use the key prefix."""
+    moved = {"ABC-7": "SECRET", "ABC-8": "ABC"}
+
+    def route(req):
+        key = req.url.path.split("/")[5]
+        if req.method == "GET" and req.url.path == f"/rest/api/3/issue/{key}":
+            return httpx.Response(200, json={"fields": {"project": {"key": moved[key]}}})
+        return httpx.Response(200, json={"transitions": [{"id": "31", "name": "Done", "to": {"name": "Done"}}]})
+
+    c, site = jira(route)
+    with pytest.raises(AtlassianError) as e:
+        c.get_transitions("ABC-7")
+    assert e.value.reason == "out_of_scope"
+    assert c.get_transitions("ABC-8")["transitions"][0]["id"] == "31"
+    assert not any(r.url.path.endswith("/transitions") and "ABC-7" in r.url.path for r in site.requests)
+
+
+def test_get_page_markdown_and_search_leave_out_restricted_content():
+    def route(req):
+        if req.url.path == "/wiki/api/v2/pages/124":
+            return httpx.Response(200, json={"id": "124", "parentId": None})
+        if req.url.path == "/wiki/api/v2/pages/123":
+            p = page("123", "Board", "<p>Board minutes restricted to a few people only please.</p>")
+            return httpx.Response(200, json=p)
+        if req.url.path == "/wiki/rest/api/search":
+            return httpx.Response(200, json={"results": [
+                {"title": "Board", "content": {"id": "123", "type": "page"}, "excerpt": "x"},
+                {"title": "Open", "content": {"id": "124", "type": "page"}, "excerpt": "y"}]})
+        return space_route(req)
+
+    RESTRICTED.add("123")
+    try:
+        c, _ = confluence(route)
+        with pytest.raises(AtlassianError) as e:
+            c.get_page_markdown("123")
+        found = c.search("type=page")
+    finally:
+        RESTRICTED.clear()
+    assert e.value.reason == "restricted"
+    assert [r["id"] for r in found["results"]] == ["124"] and found["restricted_omitted"] == 1
