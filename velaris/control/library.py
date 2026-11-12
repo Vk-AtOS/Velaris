@@ -120,7 +120,10 @@ register(Task(
 # ── files.export_report ──────────────────────────────────────────────────────
 def _cell(v: Any) -> str:
     t = str(v)
-    return "'" + t if t[:1] in ("=", "+", "-", "@") else t        # a spreadsheet must not run a cell as a formula
+    # a spreadsheet must not run a cell as a formula: guard the first character and the first
+    # non-blank one (tab, CR, leading spaces are skipped by some spreadsheet programs)
+    first = t.lstrip(" \t\r\n\x0b\x0c")[:1]
+    return "'" + t if t[:1] in ("\t", "\r") or first in ("=", "+", "-", "@") else t
 
 
 def _rep_validate(p: Dict[str, Any]) -> Dict[str, Any]:

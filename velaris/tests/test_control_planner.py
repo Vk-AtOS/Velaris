@@ -282,3 +282,10 @@ def test_a_lost_browser_session_can_be_reported_but_not_continued(tmp_path, monk
     with pytest.raises(ControlError) as err:
         fresh.decide(BOSS, r["task_id"], r["pending"]["call_hash"], True)
     assert err.value.code == "session_lost" and e.driver.submissions == []
+
+
+def test_export_cells_cannot_start_a_formula_even_after_blanks():
+    from velaris.control.library import _cell
+    for bad in ("=1+1", "+1", "-1", "@a", "\t=x", "\r=x", "  =x", "\n=x"):
+        assert _cell(bad).startswith("'"), bad
+    assert [_cell(v) for v in ("ok", "a=b", 12)] == ["ok", "a=b", "12"]
