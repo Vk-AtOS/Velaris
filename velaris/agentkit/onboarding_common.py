@@ -102,8 +102,9 @@ def writer(agent: str, change: str, details: Optional[Dict[str, Any]] = None, *,
     return check_caller(agent, change, details, roles=roles, also=also)
 
 
-def gate_change(agent: str, change: str, roles: FrozenSet[str], details: Optional[Dict[str, Any]] = None) -> Caller:
-    """For agents that return plain values: the current Caller if it may make `change` (role + organisation, traced), else AccessDenied."""
+def gate_change(agent: str, change: str, roles: Optional[FrozenSet[str]], details: Optional[Dict[str, Any]] = None) -> Caller:
+    """For agents that return plain values: the current Caller if it may make `change` (role + organisation, traced), else AccessDenied.
+    roles None: any authenticated caller of this deployment."""
     who, refusal = check_caller(agent, change, details, roles=roles)
     if refusal:
         raise AccessDenied(f"{refusal['status']}: {refusal['reason']}")

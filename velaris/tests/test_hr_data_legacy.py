@@ -50,3 +50,48 @@ def test_employee_onboarding_needs_hr_admin_and_is_org_scoped():
     with acting_as(NOBODY), pytest.raises(AccessDenied):
         a.progress_report()
     assert (Path(os.environ["VELARIS_DATA"]) / "agents" / "EMPLOYEE_ONBOARDING" / "employee_onboarding.db").exists()
+
+
+def test_performance_reviews_are_gated_org_scoped_and_validated():
+    from velaris.agents.PERFORMANCE_REVIEW_ENGINE.main import PerformanceReviewEngine
+    e = PerformanceReviewEngine()
+    emp = Caller("u-e7", "acme", frozenset(), "E7")
+    mgr = Caller("m1", "acme", frozenset({"manager"}))
+    peer = Caller("p1", "acme", frozenset())
+    with pytest.raises(AccessDenied):
+        e.set_okr("E7", "Q1", "ship", ["a"])                                       # no caller
+    with acting_as(emp):
+        assert e.set_okr("E7", "Q1", "ship", ["a"])["id"]
+        with pytest.raises(AccessDenied):
+            e.set_okr("E8", "Q1", "ship", ["a"])                                   # someone else's
+        assert e.submit_review("E7", "u-e7", "self", "Q1", {"quality": 4.0})["average_score"] == 4.0
+        with pytest.raises(AccessDenied):
+            e.submit_review("E7", "u-e7", "peer", "Q1", {"quality": 5})            # peer review of yourself
+        with pytest.raises(AccessDenied):
+            e.submit_review("E7", "someone-else", "self", "Q1", {"quality": 4})    # reviewer is the caller
+        assert e.submit_review("E7", "u-e7", "self", "Q1", {"quality": 9})["error"]       # off the scale
+    with acting_as(peer):
+        assert e.submit_review("E7", "p1", "peer", "Q1", {"quality": 0.0})["id"]
+        with pytest.raises(AccessDenied):
+            e.submit_review("E7", "p1", "manager", "Q1", {"quality": 3})           # not a manager
+        with pytest.raises(AccessDenied):
+            e.get_360_summary("E7", "Q1")                                          # not theirs to read
+    with acting_as(mgr):
+        assert e.submit_review("E7", "m1", "manager", "Q1", {"quality": 0.0})["id"]
+        with pytest.raises(AccessDenied):
+            e.calibrate("Q1", "E7", 3.0, 3.5, "m1")                                # calibration is HR's
+    with acting_as(HR):
+        s = e.get_360_summary("E7", "Q1")
+        assert s["weighted_score"] is not None and s["suggested_rating"]
+        with pytest.raises(AccessDenied):
+            e.calibrate("Q1", "E7", 3.0, 3.5, "someone-else")
+        assert e.calibrate("Q1", "E7", 3.0, 3.0, "hr1")["rating"] == "Meets Expectations"
+        assert len(e.get_calibration_report("Q1")) == 1
+    with acting_as(OTHER):
+        assert e.get_calibration_report("Q1") == []
+        assert e.get_okrs("E7")[0:0] == []
+    with acting_as(emp):
+        with pytest.raises(AccessDenied):
+            e.get_calibration_report("Q1")
+    with acting_as(emp):
+        assert e.get_360_summary("E7", "Q1")["self_score"] == 4.0
