@@ -7,10 +7,8 @@ from velaris.agents.AGENT_LIFECYCLE_MANAGER.main import LifecycleManager
 from velaris.agents.COGNITIVE_LOAD_BALANCER.main import LoadBalancer
 
 logger = logging.getLogger("ENGINE")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - ENGINE - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
+# No forced DEBUG level and no private handler: the application decides what is logged and where.
+# Parameters and results are never logged here; they carry whatever the agent was given (pay, identity, health).
 
 
 class VelarisEngine:
@@ -49,7 +47,7 @@ class VelarisEngine:
     # RUN SINGLE AGENT METHOD
     #################################################
     def run(self, agent: str, method: str, params: Dict[str, Any] = None):
-        logger.debug("Request: agent=%s method=%s params=%s", agent, method, params)
+        logger.debug("Request: agent=%s method=%s", agent, method)
 
         inst = self.registry.create(agent)
 
@@ -62,7 +60,6 @@ class VelarisEngine:
         else:
             result = fn()
 
-        logger.debug("Response: %s", result)
         return result
 
     #################################################
@@ -82,7 +79,7 @@ class VelarisEngine:
                 "step": step,
                 "result": res
             })
-        logger.debug("Pipeline results: %s", results)
+        logger.debug("Pipeline finished: %d steps", len(results))
         return results
 
     def run_with_balance(self, agent, method, params=None):
