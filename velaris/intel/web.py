@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 import re
 import socket
@@ -28,6 +29,8 @@ from velaris.intel import guard, trace
 from velaris.intel.llm import LLM, LLMError, extract_json
 from velaris.intel.web_fetch import Fetcher, FetchError
 from velaris.intel.web_markdown import clean_url, html_to_markdown
+
+logger = logging.getLogger("velaris.intel.web")
 
 _fetcher: Optional[Fetcher] = None
 
@@ -155,11 +158,15 @@ def scrape(url: str, *, use_cache: bool = True, render_js: bool = True, f: Optio
         got = f.fetch(url, use_cache=use_cache)
     except FetchError as e:
         return Page(url=url, error=e.reason, fetched_at=time.time())
-    out = html_to_markdown(got.text, got.final_url)
-    if out["needs_js"] and render_js:
-        rendered = _render_with_browser(got.final_url, f)
-        if rendered:
-            out = html_to_markdown(rendered, got.final_url)
+    try:
+        out = html_to_markdown(got.text, got.final_url)
+        if out["needs_js"] and render_js:
+            rendered = _render_with_browser(got.final_url, f)
+            if rendered:
+                out = html_to_markdown(rendered, got.final_url)
+    except (RecursionError, ValueError, MemoryError) as e:      # hostile markup must not escape a function that never raises
+        logger.warning("could not convert %s: %s", url, type(e).__name__)
+        return Page(url=url, final_url=got.final_url, error="unparseable_page", fetched_at=time.time())
     scan = guard.scan(str(out["markdown"]), source=got.final_url)
     page = Page(url=url, final_url=got.final_url, title=str(out["metadata"]["title"]),          # type: ignore[index]
                 markdown=str(out["markdown"]), metadata=dict(out["metadata"]),                  # type: ignore[arg-type]
@@ -177,6 +184,34 @@ def _same_site(a: str, b: str) -> bool:
     return strip(urlsplit(a).hostname) == strip(urlsplit(b).hostname)
 
 
+MAX_SITEMAP_CHARS = 5_000_000
+
+
+def _locs(xml: str, cap: int) -> List[str]:
+    """The <loc> values of a sitemap in ONE linear pass (str.find, no backtracking), at most `cap` of them.
+
+    Sitemaps come from untrusted sites, so they are not given to an XML parser (no entity expansion, no
+    external entities) and not to a lazy regex (quadratic on unclosed tags). Only the first 5 MB is read; an
+    unclosed <loc> ends the scan; a value that contains another tag is skipped.
+    """
+    xml, out, pos = xml[:MAX_SITEMAP_CHARS], [], 0
+    while len(out) < cap:
+        start = xml.find("<loc>", pos)
+        if start < 0:
+            break
+        start += 5
+        end = xml.find("</loc>", start)
+        if end < 0:
+            break
+        pos = end + 6
+        v = xml[start:end].strip()
+        if v.startswith("<![CDATA["):
+            v = v[9:].removesuffix("]]>").strip()
+        if v and "<" not in v:
+            out.append(v)
+    return out
+
+
 def _sitemap_urls(f: Fetcher, sitemap_url: str, limit: int, depth: int = 0) -> List[str]:
     if depth > 2:
         return []
@@ -184,9 +219,7 @@ def _sitemap_urls(f: Fetcher, sitemap_url: str, limit: int, depth: int = 0) -> L
         xml = f.fetch(sitemap_url).text
     except FetchError:
         return []
-    # Sitemaps come from untrusted sites, so they are read with a pattern rather than
-    # an XML parser (no entity expansion, no external entities).
-    locs = [m.strip() for m in re.findall(r"<loc>\s*(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?\s*</loc>", xml, re.S)]
+    locs = _locs(xml, max(limit, 0) if "<sitemapindex" not in xml else 50)
     if "<sitemapindex" in xml:
         urls: List[str] = []
         for child in locs:
