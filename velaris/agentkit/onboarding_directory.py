@@ -12,7 +12,7 @@ ACTIVE = ("active", "notice")
 
 
 def _records(org: str) -> List[Dict[str, Any]]:
-    data = JsonState("EMPLOYEE_RECORDS", "state.json", {"records": {}}).load()
+    data = JsonState("EMPLOYEE_RECORDS", "state.json", {"records": {}}, encrypted="hr:EMPLOYEE_RECORDS").load()
     return [r for r in data.get("records", {}).get("employees", {}).values() if r.get("org") == org]
 
 

@@ -28,6 +28,7 @@ next append, so it never merges with the new record.
 """
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import os
@@ -166,9 +167,16 @@ class _NoLock:
         return None
 
 
-def append_line(path: Path, record: Dict[str, Any]) -> None:
-    """Append one JSON line to an owner-only file; safe across processes, heals a torn last line first."""
-    line = json.dumps(record, sort_keys=True, default=str) + "\n"
+_SEALED_LINE = "VLV1:"
+
+
+def append_line(path: Path, record: Dict[str, Any], *, encrypted: Optional[str] = None) -> None:
+    """Append one JSON line to an owner-only file; safe across processes, heals a torn last line first.
+    `encrypted="<purpose>"` seals the line (velaris.core.vault); read_lines(..., encrypted=) opens it."""
+    line = json.dumps(record, sort_keys=True, default=str)
+    if encrypted:
+        line = _SEALED_LINE + base64.b64encode(vault.seal_bytes(line.encode("utf-8"), encrypted)).decode("ascii")
+    line += "\n"
     with lock_for(Path(path).with_name(Path(path).name + ".lock")):
         fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_APPEND, 0o600)
         with os.fdopen(fd, "r+b") as f:
@@ -183,14 +191,19 @@ def append_line(path: Path, record: Dict[str, Any]) -> None:
             os.fsync(f.fileno())
 
 
-def read_lines(path: Path) -> List[Dict[str, Any]]:
-    """Every parseable JSON line of a file; a torn last line is skipped with a warning."""
+def read_lines(path: Path, *, encrypted: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Every parseable JSON line of a file; a torn last line is skipped with a warning.
+    With `encrypted`, sealed lines are opened (a wrong key raises) and plaintext legacy lines still read."""
     if not path.exists():
         return []
     out = []
     for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
         try:
+            if line.startswith(_SEALED_LINE):
+                line = vault.open_bytes(base64.b64decode(line[len(_SEALED_LINE):], validate=True), encrypted or "").decode("utf-8")
             out.append(json.loads(line))
+        except vault.VaultError:
+            raise
         except ValueError as e:
             logger.warning("Skipping unreadable line %s of %s: %s", n, path, e)
     return out

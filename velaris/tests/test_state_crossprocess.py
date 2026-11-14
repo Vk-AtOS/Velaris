@@ -107,3 +107,14 @@ def test_vault_key_file_must_be_private_and_outside_data(tmp_path, monkeypatch):
     assert vault.open_bytes(vault.seal_bytes(b"x", "p"), "p") == b"x"
     with pytest.raises(vault.VaultError):
         vault.open_bytes(vault.seal_bytes(b"x", "p"), "other")
+
+
+def test_personal_data_stores_are_sealed_on_disk(tmp_path):
+    from velaris.agentkit import hiring_common as hc
+    from velaris.agentkit.state import append_line, read_lines
+    s = hc.store("ATS_CORE", "contacts.json", {"people": {}})
+    s.update(lambda d: d["people"].__setitem__("c1", {"email": "asha@example.com"}))
+    assert vault.is_sealed((s.path).read_bytes()) and b"asha@example.com" not in s.path.read_bytes()
+    p = tmp_path / "e.jsonl"
+    append_line(p, {"t": "secret pad"}, encrypted="x")
+    assert "secret pad" not in p.read_text() and read_lines(p, encrypted="x") == [{"t": "secret pad"}]

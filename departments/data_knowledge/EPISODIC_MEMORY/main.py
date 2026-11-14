@@ -30,7 +30,7 @@ class EPISODIC_MEMORYAgent:
     def __init__(self) -> None:
         self.name = NAME
         self.llm = None                 # optional velaris.intel.llm.LLM used by consolidate()
-        self._state = JsonState(NAME, "episodes.json")
+        self._state = JsonState(NAME, "episodes.json", encrypted="memory:EPISODIC_MEMORY")
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": self.name, "status": "ok", "version": "1.0.0"}

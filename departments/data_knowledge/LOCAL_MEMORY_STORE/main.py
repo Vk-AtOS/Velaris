@@ -21,7 +21,7 @@ class LocalMemoryStore:
     def __init__(self, path=None):
         self.name = _NAME
         self.path = path if isinstance(path, str) and path else None
-        self._state = state.JsonState(_NAME, "store.json", path=self.path)
+        self._state = state.JsonState(_NAME, "store.json", path=self.path, encrypted="memory:LOCAL_MEMORY_STORE")
 
     def health_check(self):
         return {"agent": _NAME, "status": "ok", "version": "1.0.0"}

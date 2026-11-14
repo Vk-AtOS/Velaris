@@ -19,6 +19,7 @@ import os
 import stat
 from pathlib import Path
 
+from velaris.intel.paths import read_private, write_private
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -85,3 +86,14 @@ def open_bytes(blob: bytes, purpose: str) -> bytes:
 def new_key() -> str:
     """A fresh master key, base64, for the operator to store outside VELARIS_DATA."""
     return base64.urlsafe_b64encode(os.urandom(32)).decode()
+
+
+def write_sealed(path, data: bytes, purpose: str) -> None:
+    """Atomically write `data` sealed (owner-only file)."""
+    write_private(path, seal_bytes(data, purpose))
+
+
+def read_sealed(path, purpose: str) -> bytes:
+    """The plaintext of a sealed file; a file still in plaintext (written before sealing existed) is returned as is."""
+    blob = read_private(path)
+    return open_bytes(blob, purpose) if is_sealed(blob) else blob
