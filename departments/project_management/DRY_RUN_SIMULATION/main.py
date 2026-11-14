@@ -53,8 +53,8 @@ class DryRunSimulation:
         If dry_run is False: mark as executed (but for safety this method does NOT perform external side-effects)
         and returns a result dict indicating execution.
         """
-        logged = self.log_action(action_name, payload)
         if self.dry_run:
+            self.log_action(action_name, payload)       # only a dry run is logged as "simulated"
             result = {"status": "SIMULATED", "action": action_name, "payload": payload}
             return result
         else:

@@ -8,13 +8,15 @@ import sqlite3
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 
+from velaris.intel.paths import agent_dir
+
 logger = logging.getLogger("OPS_REPORT")
 
 
 class OpsReport:
-    def __init__(self, company: str = "Knackforge", db_path: str = "ops_data.db"):
+    def __init__(self, company: str = "Knackforge", db_path: Optional[str] = None):
         self.company = company
-        self.db = sqlite3.connect(db_path)
+        self.db = sqlite3.connect(db_path or str(agent_dir("OPS_REPORT") / "ops_data.db"))   # under VELARIS_DATA, not the working directory
         self._init_db()
 
     def _init_db(self):
@@ -53,7 +55,7 @@ class OpsReport:
         logger.info("Blocker %d resolved", blocker_id)
 
     def generate(self, date: Optional[str] = None) -> str:
-        date = date or datetime.now().strftime("%Y-%m-%d")
+        date = date or datetime.utcnow().strftime("%Y-%m-%d")      # entries are stamped in UTC
         rows = self.db.execute(
             "SELECT category,item,value,member FROM daily_log WHERE timestamp LIKE ? ORDER BY category",
             (f"{date}%",),
@@ -67,7 +69,7 @@ class OpsReport:
         lines = [
             "=" * 55,
             f"  {self.company}",
-            f"  Operations Report — {datetime.now().strftime('%d %b %Y')}",
+            f"  Operations Report — {datetime.strptime(date, '%Y-%m-%d').strftime('%d %b %Y')}",
             "=" * 55,
             "",
         ]
@@ -86,7 +88,7 @@ class OpsReport:
         return "\n".join(lines)
 
     def generate_dict(self, date: Optional[str] = None) -> Dict[str, Any]:
-        date = date or datetime.now().strftime("%Y-%m-%d")
+        date = date or datetime.utcnow().strftime("%Y-%m-%d")      # entries are stamped in UTC
         rows = self.db.execute(
             "SELECT category,item,value,member FROM daily_log WHERE timestamp LIKE ? ORDER BY category",
             (f"{date}%",),
@@ -114,7 +116,7 @@ class OpsReportAgent:
     def __init__(self, config: Dict[str, Any] = None):
         self.config = config or {}
         company = self.config.get("company", "Knackforge")
-        db_path = self.config.get("db_path", "ops_data.db")
+        db_path = self.config.get("db_path")
         self.report = OpsReport(company, db_path)
         logger.info("OPS_REPORT agent initialised for %s", company)
 

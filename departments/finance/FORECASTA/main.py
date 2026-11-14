@@ -44,6 +44,8 @@ class ForecastaAgent:
 
     def rolling_projection(self, values: List[float], window: int = 3) -> float:
         """Mean of last 'window' values."""
+        if not isinstance(window, int) or isinstance(window, bool) or window < 1:
+            raise ValueError("window must be a positive integer")      # values[-0:] used to mean "everything"
         if not values:
             return 0.0
         win = values[-window:]

@@ -18,7 +18,9 @@ class VMRK:
         return base64.b64encode(sig).decode()
 
     def verify(self, message: str, signature: str) -> bool:
-        expected = self.sign(message)
-        return hmac.compare_digest(expected, signature)
+        if not isinstance(message, str) or not isinstance(signature, str):
+            return False
+        # bytes: compare_digest raises TypeError on a str that is not ASCII
+        return hmac.compare_digest(self.sign(message).encode(), signature.encode("utf-8", "replace"))
 
 # ================================================================================

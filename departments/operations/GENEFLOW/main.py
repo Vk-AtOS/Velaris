@@ -22,7 +22,9 @@ class GeneFlowAgent:
         removed = [k for k in old if k not in new]
         changed = [k for k in old if k in new and old[k] != new[k]]
 
-        diff = {"added": added, "removed": removed, "changed": changed}
+        # "values" carries the new value of every added or changed key, so apply_migration(base, diff) works.
+        diff = {"added": added, "removed": removed, "changed": changed,
+                "values": {k: new[k] for k in added + changed}}
         logger.debug("Diff computed: %s", diff)
         return diff
 
@@ -31,9 +33,14 @@ class GeneFlowAgent:
         result = base.copy()
         for k in changes.get("removed", []):
             result.pop(k, None)
-        for k in changes.get("added", []):
-            result[k] = changes["added"][k] if isinstance(changes["added"], dict) else None
-        for k in changes.get("changed", []):
-            result[k] = changes["changed"][k] if isinstance(changes["changed"], dict) else None
+        values = changes.get("values", {})
+        for part in ("added", "changed"):
+            for k in changes.get(part, []):
+                if isinstance(changes[part], dict):
+                    result[k] = changes[part][k]
+                elif k in values:
+                    result[k] = values[k]
+                else:
+                    raise ValueError(f"no new value for {part} key {k!r}; pass the dict form or the diff from compute_diff")
         logger.debug("Migration applied: %s", result)
         return result
