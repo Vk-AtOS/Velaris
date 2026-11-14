@@ -86,7 +86,7 @@ def test_alias_wrapper_reports_a_failing_delegate_health_check(caplog):
             raise RuntimeError("delegate down")
 
     agent = mod.AEILAgent()
-    agent._component = Broken
+    agent._instances = {"BROKEN": Broken}
     with caplog.at_level(logging.WARNING, logger="AEIL"):
         health = agent.health_check()
     assert health["status"] == "degraded" and "delegate down" in health["error"]
