@@ -239,3 +239,17 @@ def test_denied_org_and_no_public_route_in_the_identity_api(env):
     exposed = set(METHODS["SCREENING_FORMS"])
     assert not any(m.startswith("public_") and m != "public_routes" for m in exposed) and "public_submit" not in exposed
     assert METHODS["SCREENING_FORMS"]["accept_submission"].kind == "act"
+
+
+def test_hourly_cap_counts_accepted_posts_only_and_the_post_is_one_write(env, monkeypatch):
+    _, _, _, fid, _ = env
+    monkeypatch.setattr(hi, "MAX_PER_HOUR", 2)
+    for _ in range(5):                                                   # invalid posts must not use up the hour
+        assert submit(fid, answers={})["status"] == "invalid_input"
+    writes = []
+    orig = hf._st().__class__.save
+    monkeypatch.setattr(hf._st().__class__, "save", lambda self, d: (writes.append(1), orig(self, d))[1])
+    assert submit(fid)["status"] == "ok" and len(writes) == 2            # proof-of-work replay mark + (counter and submission in ONE rewrite)
+    assert submit(fid)["status"] == "ok"
+    assert submit(fid)["status"] == "rate_limited"
+    assert len(list((agent_dir("SCREENING_FORMS") / "uploads").glob("*.bin"))) == 2   # the refused upload was removed
