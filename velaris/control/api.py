@@ -23,7 +23,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 
 from velaris.control import report as R
 from velaris.control.core import ControlError
-from velaris.control.service import ControlService
+from velaris.control.service import ControlService, set_shared_service
 from velaris.core.access import AccessDenied
 from velaris.intel.llm import LLM
 
@@ -34,6 +34,7 @@ def mount(app: FastAPI, *, authed: Callable[..., Any], record: Callable[..., Non
           api_error: Any, llm: Optional[LLM] = None, gate: Any = None, flow_path: Optional[str] = None,
           service: Optional[ControlService] = None) -> ControlService:
     svc = service or ControlService(llm=llm, gate=gate, flow_path=flow_path)
+    set_shared_service(svc)
 
     async def call(caller: Any, action: str, base: Dict[str, Any], fn: Callable[..., Any], *args: Any) -> Any:
         """Run one service call off the event loop; refusals become plain, fixed-text API errors."""

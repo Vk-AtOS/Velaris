@@ -2,5 +2,6 @@
   "name": "ZERO_TRUST_PIPELINE",
   "version": "0.1.0",
   "author": "Velaris",
-  "description": "Every request is checked for identity, device, context and policy; the default is deny."
+  "description": "Every request is checked for identity, device, context and policy; the default is deny.",
+  "entrypoint": "main.py:ZERO_TRUST_PIPELINEAgent"
 }

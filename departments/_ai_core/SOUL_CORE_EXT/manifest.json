@@ -2,5 +2,6 @@
   "name": "SOUL_CORE_EXT",
   "version": "1.0.0",
   "author": "Velaris",
-  "description": "Versioned operating settings for this Velaris instance."
+  "description": "Versioned operating settings for this Velaris instance.",
+  "entrypoint": "main.py:SOUL_CORE_EXTAgent"
 }

@@ -2,5 +2,6 @@
   "name": "SELF_HISTORY",
   "version": "0.1.0",
   "author": "Velaris",
-  "description": "Public methods: record, last (the module has no docstring)."
+  "description": "Public methods: record, last (the module has no docstring).",
+  "entrypoint": "main.py:SELF_HISTORYAgent"
 }

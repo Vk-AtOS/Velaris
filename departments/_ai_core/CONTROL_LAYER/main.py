@@ -6,7 +6,7 @@ are `act` methods in the HTTP allowlist; the richer API (observations, approvals
 """
 from typing import Any, Dict, List
 
-from velaris.control.service import ControlService
+from velaris.control.service import ControlService, shared_service
 from velaris.core.access import AccessDenied, current_caller
 
 _service = None       # one per process, opened on first use
@@ -14,6 +14,9 @@ _service = None       # one per process, opened on first use
 
 def service() -> ControlService:
     global _service
+    mounted = shared_service()          # the /control service of the running app (its llm and gate), not a second one
+    if mounted is not None:
+        return mounted
     if _service is None:
         _service = ControlService()
     return _service

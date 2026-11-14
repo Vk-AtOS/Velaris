@@ -2,5 +2,6 @@
   "name": "SHORTTERM_MEMORY",
   "version": "0.1.0",
   "author": "Velaris",
-  "description": "Bounded working memory per session."
+  "description": "Bounded working memory per session.",
+  "entrypoint": "main.py:SHORTTERM_MEMORYAgent"
 }

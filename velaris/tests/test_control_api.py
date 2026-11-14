@@ -125,7 +125,7 @@ def test_allowlist_and_agent_wrapper(tmp_path, world, monkeypatch):
     from velaris.agents.CONTROL_LAYER import main as agent
     svc = ControlService(store=CheckpointStore(tmp_path / "cp2"), llm=FakeLLM(model(step("run", "date"), step("run", "uname", "-a"),
                          step("run", "uptime"), FINAL)), workspace=tmp_path / "ws2", runner=world.runner, flow_path=str(tmp_path / "f.db"))
-    monkeypatch.setattr(agent, "_service", svc)
+    monkeypatch.setattr("velaris.control.service._shared", svc)      # the mounted service wins over the lazy one
     a = agent.CONTROL_LAYERAgent()
     with pytest.raises(AccessDenied):
         a.list_tasks() and a.start_run("terminal.diagnostics", {"bundle": "system"})

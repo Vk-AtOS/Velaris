@@ -1,5 +1,6 @@
 # ================================================================================
 
+import inspect
 import os
 import pkgutil
 import importlib
@@ -69,7 +70,9 @@ class AgentRegistry:
         if agent_name not in self.registry:
             raise ValueError(f"Agent not found: {agent_name}")
 
-        entry = self.registry[agent_name]["manifest"]["entrypoint"]
+        entry = self.registry[agent_name]["manifest"].get("entrypoint")
+        if not isinstance(entry, str) or ":" not in entry:
+            raise ValueError(f"Agent {agent_name} has no entrypoint ('main.py:ClassName') in its manifest")
         module_path, cls_name = entry.split(":")
 
         module_full = f"velaris.agents.{agent_name}.{module_path.split('/')[-1].replace('.py','')}"
@@ -80,7 +83,9 @@ class AgentRegistry:
 
     def create(self, agent_name: str, config: Dict[str, Any] = None):
         cls = self.get_agent_class(agent_name)
-        return cls(config or {})
+        params = [p for p in inspect.signature(cls).parameters.values()
+                  if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD, p.VAR_POSITIONAL)]
+        return cls(config or {}) if params else cls()      # some agents (GST_ENGINE) take no constructor argument
 
     def health_all(self) -> Dict[str, Any]:
         out = {}

@@ -2,5 +2,6 @@
   "name": "OVERSIGHT_MONITOR",
   "version": "0.1.0",
   "author": "Velaris",
-  "description": "Public methods: record, last (the module has no docstring)."
+  "description": "Public methods: record, last (the module has no docstring).",
+  "entrypoint": "main.py:OVERSIGHT_MONITORAgent"
 }

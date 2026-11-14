@@ -57,6 +57,19 @@ class DocStoreSink:
         return self._s().documents(self.scope)
 
 
+_shared: "Optional[ControlService]" = None
+
+
+def shared_service() -> "Optional[ControlService]":
+    """The service the app mounted at /control, if any, so agents use the same llm, gate and runs."""
+    return _shared
+
+
+def set_shared_service(svc: "ControlService") -> None:
+    global _shared
+    _shared = svc
+
+
 class ControlService:
     def __init__(self, *, store: Optional[CheckpointStore] = None, llm: Optional[LLM] = None, gate: Any = None,
                  workspace: Optional[Path] = None, runner: Optional[Runner] = None,
