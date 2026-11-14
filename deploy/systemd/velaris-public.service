@@ -1,0 +1,40 @@
+# /etc/systemd/system/velaris-public.service   (KAN-112)
+# VPS path: code in /opt/velaris (venv in /opt/velaris/.venv), data in /var/lib/velaris, environment in /etc/velaris/velaris-public.env (no API secret: the public app does not need it) (mode 0600, root).
+[Unit]
+Description=Velaris public app (candidates, interviewees, e-sign; behind nginx)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=velaris
+Group=velaris
+WorkingDirectory=/opt/velaris
+EnvironmentFile=/etc/velaris/velaris-public.env
+Environment=VELARIS_DATA=/var/lib/velaris VELARIS_PUBLIC_HOST=127.0.0.1 VELARIS_PUBLIC_PORT=8731 VELARIS_PUBLIC_TRUST_PROXY=1 PYTHONDONTWRITEBYTECODE=1
+ExecStart=/opt/velaris/.venv/bin/python -m velaris.api.public
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=30
+
+# hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ReadWritePaths=/var/lib/velaris
+StateDirectory=velaris
+StateDirectoryMode=0700
+UMask=0077
+CapabilityBoundingSet=
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=true
+LockPersonality=true
+SystemCallFilter=@system-service
+
+[Install]
+WantedBy=multi-user.target

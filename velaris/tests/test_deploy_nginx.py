@@ -29,7 +29,7 @@ def test_every_app_route_is_allowed_and_nothing_else():
         assert allowed(sample(path)), path
     for bad in ("/", "/health", "/metrics", "/docs", "/openapi.json", "/agents", "/careers/", "/careers/forms/",
                 f"/sign/{TOKEN}/open/x", f"/sign/{TOKEN}/unknown", f"/careers/status/{TOKEN}/", "/careers/forms/a/b",
-                f"/sign/short/open", f"/careers/forms/{'a' * 81}", "/careers/forms/a%2f..%2fb"):
+                "/sign/short/open", f"/careers/forms/{'a' * 81}", "/careers/forms/a%2f..%2fb"):
         assert not allowed(bad), bad
     assert re.search(r"location / \{ return 404; \}", CONF)
 
