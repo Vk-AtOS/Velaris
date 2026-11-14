@@ -78,7 +78,11 @@ class EmployeeRecords:
         if any(c["application_id"] == app and c["status"] in ("proposed", "approved") for c in self.store.all("conversions", who.org)):
             return fail("conflict", "this application already has a conversion in progress or done")
         offers = self.config.get("offers")
-        if offer_id and offers is not None and offers.get_offer_status(offer_id, who.org) != "accepted":
+        if not offer_id:
+            return fail("conflict", "a conversion needs the id of the accepted offer")
+        if offers is None:
+            return fail("not_configured", "the offer cannot be checked: OFFER_LETTERS is not connected, so no employee is created")
+        if offers.get_offer_status(offer_id, who.org) != "accepted":
             return fail("conflict", "the offer is not accepted")
         ats = self.config.get("ats")
         if ats is not None:

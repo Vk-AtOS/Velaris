@@ -24,13 +24,13 @@ from velaris.intel import trace
 def make(**cfg):
     clock = Clock()
     ats = FakeAts({"APP-1": CANDIDATE, "APP-2": {**CANDIDATE, "name": "Ravi Kumar", "email": "ravi@example.in", "consent": None}})
-    cfg = {"clock": clock, "ats": ats, **cfg}
+    cfg = {"clock": clock, "ats": ats, "offers": FakeOffers("accepted"), **cfg}
     return EmployeeRecords(cfg), PolicyAcks(cfg), OnboardingFlow(cfg), clock, ats
 
 
 def hire(er, app="APP-1", dept="Engineering", mgr="mgr1", join="2026-12-01"):
     with acting_as(HR1):
-        p = er.propose_conversion(app, dept, "Software Engineer", mgr, join)
+        p = er.propose_conversion(app, dept, "Software Engineer", mgr, join, offer_id="o1")
         assert p["status"] == "ok", p
     with acting_as(HR2):
         r = er.approve_conversion(p["conversion"]["id"])
@@ -42,7 +42,7 @@ def hire(er, app="APP-1", dept="Engineering", mgr="mgr1", join="2026-12-01"):
 def test_conversion_needs_a_second_hr_administrator_and_carries_consent_over():
     er, _, _, _, ats = make()
     with acting_as(HR1):
-        p = er.propose_conversion("APP-1", "Engineering", "Engineer", "mgr1", "2026-12-01")
+        p = er.propose_conversion("APP-1", "Engineering", "Engineer", "mgr1", "2026-12-01", offer_id="o1")
         cid = p["conversion"]["id"]
         assert p["conversion"]["status"] == "proposed" and p["conversion"]["needs_review"] == []
         assert er.approve_conversion(cid)["status"] == "denied"                       # the proposer cannot approve
@@ -70,23 +70,23 @@ def test_conversion_flags_missing_consent_and_refuses_bad_input():
     emp_id = hire(er, "APP-2")
     with acting_as(HR1):
         assert er.get_employee(emp_id)["employee"]["consent"]["needs_review"] == ["no candidate consent record to carry over"]
-        assert er.propose_conversion("APP-2", "d", "x", "m", "2026-12-01")["status"] == "conflict"            # already converted
-        assert er.propose_conversion("APP-404", "d", "x", "m", "2026-12-01")["status"] == "not_found"
-        assert er.propose_conversion("", "d", "x", "m", "2026-12-01")["status"] == "invalid_input"
-        assert er.propose_conversion("APP-1", "d", "x", "m", "not-a-date")["status"] == "invalid_input"
+        assert er.propose_conversion("APP-2", "d", "x", "m", "2026-12-01", offer_id="o1")["status"] == "conflict"            # already converted
+        assert er.propose_conversion("APP-404", "d", "x", "m", "2026-12-01", offer_id="o1")["status"] == "not_found"
+        assert er.propose_conversion("", "d", "x", "m", "2026-12-01", offer_id="o1")["status"] == "invalid_input"
+        assert er.propose_conversion("APP-1", "d", "x", "m", "not-a-date", offer_id="o1")["status"] == "invalid_input"
     with acting_as(MGR):
-        assert er.propose_conversion("APP-1", "d", "x", "m", "2026-12-01")["status"] == "denied"
-    assert er.propose_conversion("APP-1", "d", "x", "m", "2026-12-01")["status"] == "unauthenticated"
+        assert er.propose_conversion("APP-1", "d", "x", "m", "2026-12-01", offer_id="o1")["status"] == "denied"
+    assert er.propose_conversion("APP-1", "d", "x", "m", "2026-12-01", offer_id="o1")["status"] == "unauthenticated"
 
 
 def test_conversion_without_ats_takes_given_details_and_flags_them_and_checks_the_offer():
     er = EmployeeRecords({"clock": Clock(), "offers": FakeOffers("sent")})
     with acting_as(HR1):
         assert er.propose_conversion("A1", "d", "x", "m", "2026-12-01", offer_id="o1", name="N", email="n@x.in")["status"] == "conflict"
-    er = EmployeeRecords({"clock": Clock()})
+    er = EmployeeRecords({"clock": Clock(), "offers": FakeOffers("accepted")})
     with acting_as(HR1):
-        assert er.propose_conversion("A1", "d", "x", "m", "2026-12-01")["status"] == "invalid_input"
-        p = er.propose_conversion("A1", "d", "x", "m", "2026-12-01", name="N", email="n@x.in")
+        assert er.propose_conversion("A1", "d", "x", "m", "2026-12-01", offer_id="o1")["status"] == "invalid_input"
+        p = er.propose_conversion("A1", "d", "x", "m", "2026-12-01", name="N", email="n@x.in", offer_id="o1")
     assert p["status"] == "ok" and p["conversion"]["needs_review"]
     with acting_as(HR2):
         assert er.reject_conversion(p["conversion"]["id"], "no")["conversion"]["status"] == "rejected"
