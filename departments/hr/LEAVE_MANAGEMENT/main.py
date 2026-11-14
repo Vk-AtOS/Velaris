@@ -6,7 +6,9 @@ import sqlite3
 from datetime import date, timedelta
 from typing import Dict, Any, List, Optional
 
+from velaris.agentkit.onboarding_common import HR_ADMINS, gate_change
 from velaris.core.access import Caller, authorize_read, current_caller, deployment_org, org_denied
+from velaris.intel.paths import agent_dir
 
 logger = logging.getLogger("LEAVE_MANAGEMENT")
 logger.setLevel(logging.DEBUG)
@@ -15,11 +17,11 @@ handler.setFormatter(logging.Formatter("%(asctime)s - LEAVE_MANAGEMENT - %(level
 logger.addHandler(handler)
 
 _LEAVE_TYPES = {"casual": 12, "sick": 12, "earned": 15, "maternity": 182, "paternity": 15}
-_DB = os.path.join(os.path.dirname(__file__), "leaves.db")
+_DB = ""          # tests may point this elsewhere; empty means <VELARIS_DATA>/agents/LEAVE_MANAGEMENT/leaves.db
 
 
 def _db() -> sqlite3.Connection:
-    conn = sqlite3.connect(_DB)
+    conn = sqlite3.connect(_DB or str(agent_dir("LEAVE_MANAGEMENT") / "leaves.db"))
     conn.row_factory = sqlite3.Row
     conn.execute("""
         CREATE TABLE IF NOT EXISTS leave_requests (
@@ -82,7 +84,8 @@ class LeaveManagement:
         return {"agent": "LEAVE_MANAGEMENT", "status": "ok"}
 
     def seed_balances(self, employee_id: str, year: int) -> Dict[str, Any]:
-        """Seed default leave entitlements for a new employee/year."""
+        """Seed default leave entitlements for a new employee/year (HR administrators)."""
+        gate_change("LEAVE_MANAGEMENT", "seed_balances", HR_ADMINS, {"employee": str(employee_id)[:40]})
         conn = _db()
         for leave_type, days in _LEAVE_TYPES.items():
             conn.execute(
@@ -94,6 +97,8 @@ class LeaveManagement:
         return {"employee_id": employee_id, "year": year, "seeded": list(_LEAVE_TYPES.keys())}
 
     def get_balance(self, employee_id: str, year: int) -> Dict[str, Any]:
+        """Balances include sick leave, which is health data: your own, or an HR administrator's (authorize_read, traced)."""
+        authorize_read("health", employee_id, agent="LEAVE_MANAGEMENT", org=getattr(current_caller(), "org", None))
         conn = _db()
         rows = conn.execute(
             "SELECT leave_type, entitlement, used FROM leave_balances WHERE employee_id=? AND year=?",
@@ -106,6 +111,9 @@ class LeaveManagement:
 
     def apply(self, employee_id: str, leave_type: str, from_date: str,
               to_date: str, reason: str = "") -> Dict[str, Any]:
+        who = current_caller()
+        mine = isinstance(who, Caller) and employee_id in (who.id, who.employee_id)
+        who = gate_change("LEAVE_MANAGEMENT", "apply", None if mine else HR_ADMINS, {"employee": str(employee_id)[:40]})
         if leave_type not in _LEAVE_TYPES:
             return {"error": f"invalid leave_type; must be one of {list(_LEAVE_TYPES.keys())}"}
         days = _business_days(from_date, to_date)
@@ -126,7 +134,7 @@ class LeaveManagement:
             return {"error": "insufficient_balance", "available": row["entitlement"] - row["used"], "requested": days}
         cur = conn.execute(
             "INSERT INTO leave_requests (employee_id, leave_type, from_date, to_date, days, reason, applied_on, org) VALUES (?,?,?,?,?,?,?,?)",
-            (employee_id, leave_type, from_date, to_date, days, reason, date.today().isoformat(), deployment_org())
+            (employee_id, leave_type, from_date, to_date, days, reason, date.today().isoformat(), who.org)
         )
         leave_id = cur.lastrowid
         conn.commit()
@@ -145,7 +153,11 @@ class LeaveManagement:
         caller = current_caller()
         if org_denied(caller):
             return {"error": "access_denied"}
-        if caller is not None and reviewed_by != caller.id:
+        if caller is None:
+            return {"error": "unauthenticated"}                # nobody approves leave in an anonymous call
+        if not caller.roles & HR_ADMINS:
+            return {"error": "denied", "reason": "approving leave needs the hr_admin role"}
+        if reviewed_by != caller.id:
             return {"error": "reviewer_must_be_caller"}       # nobody reviews in someone else's name
         conn = _db()
         row = conn.execute("SELECT * FROM leave_requests WHERE id=?", (leave_id,)).fetchone()
@@ -186,29 +198,29 @@ class LeaveManagement:
     # Leave records say who was on sick or maternity leave and when: health data. Reading them
     # goes through velaris.core.access (own record, or an HR administrator) and is traced.
     def pending_approvals(self, *, caller: Optional[Caller] = None) -> List[Dict]:
-        authorize_read("health", None, agent="LEAVE_MANAGEMENT", caller=caller, org=self.config.get("org"))
+        who = authorize_read("health", None, agent="LEAVE_MANAGEMENT", caller=caller, org=self.config.get("org"))
         conn = _db()
         rows = conn.execute(
-            "SELECT * FROM leave_requests WHERE status='pending' AND (? IS NULL OR org=?) ORDER BY applied_on",
-            (deployment_org(),) * 2
+            "SELECT * FROM leave_requests WHERE status='pending' AND org=? ORDER BY applied_on",
+            (who.org,)
         ).fetchall()
         conn.close()
         return [dict(r) for r in rows]
 
     def employee_history(self, employee_id: str, year: Optional[int] = None, *,
                          caller: Optional[Caller] = None) -> List[Dict]:
-        authorize_read("health", employee_id, agent="LEAVE_MANAGEMENT", caller=caller, org=self.config.get("org"))
+        who = authorize_read("health", employee_id, agent="LEAVE_MANAGEMENT", caller=caller, org=self.config.get("org"))
         conn = _db()
         if year:
             rows = conn.execute(
                 "SELECT * FROM leave_requests WHERE employee_id=? AND strftime('%Y',from_date)=?"
-                " AND (? IS NULL OR org=?) ORDER BY from_date DESC",
-                (employee_id, str(year), deployment_org(), deployment_org())
+                " AND org=? ORDER BY from_date DESC",
+                (employee_id, str(year), who.org)
             ).fetchall()
         else:
             rows = conn.execute(
-                "SELECT * FROM leave_requests WHERE employee_id=? AND (? IS NULL OR org=?) ORDER BY from_date DESC",
-                (employee_id, deployment_org(), deployment_org())
+                "SELECT * FROM leave_requests WHERE employee_id=? AND org=? ORDER BY from_date DESC",
+                (employee_id, who.org)
             ).fetchall()
         conn.close()
         return [dict(r) for r in rows]

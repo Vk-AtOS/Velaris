@@ -13,15 +13,25 @@ def test_leave_needs_balance_and_cannot_be_over_or_self_approved(tmp_path):
     spec.loader.exec_module(lm)
     lm._DB = str(tmp_path / "leaves.db")
     leave = lm.LeaveManagement()
+    from velaris.core.access import Caller, acting_as
+    hr = Caller("manager", "acme", frozenset({"hr_admin"}))
+    emp = Caller("e1", "acme")
 
-    assert leave.apply("e1", "casual", "2026-11-16", "2026-11-20")["error"] == "no_balance_record"
-    leave.seed_balances("e1", 2026)
-    # Two 7-day requests against 12 days: each passes apply(), only one may be approved.
-    first, second = (leave.apply("e1", "casual", "2026-11-16", "2026-11-24")["id"] for _ in range(2))
-    assert leave.approve(first, "e1")["error"] == "self_approval_not_allowed"
-    assert leave.approve(first, "manager")["status"] == "approved"
-    assert leave.approve(second, "manager")["error"] == "insufficient_balance"
-    assert leave.get_balance("e1", 2026)["balance"]["casual"]["used"] == 7
+    assert leave.approve(1, "manager")["error"] == "unauthenticated"                 # nobody approves anonymously
+    with acting_as(emp):
+        assert leave.apply("e1", "casual", "2026-11-16", "2026-11-20")["error"] == "no_balance_record"
+        assert leave.approve(1, "e1")["error"] == "denied"                           # an employee is not an approver
+    with acting_as(hr):
+        leave.seed_balances("e1", 2026)
+    with acting_as(emp):
+        # Two 7-day requests against 12 days: each passes apply(), only one may be approved.
+        first, second = (leave.apply("e1", "casual", "2026-11-16", "2026-11-24")["id"] for _ in range(2))
+    with acting_as(Caller("e1", "acme", frozenset({"hr_admin"}))):
+        assert leave.approve(first, "e1")["error"] == "self_approval_not_allowed"
+    with acting_as(hr):
+        assert leave.approve(first, "manager")["status"] == "approved"
+        assert leave.approve(second, "manager")["error"] == "insufficient_balance"
+        assert leave.get_balance("e1", 2026)["balance"]["casual"]["used"] == 7
 
 
 def test_api_key_in_url_is_not_written_to_disk(tmp_path, monkeypatch):

@@ -154,8 +154,11 @@ def test_leave_history_is_health_data(tmp_path):
     from velaris.agents.LEAVE_MANAGEMENT import main as lm
     lm._DB = str(tmp_path / "leaves.db")
     leave = lm.LeaveManagement()
-    leave.seed_balances("E1", 2026)
-    leave.apply("E1", "sick", "2026-11-16", "2026-11-17", reason="flu")
+    with pytest.raises(AccessDenied):
+        leave.seed_balances("E1", 2026)                  # no caller
+    with acting_as(HR):
+        leave.seed_balances("E1", 2026)
+        leave.apply("E1", "sick", "2026-11-16", "2026-11-17", reason="flu")
     with pytest.raises(AccessDenied):
         leave.employee_history("E1")
     with pytest.raises(AccessDenied):
