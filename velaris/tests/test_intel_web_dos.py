@@ -62,3 +62,14 @@ def test_cache_is_atomic_corrupt_entry_is_refetched_and_expired_entries_are_swep
     os.utime(old, (1, 1))
     f._sweep_cache()
     assert not old.exists() and entry.exists() and not list(f._cache_dir.glob(".*.tmp"))
+
+
+def test_llm_malformed_replies_raise_llmerror(monkeypatch):
+    import httpx
+    import pytest
+    from velaris.intel import llm
+    monkeypatch.setenv("AWS_BEARER_TOKEN_BEDROCK", "t")
+    for body in (httpx.Response(200, text="<html>oops"), httpx.Response(200, json={"output": {}}), httpx.Response(200, json=[1])):
+        monkeypatch.setattr(llm.httpx, "post", lambda *a, _b=body, **k: _b)
+        with pytest.raises(llm.LLMError):
+            llm.LLM().complete("hi", model="bedrock:m")

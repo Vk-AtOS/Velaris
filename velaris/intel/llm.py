@@ -78,7 +78,13 @@ def _post(url: str, headers: Dict[str, str], body: Dict[str, Any]) -> Dict[str, 
         raise LLMError(f"request to {url.split('/')[2]} failed: {type(e).__name__}") from e
     if r.status_code >= 400:
         raise LLMError(f"{url.split('/')[2]} returned {r.status_code}: {r.text[:200]}")
-    return r.json()
+    try:
+        data = r.json()
+    except ValueError as e:                # an error page or truncated body with a 200 status
+        raise LLMError(f"{url.split('/')[2]} returned a body that is not JSON") from e
+    if not isinstance(data, dict):
+        raise LLMError(f"{url.split('/')[2]} returned an unexpected JSON shape")
+    return data
 
 
 def _anthropic(name: str, prompt: str, system: Optional[str], max_tokens: int, temperature: float) -> str:
@@ -130,7 +136,12 @@ class LLM:
             raise LLMError(f"unknown provider '{provider}'")
         start = time.time()
         try:
-            text = _PROVIDERS[provider](name, prompt, system, max_tokens, temperature)
+            try:
+                text = _PROVIDERS[provider](name, prompt, system, max_tokens, temperature)
+            except (KeyError, IndexError, TypeError, AttributeError, ValueError) as e:     # reply shaped unlike the provider's docs
+                raise LLMError(f"{provider} reply could not be read: {type(e).__name__}") from e
+            if not isinstance(text, str):
+                raise LLMError(f"{provider} reply held no text")
         except LLMError as e:
             trace.append("llm", "complete.failed", {"model": model, "purpose": purpose, "error": str(e)})
             raise
@@ -150,7 +161,7 @@ class LLM:
             vectors = data["embeddings"]
             trace.append("llm", "embed", {"model": model, "count": len(texts)})
             return vectors
-        except (LLMError, KeyError) as e:
+        except (LLMError, KeyError, TypeError) as e:
             logger.warning("embedding model unavailable (%s); using the offline fallback", e)
             trace.append("llm", "embed.fallback", {"count": len(texts)})
             return [hashed_embedding(t) for t in texts]
