@@ -9,7 +9,7 @@ from datetime import date
 from typing import Dict, Any, List, Optional
 
 from velaris.agentkit import onboarding_retention as retention
-from velaris.agentkit.onboarding_common import HR_ADMINS, gate_change, gate_read
+from velaris.agentkit.onboarding_common import dsr_gate, HR_ADMINS, gate_change, gate_read
 from velaris.core.access import AccessDenied, Caller, current_caller
 from velaris.intel.paths import agent_dir
 
@@ -263,15 +263,25 @@ class PerformanceReviewEngine:
 
     # ---- data-subject support (called by EMPLOYEE_RECORDS; not an HTTP method) ----------------------
     def dsr_export(self, org: str, subject_id: str, links: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """The subject's performance data. The person themselves get their OKRs and the scores of reviews about them, with peer and
+        manager reviewers left out and no free-text comments or calibration rows; an HR administrator gets everything."""
+        who = dsr_gate("PERFORMANCE_REVIEW_ENGINE", org, subject_id, erase=False)
+        hr = bool(who.roles & HR_ADMINS)
         conn = _db()
-        out = {t: [dict(r) for r in conn.execute(f"SELECT * FROM {t} WHERE employee_id=? AND org=?", (subject_id, org))]
-               for t in ("okrs", "reviews", "calibration")}
+        q = lambda t: [dict(r) for r in conn.execute(f"SELECT * FROM {t} WHERE employee_id=? AND org=?", (subject_id, org))]
+        okrs, reviews, calibration = q("okrs"), q("reviews"), q("calibration")
         conn.close()
-        return {"performance": out}
+        if not hr:
+            reviews = [{k: v for k, v in r.items() if k not in ("comments",) and not (k == "reviewer_id" and r["review_type"] != "self")}
+                       for r in reviews]
+            calibration = []
+        return {"performance": {"okrs": okrs, "reviews": reviews, "calibration": calibration,
+                                **({} if hr else {"withheld": "reviewer identities of peer and manager reviews, comments and calibration are for HR administrators"})}}
 
     def dsr_erase(self, org: str, subject_id: str, on: Optional[date] = None, links: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Delete this person's OKRs, reviews and calibration rows when the registry says so. It has no retention row for performance
         records, so today they are HELD and reported as needs_review until the data-protection owner adds one."""
+        dsr_gate("PERFORMANCE_REVIEW_ENGINE", org, subject_id, erase=True)
         d = retention.decide("performance_records", None, on or date.today())
         conn = _db()
         counts = {t: conn.execute(f"SELECT COUNT(*) FROM {t} WHERE employee_id=? AND org=?", (subject_id, org)).fetchone()[0]

@@ -28,7 +28,7 @@ from velaris.agentkit import onboarding_checklists as cl
 from velaris.agentkit import onboarding_crypto as crypto
 from velaris.agentkit import onboarding_fields as fields
 from velaris.agentkit import onboarding_retention as retention
-from velaris.agentkit.onboarding_common import (HR_ADMINS, Refused, Store, clean_text, iso, new_id, parse_date, reader, sha256_hex,
+from velaris.agentkit.onboarding_common import (dsr_gate, HR_ADMINS, Refused, Store, clean_text, iso, new_id, parse_date, reader, sha256_hex,
                                                 utcnow, writer)
 from velaris.agentkit.results import fail, health, invalid, ok
 from velaris.core.access import AccessDenied, Caller, authorize_read
@@ -484,6 +484,7 @@ class OnboardingFlow:
     # ---- data-subject support (called by EMPLOYEE_RECORDS; not an HTTP method) ----------------------
     def dsr_export(self, org: str, subject_id: str, links: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Everything this agent holds about a person, identifiers masked. The caller has already authorised the request."""
+        dsr_gate("ONBOARDING_FLOW", org, subject_id, erase=False)
         cases = [c for c in self.store.all("cases", org) if c["subject_id"] == subject_id]
         return {"onboarding_cases": [{**self._public(c), "tasks": cl.task_view(c["tasks"], self._today()), "forms": c["forms"],
                                       "identifiers": {k: {"masked": v["masked"], "captured_at": v["captured_at"]} for k, v in c["identifiers"].items()},
@@ -492,6 +493,7 @@ class OnboardingFlow:
 
     def dsr_erase(self, org: str, subject_id: str, on: Optional[date] = None, links: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Erase what the retention registry allows; hold the rest and say why. Returns {"erased": [...], "held": [...]}."""
+        dsr_gate("ONBOARDING_FLOW", org, subject_id, erase=True)
         on = on or self._today()
         erased: List[str] = []
         held: List[Dict[str, Any]] = []

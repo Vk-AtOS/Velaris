@@ -49,6 +49,7 @@ def test_dsr_erase_keeps_documents_when_retention_says_hold(monkeypatch):
     real = flow_mod.retention.decide
     monkeypatch.setattr(flow_mod.retention, "decide", lambda cls, a, on: (
         {"class": cls, "action": "hold", "status": "needs_review", "reason": "x", "retain_until": None} if cls == "onboarding_documents" else real(cls, a, on)))
-    res = o.dsr_erase(ORG, "E7")
+    with acting_as(HR1):
+        res = o.dsr_erase(ORG, "E7")
     assert any("documents" in h["what"] for h in res["held"]) and not any("documents" in e for e in res["erased"])
     assert len(_docs()) == 1

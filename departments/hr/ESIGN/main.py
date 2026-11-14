@@ -28,7 +28,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from velaris.agentkit import onboarding_dsr as dsr
 from velaris.agentkit import onboarding_esign as es
-from velaris.agentkit.onboarding_common import (HR_ADMINS, Refused, Store, clean_text, iso, keyed_hash, new_id, parse_iso, reader,
+from velaris.agentkit.onboarding_common import (dsr_gate, HR_ADMINS, Refused, Store, clean_text, iso, keyed_hash, new_id, parse_iso, reader,
                                                 sha256_hex, utcnow, writer)
 from velaris.agentkit.results import fail, health, invalid, ok
 from velaris.agentkit.state import append_line
@@ -481,10 +481,12 @@ class Esign:
 
     # ---- data-subject support (called by EMPLOYEE_RECORDS; not an HTTP method) ----------------------
     def dsr_export(self, org: str, subject_id: str, links: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        dsr_gate("ESIGN", org, subject_id, erase=False)
         return {"esign_requests": dsr.esign_export(self.store, org, links or {})}
 
     def dsr_erase(self, org: str, subject_id: str, on: Optional[date] = None, links: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Anonymise the subject's signer data on requests that were never sealed; sealed evidence is held as the registry says."""
+        dsr_gate("ESIGN", org, subject_id, erase=True)
         return dsr.esign_erase(self.store, org, links or {}, on or self._now().date(), self._now())
 
     def _visible(self, who: Caller, req: Optional[Dict[str, Any]]) -> bool:

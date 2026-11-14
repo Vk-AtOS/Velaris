@@ -60,9 +60,9 @@ def test_itsm_tickets_are_stamped_and_hidden_from_other_organisations():
         assert e.transition("T1", "assigned")["status"] == "ok"
 
 
-def test_leave_org_and_self_approval_by_employee_id(tmp_path):
+def test_leave_org_and_self_approval_by_employee_id(tmp_path, monkeypatch):
     lm = _load("leave_main2", "departments", "hr", "LEAVE_MANAGEMENT")
-    lm._DB = str(tmp_path / "leaves.db")
+    monkeypatch.setattr(lm, "_DB", str(tmp_path / "leaves.db"))
     leave = lm.LeaveManagement()
     manager = Caller(id="u1", org="acme", roles=frozenset({"hr_admin"}), employee_id="E1")
     other = Caller(id="u2", org="acme", roles=frozenset({"hr_admin"}), employee_id="E2")

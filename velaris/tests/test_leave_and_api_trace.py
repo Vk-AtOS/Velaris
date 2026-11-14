@@ -5,13 +5,13 @@ import os
 import httpx
 
 
-def test_leave_needs_balance_and_cannot_be_over_or_self_approved(tmp_path):
+def test_leave_needs_balance_and_cannot_be_over_or_self_approved(tmp_path, monkeypatch):
     root = os.path.join(os.path.dirname(__file__), "..", "..")
     spec = importlib.util.spec_from_file_location(
         "leave_main", os.path.join(root, "departments", "hr", "LEAVE_MANAGEMENT", "main.py"))
     lm = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(lm)
-    lm._DB = str(tmp_path / "leaves.db")
+    monkeypatch.setattr(lm, "_DB", str(tmp_path / "leaves.db"))
     leave = lm.LeaveManagement()
     from velaris.core.access import Caller, acting_as
     hr = Caller("manager", "acme", frozenset({"hr_admin"}))

@@ -23,7 +23,7 @@ from typing import Any, Dict, List, Optional
 
 from velaris.agentkit import onboarding_directory as directory
 from velaris.agentkit import onboarding_retention as retention
-from velaris.agentkit.onboarding_common import (HR_ADMINS, Store, canonical, clean_text, iso, new_id, parse_date, reader, sha256_hex,
+from velaris.agentkit.onboarding_common import (dsr_gate, HR_ADMINS, Store, canonical, clean_text, iso, new_id, parse_date, reader, sha256_hex,
                                                 utcnow, writer)
 from velaris.agentkit.results import fail, health, invalid, ok
 from velaris.core.access import AccessDenied, Caller, authorize_read
@@ -238,11 +238,13 @@ class PolicyAcks:
 
     # ---- data-subject support (called by EMPLOYEE_RECORDS; not an HTTP method) --------------------------
     def dsr_export(self, org: str, employee_id: str, links: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        dsr_gate("POLICY_ACKS", org, employee_id, erase=False)
         return {"policy_acknowledgements": [{k: a[k] for k in ("policy_key", "version", "text_sha256", "acknowledged_at", "evidence_sha256")}
                                             for a in self.store.all("acks", org) if a["employee_id"] == employee_id]}
 
     def dsr_erase(self, org: str, employee_id: str, on: Optional[date] = None, links: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Anonymise this person's acknowledgements (the counts stay) when the registry allows; otherwise hold."""
+        dsr_gate("POLICY_ACKS", org, employee_id, erase=True)
         d = retention.decide("policy_acknowledgements", None, on or self._now().date())
         mine = [a for a in self.store.all("acks", org) if a["employee_id"] == employee_id]
         if d["action"] != "erase":

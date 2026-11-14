@@ -236,9 +236,10 @@ def test_erasure_holds_statutory_classes_and_flags_needs_review():
         assert (after["total"], after["by_department"], after["by_join_year"]) == (before["total"], before["by_department"], before["by_join_year"])
         assert after["by_status"] == {"active": 1, "restricted": 1}               # the person is still counted, anonymously
         assert [h["new"] for h in er.employee_history(emp)["history"] if h["field"] in ("email", "record")] == ["erased"]
-    exp = flow.dsr_export(ORG, emp)["onboarding_cases"][0]
-    assert exp["identifiers"] == {} and exp["name"] == "erased" and exp["forms_submitted"] == ["tax_declaration"]
-    assert pol.dsr_export(ORG, emp)["policy_acknowledgements"] == []              # anonymised, not deleted
+    with acting_as(HR1):
+        exp = flow.dsr_export(ORG, emp)["onboarding_cases"][0]
+        assert exp["identifiers"] == {} and exp["name"] == "erased" and exp["forms_submitted"] == ["tax_declaration"]
+        assert pol.dsr_export(ORG, emp)["policy_acknowledgements"] == []          # anonymised, not deleted
     with acting_as(HR1):
         assert er.get_employee(emp)["employee"]["status"] == "restricted"
     assert "erased-" in (Path(os.environ["VELARIS_DATA"]) / "agents" / "POLICY_ACKS" / "state.json").read_text()
@@ -276,7 +277,8 @@ def test_fully_erased_when_every_statutory_period_is_verified_and_past(monkeypat
         e = er.get_employee(emp)["employee"]
         assert e["name"].startswith("erased-") and e["status"] == "erased"
         assert er.workforce_aggregate()["by_status"] == {"erased": 1, "active": 1}
-    assert flow.dsr_export(ORG, emp)["onboarding_cases"][0]["forms_submitted"] == []
+    with acting_as(HR1):
+        assert flow.dsr_export(ORG, emp)["onboarding_cases"][0]["forms_submitted"] == []
 
 
 def test_retention_views():

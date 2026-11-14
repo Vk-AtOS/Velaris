@@ -6,7 +6,8 @@ from pathlib import Path
 
 from velaris.tests.onboarding_helpers import HR1, HR2, MGR, ORG, OTHER_ORG_HR, PAYROLL, Clock, FakeOffers, FakePolicyAcks, person
 from velaris.agents.ONBOARDING_FLOW.main import OnboardingFlow
-from velaris.core.access import Caller, acting_as
+import pytest
+from velaris.core.access import AccessDenied, Caller, acting_as
 from velaris.intel import trace
 
 EMP = person("E7")
@@ -503,12 +504,14 @@ def test_dsr_export_masked_and_erase_follows_retention():
         o.submit_form(cid, "tax_declaration", {"regime": "new"})
         o.submit_form(cid, "emergency_contact", {"name": "R", "relation": "father", "phone": "9"})
         o.collect_document(cid, "identity_proof", "id.pdf", base64.b64encode(b"scan").decode())
-    exp = o.dsr_export(ORG, "E7")
-    assert PAN not in json.dumps(exp) and exp["onboarding_cases"][0]["identifiers"]["pan"]["masked"] == "******234F"
-    res = o.dsr_erase(ORG, "E7")
-    assert any("identifiers" in x for x in res["erased"]) and any("emergency_contact" in x for x in res["erased"])
-    assert [h["what"].split(":")[-1] for h in res["held"]] == ["tax_declaration"] and res["held"][0]["status"] == "needs_review"
-    after = o.dsr_export(ORG, "E7")["onboarding_cases"][0]
-    assert after["identifiers"] == {} and after["name"] == "erased" and after["documents"] == [] and after["forms_submitted"] == ["tax_declaration"]
-    assert not list((Path(os.environ["VELARIS_DATA"]) / "agents" / "ONBOARDING_FLOW" / "docs").glob("*"))
-    assert o.dsr_erase("globex", "E7") == {"erased": [], "held": []}
+    with acting_as(HR1):
+        exp = o.dsr_export(ORG, "E7")
+        assert PAN not in json.dumps(exp) and exp["onboarding_cases"][0]["identifiers"]["pan"]["masked"] == "******234F"
+        res = o.dsr_erase(ORG, "E7")
+        assert any("identifiers" in x for x in res["erased"]) and any("emergency_contact" in x for x in res["erased"])
+        assert [h["what"].split(":")[-1] for h in res["held"]] == ["tax_declaration"] and res["held"][0]["status"] == "needs_review"
+        after = o.dsr_export(ORG, "E7")["onboarding_cases"][0]
+        assert after["identifiers"] == {} and after["name"] == "erased" and after["documents"] == [] and after["forms_submitted"] == ["tax_declaration"]
+        assert not list((Path(os.environ["VELARIS_DATA"]) / "agents" / "ONBOARDING_FLOW" / "docs").glob("*"))
+    with acting_as(HR1), pytest.raises(AccessDenied):
+        o.dsr_erase("globex", "E7")                                       # another organisation than the caller's

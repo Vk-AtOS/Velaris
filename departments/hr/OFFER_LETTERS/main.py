@@ -29,7 +29,7 @@ from typing import Any, Dict, List, Optional
 from velaris.agentkit import onboarding_dsr as dsr
 from velaris.agentkit import onboarding_offer_doc as doc
 from velaris.agentkit import onboarding_template as tpl
-from velaris.agentkit.onboarding_common import (HR_ADMINS, Refused, Store, clean_text, iso, new_id, parse_date, parse_iso,
+from velaris.agentkit.onboarding_common import (dsr_gate, HR_ADMINS, Refused, Store, clean_text, iso, new_id, parse_date, parse_iso,
                                                 reader, sha256_hex, utcnow, writer)
 from velaris.agentkit.onboarding_offer_math import breakdown
 from velaris.agentkit.onboarding_pdf import build_pdf
@@ -439,10 +439,12 @@ class OfferLetters:
 
     # ---- data-subject support (called by EMPLOYEE_RECORDS; not an HTTP method) ----------------------
     def dsr_export(self, org: str, subject_id: str, links: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        dsr_gate("OFFER_LETTERS", org, subject_id, erase=False)
         return {"offers": dsr.offers_export(self.store, org, links or {})}
 
     def dsr_erase(self, org: str, subject_id: str, on: Optional[date] = None, links: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Anonymise the subject's offers that never became a contract; hold the live or accepted ones as the registry says."""
+        dsr_gate("OFFER_LETTERS", org, subject_id, erase=True)
         return dsr.offers_erase(self.store, org, links or {}, on or self._now().date(), self._now())
 
     # ---- internals -----------------------------------------------------------------------------

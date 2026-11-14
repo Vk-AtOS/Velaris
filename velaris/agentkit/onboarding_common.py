@@ -117,6 +117,18 @@ def gate_read(agent: str, category: str, subject_id: Optional[str] = None) -> Ca
     return authorize_read(category, subject_id, agent=agent, caller=who, org=who.org if isinstance(who, Caller) else None)
 
 
+def dsr_gate(agent: str, org: str, subject_id: str, *, erase: bool, category: str = "identity") -> Caller:
+    """Every data-subject export/erase method calls this first. The organisation is checked against the VERIFIED caller, never trusted
+    from the argument. Export: the subject themselves or an HR administrator (authorize_read "identity", traced). Erase: an HR
+    administrator only (check_caller, traced). `category` is the access category for export (health for leave). AccessDenied otherwise."""
+    who = current_caller()
+    if isinstance(who, Caller) and who.org != org:
+        raise AccessDenied("data belongs to another organisation")
+    if erase:
+        return gate_change(agent, "dsr_erase", HR_ADMINS, {"subject": sha256_hex(str(subject_id).encode())[:16]})
+    return authorize_read(category, subject_id, agent=agent, caller=who, org=org)
+
+
 class Refused(Exception):
     """Raised inside Store.update() functions to refuse the change; `result` is returned to the agent's caller."""
 
