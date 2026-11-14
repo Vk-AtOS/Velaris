@@ -1,4 +1,5 @@
 import logging, os, json
+from velaris.intel.paths import agent_file, write_private
 logger = logging.getLogger("OFFLINE_REGISTRY")
 logger.setLevel(logging.DEBUG)
 handler = logging.StreamHandler()
@@ -7,9 +8,9 @@ if not logger.handlers:
     logger.addHandler(handler)
 
 class OFFLINE_REGISTRYAgent:
-    def __init__(self, path="/tmp/velaris_offline_registry.json"):
+    def __init__(self, path=""):
         self.name = "OFFLINE_REGISTRY"
-        self.path = path
+        self.path = path or agent_file("OFFLINE_REGISTRY", "registry.json")
         self._data = {}
         try:
             if os.path.exists(self.path):
@@ -24,8 +25,7 @@ class OFFLINE_REGISTRYAgent:
 
     def set(self, k, v):
         self._data[k]=v
-        with open(self.path,"w") as f:
-            json.dump(self._data,f)
+        write_private(self.path, json.dumps(self._data))
 
     def get(self,k,default=None):
         return self._data.get(k,default)

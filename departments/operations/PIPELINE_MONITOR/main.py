@@ -8,14 +8,15 @@ import sqlite3
 import statistics
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
+from velaris.intel.paths import agent_file
 
 logger = logging.getLogger("PIPELINE_MONITOR")
 
 
 class PipelineMonitor:
-    def __init__(self, db_path: str = "pipeline_data.db", config: Dict[str, Any] = None):
+    def __init__(self, db_path: str = "", config: Dict[str, Any] = None):
         self.config = config or {}
-        self.db = sqlite3.connect(db_path)
+        self.db = sqlite3.connect(db_path or agent_file("PIPELINE_MONITOR", "pipeline_data.db"))
         self._init_db()
 
     def _init_db(self):
@@ -100,7 +101,7 @@ class PipelineMonitorAgent:
 
     def __init__(self, config: Dict[str, Any] = None):
         self.config = config or {}
-        db_path = self.config.get("db_path", "pipeline_data.db")
+        db_path = self.config.get("db_path") or agent_file("PIPELINE_MONITOR", "pipeline_data.db")
         self.monitor = PipelineMonitor(db_path, self.config)
         logger.info("PIPELINE_MONITOR agent initialised")
 

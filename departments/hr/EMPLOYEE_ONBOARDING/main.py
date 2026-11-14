@@ -7,6 +7,7 @@ import logging
 import sqlite3
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
+from velaris.intel.paths import agent_file
 
 logger = logging.getLogger("EMPLOYEE_ONBOARDING")
 
@@ -26,7 +27,8 @@ EMPLOYEE_CHECKLIST = [
 
 
 class _EmployeeDB:
-    def __init__(self, db_path: str = "employee_onboarding.db"):
+    def __init__(self, db_path: str = ""):
+        db_path = db_path or agent_file("EMPLOYEE_ONBOARDING", "employee_onboarding.db")
         self.db = sqlite3.connect(db_path)
         self._init_db()
 
@@ -121,7 +123,7 @@ class EmployeeOnboardingAgent:
 
     def __init__(self, config: Dict[str, Any] = None):
         self.config = config or {}
-        db_path = self.config.get("db_path", "employee_onboarding.db")
+        db_path = self.config.get("db_path") or agent_file("EMPLOYEE_ONBOARDING", "employee_onboarding.db")
         self._db = _EmployeeDB(db_path)
         logger.info("EMPLOYEE_ONBOARDING agent initialised")
 

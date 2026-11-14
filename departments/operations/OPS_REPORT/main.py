@@ -7,12 +7,14 @@ import logging
 import sqlite3
 from datetime import datetime
 from typing import Dict, Any, List, Optional
+from velaris.intel.paths import agent_file
 
 logger = logging.getLogger("OPS_REPORT")
 
 
 class OpsReport:
-    def __init__(self, company: str = "Knackforge", db_path: str = "ops_data.db"):
+    def __init__(self, company: str = "Knackforge", db_path: str = ""):
+        db_path = db_path or agent_file("OPS_REPORT", "ops_data.db")
         self.company = company
         self.db = sqlite3.connect(db_path)
         self._init_db()
@@ -114,7 +116,7 @@ class OpsReportAgent:
     def __init__(self, config: Dict[str, Any] = None):
         self.config = config or {}
         company = self.config.get("company", "Knackforge")
-        db_path = self.config.get("db_path", "ops_data.db")
+        db_path = self.config.get("db_path") or agent_file("OPS_REPORT", "ops_data.db")
         self.report = OpsReport(company, db_path)
         logger.info("OPS_REPORT agent initialised for %s", company)
 

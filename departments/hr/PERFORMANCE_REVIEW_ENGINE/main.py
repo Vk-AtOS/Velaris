@@ -5,6 +5,7 @@ import logging
 import sqlite3
 from datetime import date
 from typing import Dict, Any, List, Optional
+from velaris.intel.paths import agent_file
 
 logger = logging.getLogger("PERFORMANCE_REVIEW_ENGINE")
 logger.setLevel(logging.DEBUG)
@@ -12,11 +13,10 @@ handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter("%(asctime)s - PERFORMANCE_REVIEW_ENGINE - %(levelname)s - %(message)s"))
 logger.addHandler(handler)
 
-_DB = os.path.join(os.path.dirname(__file__), "reviews.db")
 
 
 def _db() -> sqlite3.Connection:
-    conn = sqlite3.connect(_DB)
+    conn = sqlite3.connect(agent_file("PERFORMANCE_REVIEW_ENGINE", "reviews.db"))
     conn.row_factory = sqlite3.Row
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS okrs (

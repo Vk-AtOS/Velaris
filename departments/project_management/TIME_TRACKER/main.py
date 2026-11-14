@@ -5,6 +5,7 @@ import logging
 import sqlite3
 from datetime import datetime, date
 from typing import Dict, Any, List, Optional
+from velaris.intel.paths import agent_file
 
 logger = logging.getLogger("TIME_TRACKER")
 logger.setLevel(logging.DEBUG)
@@ -12,13 +13,12 @@ handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter("%(asctime)s - TIME_TRACKER - %(levelname)s - %(message)s"))
 logger.addHandler(handler)
 
-_DB = os.path.join(os.path.dirname(__file__), "timelog.db")
 _WORK_HOURS_PER_DAY = 8.0
 _BILLABLE_TARGET_WEEKLY = 40.0  # hours
 
 
 def _db() -> sqlite3.Connection:
-    conn = sqlite3.connect(_DB)
+    conn = sqlite3.connect(agent_file("TIME_TRACKER", "timelog.db"))
     conn.row_factory = sqlite3.Row
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS timelogs (

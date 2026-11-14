@@ -8,6 +8,7 @@ import sqlite3
 import csv
 from datetime import datetime, timedelta
 from typing import Dict, Any, List
+from velaris.intel.paths import agent_file
 
 logger = logging.getLogger("RECRUITMENT_ATS")
 
@@ -18,7 +19,8 @@ STAGES = [
 
 
 class RecruitmentTracker:
-    def __init__(self, db_path: str = "recruitment.db"):
+    def __init__(self, db_path: str = ""):
+        db_path = db_path or agent_file("RECRUITMENT_ATS", "recruitment.db")
         self.db = sqlite3.connect(db_path)
         self._init_db()
 
@@ -116,7 +118,7 @@ class RecruitmentATSAgent:
 
     def __init__(self, config: Dict[str, Any] = None):
         self.config = config or {}
-        db_path = self.config.get("db_path", "recruitment.db")
+        db_path = self.config.get("db_path") or agent_file("RECRUITMENT_ATS", "recruitment.db")
         self.tracker = RecruitmentTracker(db_path)
         logger.info("RECRUITMENT_ATS agent initialised")
 
