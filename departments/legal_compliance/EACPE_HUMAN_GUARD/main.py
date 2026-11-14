@@ -66,9 +66,10 @@ class EACPE_HUMAN_GUARDAgent:
         if refused:
             return refused
         by = caller.id
+        if not audit(NAME, "class.guarded", {"class": action_class, "approvers": approvers, "by": by}):
+            return fail("audit_failed", "the change could not be recorded, so it was not made")
         self._state.update(lambda d: d.__setitem__("classes", {**self._classes(d),
                                                               action_class: {"mode": "guarded", "approvers": approvers}}))
-        audit(NAME, "class.guarded", {"class": action_class, "approvers": approvers, "by": by})
         return ok(action_class=action_class, approvers=approvers)
 
     def exempt(self, action_class: str, by: Optional[str] = None) -> Dict[str, Any]:
@@ -79,9 +80,10 @@ class EACPE_HUMAN_GUARDAgent:
         if refused:
             return refused
         by = caller.id
+        if not audit(NAME, "class.exempt", {"class": action_class, "by": by}):
+            return fail("audit_failed", "the change could not be recorded, so it was not made")
         self._state.update(lambda d: d.__setitem__("classes", {**self._classes(d),
                                                               action_class: {"mode": "exempt", "approvers": []}}))
-        audit(NAME, "class.exempt", {"class": action_class, "by": by})
         return ok(action_class=action_class, mode="exempt")
 
     @staticmethod
@@ -108,8 +110,9 @@ class EACPE_HUMAN_GUARDAgent:
             return fail("not_guarded", "this class is exempt or unclassified; nothing to approve")
         rid = uuid.uuid4().hex
         entry = {"action": action, "hash": action_hash(action), "state": "pending", "ts": time.time()}
+        if not audit(NAME, "request", {"id": rid, "class": action["class"], "by": action["requested_by"], "hash": entry["hash"]}):
+            return fail("audit_failed", "the request could not be recorded, so it was not made")
         self._state.update(lambda d: d.setdefault("requests", {}).__setitem__(rid, entry))
-        audit(NAME, "request", {"id": rid, "class": action["class"], "by": action["requested_by"], "hash": entry["hash"]})
         return {"status": "pending", "request_id": rid, "approvers": cls["approvers"], "action_hash": entry["hash"]}
 
     def decide(self, request_id: str, approver: Optional[str] = None, approve: Optional[bool] = None,
@@ -157,6 +160,9 @@ class EACPE_HUMAN_GUARDAgent:
                 return no("unclassified", "this action class is neither guarded nor exempt")
             if cls["mode"] == "exempt":
                 return {"approved": True, "action": action, "status": "ok", "reason": "class is exempt"}
+            _, refused = check_caller(NAME, "validate", {"class": action["class"]}, claimed=action["requested_by"])
+            if refused:                                # a single-use approval is spent only by the person who asked for it
+                return no(refused["status"], refused["reason"])
             digest = action_hash(action)
             for rid, req in sorted(data.get("requests", {}).items(), key=lambda kv: kv[1]["ts"]):
                 if req["hash"] == digest and req["state"] == "approved":

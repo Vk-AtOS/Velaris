@@ -90,7 +90,9 @@ PAYMENT = {"class": "transfer_funds", "requested_by": "bot-ap", "to": "V-7", "am
 
 def test_guard_blocks_until_named_person_approves_exact_action():
     g = make("EACPE_HUMAN_GUARD")
-    assert g.validate(PAYMENT)["status"] == "pending_approval"
+    assert g.validate(PAYMENT)["status"] == "unauthenticated"                      # a guarded action is checked for its requester only
+    with as_("bot-ap"):
+        assert g.validate(PAYMENT)["status"] == "pending_approval"
     with as_("cfo", GOVERNANCE_ADMIN):
         g.set_approvers("transfer_funds", ["asha"])
     with as_("bot-ap"):
@@ -98,13 +100,17 @@ def test_guard_blocks_until_named_person_approves_exact_action():
     assert req["status"] == "pending" and req["approvers"] == ["asha"]
     with as_("ravi"):
         assert g.decide(req["request_id"], approve=True)["status"] == "denied"     # not a named approver
-    assert g.validate(PAYMENT)["approved"] is False
+    with as_("bot-ap"):
+        assert g.validate(PAYMENT)["approved"] is False
     with as_("asha"):
         assert g.decide(req["request_id"], "asha", True)["state"] == "approved"
-    assert g.validate({**PAYMENT, "amount": 900000})["approved"] is False          # a different action
-    ok = make("EACPE_HUMAN_GUARD").validate(PAYMENT)
-    assert ok["approved"] is True and ok["approver"] == "asha"
-    assert g.validate(PAYMENT)["approved"] is False                                # single use
+    with as_("mallory"):
+        assert g.validate(PAYMENT)["status"] == "denied"                           # someone who knows the action cannot spend its approval
+    with as_("bot-ap"):
+        assert g.validate({**PAYMENT, "amount": 900000})["approved"] is False      # a different action
+        ok = make("EACPE_HUMAN_GUARD").validate(PAYMENT)
+        assert ok["approved"] is True and ok["approver"] == "asha"
+        assert g.validate(PAYMENT)["approved"] is False                            # single use
     assert [e["action"] for e in trace.entries() if e["actor"] == "EACPE_HUMAN_GUARD"][-1] == "approval.used"
 
 
@@ -117,12 +123,15 @@ def test_guard_rejection_self_approval_expiry_and_exempt():
         assert g.decide(rid, approve=True)["reason"] == "the requester cannot approve their own action"
     with as_("asha"):
         g.decide(rid, approve=False)
-        assert g.validate(PAYMENT)["approved"] is False and g.decide(rid, approve=True)["status"] == "denied"
+        assert g.decide(rid, approve=True)["status"] == "denied"
+    with as_("bot-ap"):
+        assert g.validate(PAYMENT)["approved"] is False
     with as_("bot-ap"):
         rid2 = g.request(PAYMENT)["request_id"]
     with as_("asha"):
         g.decide(rid2, approve=True, now=1000)
-    assert g.validate(PAYMENT, now=1000 + 25 * 3600)["approved"] is False          # approval older than 24h
+    with as_("bot-ap"):
+        assert g.validate(PAYMENT, now=1000 + 25 * 3600)["approved"] is False      # approval older than 24h
     with as_("cfo", GOVERNANCE_ADMIN):
         g.exempt("read_report")
     assert g.validate({"class": "read_report", "requested_by": "bot"})["approved"] is True
@@ -161,10 +170,12 @@ def test_guard_identity_comes_from_the_caller_never_a_parameter():
     assert g.decide(rid, "asha", True)["status"] == "unauthenticated"           # naming the approver is not enough
     with as_("mallory"):
         assert g.decide(rid, "asha", True)["status"] == "denied"
-    assert g.validate(PAYMENT)["approved"] is False
+    with as_("bot-ap"):
+        assert g.validate(PAYMENT)["approved"] is False
     with as_("asha"):
         assert g.decide(rid, approve=True)["state"] == "approved"
-    assert g.validate(PAYMENT)["approved"] is True
+    with as_("bot-ap"):
+        assert g.validate(PAYMENT)["approved"] is True
 
 
 # ── EACPE_PROTOCOL ───────────────────────────────────────────────────────────
@@ -176,7 +187,7 @@ def ev(step, actor, ts):
     return {"step": step, "actor": actor, "ts": ts}
 
 
-def test_protocol_followed():
+def test_protocol_followed(cfo):
     p = make("EACPE_PROTOCOL")
     assert p.define("change", CHANGE)["version"] == 1
     r = make("EACPE_PROTOCOL").evaluate_protocol({"protocol": "change", "events": [
@@ -184,7 +195,7 @@ def test_protocol_followed():
     assert r["protocol_safe"] is True and r["findings"] == [] and r["version"] == 1
 
 
-def test_protocol_findings_order_missing_segregation_unknown():
+def test_protocol_findings_order_missing_segregation_unknown(cfo):
     p = make("EACPE_PROTOCOL")
     p.define("change", CHANGE)
     r = p.evaluate_protocol({"protocol": "change", "events": [
@@ -194,7 +205,7 @@ def test_protocol_findings_order_missing_segregation_unknown():
         ("segregation", "approve"), ("order", "execute"), ("missing", "verify"), ("unknown", "hotfix")]
 
 
-def test_protocol_bad_input():
+def test_protocol_bad_input(cfo):
     p = make("EACPE_PROTOCOL")
     assert p.evaluate_protocol({"check": "rules"})["protocol_safe"] is False
     assert p.evaluate_protocol({"protocol": "none", "events": []})["status"] == "unknown_protocol"
@@ -310,3 +321,23 @@ def test_alignment_mandates_and_principles_need_a_governance_admin():
         assert a.set_mandate("bot-ap", ["pay_invoice"], max_amount=10**9)["status"] == "denied"
         assert a.set_principles(["anything goes"])["status"] == "denied"
     assert a.align({"agent": "bot-ap", "action_class": "pay_invoice"})["status"] == "no_mandate"
+
+
+def test_protocol_define_needs_a_governance_admin_and_is_traced(cfo):
+    p = make("EACPE_PROTOCOL")
+    with as_("mallory"):
+        assert p.define("change", [{"step": "request"}])["status"] == "denied"      # authenticated, not an admin
+    with acting_as(None):
+        assert p.define("change", [{"step": "request"}])["status"] == "unauthenticated"
+    assert p.evaluate_protocol({"protocol": "change", "events": []})["status"] == "unknown_protocol"      # nothing was defined
+    assert p.define("change", CHANGE)["version"] == 1 and p.define("change", CHANGE[:2])["version"] == 2
+    defined = [e for e in trace.entries() if e["action"] == "protocol.defined"]
+    assert [e["payload"]["version"] for e in defined] == [1, 2] and defined[0]["payload"]["by"] == "cfo"
+
+
+def test_protocol_is_not_changed_when_the_trace_cannot_be_written(cfo, monkeypatch):
+    p = make("EACPE_PROTOCOL")
+    p.define("change", CHANGE)
+    monkeypatch.setattr(import_module("velaris.agents.EACPE_PROTOCOL.main"), "audit", lambda *a, **k: "")      # the ledger write fails
+    assert p.define("change", CHANGE[:1])["status"] == "audit_failed"
+    assert p.evaluate_protocol({"protocol": "change", "events": [ev("request", "a", 1)]})["version"] == 1
