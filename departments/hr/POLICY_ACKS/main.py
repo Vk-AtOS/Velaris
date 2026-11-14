@@ -233,11 +233,11 @@ class PolicyAcks:
                          for a in self.store.all("acks", org) if a["employee_id"] == employee_id and a["policy_key"] == policy_key]}
 
     # ---- data-subject support (called by EMPLOYEE_RECORDS; not an HTTP method) --------------------------
-    def dsr_export(self, org: str, employee_id: str) -> Dict[str, Any]:
+    def dsr_export(self, org: str, employee_id: str, links: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         return {"policy_acknowledgements": [{k: a[k] for k in ("policy_key", "version", "text_sha256", "acknowledged_at", "evidence_sha256")}
                                             for a in self.store.all("acks", org) if a["employee_id"] == employee_id]}
 
-    def dsr_erase(self, org: str, employee_id: str, on: Optional[date] = None) -> Dict[str, Any]:
+    def dsr_erase(self, org: str, employee_id: str, on: Optional[date] = None, links: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Anonymise this person's acknowledgements (the counts stay) when the registry allows; otherwise hold."""
         d = retention.decide("policy_acknowledgements", None, on or self._now().date())
         mine = [a for a in self.store.all("acks", org) if a["employee_id"] == employee_id]

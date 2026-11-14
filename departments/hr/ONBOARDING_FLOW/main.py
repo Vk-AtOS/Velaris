@@ -482,7 +482,7 @@ class OnboardingFlow:
         return ok(document=rec, content_base64=base64.b64encode(raw).decode())
 
     # ---- data-subject support (called by EMPLOYEE_RECORDS; not an HTTP method) ----------------------
-    def dsr_export(self, org: str, subject_id: str) -> Dict[str, Any]:
+    def dsr_export(self, org: str, subject_id: str, links: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Everything this agent holds about a person, identifiers masked. The caller has already authorised the request."""
         cases = [c for c in self.store.all("cases", org) if c["subject_id"] == subject_id]
         return {"onboarding_cases": [{**self._public(c), "tasks": cl.task_view(c["tasks"], self._today()), "forms": c["forms"],
@@ -490,7 +490,7 @@ class OnboardingFlow:
                                       "documents": [{k: d[k] for k in ("id", "type", "filename", "sha256", "delete_after")} for d in c["documents"]]}
                                      for c in cases]}
 
-    def dsr_erase(self, org: str, subject_id: str, on: Optional[date] = None) -> Dict[str, Any]:
+    def dsr_erase(self, org: str, subject_id: str, on: Optional[date] = None, links: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Erase what the retention registry allows; hold the rest and say why. Returns {"erased": [...], "held": [...]}."""
         on = on or self._today()
         erased: List[str] = []

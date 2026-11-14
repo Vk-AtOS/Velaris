@@ -22,10 +22,11 @@ import hmac
 import logging
 import re
 import secrets
-from datetime import timedelta
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+from velaris.agentkit import onboarding_dsr as dsr
 from velaris.agentkit import onboarding_esign as es
 from velaris.agentkit.onboarding_common import (HR_ADMINS, Refused, Store, clean_text, iso, keyed_hash, new_id, parse_iso, reader,
                                                 sha256_hex, utcnow, writer)
@@ -464,6 +465,14 @@ class Esign:
         """Status and document_ref of a request of `org` for another agent (OFFER_LETTERS); not an HTTP method. No names, no tokens."""
         req = self.store.get("requests", request_id, org)
         return {"status": req["status"], "document_ref": req["document_ref"]} if req else None
+
+    # ---- data-subject support (called by EMPLOYEE_RECORDS; not an HTTP method) ----------------------
+    def dsr_export(self, org: str, subject_id: str, links: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        return {"esign_requests": dsr.esign_export(self.store, org, links or {})}
+
+    def dsr_erase(self, org: str, subject_id: str, on: Optional[date] = None, links: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Anonymise the subject's signer data on requests that were never sealed; sealed evidence is held as the registry says."""
+        return dsr.esign_erase(self.store, org, links or {}, on or self._now().date(), self._now())
 
     def _visible(self, who: Caller, req: Optional[Dict[str, Any]]) -> bool:
         return req is not None and bool(who.roles & HR_ADMINS or who.id == req["created_by"])

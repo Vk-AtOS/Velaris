@@ -21,10 +21,12 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 
 import base64
 import logging
+from datetime import date
 import re
 from datetime import timedelta
 from typing import Any, Dict, List, Optional
 
+from velaris.agentkit import onboarding_dsr as dsr
 from velaris.agentkit import onboarding_offer_doc as doc
 from velaris.agentkit import onboarding_template as tpl
 from velaris.agentkit.onboarding_common import (HR_ADMINS, Refused, Store, clean_text, iso, new_id, parse_date, parse_iso,
@@ -433,6 +435,14 @@ class OfferLetters:
         if fmt == "pdf":
             return ok(format="pdf", sha256=sha256_hex(c["pdf"]), pdf_base64=base64.b64encode(c["pdf"]).decode())
         return ok(format=fmt, content=c[fmt], sha256=sha256_hex(c[fmt].encode()))
+
+    # ---- data-subject support (called by EMPLOYEE_RECORDS; not an HTTP method) ----------------------
+    def dsr_export(self, org: str, subject_id: str, links: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        return {"offers": dsr.offers_export(self.store, org, links or {})}
+
+    def dsr_erase(self, org: str, subject_id: str, on: Optional[date] = None, links: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Anonymise the subject's offers that never became a contract; hold the live or accepted ones as the registry says."""
+        return dsr.offers_erase(self.store, org, links or {}, on or self._now().date(), self._now())
 
     # ---- internals -----------------------------------------------------------------------------
     def _render(self, o: Dict[str, Any], expires) -> Dict[str, Any]:

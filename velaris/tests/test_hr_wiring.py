@@ -37,7 +37,15 @@ def application():
     return r["application"]["id"], c
 
 
+def accepted_offer(app):
+    oid = make_offer(app)
+    assert run("OFFER_LETTERS", "send_offer", HR1, offer_id=oid, delivered_manually=True)["status"] == "ok"
+    assert run("OFFER_LETTERS", "record_response", HR1, offer_id=oid, response="accept")["status"] == "ok"
+    return oid
+
+
 def convert(app, caller=HR1, approver=HR2, **kw):
+    kw.setdefault("offer_id", accepted_offer(app))
     p = run("EMPLOYEE_RECORDS", "propose_conversion", caller, application_id=app, department="Engineering", designation="Engineer",
             manager_id="mgr1", join_date="2026-12-01", **kw)
     if p["status"] != "ok":
@@ -84,22 +92,25 @@ def test_conversion_reads_the_candidate_from_ats_and_refuses_without_the_adapter
     assert r["status"] == "ok" and r["employee_id"]
     emp = run("EMPLOYEE_RECORDS", "get_employee", HR1, employee_id=r["employee_id"])["employee"]
     assert emp["name"] == "Asha Kumar" and emp["email"] == "asha@example.com"                              # taken from ATS_CORE
+    oid = accepted_offer(app)
     p2 = run("EMPLOYEE_RECORDS", "propose_conversion", HR1, application_id="app-nope", department="E", designation="E", manager_id="m",
-             join_date="2026-12-01")
+             join_date="2026-12-01", offer_id=oid)
     assert p2["status"] == "not_found"                                                                    # the ATS has no such application
     assert run("EMPLOYEE_RECORDS", "propose_conversion", OTHER_HR, application_id=app, department="E", designation="E", manager_id="m",
-               join_date="2027-01-04")["status"] == "not_found"                                           # another organisation's caller
+               join_date="2027-01-04", offer_id=oid)["status"] == "not_found"                                           # another organisation's caller
     absent = run("EMPLOYEE_RECORDS", "propose_conversion", HR1, config=NOT_WIRED, application_id="app-other", department="E",
-                 designation="E", manager_id="m", join_date="2027-01-04")
+                 designation="E", manager_id="m", join_date="2027-01-04", offer_id=oid)
     assert absent["status"] == "invalid_input" and "no applicant tracking agent" in absent["reason"]       # fail closed: names are not taken on trust
 
 
 def test_a_withdrawn_consent_is_not_carried_into_an_employee_record(application):
     app, c = application
+    oid = accepted_offer(app)
     cid = json.loads((agent_dir("ATS_CORE") / "evaluation.json").read_text())["applications"][app]["candidate_id"]
     with as_(c["rec"]):
         assert AtsCore().withdraw_consent(candidate_id=cid)["status"] == "ok"
-    p = run("EMPLOYEE_RECORDS", "propose_conversion", HR1, application_id=app, department="E", designation="E", manager_id="m", join_date="2027-01-04")
+    p = run("EMPLOYEE_RECORDS", "propose_conversion", HR1, application_id=app, department="E", designation="E", manager_id="m", join_date="2027-01-04",
+            offer_id=oid)
     assert p["status"] == "not_found"
 
 
