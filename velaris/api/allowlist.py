@@ -219,6 +219,7 @@ METHODS: Dict[str, Dict[str, Rule]] = {
         "book_interview": Rule(ACT, roles=_REC),
         "cancel_interview": Rule(ACT, roles=_REC),
         "complete_interview": Rule(ACT, roles=_REC),
+        "hand_off_to_mail": Rule(ACT, roles=_REC),
         "issue_schedule_token": Rule(ACT, roles=_REC),
         "list_bookings": Rule(READ, roles=_HIR),
         "list_drafts": Rule(READ, roles=_HIR),
