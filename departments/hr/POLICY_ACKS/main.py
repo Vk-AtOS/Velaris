@@ -93,6 +93,7 @@ class PolicyAcks:
         if cur is None:
             return fail("not_found", "no current policy with this key")
         self.store.update("policies", cur["id"], who.org, lambda r: r.update(status="retired", retired_by=who.id, retired_reason=str(reason)[:300]))
+        trace.append(_AGENT, "policy.retired", {"policy": cur["id"], "org": who.org, "by": who.id, "version": cur["version"]})
         return ok(policy=policy_key, policy_status="retired")
 
     def get_policy(self, policy_key: str, version: int = 0) -> Dict[str, Any]:
@@ -155,6 +156,9 @@ class PolicyAcks:
                "employee_id": who.employee_id, "text_sha256": pol["text_sha256"], "acknowledged_at": body["acknowledged_at"],
                "evidence_sha256": sha256_hex(canonical(body)), "method": "self"}
         self.store.put("acks", rec)
+        trace.append(_AGENT, "policy.acknowledged", {"policy": pol["id"], "org": who.org, "version": pol["version"],
+                                                     "employee": hashlib.sha256(f"{who.org}:{who.employee_id}".encode()).hexdigest()[:16],
+                                                     "evidence_sha256": rec["evidence_sha256"]})
         return ok(policy=pol["id"], version=pol["version"], acknowledged_at=rec["acknowledged_at"], evidence_sha256=rec["evidence_sha256"])
 
     def _pending(self, org: str, only: Optional[str] = None) -> List[Dict[str, Any]]:

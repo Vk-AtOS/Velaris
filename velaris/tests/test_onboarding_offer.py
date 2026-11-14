@@ -7,6 +7,7 @@ from velaris.tests.onboarding_helpers import CANDIDATE, HR1, HR2, MGR, ORG, OTHE
 from velaris.agents.OFFER_LETTERS.main import OfferLetters
 from velaris.agents.PAYROLL_ENGINE import statutory
 from velaris.agentkit.onboarding_pdf import parse_pdf
+from velaris.intel import trace
 from velaris.core.access import Caller, acting_as
 
 
@@ -223,6 +224,7 @@ def test_expiry_response_and_ats_notification():
     clock.advance(days=2)
     with acting_as(HR1):
         assert o.expire_due()["expired"] == [oid3]
+    assert [e["payload"]["offers"] for e in trace.entries() if e["action"] == "offers.expired"] == [[oid3]]      # the outcome is in the ledger, not just the grant
 
 
 def test_unknown_ats_application_and_record_response_basis():

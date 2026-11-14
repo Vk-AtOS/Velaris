@@ -392,6 +392,7 @@ class OfferLetters:
             if o["status"] == "sent" and now > parse_iso(o["expires_at"]):
                 self.store.update("offers", o["id"], who.org, lambda r: r.update(status="expired"))
                 expired.append(o["id"])
+        trace.append(_AGENT, "offers.expired", {"org": who.org, "by": who.id, "count": len(expired), "offers": expired[:200]})
         return ok(expired=expired)
 
     # ---- reads ---------------------------------------------------------------------------------
