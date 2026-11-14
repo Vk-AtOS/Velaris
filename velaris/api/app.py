@@ -363,7 +363,7 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
             record(caller, "trace.verify", {"outcome": "denied"})
             raise ApiError(403, "admin_only", "only an administrator may verify the global trace")
         record(caller, "trace.verify", {})
-        return await in_thread(verify_incremental)
+        return await in_thread(partial(verify_incremental, full=request.query_params.get("full") == "true"))
 
     mount_control(app, authed=authed, record=record, in_thread=in_thread, api_error=ApiError, llm=llm,
                   gate=settings.gate, flow_path=settings.flow_db)       # control layer: /control/... (velaris/control)

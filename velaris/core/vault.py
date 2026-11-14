@@ -65,6 +65,11 @@ def _key(purpose: str) -> bytes:
     return HKDF(hashes.SHA256(), 32, None, b"velaris-vault:" + purpose.encode()).derive(_master())
 
 
+def derive_key(purpose: str) -> bytes:
+    """A 32-byte key for `purpose` derived from the master key (e.g. to MAC a file); raises VaultKeyError without one."""
+    return _key(purpose)
+
+
 def is_sealed(blob: bytes) -> bool:
     return blob[:4] == MAGIC
 
