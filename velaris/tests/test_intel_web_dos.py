@@ -73,3 +73,31 @@ def test_llm_malformed_replies_raise_llmerror(monkeypatch):
         monkeypatch.setattr(llm.httpx, "post", lambda *a, _b=body, **k: _b)
         with pytest.raises(llm.LLMError):
             llm.LLM().complete("hi", model="bedrock:m")
+
+
+def test_docs_and_memory_hard_erase_leave_no_text_behind():
+    from velaris.intel.docs import DocStore
+    from velaris.intel.llm import FakeLLM
+    from velaris.intel.memory import MemoryStore
+    d = DocStore(FakeLLM({}))
+    d.ingest("cv.md", b"# CV\nAsha Rao lives at 12 Park Road", scope="org1")
+    d.ingest("cv.md", b"# CV\nAsha Rao lives at 14 Lake Road", scope="org1")       # a second version
+    assert d.erase("cv.md", scope="org1", reason="dpdp") == 2
+    assert d._db.execute("SELECT count(*) FROM documents").fetchone()[0] == 0
+    assert d._db.execute("SELECT count(*) FROM chunks").fetchone()[0] == 0
+    m = MemoryStore(FakeLLM({}))
+    m._db.execute("INSERT INTO memories (id, scope, text, embedding, created_at) VALUES ('a','s','old phone','[]',1)")
+    m._db.execute("INSERT INTO memories (id, scope, text, embedding, created_at, supersedes) VALUES ('b','s','new phone','[]',2,'a')")
+    m._db.commit()
+    assert m.erase("b", reason="dpdp") == 2 and m._db.execute("SELECT count(*) FROM memories").fetchone()[0] == 0
+
+
+def test_docs_unique_current_version(tmp_path):
+    import sqlite3
+    import pytest
+    from velaris.intel.docs import DocStore
+    from velaris.intel.llm import FakeLLM
+    d = DocStore(FakeLLM({}))
+    d.ingest("a.md", b"# A\nfirst", scope="s")
+    with pytest.raises(sqlite3.IntegrityError):
+        d._db.execute("INSERT INTO documents VALUES ('x','s','a.md','h','md','',1,NULL,NULL)")
