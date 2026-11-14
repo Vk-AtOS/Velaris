@@ -34,6 +34,8 @@ class CSG_STATEALIGNAgent:
         if not isinstance(state, dict) or not isinstance(patch, list):
             return fail("invalid_input", "state must be an object and patch a list", state=None)
         result = copy.deepcopy(state)
+        if all(isinstance(o, dict) for o in patch):
+            patch = sorted(patch, key=lambda o: o.get("op") != "remove")      # stable: removals first, so a field that turns from scalar/empty into a nested object (or back) keeps its new value
         for op in patch:
             if not isinstance(op, dict) or op.get("op") not in ("add", "replace", "remove") or not isinstance(op.get("path"), str):
                 return fail("invalid_input", f"bad patch operation {op!r}", state=None)
@@ -41,8 +43,13 @@ class CSG_STATEALIGNAgent:
             node = result
             for key in parents:
                 if not isinstance(node.get(key), dict):
+                    if op["op"] == "remove":
+                        node = None         # nothing to remove below a scalar or a missing object
+                        break
                     node[key] = {}          # an empty object or scalar on the way to a deeper field is replaced
                 node = node[key]
+            if node is None:
+                continue
             if op["op"] == "remove":
                 node.pop(leaf, None)
             elif "value" not in op:

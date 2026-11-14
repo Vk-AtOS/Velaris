@@ -59,6 +59,8 @@ class META_REASONING_COREAgent:
         attempts: List[Dict[str, Any]] = []
         while True:
             verdict = self.evaluator.evaluate(draft, rubric)
+            if verdict["status"] != "ok":              # e.g. a draft longer than the evaluator accepts, or a rubric with no checks
+                return {**verdict, "answer": None, "attempts": attempts}
             attempts.append({"answer": draft, "score": verdict["score"], "failures": verdict["failures"]})
             if verdict["passed"] or len(attempts) >= max_rounds:
                 break

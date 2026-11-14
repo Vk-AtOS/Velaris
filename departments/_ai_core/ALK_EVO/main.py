@@ -21,7 +21,7 @@ def _mean(scores):
 
 class ALK_EVOAgent:
     def __init__(self, min_samples=5, margin=0.0):
-        self.min_samples, self.margin = min_samples, margin
+        self.min_samples, self.margin = max(1, min_samples), margin     # a mean needs at least one score
         self._state = JsonState(NAME, "state.json", {"variants": {}, "champion": None, "previous": []})
 
     def health_check(self):
@@ -71,7 +71,8 @@ class ALK_EVOAgent:
                          for v, r in sorted(data["variants"].items())}
             current = standings[data["champion"]]
             enough = {v for v, s in standings.items() if s["samples"] >= self.min_samples}
-            better = sorted((v for v in enough - {data["champion"]} if data["champion"] in enough
+            demoted = set(data.get("demoted", []))      # rolled back by a person: not re-promoted by the next evaluate
+            better = sorted((v for v in enough - {data["champion"]} - demoted if data["champion"] in enough
                              and standings[v]["mean"] - current["mean"] > self.margin),
                             key=lambda v: (-standings[v]["mean"], v))
             if not better:
@@ -89,5 +90,6 @@ class ALK_EVOAgent:
             if not data["previous"]:
                 return fail("not_found", "there is no earlier champion to restore", champion=data["champion"])
             undone, data["champion"] = data["champion"], data["previous"].pop()
+            data["demoted"] = (data.get("demoted", []) + [undone])[-100:]
             return ok(champion=data["champion"], rolled_back=undone)
         return self._state.update(change)

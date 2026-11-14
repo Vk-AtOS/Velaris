@@ -60,7 +60,7 @@ class PERSONALITY_MODAgent:
         style, changes = self._doc.current(), []
         body = text
         for phrase in style["banned"]:
-            body, n = re.subn(re.escape(phrase), "", body, flags=re.I)
+            body, n = re.subn(r"(?<!\w)" + re.escape(phrase) + r"(?!\w)", "", body, flags=re.I)
             if n:
                 changes.append(f"removed '{phrase}' x{n}")
         body = " ".join(body.split())

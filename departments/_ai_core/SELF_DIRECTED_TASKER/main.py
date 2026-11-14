@@ -24,10 +24,26 @@ def _tasks(expanded: Any) -> Optional[List[Dict[str, Any]]]:
     if not isinstance(tasks, list) or not tasks:
         return None
     ids = [t.get("id") for t in tasks if isinstance(t, dict)]
-    if len(ids) != len(tasks) or len(set(ids)) != len(ids) or any(
+    if len(ids) != len(tasks) or not all(isinstance(i, str) and i for i in ids) or len(set(ids)) != len(ids) or any(
             not isinstance(t.get("depends_on", []), list) or set(t.get("depends_on", [])) - set(ids) for t in tasks):
         return None
+    if any(not all(isinstance(d, str) for d in t.get("depends_on", [])) for t in tasks):
+        return None
     return [{"id": t["id"], "title": t.get("title", ""), "depends_on": list(t.get("depends_on", []))} for t in tasks]
+
+
+def _has_cycle(tasks: List[Dict[str, Any]]) -> bool:
+    """True when some tasks wait on each other (such a plan could never finish)."""
+    waiting = {t["id"]: set(t.get("depends_on", [])) for t in tasks}
+    while waiting:
+        free = [i for i, deps in waiting.items() if not deps]
+        if not free:
+            return True
+        for i in free:
+            del waiting[i]
+        for deps in waiting.values():
+            deps.difference_update(free)
+    return False
 
 
 def _ready(tasks: Dict[str, Dict[str, Any]]) -> List[str]:
@@ -50,9 +66,10 @@ class SelfDirectedTasker:
             return {"task_ready": False, "expanded": expanded, "ready": [], "blocked": {}, "status": "invalid_input",
                     "reason": "expected a planner result with a non-empty 'tasks' list and known dependencies"}
         ready = sorted(t["id"] for t in tasks if not t["depends_on"])
+        deadlocked = not ready or _has_cycle(tasks)       # tasks that wait on each other never finish
         return {"task_ready": bool(ready), "expanded": expanded, "ready": ready,
                 "blocked": {t["id"]: t["depends_on"] for t in tasks if t["depends_on"]},
-                "total": len(tasks), "status": "ok" if ready else "deadlocked"}
+                "total": len(tasks), "status": "deadlocked" if deadlocked else "ok"}
 
     def start(self, expanded: dict) -> Dict[str, Any]:
         """Store the plan as a queue. Returns plan_id and the tasks that can start."""

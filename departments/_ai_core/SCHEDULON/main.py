@@ -25,6 +25,8 @@ class SchedulonAgent:
         Returns list of worker buckets with assigned loads.
         """
         logger.debug("Distributing tasks=%s across workers=%s", tasks, workers)
+        if not isinstance(workers, int) or isinstance(workers, bool) or workers < 1:
+            return []                      # nobody to give work to
         buckets = [[] for _ in range(workers)]
         loads = [0] * workers
 

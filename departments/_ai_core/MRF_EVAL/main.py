@@ -84,6 +84,9 @@ class MRF_EVALAgent:
                 check("field", isinstance(data, dict) and field in data, field)
         if "pattern" in rubric:
             check("pattern", re.search(rubric["pattern"], text[:MAX_MATCH_INPUT]) is not None, rubric["pattern"])
+        if not checks:
+            return invalid("the rubric has no checks to apply (empty 'required' or 'forbidden' list?)",
+                           passed=False, score=None)
         failures = [c for c in checks if not c["ok"]]
         return {"status": "ok", "passed": not failures, "score": round((len(checks) - len(failures)) / len(checks), 4),
                 "checks": checks, "failures": failures}

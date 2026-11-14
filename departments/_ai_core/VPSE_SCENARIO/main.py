@@ -67,7 +67,10 @@ def _eval(node: ast.AST, values: Dict[str, float]) -> float:
         value = _eval(node.operand, values)
         return -value if isinstance(node.op, ast.USub) else value
     if isinstance(node, ast.Call):
-        return float(_FUNCS[node.func.id](*[_eval(a, values) for a in node.args]))      # type: ignore[attr-defined]
+        try:
+            return float(_FUNCS[node.func.id](*[_eval(a, values) for a in node.args]))  # type: ignore[attr-defined]
+        except (TypeError, ValueError, OverflowError, ZeroDivisionError) as e:   # abs(), round(1, 2, 3): wrong argument count
+            raise FormulaError(f"{node.func.id}() failed: {e}") from e
     left, right = _eval(node.left, values), _eval(node.right, values)                    # type: ignore[attr-defined]
     if isinstance(node.op, ast.Pow) and abs(right) > 10:                                 # type: ignore[attr-defined]
         raise FormulaError("exponents above 10 are not allowed")

@@ -44,7 +44,7 @@ class ADAPTIVE_ACTION_ENGINEAgent:
         passed_over = []
         for action in ranked["order"]:
             result = self.runtime.run(action, approved_by)
-            if result["status"] in ("denied", "needs_approval", "no_handler", "unauthenticated", "audit_failed"):
+            if result["status"] not in ("ok", "failed"):       # refused or not attempted (denied, no_request, in_progress...): not a failure of the action
                 passed_over.append({"type": action["type"], "status": result["status"], "reason": result["reason"]})
                 continue
             if not result.get("replayed"):
