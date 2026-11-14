@@ -221,7 +221,7 @@ def test_nothing_is_collected_before_the_offer_is_confirmed():
             r = o.submit_identifier(cid, kind, val, **kw)
             assert r["status"] == "blocked", (kind, r)
         assert o.submit_form(cid, "emergency_contact", {"name": "R", "relation": "father", "phone": "9"})["status"] == "ok"      # not behind the offer check
-        assert o.collect_document(cid, "identity_proof", "id.png", base64.b64encode(b"x").decode())["status"] == "ok"
+        assert o.collect_document(cid, "identity_proof", "id.png", base64.b64encode(b"x").decode())["status"] == "blocked"
     assert PAN not in data_text()
 
 
@@ -432,6 +432,7 @@ def test_forms_and_nominations():
 def test_documents_are_sealed_hashed_and_dated():
     o, _ = make()
     cid = start(o)
+    unblock(o, cid)
     content = b"%PDF fake identity scan with PLAINTEXT-MARKER"
     with acting_as(EMP):
         r = o.collect_document(cid, "identity_proof", "id.pdf", base64.b64encode(content).decode())

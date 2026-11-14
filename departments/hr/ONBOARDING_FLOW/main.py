@@ -265,6 +265,8 @@ class OnboardingFlow:
 
     # ---- data capture -------------------------------------------------------------------------------
     def _capture_task(self, c: Dict[str, Any], kind: str) -> Dict[str, Any]:
+        if c["status"] != "open":                    # a closed, cancelled or erased case collects nothing more
+            raise Refused(fail("conflict", f"case is {c['status']}; no more data is accepted"))
         t = next((x for x in c["tasks"] if x["kind"] == kind), None)
         if t is None:
             raise Refused(fail("not_found", f"this checklist has no '{kind}' task"))
@@ -443,15 +445,15 @@ class OnboardingFlow:
         if "tasks" not in case:
             return case
         doc_id = new_id("doc")
-        write_private(self.store.files_dir("docs") / f"{doc_id}.sealed", crypto.seal(raw, f"{case_id}:{doc_id}"))
         rec = {"id": doc_id, "type": doc_type, "filename": name, "sha256": sha256_hex(raw), "size": len(raw), "collected_by": who.id,
                "collected_at": iso(self._now()),
                "delete_after": retention.planned_delete_after("onboarding_documents", date.fromisoformat(case["join_date"]), self._today())}
 
         def _do(c: Dict[str, Any]) -> Dict[str, Any]:
+            t = self._capture_task(c, "document")      # open case, and nothing is stored while the task is blocked
+            write_private(self.store.files_dir("docs") / f"{doc_id}.sealed", crypto.seal(raw, f"{case_id}:{doc_id}"))
             c["documents"].append(rec)
-            t = next((x for x in c["tasks"] if x["kind"] == "document" and x["state"] == "open"), None)
-            if t is not None and not [d for d in t["depends_on"] if next(x for x in c["tasks"] if x["key"] == d)["state"] == "open"]:
+            if t["state"] == "open":
                 self._finish(c, t, who, "document uploaded", "")
             return ok(document={k: rec[k] for k in ("id", "type", "filename", "sha256", "size", "delete_after")})
 
@@ -512,14 +514,19 @@ class OnboardingFlow:
                         held.append({"what": f"{rec['id']}:form:{form}", **d})
                 if rec["documents"]:
                     d_doc = retention.decide("onboarding_documents", anchor, on)
-                    for doc in rec["documents"]:
-                        try:
-                            (self.store.files_dir("docs") / f"{doc['id']}.sealed").unlink(missing_ok=True)
-                        except OSError as e:
-                            logger.warning("could not delete document file %s: %s", doc["id"], e)
-                    erased.append(f"{rec['id']}:documents({len(rec['documents'])}) [{d_doc['class']}]")
-                    rec["documents"] = []
-                rec["name"], rec["email"], rec["erased_at"] = "erased", "erased", iso(self._now())
+                    if d_doc["action"] == "erase":
+                        for doc in rec["documents"]:
+                            try:
+                                (self.store.files_dir("docs") / f"{doc['id']}.sealed").unlink(missing_ok=True)
+                            except OSError as e:
+                                logger.warning("could not delete document file %s: %s", doc["id"], e)
+                        erased.append(f"{rec['id']}:documents({len(rec['documents'])}) [{d_doc['class']}]")
+                        rec["documents"] = []
+                    else:
+                        held.append({"what": f"{rec['id']}:documents({len(rec['documents'])})", **d_doc})
+                if rec["identifiers"]:
+                    held.append({"what": f"{rec['id']}:identifiers", **d_id})
+                rec["name"], rec["email"], rec["erased_at"] = "erased", "erased", iso(self._now())   # the held records keep the subject id
 
             self.store.update("cases", c["id"], org, _do)
         return {"erased": erased, "held": held}
