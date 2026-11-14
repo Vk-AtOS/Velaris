@@ -1,0 +1,13 @@
+.git
+.github
+_archived_agents
+_archived_domains
+_archived_tests
+docs
+**/__pycache__
+**/tests
+*.db
+.env
+.env.*
+*.pem
+*.key

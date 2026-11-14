@@ -36,6 +36,7 @@ from fastapi.responses import JSONResponse
 from velaris.api.allowlist import ACT, READ, catalog, prepare, rule_for, tool_params
 from velaris.api.auth import AuthError, Verifier, load_public_key
 from velaris.api.background import interval, lifespan
+from velaris.api.observability import CountingLLM, Metrics, install as install_observability
 from velaris.chat.api import chat_router
 from velaris.chat.service import ChatService
 from velaris.control.api import mount as mount_control
@@ -106,7 +107,8 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
     if not (isinstance(settings.org, str) and settings.org.strip()):
         raise ValueError("a Velaris deployment belongs to one organisation: set VELARIS_ORG")
     verifier = Verifier(settings.secret, settings.identity_key)
-    llm = settings.llm or LLM()
+    metrics = Metrics()
+    llm = CountingLLM(settings.llm or LLM(), metrics)      # LLM spend counters for /metrics
     app = FastAPI(title="Velaris", docs_url=None, redoc_url=None, openapi_url=None)
     chat_service = ChatService()
     app.include_router(chat_router(verifier, settings.org, service=chat_service, llm=settings.llm))     # company chat: /chat/... (velaris/chat)
@@ -160,11 +162,13 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
         return caller, data
 
     def record(caller: Caller, action: str, payload: Dict[str, Any]) -> None:
+        metrics.on_record(action, payload)
         try:
             trace.append("api", action, {"caller": caller.id, "org": caller.org, "roles": sorted(caller.roles),
                                          **payload})
         except (OSError, ValueError, TypeError) as e:
             logger.warning("trace write failed for %s: %s", action, type(e).__name__)
+            metrics.inc("velaris_trace_failures_total")
             raise ApiError(503, "audit_unavailable", "the call could not be recorded, so it was not made") from None
 
     async def in_thread(fn: Any, *args: Any) -> Any:
@@ -368,6 +372,15 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
         record(caller, "trace.verify", {})
         return await in_thread(partial(verify_incremental, full=request.query_params.get("full") == "true"))
 
+    def gauges() -> Dict[str, float]:
+        try:
+            return {"velaris_approvals_waiting": len(Flow([], llm=llm, path=settings.flow_db).waiting())}
+        except Exception as e:      # a scrape must not fail because the flow store is busy
+            logger.warning("approvals gauge unavailable: %s", type(e).__name__)
+            return {}
+
+    install_observability(app, metrics, authed, gauges, ApiError)
+    app.state.metrics, app.state.gauges = metrics, gauges
     mount_control(app, authed=authed, record=record, in_thread=in_thread, api_error=ApiError, llm=llm,
                   gate=settings.gate, flow_path=settings.flow_db)       # control layer: /control/... (velaris/control)
     mail = mount_mail(app, settings, authed, record, in_thread)    # company email: /mail/... (velaris/mail)

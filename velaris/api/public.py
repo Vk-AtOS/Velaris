@@ -54,6 +54,7 @@ from velaris.agentkit import hiring_intake as intake
 from velaris.agentkit import hiring_record_gateway as interview
 from velaris.agentkit import hiring_sched as sched
 from velaris.agents.ESIGN.main import Esign
+from velaris.api.observability import configure_logging
 from velaris.core.access import acting_as
 from velaris.core.shared import RateStore
 
@@ -340,7 +341,8 @@ def create_public_app(settings: Optional[PublicSettings] = None) -> FastAPI:
 
 def main() -> None:
     import uvicorn
-    uvicorn.run(create_public_app(PublicSettings.from_env()), host=os.environ.get("VELARIS_PUBLIC_HOST", "127.0.0.1"),
+    configure_logging()                  # JSON lines with link tokens masked (access log included)
+    uvicorn.run(create_public_app(PublicSettings.from_env()), log_config=None, host=os.environ.get("VELARIS_PUBLIC_HOST", "127.0.0.1"),
                 port=int(os.environ.get("VELARIS_PUBLIC_PORT", "8731")), workers=1, log_level="info", proxy_headers=False)
 
 

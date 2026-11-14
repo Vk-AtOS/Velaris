@@ -11,17 +11,26 @@ import os
 import uvicorn
 
 from velaris.api.app import Settings, create_app
+from velaris.api.observability import configure_logging, listener_address, serve_internal
+
+
+def _workers() -> int:
+    return max(1, int(os.environ.get("VELARIS_API_WORKERS", "1")))
 
 
 def build():
-    return create_app(Settings.from_env())
+    app = create_app(Settings.from_env())
+    addr = listener_address()           # VELARIS_METRICS_PORT: unauthenticated /metrics on loopback, never published
+    if addr and _workers() == 1:        # one listener port cannot be shared by several workers; use the signed GET /metrics then
+        serve_internal(app.state.metrics, app.state.gauges, *addr)
+    return app
 
 
 def main() -> None:
+    configure_logging()
     Settings.from_env()          # fail at start-up, not in a worker, when the configuration is incomplete
     uvicorn.run("velaris.api.__main__:build", factory=True, host=os.environ.get("VELARIS_API_HOST", "127.0.0.1"),
-                port=int(os.environ.get("VELARIS_API_PORT", "8730")), workers=max(1, int(os.environ.get("VELARIS_API_WORKERS", "1"))),
-                log_level="info")
+                port=int(os.environ.get("VELARIS_API_PORT", "8730")), workers=_workers(), log_level="info", log_config=None)
 
 
 if __name__ == "__main__":
