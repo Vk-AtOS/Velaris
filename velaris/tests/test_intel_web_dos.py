@@ -33,3 +33,32 @@ def test_deeply_nested_html_does_not_raise():
     html = "<html><body>" + "<div>" * 5000 + "deep text" + "</div>" * 5000 + "</body></html>"
     assert "deep text" in html_to_markdown(html)["markdown"]
     assert web.scrape("https://x.test/", f=_F(html), render_js=False).error in (None, "")
+
+
+def test_self_hosted_searxng_on_a_private_host_is_allowed_only_when_configured(monkeypatch):
+    import pytest
+    from velaris.intel.web_fetch import FetchError, check_public
+    private = lambda h: ["10.0.0.5"]            # noqa: E731
+    with pytest.raises(FetchError):
+        check_public("http://search.corp/search", private)
+    monkeypatch.setenv("SEARXNG_URL", "http://search.corp:8080")
+    assert check_public("http://search.corp/search", private) == ["10.0.0.5"]
+    with pytest.raises(FetchError):
+        check_public("http://other.corp/", private)
+
+
+def test_cache_is_atomic_corrupt_entry_is_refetched_and_expired_entries_are_swept(tmp_path):
+    import os
+    import httpx
+    from velaris.intel.web_fetch import Fetcher
+    f = Fetcher(transport=httpx.MockTransport(lambda r: httpx.Response(200, headers={"content-type": "text/html"}, text="<p>hi</p>")),
+                resolver=lambda h: ["93.184.216.34"], min_gap_s=0, cache_ttl_s=3600, obey_robots=False)
+    f.fetch("https://a.test/x")
+    entry = f._cache_file("https://a.test/x")
+    entry.write_text("{half")                                      # a torn / foreign file
+    assert f.fetch("https://a.test/x").text == "<p>hi</p>"         # no JSONDecodeError
+    old = f._cache_dir / "dead.json"
+    old.write_text("{}")
+    os.utime(old, (1, 1))
+    f._sweep_cache()
+    assert not old.exists() and entry.exists() and not list(f._cache_dir.glob(".*.tmp"))
