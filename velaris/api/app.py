@@ -35,7 +35,9 @@ from fastapi.responses import JSONResponse
 
 from velaris.api.allowlist import ACT, READ, catalog, prepare, rule_for, tool_params
 from velaris.api.auth import AuthError, Verifier, load_public_key
+from velaris.api.background import interval, lifespan
 from velaris.chat.api import chat_router
+from velaris.chat.service import ChatService
 from velaris.control.api import mount as mount_control
 from velaris.api.trace_check import verify_incremental
 from velaris.core.access import GOVERNANCE_ADMINS, SECURITY_ADMINS, AccessDenied, Caller, deployment_org
@@ -106,7 +108,8 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
     verifier = Verifier(settings.secret, settings.identity_key)
     llm = settings.llm or LLM()
     app = FastAPI(title="Velaris", docs_url=None, redoc_url=None, openapi_url=None)
-    app.include_router(chat_router(verifier, settings.org, llm=settings.llm))     # company chat: /chat/... (velaris/chat)
+    chat_service = ChatService()
+    app.include_router(chat_router(verifier, settings.org, service=chat_service, llm=settings.llm))     # company chat: /chat/... (velaris/chat)
     state: Dict[str, Any] = {}
 
     @app.exception_handler(ApiError)
@@ -367,5 +370,8 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
 
     mount_control(app, authed=authed, record=record, in_thread=in_thread, api_error=ApiError, llm=llm,
                   gate=settings.gate, flow_path=settings.flow_db)       # control layer: /control/... (velaris/control)
-    mount_mail(app, settings, authed, record, in_thread)    # company email: /mail/... (velaris/mail)
+    mail = mount_mail(app, settings, authed, record, in_thread)    # company email: /mail/... (velaris/mail)
+    app.router.lifespan_context = lifespan([       # scheduled work, see velaris.api.background
+        ("mail-outbox", interval("VELARIS_MAIL_WORKER_S", 30.0), mail.outbound.process_due),
+        ("chat-sweep", interval("VELARIS_CHAT_SWEEP_S", 3600.0), partial(chat_service.sweep, settings.org))])
     return app
