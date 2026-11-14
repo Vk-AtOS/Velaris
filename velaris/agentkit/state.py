@@ -4,18 +4,27 @@
                                         access so it follows VELARIS_DATA. Reads never create
                                         anything on disk; the first save creates the directory.
                                         `path=` puts the file somewhere the caller chose instead.
+                                        `encrypted="<purpose>"` seals the file with velaris.core.vault (personal
+                                        data); a still-plaintext file is read and sealed on its next save, and
+                                        a missing key raises VaultKeyError (fail closed).
+                                        `version`/`migrations` give the file a schema_version and a migration
+                                        hook: migrations[n](data) turns a version-n document into n+1. Files
+                                        written before versioning count as version 0. A file from a NEWER
+                                        version is refused, not guessed at.
   peek_dir(agent)                       where an agent's files live, without creating it.
   append_line / read_lines              owner-only JSON-lines files (queues, streams).
 
-A file that no longer parses is moved aside as <name>.corrupt-<time> (never overwritten) and
-the agent starts from `default`; every agent built on this denies or reports "unknown" on
-empty state, so that fails closed. If the damaged file cannot be moved aside, load() raises
-rather than let the next save overwrite the evidence.
+Several processes (API on 8730, public app on 8731) and threads share these files: update() and
+`with state.lock:` hold a cross-process file lock (velaris.core.filelock) on <file>.lock, saves are
+write-temp, fsync, rename (readers never see half a file), and one document is capped at
+VELARIS_STATE_MAX_BYTES (default 1 MiB; use a JSON-lines file or sqlite for more).
 
-ponytail: a document is rewritten whole on each change and guarded by a per-process lock
-(shared by every JsonState on the same file). Fine for the small registries these agents
-keep on one node; move an agent to sqlite when its state passes a few MB or several
-processes write it at once.
+A file that no longer PARSES is moved aside as <name>.corrupt-<time> (never overwritten) and the agent
+starts from `default`; every agent built on this denies or reports "unknown" on empty state, so that
+fails closed. Any other read error (permissions, I/O, wrong vault key) is raised and the healthy file
+is left where it is. If a damaged file cannot be moved aside, load() raises rather than let the next
+save overwrite the evidence. A torn last line in a JSON-lines file is skipped on read and healed on the
+next append, so it never merges with the new record.
 """
 from __future__ import annotations
 
@@ -27,12 +36,21 @@ import time
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
 
+from velaris.core import vault
+from velaris.core.filelock import FileLock, lock_for
 from velaris.intel.paths import agent_dir, write_private
 
 logger = logging.getLogger("velaris.agentkit.state")
-_locks: Dict[str, threading.RLock] = {}
-_locks_guard = threading.Lock()
-_append_lock = threading.Lock()
+MAX_STATE_BYTES = int(os.environ.get("VELARIS_STATE_MAX_BYTES", str(1 << 20)))
+VERSION_KEY = "schema_version"
+
+
+class StateTooLarge(ValueError):
+    """A state document passed its size cap; the save was refused and the old file is untouched."""
+
+
+class StateVersionError(ValueError):
+    """The file was written by a newer schema than this code knows."""
 
 
 def peek_dir(agent: str) -> Path:
@@ -40,15 +58,39 @@ def peek_dir(agent: str) -> Path:
     return Path(os.environ.get("VELARIS_DATA") or Path.home() / ".velaris") / "agents" / agent
 
 
+class _StateLock:
+    """`state.lock`: the cross-process lock of the file's CURRENT path (VELARIS_DATA may change between uses)."""
+
+    def __init__(self, owner: "JsonState") -> None:
+        self._owner, self._held = owner, threading.local()
+
+    def _lock(self) -> FileLock:
+        p = self._owner.path
+        return lock_for(p.with_name(p.name + ".lock"))
+
+    def __enter__(self) -> "_StateLock":
+        lk = self._lock()
+        lk.acquire()
+        stack = self._held.__dict__.setdefault("stack", [])
+        stack.append(lk)
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self._held.stack.pop().release()
+
+
 class JsonState:
     """One JSON object persisted for `agent`. Nothing touches the disk until first use."""
 
     def __init__(self, agent: str, filename: str = "state.json", default: Optional[Dict[str, Any]] = None, *,
-                 path: Union[str, Path, None] = None) -> None:
+                 path: Union[str, Path, None] = None, encrypted: Optional[str] = None, version: int = 1,
+                 migrations: Optional[Dict[int, Callable[[Dict[str, Any]], Dict[str, Any]]]] = None,
+                 max_bytes: Optional[int] = None) -> None:
         self.agent, self.filename, self._explicit = agent, filename, path
         self._default = default or {}
-        with _locks_guard:
-            self.lock = _locks.setdefault(str(path) if path else f"{agent}/{filename}", threading.RLock())
+        self._purpose, self.version, self._migrations = encrypted, version, migrations or {}
+        self._max = max_bytes or MAX_STATE_BYTES
+        self.lock = _StateLock(self)
 
     @property
     def path(self) -> Path:
@@ -57,30 +99,56 @@ class JsonState:
     def _fresh(self) -> Dict[str, Any]:
         return json.loads(json.dumps(self._default))
 
+    def _migrate(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        v = data.pop(VERSION_KEY, 0)
+        if not isinstance(v, int) or v > self.version:
+            raise StateVersionError(f"{self.path} has schema_version {v!r}; this code understands up to {self.version}")
+        while v < self.version:
+            data = self._migrations.get(v, lambda d: d)(data)
+            v += 1
+        return data
+
+    def _decode(self, raw: bytes) -> Dict[str, Any]:
+        if vault.is_sealed(raw):
+            raw = vault.open_bytes(raw, self._purpose or self.agent)   # VaultError/VaultKeyError: raised, never "corrupt"
+        elif self._purpose:
+            vault._master()                                              # plaintext legacy file: still need the key to go on
+        data = json.loads(raw.decode("utf-8"))
+        if not isinstance(data, dict):
+            raise ValueError("state file does not hold a JSON object")
+        return data
+
     def load(self) -> Dict[str, Any]:
         """The stored object, or a copy of `default` if there is none (see the module docstring)."""
         path = self.path
-        with self.lock:
+        with self.lock if path.exists() else _NoLock():
             try:
-                data = json.loads(path.read_text(encoding="utf-8"))
-                if isinstance(data, dict):
-                    return data
-                raise ValueError("state file does not hold a JSON object")
+                raw = path.read_bytes()
             except FileNotFoundError:
                 return self._fresh()
-            except (ValueError, OSError) as e:
+            try:
+                data = self._decode(raw)
+            except vault.VaultError:
+                raise
+            except ValueError as e:                    # not JSON / not an object / not UTF-8: damaged
                 aside = path.with_name(f"{path.name}.corrupt-{int(time.time())}")
                 logger.warning("%s state %s unreadable (%s); set aside as %s", self.agent, path, e, aside.name)
                 os.replace(path, aside)          # raises if it cannot: the damaged file must not be overwritten
                 return self._fresh()
+            return self._migrate(data)
 
     def save(self, data: Dict[str, Any]) -> None:
+        body = json.dumps({**data, VERSION_KEY: self.version}, sort_keys=True, default=str).encode("utf-8")
+        if len(body) > self._max:
+            raise StateTooLarge(f"{self.agent}/{self.filename} would be {len(body)} bytes (cap {self._max}); not saved")
+        if self._purpose:
+            body = vault.seal_bytes(body, self._purpose)
         with self.lock:
             target = self.path if self._explicit else agent_dir(self.agent) / self.filename
-            write_private(target, json.dumps(data, sort_keys=True, default=str))
+            write_private(target, body)
 
     def update(self, fn: Callable[[Dict[str, Any]], Any]) -> Any:
-        """Load, let `fn` mutate the object, save, and return what `fn` returned."""
+        """Load, let `fn` mutate the object, save, and return what `fn` returned. Atomic across processes."""
         with self.lock:
             data = self.load()
             out = fn(data)
@@ -88,12 +156,29 @@ class JsonState:
             return out
 
 
+class _NoLock:
+    """Reads of a file that does not exist take no lock (and so create no lock file or directory)."""
+
+    def __enter__(self) -> None:
+        return None
+
+    def __exit__(self, *exc: object) -> None:
+        return None
+
+
 def append_line(path: Path, record: Dict[str, Any]) -> None:
-    """Append one JSON line to an owner-only file."""
-    with _append_lock:
-        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
-        with os.fdopen(fd, "a", encoding="utf-8") as f:
-            f.write(json.dumps(record, sort_keys=True, default=str) + "\n")
+    """Append one JSON line to an owner-only file; safe across processes, heals a torn last line first."""
+    line = json.dumps(record, sort_keys=True, default=str) + "\n"
+    with lock_for(Path(path).with_name(Path(path).name + ".lock")):
+        fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_APPEND, 0o600)
+        with os.fdopen(fd, "r+b") as f:
+            size = os.fstat(fd).st_size
+            if size:
+                f.seek(size - 1)
+                if f.read(1) != b"\n":          # the last write was cut short: start a fresh line
+                    line = "\n" + line
+            f.seek(0, os.SEEK_END)
+            f.write(line.encode("utf-8"))
             f.flush()
             os.fsync(f.fileno())
 

@@ -31,3 +31,9 @@ def _isolated_velaris_data(monkeypatch, tmp_path_factory):
     Tests that set VELARIS_DATA themselves still win: their fixture runs after this one.
     """
     monkeypatch.setenv("VELARIS_DATA", str(tmp_path_factory.mktemp("velaris_data")))
+
+
+@pytest.fixture(autouse=True)
+def _vault_key(monkeypatch):
+    """A fixed test master key (the real one lives outside VELARIS_DATA; see velaris.core.vault)."""
+    monkeypatch.setenv("VELARIS_VAULT_KEY", "dGVzdC12YXVsdC1rZXktMzItYnl0ZXMtLi4uLi4uLi4=")
