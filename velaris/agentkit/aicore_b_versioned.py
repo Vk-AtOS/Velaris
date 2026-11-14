@@ -9,19 +9,21 @@ change() and revert() are update() and rollback() made by the current caller
 (velaris.core.access): the version records the caller's id, the caller must hold one
 of `roles` (governance admins by default), a legacy `by` argument must be that same
 id, and the decision is traced either way.
-ponytail: keeps every full version in one JSON file; fine for small settings
+ponytail: keeps the newest 500-1000 full versions in one JSON file (older ones move to <file>.archive.jsonl); fine for small settings
 documents, move to SQLite if a document grows past a few hundred kB.
 """
 from __future__ import annotations
 
 import copy
 import time
+from pathlib import Path
 from typing import Any, Callable, Dict, FrozenSet, List, Optional
 
 from velaris.agentkit.checks import ident, is_json
 from velaris.agentkit.results import fail, invalid
-from velaris.agentkit.state import JsonState
+from velaris.agentkit.state import JsonState, append_line, peek_dir, read_lines
 from velaris.core.access import GOVERNANCE_ADMINS, check_caller
+from velaris.intel.paths import agent_dir
 
 MAX_VERSIONS = 1000
 
@@ -64,23 +66,32 @@ class VersionedDoc:
             diff = {k: [old.get(k), new.get(k)] for k in sorted(set(old) | set(new)) if old.get(k) != new.get(k)}
             if not diff:
                 return {"status": "unchanged", "version": versions[-1]["version"] if versions else 0}
-            if len(versions) >= MAX_VERSIONS:
-                return fail("full", f"history holds {MAX_VERSIONS} versions; archive it before changing more")
+            if len(versions) >= MAX_VERSIONS:      # archive the older half to a JSON-lines file; nothing is dropped
+                for old_entry in versions[:MAX_VERSIONS // 2]:
+                    append_line(self._archive_path(), old_entry)
+                del versions[:MAX_VERSIONS // 2]
             entry = {"version": (versions[-1]["version"] if versions else 0) + 1, "ts": time.time(),
                      "by": by.strip(), "changes": diff, "doc": new}
             versions.append(entry)
             return {"status": "ok", "version": entry["version"], "changes": diff}
         return self._state.update(change)
 
+    def _archive_path(self) -> Path:
+        return agent_dir(self._state.agent) / (self._state.filename + ".archive.jsonl")
+
+    def _archived(self) -> List[Dict[str, Any]]:
+        p = peek_dir(self._state.agent) / (self._state.filename + ".archive.jsonl")
+        return read_lines(p)
+
     def history(self, key: Optional[str] = None) -> List[Dict[str, Any]]:
         """Versions oldest first (without the full document); only those touching `key` if given."""
-        return [{k: v for k, v in e.items() if k != "doc"} for e in self._state.load().get("versions", [])
+        return [{k: v for k, v in e.items() if k != "doc"} for e in self._archived() + self._state.load().get("versions", [])
                 if key is None or key in e["changes"]]
 
     def at(self, ts: float) -> Dict[str, Any]:
         """The document as it was at time `ts`."""
         doc = copy.deepcopy(self._default)
-        for e in self._state.load().get("versions", []):
+        for e in self._archived() + self._state.load().get("versions", []):
             if e["ts"] <= ts:
                 doc = copy.deepcopy(e["doc"])
         return doc
@@ -89,7 +100,7 @@ class VersionedDoc:
         """Make version `version` current again, as a new recorded version (0 = the default)."""
         if version == 0:
             return self.update(self._default, by, replace=True)
-        versions = self._state.load().get("versions", [])
+        versions = self._archived() + self._state.load().get("versions", [])
         target = next((e for e in versions if e["version"] == version), None)
         if target is None or isinstance(version, bool):
             return fail("not_found", f"no version {version!r}")
