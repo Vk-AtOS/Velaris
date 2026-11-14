@@ -17,7 +17,7 @@ from velaris.agentkit import hiring_common as hc
 from velaris.agentkit import hiring_forms as hf
 from velaris.agentkit import hiring_intake as hi
 from velaris.agentkit.hiring_common import HIRING, RECRUITING, HiringError, acts, audit, bad, hid, mine, now, reads
-from velaris.agentkit.results import ok
+from velaris.agentkit.results import fail, ok
 from velaris.agents.ATS_CORE.main import AtsCore
 from velaris.agents.JOB_POSTINGS.main import JobPostings
 from velaris.agents.RESUME_EVIDENCE.main import ResumeEvidence
@@ -107,7 +107,7 @@ class ScreeningForms:
         """Waiting submissions: id, form, when, whether a file came. No personal data."""
         return ok(submissions=[{"id": s["id"], "form_id": s["form_id"], "requisition_id": s["requisition_id"], "received_at": hc.iso(s["received_at"]),
                                 "expires_at": hc.iso(s["expires_at"]), "has_file": bool(s["file"])}
-                               for s in mine(hf._st().load()["submissions"].values(), caller.org) if s["status"] == "pending"])
+                               for s in mine(hf._st().load()["submissions"].values(), caller.org) if s["status"] in ("pending", "resume_retry")])
 
     @reads(AGENT, RECRUITING)
     def get_submission(self, caller, submission_id: str) -> Dict[str, Any]:
@@ -122,22 +122,46 @@ class ScreeningForms:
         """A recruiter accepts a pending submission: ATS_CORE stores the candidate (consent from the form notice, duplicates go to
         review), the résumé file is parsed into evidence and then deleted, and a status token is issued once."""
         org = caller.org
-        s = hf._st().load()["submissions"].get(str(submission_id))
-        if not s or s["org"] != org:
-            raise HiringError("not_found", "no such submission")
-        if s["status"] != "pending":
-            raise HiringError("conflict", f"submission is {s['status']}")
-        a = s["answers"]
-        source = JobPostings().resolve_tracking(a["tracking_code"]).get("source", "careers_page") if a.get("tracking_code") else "careers_page"
-        out = AtsCore().add_candidate(name=a["name"], email=a.get("email", ""), phone=a.get("phone", ""), profile_url=a.get("profile_url", ""),
-                                      source=source, tracking_code=a.get("tracking_code", ""), requisition_id=s["requisition_id"],
-                                      consent={k: s["consent"][k] for k in ("purpose", "notice_version", "retention_until", "channel", "talent_pool")})
-        if out.get("status") != "ok":
-            return out
-        cid, app = out["candidate_id"], out.get("application", {})
+
+        def claim(d: Dict[str, Any]) -> Dict[str, Any]:         # one accept at a time: a second concurrent call finds "accepting"
+            r = d["submissions"].get(str(submission_id))
+            if not r or r["org"] != org:
+                raise HiringError("not_found", "no such submission")
+            if r["status"] not in ("pending", "resume_retry"):
+                raise HiringError("conflict", f"submission is {r['status']}")
+            r["status"] = "accepting"
+            return dict(r, was=r.get("candidate_id"))
+        s = hf._st().update(claim)
+
+        def release(d: Dict[str, Any]) -> None:               # nothing is lost: back to what it was, file and answers intact
+            d["submissions"][s["id"]]["status"] = "resume_retry" if s["was"] else "pending"
+        try:
+            return self._accept(caller, s, submission_id)
+        except Exception as e:
+            logger.warning("accept_submission failed, released for retry: %s", type(e).__name__)
+            hf._st().update(release)
+            raise
+
+    def _accept(self, caller, s: Dict[str, Any], submission_id: str) -> Dict[str, Any]:
+        org, a = caller.org, s["answers"]
+        out: Dict[str, Any] = {"status": "ok", "candidate_id": s["was"], "application": s.get("application") or {}, "duplicate_reviews": []}
+        if not s["was"]:                                       # first attempt: the candidate does not exist yet
+            source = JobPostings().resolve_tracking(a["tracking_code"]).get("source", "careers_page") if a.get("tracking_code") else "careers_page"
+            out = AtsCore().add_candidate(name=a["name"], email=a.get("email", ""), phone=a.get("phone", ""), profile_url=a.get("profile_url", ""),
+                                          source=source, tracking_code=a.get("tracking_code", ""), requisition_id=s["requisition_id"],
+                                          consent={k: s["consent"][k] for k in ("purpose", "notice_version", "retention_until", "channel", "talent_pool")})
+            if out.get("status") != "ok":
+                hf._st().update(lambda d: d["submissions"][s["id"]].update(status="pending"))
+                return out
+            hf._st().update(lambda d: d["submissions"][s["id"]].update(candidate_id=out["candidate_id"], application=out.get("application")))
+        cid, app = out["candidate_id"], out.get("application") or {}
         parsed = None
         if s["file"]:
             parsed = ResumeEvidence().parse_resume(candidate_id=cid, filename=f"resume.{s['file']['kind']}", content_base64=hi.file_b64(s["file"]["path"]))
+            if parsed.get("status") != "ok":                  # keep the file and the answers: the recruiter can retry or discard
+                hf._st().update(lambda d: d["submissions"][s["id"]].update(status="resume_retry"))
+                return fail("resume_failed", "the candidate was stored but the resume could not be read; the file is kept, accept again to retry",
+                            candidate_id=cid, resume_status=parsed.get("status"))
             os.remove(s["file"]["path"])
         token = hf.issue_token(org, app["id"], "status", 90) if app else None
         audit(AGENT, "submission.accepted", org, caller, submission=hid(org, submission_id), candidate=hid(org, cid))
@@ -155,7 +179,7 @@ class ScreeningForms:
 
         def go(d: Dict[str, Any]) -> Dict[str, Any]:
             s = d["submissions"].get(str(submission_id))
-            if not s or s["org"] != caller.org or s["status"] != "pending":
+            if not s or s["org"] != caller.org or s["status"] not in ("pending", "resume_retry"):
                 raise HiringError("not_found", "no such pending submission")
             audit(AGENT, "submission.discarded", caller.org, caller, submission=hid(caller.org, submission_id))
             if s["file"]:
@@ -173,7 +197,7 @@ class ScreeningForms:
         org = caller.org
 
         def go(d: Dict[str, Any]) -> int:
-            gone = [k for k, s in d["submissions"].items() if s["org"] == org and s["status"] == "pending" and s["expires_at"] <= now()]
+            gone = [k for k, s in d["submissions"].items() if s["org"] == org and s["status"] in ("pending", "resume_retry") and s["expires_at"] <= now()]
             if gone:
                 audit(AGENT, "submission.swept", org, caller, count=len(gone))
             for k in gone:
