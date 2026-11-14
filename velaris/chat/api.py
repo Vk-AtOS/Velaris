@@ -28,9 +28,10 @@ Assistant and admin routes: api_admin.py.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
-from typing import Any, Iterator, Optional
+from typing import Any, AsyncIterator, Optional
 from urllib.parse import quote
 
 from fastapi import APIRouter, BackgroundTasks, Request, Response
@@ -49,6 +50,7 @@ from velaris.intel.llm import LLM
 logger = logging.getLogger("velaris.chat.api")
 MAX_STREAM_S = 300.0
 KEEPALIVE_S = 15.0
+POLL_S = 0.25            # how often an open stream looks for new events
 
 
 def chat_router(verifier: Verifier, org: str, *, service: Optional[ChatService] = None,
@@ -91,19 +93,25 @@ def chat_router(verifier: Verifier, org: str, *, service: Optional[ChatService] 
         duration = min(max(query_float(request, "duration", 55.0), 0.05), MAX_STREAM_S)
         await run(ctx.svc.events, caller, qid, acked, 0.0, acked)        # a bad queue is a JSON error, not a broken stream
 
-        def frames() -> Iterator[bytes]:
+        async def frames() -> AsyncIterator[bytes]:
+            # An async generator: between polls the stream awaits a sleep and holds NO worker thread. (A sync
+            # generator parked a thread for the whole stream, so ~40 open streams starved every other request.)
             end, cursor = time.monotonic() + duration, acked
+            beat = float("-inf")        # the first idle poll sends a heartbeat at once, then one per KEEPALIVE_S
             while (left := end - time.monotonic()) > 0:
                 try:
-                    batch = ctx.svc.events(caller, qid, cursor, min(left, KEEPALIVE_S), acked)
+                    batch = await run(ctx.svc.events, caller, qid, cursor, 0.0, acked)
                 except ChatError as e:
                     yield sse_frame({"id": cursor + 1, "type": "error", "code": e.code})
                     return
-                if not batch:
+                if not batch and time.monotonic() - beat >= KEEPALIVE_S:
+                    beat = time.monotonic()
                     yield SSE_KEEPALIVE
                 for ev in batch:
                     yield sse_frame(ev)
                     cursor = ev["id"]
+                if not batch:
+                    await asyncio.sleep(min(POLL_S, max(left, 0.0)))
         return StreamingResponse(frames(), media_type="text/event-stream",
                                  headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
