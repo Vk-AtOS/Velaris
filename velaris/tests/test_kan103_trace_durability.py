@@ -1,7 +1,6 @@
 """KAN-103: one big or torn entry must not stop the audit trail; tail truncation is detectable."""
 import importlib
 import json
-import multiprocessing as mp
 
 from velaris.intel import trace
 
@@ -30,18 +29,15 @@ def test_torn_last_line_is_reported_not_raised_and_chain_continues():
     assert [e["action"] for e in trace.entries()] == ["one", "two"]
 
 
-def _worker(data, n):
-    import os
-    os.environ["VELARIS_DATA"] = data
-    for i in range(n):
-        trace.append("w", "x", {"i": i})
-
-
 def test_two_processes_cannot_fork_the_chain(tmp_path, monkeypatch):
+    import subprocess
+    import sys
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[2]
     monkeypatch.setenv("VELARIS_DATA", str(tmp_path))
-    ps = [mp.get_context("fork").Process(target=_worker, args=(str(tmp_path), 25)) for _ in range(4)]
-    [p.start() for p in ps]
-    [p.join() for p in ps]
+    code = "from velaris.intel import trace\nfor i in range(25): trace.append('w', 'x', {'i': i})"
+    ps = [subprocess.Popen([sys.executable, "-c", code], cwd=root) for _ in range(4)]
+    assert [p.wait(timeout=60) for p in ps] == [0, 0, 0, 0]
     assert trace.verify() == {"ok": True, "entries": 100, "broken_at": None, "reason": ""}
 
 
