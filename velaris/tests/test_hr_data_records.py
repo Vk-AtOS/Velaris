@@ -73,3 +73,21 @@ def test_export_masks_contact_details():
     with acting_as(HR1):
         out = er.export_subject(emp)["export"]["employee"]
     assert out["email"] == "a***@example.in" and out["phone"].endswith("0000") and "asha@example.in" not in str(out)
+
+
+def test_erasure_reports_leave_and_performance_records_as_held_not_forgotten():
+    from velaris.tests.test_onboarding_records import exited_employee, make
+    er, pol, flow, clock, _ = make()
+    emp, _cid = exited_employee(er, flow, pol, clock)
+    leave = [p for p in er.participants if type(p).__name__ == "LeaveManagement"][0]
+    perf = [p for p in er.participants if type(p).__name__ == "PerformanceReviewEngine"][0]
+    with acting_as(HR1):
+        leave.seed_balances(emp, 2026)
+        assert leave.apply(emp, "casual", "2026-11-16", "2026-11-17")["status"] == "pending"
+        perf.set_okr(emp, "Q1", "ship", ["a"])
+        exp = er.export_subject(emp)["export"]
+        assert len(exp["leave_requests"]) == 1 and len(exp["performance"]["okrs"]) == 1
+        res = er.erase_subject(emp, "DSR-3")
+    held = {h["what"]: h for h in res["held"]}
+    assert held["leave_requests(1)"]["status"] == "needs_review" and held["performance_records(1)"]["status"] == "needs_review"
+    assert res["complete"] is True and {"LeaveManagement", "PerformanceReviewEngine"} <= set(res["stores_covered"])

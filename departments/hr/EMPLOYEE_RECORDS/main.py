@@ -31,8 +31,10 @@ from velaris.agentkit.results import fail, health, invalid, ok
 from velaris.core.access import AccessDenied, Caller, authorize_read
 from velaris.intel import trace
 from velaris.agents.ESIGN.main import Esign
+from velaris.agents.LEAVE_MANAGEMENT.main import LeaveManagement
 from velaris.agents.OFFER_LETTERS.main import OfferLetters
 from velaris.agents.ONBOARDING_FLOW.main import OnboardingFlow
+from velaris.agents.PERFORMANCE_REVIEW_ENGINE.main import PerformanceReviewEngine
 from velaris.agents.POLICY_ACKS.main import PolicyAcks
 
 logger = logging.getLogger("EMPLOYEE_RECORDS")
@@ -60,7 +62,8 @@ class EmployeeRecords:
         self.store = Store(_AGENT)
         self.participants = self.config.get("participants")
         if self.participants is None:
-            self.participants = [OnboardingFlow(self.config), PolicyAcks(self.config), OfferLetters(self.config), Esign(self.config)]
+            self.participants = [OnboardingFlow(self.config), PolicyAcks(self.config), OfferLetters(self.config), Esign(self.config),
+                                LeaveManagement(self.config), PerformanceReviewEngine(self.config)]
 
     def health_check(self) -> Dict[str, Any]:
         return health(_AGENT, ats=bool(self.config.get("ats")), participants=len(self.participants))

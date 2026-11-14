@@ -6,6 +6,7 @@ import sqlite3
 from datetime import date, timedelta
 from typing import Dict, Any, List, Optional
 
+from velaris.agentkit import onboarding_retention as retention
 from velaris.agentkit.onboarding_common import HR_ADMINS, gate_change
 from velaris.core.access import Caller, authorize_read, current_caller, deployment_org, org_denied
 from velaris.intel.paths import agent_dir
@@ -224,3 +225,26 @@ class LeaveManagement:
             ).fetchall()
         conn.close()
         return [dict(r) for r in rows]
+
+
+    # ---- data-subject support (called by EMPLOYEE_RECORDS; not an HTTP method) ----------------------
+    def dsr_export(self, org: str, subject_id: str, links: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        conn = _db()
+        rows = conn.execute("SELECT * FROM leave_requests WHERE employee_id=? AND org=?", (subject_id, org)).fetchall()
+        conn.close()
+        return {"leave_requests": [dict(r) for r in rows]}
+
+    def dsr_erase(self, org: str, subject_id: str, on: Optional[date] = None, links: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Delete this person's leave rows when the retention registry allows (attendance and leave registers are a statutory class,
+        so today they are HELD and reported as needs_review)."""
+        conn = _db()
+        n = conn.execute("SELECT COUNT(*) FROM leave_requests WHERE employee_id=? AND org=?", (subject_id, org)).fetchone()[0]
+        d = retention.decide("attendance_leave_records", None, on or date.today())
+        if n and d["action"] == "erase":
+            conn.execute("DELETE FROM leave_requests WHERE employee_id=? AND org=?", (subject_id, org))
+            conn.execute("DELETE FROM leave_balances WHERE employee_id=?", (subject_id,))
+            conn.commit()
+            conn.close()
+            return {"erased": [f"leave requests ({n}) and balances"], "held": []}
+        conn.close()
+        return {"erased": [], "held": [{"what": f"leave_requests({n})", **d}] if n else []}

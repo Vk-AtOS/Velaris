@@ -8,6 +8,7 @@ import sqlite3
 from datetime import date
 from typing import Dict, Any, List, Optional
 
+from velaris.agentkit import onboarding_retention as retention
 from velaris.agentkit.onboarding_common import HR_ADMINS, gate_change, gate_read
 from velaris.core.access import AccessDenied, Caller, current_caller
 from velaris.intel.paths import agent_dir
@@ -258,3 +259,29 @@ class PerformanceReviewEngine:
         ).fetchall()
         conn.close()
         return [dict(r) for r in rows]
+
+
+    # ---- data-subject support (called by EMPLOYEE_RECORDS; not an HTTP method) ----------------------
+    def dsr_export(self, org: str, subject_id: str, links: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        conn = _db()
+        out = {t: [dict(r) for r in conn.execute(f"SELECT * FROM {t} WHERE employee_id=? AND org=?", (subject_id, org))]
+               for t in ("okrs", "reviews", "calibration")}
+        conn.close()
+        return {"performance": out}
+
+    def dsr_erase(self, org: str, subject_id: str, on: Optional[date] = None, links: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Delete this person's OKRs, reviews and calibration rows when the registry says so. It has no retention row for performance
+        records, so today they are HELD and reported as needs_review until the data-protection owner adds one."""
+        d = retention.decide("performance_records", None, on or date.today())
+        conn = _db()
+        counts = {t: conn.execute(f"SELECT COUNT(*) FROM {t} WHERE employee_id=? AND org=?", (subject_id, org)).fetchone()[0]
+                  for t in ("okrs", "reviews", "calibration")}
+        total = sum(counts.values())
+        if total and d["action"] == "erase":
+            for t in counts:
+                conn.execute(f"DELETE FROM {t} WHERE employee_id=? AND org=?", (subject_id, org))
+            conn.commit()
+            conn.close()
+            return {"erased": [f"performance records ({total})"], "held": []}
+        conn.close()
+        return {"erased": [], "held": [{"what": f"performance_records({total})", **d}] if total else []}
