@@ -1,8 +1,9 @@
 """INTERVIEW_SCHEDULER: who can interview when, bookings, invitations as drafts, self-scheduling, reminders, no-shows.
 
 The slot algorithm and iCalendar builder are in velaris.agentkit.hiring_slots (stdlib, tested against hand-computed cases);
-state and booking rules are in velaris.agentkit.hiring_sched. Invitations are DRAFTS: approve_draft marks one approved, and the mail
-layer sends it; this agent never sends anything. The candidate side (public_slots, public_pick, public_cancel in
+state and booking rules are in velaris.agentkit.hiring_sched. Invitations are DRAFTS: approve_draft marks one approved; hand_off_to_mail then
+puts it in a mailbox as a mail DRAFT (config["sender"], velaris.agentkit.hr_wiring.MailDraftSender) for a person to read and send.
+This agent never sends anything. The candidate side (public_slots, public_pick, public_cancel in
 velaris.agentkit.hiring_sched) works from a hashed, expiring token and is not exposed in the identity-authenticated API.
 A no-show is recorded and a follow-up drafted; it never rejects or withdraws anyone.
 """
@@ -15,6 +16,7 @@ from velaris.agentkit import hiring_sched as hs
 from velaris.agentkit import hiring_slots as sl
 from velaris.agentkit.hiring_common import HIRING, PANEL, RECRUITING, HiringError, acts, audit, bad, hid, mine, now, reads
 from velaris.agentkit.results import ok
+from velaris.agents.ATS_CORE.main import AtsCore
 
 logger = logging.getLogger("INTERVIEW_SCHEDULER")
 AGENT = hs.AGENT
@@ -189,6 +191,46 @@ class InterviewScheduler:
             x.update(status="approved", approved_by=caller.id)
             return x
         return ok(draft=hs.st().update(go), sent=False)
+
+    @acts(AGENT, RECRUITING)
+    def hand_off_to_mail(self, caller, draft_id: str) -> Dict[str, Any]:
+        """Put an APPROVED invitation into the mailbox as a mail draft, addressed to the candidate (contact details come from ATS_CORE and
+        only while consent holds). A person still has to read and send it from the mailbox: nothing is sent here. Once per draft."""
+        sender = self.config.get("sender")
+        if sender is None:
+            raise HiringError("not_configured", "no mailbox is configured for drafts (set VELARIS_HR_MAILBOX_ID); the approved draft stays here")
+
+        def claim(d: Dict[str, Any]) -> Dict[str, Any]:
+            x = d["drafts"].get(str(draft_id))
+            if not x or x["org"] != caller.org:
+                raise HiringError("not_found", "no such draft")
+            if x["status"] != "approved":
+                raise HiringError("conflict", f"draft is {x['status']}; only an approved draft is handed to the mailbox")
+            x["status"] = "handing_off"
+            return dict(x)
+        x = hs.st().update(claim)
+
+        def release(status: str, **extra: Any) -> None:
+            hs.st().update(lambda d: d["drafts"][x["id"]].update(status=status, **extra))
+        try:
+            contact = AtsCore().candidate_contact(candidate_id=x["to"]["candidate_id"])
+            if contact.get("status") != "ok":
+                release("approved")
+                raise HiringError(contact.get("status", "denied"), f"the candidate's contact details are not available: {contact.get('reason', '')}")
+            fill = lambda t: t.replace(hs.PLACEHOLDER_NAME, contact["name"]).replace(hs.PLACEHOLDER_EMAIL, contact["email"])
+            body = fill(x["body"]).replace("\nTo pick another time or cancel: {schedule_link}\n", "")      # no link has been issued for this mail
+            if sender.send(contact["email"], x["subject"], body) is not True:
+                release("approved")
+                raise HiringError("delivery_failed", "the mailbox did not accept the draft (no right to send from it, or no mailbox)")
+        except HiringError:
+            raise
+        except Exception as e:
+            logger.warning("hand-off of a draft failed: %s", type(e).__name__)
+            release("approved")
+            raise HiringError("error", "the draft could not be handed to the mailbox") from e
+        audit(AGENT, "draft.handed_off", caller.org, caller, draft=hid(caller.org, draft_id), kind=x["kind"])
+        release("handed_off", handed_off_by=caller.id, handed_off_at=now())
+        return ok(draft_id=draft_id, handoff="handed_off", sent=False, note="drafted in the mailbox: a person must read and send it; the calendar file is not attached")
 
     @reads(AGENT, RECRUITING)
     def render_invitation(self, caller, draft_id: str, candidate_name: str, candidate_email: str) -> Dict[str, Any]:

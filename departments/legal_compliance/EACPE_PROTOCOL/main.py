@@ -16,14 +16,21 @@ checks, deterministically:
 
 protocol_safe is True only when the protocol exists and there are no findings.
 Protocols are stored on disk and can be redefined; each result names the
-protocol version it was checked against.
+protocol version it was checked against. Defining or redefining one is a governance
+decision: define() needs an authenticated governance admin (velaris.core.access) and writes
+the new version and a hash of its steps to the hash-chained trace first; if the trace cannot
+be written the protocol is not changed. Evaluating is read-only and needs no caller.
 """
 from __future__ import annotations
 
 from typing import Any, Dict, List
 
+import hashlib
+import json
+
 from velaris.agentkit.checks import is_name, is_number
-from velaris.agentkit.results import invalid, ok
+from velaris.agentkit.infra_store import audit
+from velaris.agentkit.results import fail, invalid, ok
 from velaris.agentkit.state import JsonState
 from velaris.core.access import GOVERNANCE_ADMINS, check_caller
 
@@ -50,17 +57,25 @@ class EACPE_PROTOCOLAgent:
                 return invalid(f"{s['step']}: distinct_from may only name earlier steps")
             seen.append(s["step"])
 
-        # The four-eyes rules live here: only a governance admin may redefine them, and each change is traced.
-        _, refused = check_caller(NAME, "define", {"protocol": protocol, "steps": [s["step"] for s in steps]},
-                                  roles=GOVERNANCE_ADMINS)
+        caller, refused = check_caller(NAME, "define", {"protocol": protocol[:128], "steps": len(steps)}, roles=GOVERNANCE_ADMINS)
         if refused:
             return refused
 
+        class _Unrecorded(Exception):
+            pass
+
         def put(data: Dict[str, Any]) -> int:
             entry = data.setdefault("protocols", {}).setdefault(protocol, {"version": 0})
-            entry.update(version=entry["version"] + 1, steps=steps)
-            return entry["version"]
-        return ok(protocol=protocol, version=self._state.update(put))
+            version = entry["version"] + 1
+            digest = hashlib.sha256(json.dumps(steps, sort_keys=True).encode()).hexdigest()
+            if not audit(NAME, "protocol.defined", {"protocol": protocol, "version": version, "steps_sha256": digest, "by": caller.id}):
+                raise _Unrecorded()                 # nothing is saved: a protocol change that is not on the ledger does not happen
+            entry.update(version=version, steps=steps)
+            return version
+        try:
+            return ok(protocol=protocol, version=self._state.update(put))
+        except _Unrecorded:
+            return fail("audit_failed", "the change could not be recorded, so the protocol was not changed")
 
     def evaluate_protocol(self, data: dict) -> Dict[str, Any]:
         def unsafe(status: str, reason: str, findings: List[Dict[str, str]]) -> Dict[str, Any]:

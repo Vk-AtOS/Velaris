@@ -38,19 +38,22 @@ class ZohoPeopleConnector:
         )
         return resp.get("response", {}).get("result", [])
 
-    def get_attendance(self, employee_id: str, from_date: str, to_date: str) -> List[Dict]:
+    def get_attendance(self, employee_id: str, from_date: str, to_date: str, *, caller: Optional[Caller] = None) -> List[Dict]:
         """
         Returns attendance records for date range.
         from_date/to_date format: "MM-dd-yyyy"
+        Identity access: the person's own record, or an HR administrator (velaris.core.access, traced).
         """
+        authorize_read("identity", employee_id, agent="ZOHO_PEOPLE", caller=caller, org=self.config.get("org"))
         resp = self.zoho.get(
             f"{self.BASE}/forms/attendance/getAttendanceEntries",
             {"empId": employee_id, "startDate": from_date, "endDate": to_date}
         )
         return resp.get("response", {}).get("result", [])
 
-    def get_leave_summary(self, employee_id: str, year: int = None) -> Dict:
-        """Returns leave balance and taken days per leave type."""
+    def get_leave_summary(self, employee_id: str, year: int = None, *, caller: Optional[Caller] = None) -> Dict:
+        """Returns leave balance and taken days per leave type. Health access (sick and maternity leave are in it)."""
+        authorize_read("health", employee_id, agent="ZOHO_PEOPLE", caller=caller, org=self.config.get("org"))
         year = year or datetime.date.today().year
         resp = self.zoho.get(
             f"{self.BASE}/forms/leave/getLeaveTypeDetails",
@@ -58,17 +61,18 @@ class ZohoPeopleConnector:
         )
         return resp.get("response", {}).get("result", {})
 
-    def get_performance(self, employee_id: str) -> List[Dict]:
-        """Returns appraisal records and scores for the employee."""
+    def get_performance(self, employee_id: str, *, caller: Optional[Caller] = None) -> List[Dict]:
+        """Returns appraisal records and scores for the employee. Identity access."""
+        authorize_read("identity", employee_id, agent="ZOHO_PEOPLE", caller=caller, org=self.config.get("org"))
         resp = self.zoho.get(
             f"{self.BASE}/forms/appraisalform/getRecords",
             {"searchField": "EmployeeID", "searchValue": employee_id}
         )
         return resp.get("response", {}).get("result", [])
 
-    def get_attendance_summary(self, employee_id: str, from_date: str, to_date: str) -> Dict:
+    def get_attendance_summary(self, employee_id: str, from_date: str, to_date: str, *, caller: Optional[Caller] = None) -> Dict:
         """Summarises attendance: total days, present, absent, late, avg hours/day."""
-        records = self.get_attendance(employee_id, from_date, to_date)
+        records = self.get_attendance(employee_id, from_date, to_date, caller=caller)
         total = len(records)
         present = sum(1 for r in records if r.get("Status") == "Present")
         late = sum(1 for r in records if r.get("IsLate") == "true")

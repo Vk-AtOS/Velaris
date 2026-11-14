@@ -35,4 +35,5 @@ def test_module_level_sqlite_agents_resolve_the_path_at_use():
                         ("project_management", "SPRINT_PLANNER"), ("communications", "MEETING_SUMMARIZER"),
                         ("communications", "ACTION_ITEM_EXTRACTOR")]:
         src = (ROOT / "departments" / dept / agent / "main.py").read_text()
-        assert "_DB =" not in src and "agent_file(" in src, agent
+        # a module-level _DB may only be the empty override sentinel; the real path is resolved when the agent runs
+        assert ("_DB =" not in src or '_DB = ""' in src) and ("agent_file(" in src or "agent_dir(" in src), agent

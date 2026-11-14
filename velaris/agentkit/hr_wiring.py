@@ -120,7 +120,7 @@ def hr_config(agent: str, base: Optional[Dict[str, Any]] = None, *, environ: Opt
     for name, build in _WIRING.get(agent, {}).items():
         if cfg.get(name) is None:
             cfg[name] = build(cfg)
-    if agent == "OFFER_LETTERS" and cfg.get("sender") is None:
+    if agent in ("OFFER_LETTERS", "INTERVIEW_SCHEDULER") and cfg.get("sender") is None:
         sender = _mail_sender(os.environ if environ is None else environ, mail_store)
         if sender is not None:
             cfg["sender"] = sender

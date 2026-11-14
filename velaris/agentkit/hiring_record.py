@@ -24,7 +24,7 @@ import os
 import tempfile
 from typing import Any, Callable, Dict, Iterator, List, Optional
 
-from velaris.agentkit.hiring_common import HiringError, bad, digest, now, store
+from velaris.agentkit.hiring_common import DAY, HiringError, bad, digest, now, parse_date, store
 from velaris.core import vault
 from velaris.agentkit.state import append_line, read_lines
 from velaris.intel.paths import agent_dir, private_dir, write_private
@@ -61,6 +61,17 @@ def verify_chain(events: List[Dict[str, Any]]) -> bool:
             return False
         prev = e["hash"]
     return True
+
+
+def expired(s: Dict[str, Any], at: Optional[float] = None) -> bool:
+    """True once the session's retention_until date (end of that day) has passed. A session without a readable date counts as expired
+    (fail closed): nothing is kept without a retention decision."""
+    until = s.get("retention_until")
+    try:
+        end = parse_date(until, "retention_until") + DAY
+    except HiringError:
+        return True
+    return (now() if at is None else at) >= end
 
 
 def consented(s: Dict[str, Any], participant: str, scope: str) -> bool:
@@ -104,6 +115,8 @@ def append_event(org: str, s: Dict[str, Any], participant: str, kind: str, data:
     """Append one event to the session's chain. Consent for 'events' from this participant is required."""
     if s["status"] != "open":
         raise HiringError("conflict", "the session is not open")
+    if expired(s):
+        raise HiringError("denied", "the retention period of this session has ended; nothing more is recorded")
     if not consented(s, participant, "events"):
         raise HiringError("denied", "this participant has not consented to event recording")
     body = _clean_event(kind, data)
@@ -201,27 +214,48 @@ def export_candidate(org: str, candidate_id: str) -> Dict[str, Any]:
     return {"interview_records": out}
 
 
+def _erase_session(s: Dict[str, Any]) -> None:
+    try:
+        _events_path(s["id"]).unlink()
+    except FileNotFoundError:
+        pass
+    for t in s["tracks"].values():
+        if t.get("path"):
+            try:
+                os.remove(t["path"])
+            except FileNotFoundError:
+                pass
+    s.update(candidate_id=None, application_id=None, tracks={}, consents={}, marks=[], status="erased", erased_events=s.get("event_count", 0))
+
+
+def _drop_tokens(d: Dict[str, Any], org: str) -> None:
+    for h in [h for h, t in d["tokens"].items() if t["org"] == org and d["sessions"].get(t["session_id"], {}).get("status") == "erased"]:
+        del d["tokens"][h]
+
+
 def purge_candidate(org: str, candidate_id: str) -> int:
     n = 0
 
     def go(d: Dict[str, Any]) -> None:
         nonlocal n
         for s in d["sessions"].values():
-            if s["org"] != org or s["candidate_id"] != candidate_id:
-                continue
-            try:
-                _events_path(s["id"]).unlink()
-            except FileNotFoundError:
-                pass
-            for t in s["tracks"].values():
-                if t.get("path"):
-                    try:
-                        os.remove(t["path"])
-                    except FileNotFoundError:
-                        pass
-            n += 1
-            s.update(candidate_id=None, application_id=None, tracks={}, consents={}, marks=[], status="erased", erased_events=s.get("event_count", 0))
-        for h in [h for h, t in d["tokens"].items() if t["org"] == org and d["sessions"].get(t["session_id"], {}).get("status") == "erased"]:
-            del d["tokens"][h]
+            if s["org"] == org and s["candidate_id"] == candidate_id:
+                _erase_session(s)
+                n += 1
+        _drop_tokens(d, org)
     st().update(go)
     return n
+
+
+def purge_expired(org: str, at: Optional[float] = None) -> List[str]:
+    """Erase every session of `org` whose retention_until has passed (events, audio files, transcripts, consents). Returns their ids."""
+    done: List[str] = []
+
+    def go(d: Dict[str, Any]) -> None:
+        for s in d["sessions"].values():
+            if s["org"] == org and s["status"] != "erased" and expired(s, at):
+                _erase_session(s)
+                done.append(s["id"])
+        _drop_tokens(d, org)
+    st().update(go)
+    return done

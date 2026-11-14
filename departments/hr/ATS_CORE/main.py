@@ -224,6 +224,8 @@ class AtsCore:
                 raise HiringError("conflict", f"{frm} cannot move to {to_stage}; allowed: {list(ats.TRANSITIONS[frm])}")
             if to_stage in ats.DECIDER_STAGES and not caller.roles & DECIDERS:
                 raise HiringError("denied", f"moving to {to_stage} needs the hiring_manager or hr_admin role")
+            if not caller.roles & (RECRUITING) and not _owns(d, org, caller, a["requisition_id"]):
+                raise HiringError("denied", "a hiring manager moves only applications of a requisition they created or approved")
             entry = {"id": hc.new_id("dec"), "org": org, "application_id": a["id"], "at": at, "by": caller.id, "from": frm,
                      "to": to_stage, "reason_code": reason_code or None, "note": str(note)[:500], "evidence_refs": refs}
             audit(AGENT, "stage.moved", org, caller, application=hid(org, a["id"]), frm=frm, to=to_stage,
@@ -323,6 +325,13 @@ class AtsCore:
     def candidate_contact(self, caller, candidate_id: str) -> Dict[str, Any]:
         """Name and contact details of one candidate (recruiters and HR admins). access.authorize_read('candidate') decides and traces."""
         authorize_read("candidate", candidate_id, agent=AGENT, caller=caller, org=caller.org)
+        c = _ev().load()["candidates"].get(str(candidate_id))
+        if not c or c["org"] != caller.org or c["status"] == "erased":
+            raise HiringError("not_found", "no such candidate")
+        k = c["consent"]
+        if k.get("withdrawn_at") or k["retention_ts"] <= now():
+            audit(AGENT, "contact.refused_no_consent", caller.org, caller, candidate=hid(caller.org, candidate_id))
+            raise HiringError("denied", "consent was withdrawn or has expired; contact details are not released (erase or re-consent)")
         p = _people().load()["people"].get(str(candidate_id))
         if not p or p["org"] != caller.org:
             raise HiringError("not_found", "no contact record (never stored, or erased)")

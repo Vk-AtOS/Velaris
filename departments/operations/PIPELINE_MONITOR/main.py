@@ -10,6 +10,8 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 from velaris.intel.paths import agent_file
 
+from velaris.intel.paths import agent_dir
+
 logger = logging.getLogger("PIPELINE_MONITOR")
 
 
@@ -53,7 +55,9 @@ class PipelineMonitor:
         durations = [r[0] for r in rows]
         mean = statistics.mean(durations)
         std = statistics.stdev(durations) if len(durations) > 1 else 0.1
-        z = (duration - mean) / std if std > 0 else 0
+        if std <= 0:        # every earlier reading was identical: any real jump is an anomaly, not "normal"
+            return 0.1 if duration <= mean * 1.2 else 0.6
+        z = (duration - mean) / std
         if z < 1.5:
             return 0.1
         elif z < 2.0:

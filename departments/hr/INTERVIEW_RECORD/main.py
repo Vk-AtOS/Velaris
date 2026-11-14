@@ -173,6 +173,14 @@ class InterviewRecord:
             return m
         return ok(mark=hr.st().update(go))
 
+    @acts(AGENT, frozenset())
+    def purge_expired_sessions(self, caller) -> Dict[str, Any]:
+        """Erase every session of the organisation past its retention_until date: events, audio, transcripts, consents (HR admins).
+        Reads of an expired session are refused until this runs; an expired session accepts no new events."""
+        done = hr.purge_expired(caller.org)
+        audit(AGENT, "retention.purged", caller.org, caller, sessions=len(done), ids=hc.digest(done))
+        return ok(erased_sessions=done)
+
     # ---- reading ------------------------------------------------------------------------------------------------
     @reads(AGENT, HIRING)
     def list_sessions(self, caller, application_id: str = "") -> Dict[str, Any]:
@@ -183,6 +191,8 @@ class InterviewRecord:
 
     def _for_review(self, caller, session_id: str) -> Dict[str, Any]:
         s = _session(hr.st().load(), caller.org, session_id)
+        if s["status"] != "erased" and hr.expired(s):
+            raise HiringError("retention_expired", "the retention period of this session has ended; it is erased by purge_expired_sessions")
         authorize_read("identity", s["candidate_id"] or session_id, agent=AGENT, caller=caller, org=caller.org)
         return s
 

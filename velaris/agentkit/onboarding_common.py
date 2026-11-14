@@ -23,7 +23,7 @@ from typing import Any, Callable, Dict, FrozenSet, List, Optional, Tuple
 
 from velaris.agentkit.results import fail
 from velaris.agentkit.state import JsonState
-from velaris.core.access import Caller, READ_OTHERS, check_caller, current_caller, org_denied
+from velaris.core.access import AccessDenied, Caller, READ_OTHERS, authorize_read, check_caller, current_caller, org_denied
 from velaris.intel.paths import agent_dir, data_dir, load_or_create_key, private_dir
 
 HR_ADMINS: FrozenSet[str] = READ_OTHERS["identity"]       # the hr_admin role: the only HR role that exists
@@ -100,6 +100,33 @@ def writer(agent: str, change: str, details: Optional[Dict[str, Any]] = None, *,
            roles: Optional[FrozenSet[str]] = None, also: Optional[str] = None) -> Tuple[Optional[Caller], Optional[Refusal]]:
     """check_caller() for the current caller: (caller, None) or (None, refusal). Traced either way."""
     return check_caller(agent, change, details, roles=roles, also=also)
+
+
+def gate_change(agent: str, change: str, roles: Optional[FrozenSet[str]], details: Optional[Dict[str, Any]] = None) -> Caller:
+    """For agents that return plain values: the current Caller if it may make `change` (role + organisation, traced), else AccessDenied.
+    roles None: any authenticated caller of this deployment."""
+    who, refusal = check_caller(agent, change, details, roles=roles)
+    if refusal:
+        raise AccessDenied(f"{refusal['status']}: {refusal['reason']}")
+    return who  # type: ignore[return-value]
+
+
+def gate_read(agent: str, category: str, subject_id: Optional[str] = None) -> Caller:
+    """The current Caller after authorize_read(category, subject_id) (traced, org-scoped); AccessDenied otherwise."""
+    who = current_caller()
+    return authorize_read(category, subject_id, agent=agent, caller=who, org=who.org if isinstance(who, Caller) else None)
+
+
+def dsr_gate(agent: str, org: str, subject_id: str, *, erase: bool, category: str = "identity") -> Caller:
+    """Every data-subject export/erase method calls this first. The organisation is checked against the VERIFIED caller, never trusted
+    from the argument. Export: the subject themselves or an HR administrator (authorize_read "identity", traced). Erase: an HR
+    administrator only (check_caller, traced). `category` is the access category for export (health for leave). AccessDenied otherwise."""
+    who = current_caller()
+    if isinstance(who, Caller) and who.org != org:
+        raise AccessDenied("data belongs to another organisation")
+    if erase:
+        return gate_change(agent, "dsr_erase", HR_ADMINS, {"subject": sha256_hex(str(subject_id).encode())[:16]})
+    return authorize_read(category, subject_id, agent=agent, caller=who, org=org)
 
 
 class Refused(Exception):

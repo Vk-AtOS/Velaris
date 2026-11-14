@@ -2,10 +2,13 @@ import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
 import logging
+import math
 import sqlite3
 from datetime import datetime, date
 from typing import Dict, Any, List, Optional
 from velaris.intel.paths import agent_file
+
+from velaris.intel.paths import agent_dir
 
 logger = logging.getLogger("TIME_TRACKER")
 logger.setLevel(logging.DEBUG)
@@ -103,7 +106,8 @@ class TimeTracker:
     def log(self, employee_id: str, project_id: str, hours: float,
             log_date: str = "", task_id: str = "", description: str = "",
             billable: bool = True) -> Dict[str, Any]:
-        if hours <= 0 or hours > 24:
+        if isinstance(hours, bool) or not isinstance(hours, (int, float)) or not math.isfinite(hours) \
+                or hours <= 0 or hours > 24:
             return {"error": "hours must be between 0 and 24"}
         log_date = log_date or date.today().isoformat()
         conn = _db()
