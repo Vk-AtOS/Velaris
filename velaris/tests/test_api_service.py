@@ -145,7 +145,7 @@ def test_caller_reaches_the_agent_and_every_call_is_traced(tmp_path):
     assert [(p["caller"], p["method"], p["outcome"]) for p in results] == [
         ("u7", "whoami", "ok"), ("u7", "payslip", "ok"), ("u7", "payslip", "denied")]
     assert any(e["action"] == "sensitive_read.denied" and e["payload"]["caller"] == "u7" for e in trace.entries())
-    assert send(c, "GET", "/trace/verify").json()["ok"] is True
+    assert send(c, "GET", "/trace/verify", roles=["governance_admin"]).json()["ok"] is True
 
 
 def test_allowlist_private_and_parameters(tmp_path):
