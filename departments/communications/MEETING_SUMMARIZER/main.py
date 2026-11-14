@@ -7,6 +7,7 @@ import re
 import sqlite3
 from datetime import datetime
 from typing import Dict, Any, List, Optional
+from velaris.intel.paths import agent_file
 
 logger = logging.getLogger("MEETING_SUMMARIZER")
 logger.setLevel(logging.DEBUG)
@@ -14,7 +15,6 @@ handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter("%(asctime)s - MEETING_SUMMARIZER - %(levelname)s - %(message)s"))
 logger.addHandler(handler)
 
-_DB = os.path.join(os.path.dirname(__file__), "meetings.db")
 
 # Phrases that signal a decision or action item in transcript text
 _DECISION_SIGNALS = [
@@ -39,7 +39,7 @@ _ACTION_SIGNALS = [
 
 
 def _db() -> sqlite3.Connection:
-    conn = sqlite3.connect(_DB)
+    conn = sqlite3.connect(agent_file("MEETING_SUMMARIZER", "meetings.db"))
     conn.row_factory = sqlite3.Row
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS meetings (

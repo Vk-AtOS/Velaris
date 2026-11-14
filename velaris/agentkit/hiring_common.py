@@ -90,7 +90,7 @@ def new_id(prefix: str) -> str:
 
 
 def store(agent: str, filename: str, default: Dict[str, Any]) -> JsonState:
-    return JsonState(agent, filename, default)
+    return JsonState(agent, filename, default, encrypted=f"hiring:{agent}")
 
 
 def audit(agent: str, action: str, org: str, caller: Optional[Caller] = None, **hashes: Any) -> None:

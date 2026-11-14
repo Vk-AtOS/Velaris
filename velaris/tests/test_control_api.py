@@ -79,7 +79,7 @@ def test_tasks_start_state_report_and_the_trace(tmp_path, world):
     assert rep["verification"]["ok"] and rep["org"] == "acme" and len(rep["actions"]) == 3
     assert "verified: yes" in send(c, "GET", f"/control/runs/{run_id}/report?format=text").text
     assert api_entries("control.start")[0]["kind"] == "act" and api_entries("control.started")[0]["outcome"] == "ok"
-    assert send(c, "GET", "/trace/verify").json()["ok"] is True
+    assert send(c, "GET", "/trace/verify", roles=["governance_admin"]).json()["ok"] is True
 
 
 def test_refusals(tmp_path, world):
@@ -125,7 +125,7 @@ def test_allowlist_and_agent_wrapper(tmp_path, world, monkeypatch):
     from velaris.agents.CONTROL_LAYER import main as agent
     svc = ControlService(store=CheckpointStore(tmp_path / "cp2"), llm=FakeLLM(model(step("run", "date"), step("run", "uname", "-a"),
                          step("run", "uptime"), FINAL)), workspace=tmp_path / "ws2", runner=world.runner, flow_path=str(tmp_path / "f.db"))
-    monkeypatch.setattr(agent, "_service", svc)
+    monkeypatch.setattr("velaris.control.service._shared", svc)      # the mounted service wins over the lazy one
     a = agent.CONTROL_LAYERAgent()
     with pytest.raises(AccessDenied):
         a.list_tasks() and a.start_run("terminal.diagnostics", {"bundle": "system"})

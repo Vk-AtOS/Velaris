@@ -2,5 +2,6 @@
   "name": "LONGTERM_MEMORY",
   "version": "0.1.0",
   "author": "Velaris",
-  "description": "Public methods: put, get, remember, recall (the module has no docstring)."
+  "description": "Public methods: put, get, remember, recall (the module has no docstring).",
+  "entrypoint": "main.py:LONGTERM_MEMORYAgent"
 }

@@ -40,7 +40,7 @@ def test_risk_score_follows_the_stated_formula():
     assert e.compute_risk(asset("a"))["score"] == e.compute_risk(asset("b"))["score"]     # id plays no part
 
 
-def test_risk_extremes_and_register():
+def test_risk_extremes_and_register(secadmin):
     e = mod("CYBER_RISK_ENGINE").CyberRiskEngine()
     worst = e.register(asset("db", "critical", 500))
     assert (worst["score"], worst["band"]) == (100.0, "critical")
@@ -266,7 +266,7 @@ def test_self_audit_finds_permissions_trace_and_load_failures(data_dir):
     assert r["counts"]["critical"] == 1
 
 
-def test_self_audit_scans_real_agents_and_accepts_reports():
+def test_self_audit_scans_real_agents_and_accepts_reports(secadmin):
     a = mod("SELF_AUDIT").SELF_AUDITAgent()
     r = a.audit()
     assert r["status"] == "ok" and not any(f["check"] == "agent_load" and "SELF_AUDIT" in f["detail"] for f in r["findings"])
@@ -301,7 +301,7 @@ def test_vigilis_malformed_policies_and_signing_fail_closed():
     assert v.verify_signature(b"payroll run 43", sig) is False and v.verify_signature("text", sig) is False
 
 
-def test_vigilis_integrity_watch(tmp_path):
+def test_vigilis_integrity_watch(tmp_path, secadmin):
     v = mod("VIGILIS").VigilisAgent()
     assert v.check()["status"] == "no_baseline" and v.check()["intact"] is False
     f1, f2 = tmp_path / "a.py", tmp_path / "b.py"

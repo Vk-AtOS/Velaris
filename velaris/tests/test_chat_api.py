@@ -266,3 +266,11 @@ def test_existing_api_is_unchanged(api):
     assert api.get("/health").json() == {"status": "ok"}
     assert api.get("/agents").json()["error"]["code"] == "unsigned"
     assert api.get("/nowhere").json()["error"]["code"] == "not_found"
+
+
+def test_open_streams_do_not_each_hold_a_worker_thread(api):
+    """KAN-136: the stream is an async generator; a sync one parked a thread per stream."""
+    import inspect
+    from velaris.chat import api as chat_api
+    src = inspect.getsource(chat_api)
+    assert "async def frames()" in src and "def frames() -> Iterator" not in src

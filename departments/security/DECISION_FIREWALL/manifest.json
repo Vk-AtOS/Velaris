@@ -2,5 +2,6 @@
   "name": "DECISION_FIREWALL",
   "version": "0.1.0",
   "author": "Velaris",
-  "description": "A persistent block list of decision keys."
+  "description": "A persistent block list of decision keys.",
+  "entrypoint": "main.py:DECISION_FIREWALLAgent"
 }

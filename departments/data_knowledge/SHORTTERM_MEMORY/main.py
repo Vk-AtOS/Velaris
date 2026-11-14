@@ -29,7 +29,7 @@ class SHORTTERM_MEMORYAgent:
         valid = is_number(capacity, 1, MAX_CAPACITY) and not isinstance(capacity, float)
         self.capacity = capacity if valid else 100
         self.llm = None                 # optional velaris.intel.llm.LLM used by promote()
-        self._state = JsonState(NAME)
+        self._state = JsonState(NAME, encrypted="memory:SHORTTERM_MEMORY")
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": self.name, "status": "ok", "version": "1.0.0"}

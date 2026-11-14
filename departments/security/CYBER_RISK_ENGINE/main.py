@@ -25,6 +25,7 @@ from typing import Any, Dict, List, Optional
 from velaris.agentkit.checks import is_name, is_number
 from velaris.agentkit.results import ok
 from velaris.agentkit.state import JsonState
+from velaris.core.access import SECURITY_ADMINS, check_caller
 
 NAME = "CYBER_RISK_ENGINE"
 CRITICALITY_IMPACT = {"low": 0.25, "medium": 0.5, "high": 0.75, "critical": 1.0}
@@ -109,6 +110,10 @@ class CyberRiskEngine:
         """Score an asset and keep the result in the risk register (latest assessment per asset)."""
         result = self.compute_risk(p, threats)
         if result["status"] == "ok":
+            _, refused = check_caller(NAME, "register", {"asset": p.asset_id, "score": result["score"]},
+                                      roles=SECURITY_ADMINS)
+            if refused:
+                return refused
             entry = {"profile": asdict(p), "threats": threats or [], "score": result["score"], "band": result["band"]}
             self._state.update(lambda d: d.setdefault("assets", {}).__setitem__(p.asset_id, entry))
         return result

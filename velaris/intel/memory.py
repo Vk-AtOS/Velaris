@@ -78,6 +78,8 @@ class MemoryStore:
         self.llm = llm or LLM()
         self._db = sqlite3.connect(path or str(data_dir() / "memory.db"), check_same_thread=False)
         self._db.row_factory = sqlite3.Row
+        self._db.execute("PRAGMA secure_delete=ON")          # erased text must not linger in freed pages (DPDP)
+        self._db.execute("PRAGMA busy_timeout=5000")
         self._db.executescript(_SCHEMA)
         self._lock = threading.Lock()
 
@@ -232,6 +234,19 @@ class MemoryStore:
         if cur.rowcount:
             trace.append("memory", "forget", {"id": memory_id, "reason": reason})
         return bool(cur.rowcount)
+
+    def erase(self, memory_id: str, *, reason: str) -> int:
+        """Hard delete (DPDP erasure): this memory and every earlier version it replaced are removed, not just closed.
+        Returns how many rows were deleted. The trace keeps only the id, never the text."""
+        chain = [m.id for m in self.history(memory_id)]
+        with self._lock:
+            for i in chain:
+                self._db.execute("DELETE FROM memories WHERE id=?", (i,))
+            self._db.commit()
+        self._db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        if chain:
+            trace.append("memory", "erase", {"id": memory_id, "versions": len(chain), "reason": reason})
+        return len(chain)
 
     def count(self, scope: str) -> int:
         return len(self._rows(scope, None))

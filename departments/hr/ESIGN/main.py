@@ -22,12 +22,13 @@ import hmac
 import logging
 import re
 import secrets
-from datetime import timedelta
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+from velaris.agentkit import onboarding_dsr as dsr
 from velaris.agentkit import onboarding_esign as es
-from velaris.agentkit.onboarding_common import (HR_ADMINS, Refused, Store, clean_text, iso, keyed_hash, new_id, parse_iso, reader,
+from velaris.agentkit.onboarding_common import (dsr_gate, HR_ADMINS, Refused, Store, clean_text, iso, keyed_hash, new_id, parse_iso, reader,
                                                 sha256_hex, utcnow, writer)
 from velaris.agentkit.results import fail, health, invalid, ok
 from velaris.agentkit.state import append_line
@@ -288,12 +289,25 @@ class Esign:
                 raise Refused(fail("locked", "too many wrong attempts; ask for a new signing code"))
             if not isinstance(email, str) or not hmac.compare_digest(email.strip().lower(), s["email"]):
                 s["failed"] += 1                       # returned (not raised) so the counter is saved
+                self._trace_step(req_id, sid, org, "identity_mismatch", s["state"], must=False)
                 return fail("identity_mismatch", "the e-mail does not belong to this signing code")
             if s["state"] not in need:
                 raise Refused(fail("out_of_order", f"you are at step '{s['state']}'; this step needs {' or '.join(need)}"))
-            return step(r, s, ctx)
+            out = step(r, s, ctx)
+            self._trace_step(req_id, sid, org, out.get("status", "?"), s["state"])     # before the change is saved: no trace, no step
+            return out
 
         return self.store.update("requests", req_id, org, _do), (req_id, org)
+
+    @staticmethod
+    def _trace_step(req_id: str, signer_id: str, org: str, result: str, state: str, must: bool = True) -> None:
+        """One ledger entry per ceremony step (opaque ids only: no name, e-mail, IP or token)."""
+        try:
+            trace.append(_AGENT, "signer.step", {"request": req_id, "signer": signer_id, "org": org, "result": result, "state": state})
+        except (OSError, ValueError, TypeError) as e:
+            logger.warning("signing step of %s not traced: %s", req_id, type(e).__name__)
+            if must:
+                raise Refused(fail("audit_failed", "the step could not be recorded, so it was not made"))
 
     def _step(self, token: Any, email: Any, ip: Any, ua: Any, step: Callable[..., Any], need: Tuple[str, ...]) -> Dict[str, Any]:
         return self._ceremony(token, email, ip, ua, step, need)[0]
@@ -464,6 +478,16 @@ class Esign:
         """Status and document_ref of a request of `org` for another agent (OFFER_LETTERS); not an HTTP method. No names, no tokens."""
         req = self.store.get("requests", request_id, org)
         return {"status": req["status"], "document_ref": req["document_ref"]} if req else None
+
+    # ---- data-subject support (called by EMPLOYEE_RECORDS; not an HTTP method) ----------------------
+    def dsr_export(self, org: str, subject_id: str, links: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        dsr_gate("ESIGN", org, subject_id, erase=False)
+        return {"esign_requests": dsr.esign_export(self.store, org, links or {})}
+
+    def dsr_erase(self, org: str, subject_id: str, on: Optional[date] = None, links: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Anonymise the subject's signer data on requests that were never sealed; sealed evidence is held as the registry says."""
+        dsr_gate("ESIGN", org, subject_id, erase=True)
+        return dsr.esign_erase(self.store, org, links or {}, on or self._now().date(), self._now())
 
     def _visible(self, who: Caller, req: Optional[Dict[str, Any]]) -> bool:
         return req is not None and bool(who.roles & HR_ADMINS or who.id == req["created_by"])

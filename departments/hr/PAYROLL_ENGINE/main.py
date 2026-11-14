@@ -4,9 +4,11 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 import calendar
 import logging
 from datetime import date
+from decimal import Decimal
 from typing import Dict, Any, List, Optional, Tuple, Union
 from velaris.agents.ZOHO_PAYROLL.main import ZohoPayrollConnector
 from velaris.agents.PAYROLL_ENGINE import statutory
+from velaris.agents.PAYROLL_ENGINE.registry import money, paise
 from velaris.core.access import Caller
 
 logger = logging.getLogger("PAYROLL_ENGINE")
@@ -53,7 +55,12 @@ class _Run:
                 for u in self.used.values() if not u["verified"]]
 
 
-def _epf_wages(run: _Run, basic: float, epf_basis: Optional[str]) -> Optional[float]:
+def _d(value: Any) -> Decimal:
+    """A registry number (int, float or Decimal) as an exact Decimal through its decimal text."""
+    return value if isinstance(value, Decimal) else Decimal(str(value))
+
+
+def _epf_wages(run: _Run, basic: Decimal, epf_basis: Optional[str]) -> Optional[Decimal]:
     """Wages on which EPF is contributed for the month, or None when it needs review."""
     if epf_basis not in EPF_BASES:
         raise ValueError(f"epf_basis must be one of {EPF_BASES}, got {epf_basis!r}")
@@ -62,6 +69,7 @@ def _epf_wages(run: _Run, basic: float, epf_basis: Optional[str]) -> Optional[fl
     new_cap = run.param("epf_wage_ceiling", run.end)
     if old_cap is None or new_cap is None:
         return None
+    old_cap, new_cap = _d(old_cap), _d(new_cap)
     if epf_basis == "full_wages":
         return basic
     if old_cap == new_cap:
@@ -84,10 +92,10 @@ def _epf_wages(run: _Run, basic: float, epf_basis: Optional[str]) -> Optional[fl
         return None
     run.used[f"epf_ceiling_transition@{rule.effective_from}"] = statutory.describe("epf_ceiling_transition", rule)
     v = rule.value
-    return (min(basic, old_cap) * v["days_before"] + min(basic, new_cap) * v["days_after"]) / v["day_basis"]
+    return (min(basic, old_cap) * v["days_before"] + min(basic, new_cap) * v["days_after"]) / Decimal(v["day_basis"])
 
 
-def _compute_pt(run: _Run, local_body: Optional[str], half_year_gross: Optional[float]) -> Optional[float]:
+def _compute_pt(run: _Run, local_body: Optional[str], half_year_gross: Optional[Decimal]) -> Optional[Decimal]:
     """Tamil Nadu profession tax deducted in this pay month, or None when it needs review."""
     body = statutory.normalise_local_body(local_body)
     slabs_name = f"pt_half_yearly_slabs:{body}"
@@ -101,7 +109,7 @@ def _compute_pt(run: _Run, local_body: Optional[str], half_year_gross: Optional[
         return None
     which = months.get(run.start.month)
     if which is None:
-        return 0.0  # half-yearly tax: nothing is deducted in this pay month
+        return Decimal(0)  # half-yearly tax: nothing is deducted in this pay month
     if half_year_gross is None:
         run.reasons.append(
             f"professional_tax: {run.start:%B} is a deduction month for {body}; half_year_gross "
@@ -113,20 +121,24 @@ def _compute_pt(run: _Run, local_body: Optional[str], half_year_gross: Optional[
         return None
     for upper, tax in slabs:
         if upper is None or half_year_gross <= upper:
-            return float(tax)
+            return Decimal(tax)
     return None
 
 
-def _sum(*amounts: Optional[float]) -> Optional[float]:
-    return None if any(a is None for a in amounts) else round(sum(amounts), 2)
+def _sum(*amounts: Optional[Decimal]) -> Optional[Decimal]:
+    return None if any(a is None for a in amounts) else paise(sum(amounts, Decimal(0)))
 
 
-def _mul(base: Optional[float], rate: Optional[float]) -> Optional[float]:
-    return None if base is None or rate is None else round(base * rate, 2)
+def _mul(base: Optional[Decimal], rate: Any) -> Optional[Decimal]:
+    return None if base is None or rate is None else paise(base * _d(rate))
 
 
-def _compute_statutory(run: _Run, basic: float, gross: float, local_body: Optional[str],
-                       half_year_gross: Optional[float], epf_basis: Optional[str]) -> Dict[str, Optional[float]]:
+# Employer charges the engine does NOT compute. Named in every result so the omission is visible, never silent.
+NOT_IMPLEMENTED = ("edli_employer", "epf_admin_charges")
+
+
+def _compute_statutory(run: _Run, basic: Decimal, gross: Decimal, local_body: Optional[str],
+                       half_year_gross: Optional[Decimal], epf_basis: Optional[str]) -> Dict[str, Any]:
     run.param("contribution_rounding")
     epf_wages = _epf_wages(run, basic, epf_basis)
     epf_emp = _mul(epf_wages, run.param("epf_employee_rate"))
@@ -137,19 +149,21 @@ def _compute_statutory(run: _Run, basic: float, gross: float, local_body: Option
     esi_emp_rate, esi_er_rate = run.param("esi_employee_rate"), run.param("esi_employer_rate")
     if esi_ceiling is None:
         esi_emp = esi_er = None
-    elif gross <= esi_ceiling:
+    elif gross <= _d(esi_ceiling):
         esi_emp, esi_er = _mul(gross, esi_emp_rate), _mul(gross, esi_er_rate)
     else:
-        esi_emp = esi_er = 0.0
+        esi_emp = esi_er = Decimal("0.00")
 
     pt = _compute_pt(run, local_body, half_year_gross)
     return {
-        "epf_wages": None if epf_wages is None else round(epf_wages, 2),
+        "epf_wages": None if epf_wages is None else paise(epf_wages),
         "epf_employee": epf_emp,
         "epf_employer": epf_er,
         "esi_employee": esi_emp,
         "esi_employer": esi_er,
-        "professional_tax": pt,
+        "professional_tax": None if pt is None else paise(pt),
+        "edli_employer": None,                 # not implemented: see NOT_IMPLEMENTED
+        "epf_admin_charges": None,             # not implemented
         "total_employee_deductions": _sum(epf_emp, esi_emp, pt),
         "total_employer_contributions": _sum(epf_er, esi_er),
     }
@@ -177,10 +191,10 @@ class PayrollEngine:
         return {"agent": "PAYROLL_ENGINE", "status": "ok", "zoho_enabled": self._zoho is not None}
 
     # ── Local computation (no Zoho creds needed) ──────────────────────────
-    def compute(self, employee_id: str, basic: float, hra: float,
-                special_allowance: float, tds: float = 0.0, *,
+    def compute(self, employee_id: str, basic: Any, hra: Any,
+                special_allowance: Any, tds: Any = 0, *,
                 pay_period: PayPeriod = None, local_body: Optional[str] = None,
-                half_year_gross: Optional[float] = None,
+                half_year_gross: Any = None,
                 epf_basis: Optional[str] = None) -> Dict[str, Any]:
         """
         Compute one month's take-home from salary components.
@@ -193,33 +207,42 @@ class PayrollEngine:
         epf_basis       None/"ceiling": contribute up to the statutory ceiling; "full_wages": on actual basic.
                         In a month where the ceiling changes it must be given explicitly.
         """
-        start, end = _month_bounds(pay_period)
+        try:
+            basic, hra, special_allowance, tds = money(basic), money(hra), money(special_allowance), money(tds)
+            half_year_gross = None if half_year_gross is None else money(half_year_gross)
+            start, end = _month_bounds(pay_period)
+        except (ValueError, TypeError) as e:
+            return {"employee_id": employee_id, "status": "invalid_input", "reason": str(e)[:200]}
         run = _Run(start, end)
-        gross = basic + hra + special_allowance
+        gross = paise(basic + hra + special_allowance)
         s = _compute_statutory(run, basic, gross, local_body, half_year_gross, epf_basis)
         total_deductions = _sum(s["total_employee_deductions"], tds)
-        net_pay = None if total_deductions is None else round(gross - total_deductions, 2)
+        net_pay = None if total_deductions is None else paise(gross - total_deductions)
         ctc = _sum(gross, s["total_employer_contributions"])
-        status = "needs_review" if run.reasons else "ok"
+        warnings = run.warnings() + [f"NOT IMPLEMENTED: {n} is not computed; monthly CTC and employer cost exclude it" for n in NOT_IMPLEMENTED]
+        # ok: every figure rests on a verified parameter. provisional: figures are computed but rest on an unverified
+        # parameter or leave out a charge (see warnings): do not pay or file from them. needs_review: a figure is missing.
+        status = "needs_review" if run.reasons else ("provisional" if warnings else "ok")
         if run.reasons:
             logger.warning("Payroll for %s %s needs review: %s", employee_id, f"{start:%Y-%m}", "; ".join(run.reasons))
 
-        logger.debug("Payroll computed for %s %s: gross=%.2f net=%s", employee_id, f"{start:%Y-%m}", gross, net_pay)
+        logger.debug("Payroll computed for %s %s: gross=%s net=%s", employee_id, f"{start:%Y-%m}", gross, net_pay)
         return {
             "employee_id": employee_id,
             "pay_period": f"{start:%Y-%m}",
             "status": status,
             "review_reasons": run.reasons,
             "gross": gross,
-            "components": {"basic": basic, "hra": hra, "special_allowance": special_allowance},
+            "components": {"basic": paise(basic), "hra": paise(hra), "special_allowance": paise(special_allowance)},
             "statutory": s,
-            "tds": tds,
+            "tds": paise(tds),
             "total_deductions": total_deductions,
             "net_pay": net_pay,
             "ctc_monthly": ctc,
-            "ctc_annual": None if ctc is None else round(ctc * 12, 2),
+            "ctc_annual": None if ctc is None else paise(ctc * 12),
             "parameters_used": list(run.used.values()),
-            "warnings": run.warnings(),
+            "warnings": warnings,
+            "not_implemented": list(NOT_IMPLEMENTED),
         }
 
     def compute_bulk(self, employees: List[Dict[str, Any]], pay_period: PayPeriod = None) -> List[Dict[str, Any]]:
@@ -247,22 +270,24 @@ class PayrollEngine:
             "total_gross": lambda r: r["gross"],
             "total_net_pay": lambda r: r["net_pay"],
         }
+        valid = [r for r in results if r["status"] != "invalid_input"]
         totals: Dict[str, Any] = {
-            k: round(sum(get(r) or 0.0 for r in results), 2) for k, get in sources.items()
+            k: paise(sum((get(r) or Decimal(0) for r in valid), Decimal(0))) for k, get in sources.items()
         }
         totals["headcount"] = len(results)
-        totals["total_compliance_liability"] = round(
+        totals["total_compliance_liability"] = paise(
             totals["total_epf_employee"] + totals["total_epf_employer"] +
             totals["total_esi_employee"] + totals["total_esi_employer"] +
-            totals["total_pt"], 2
+            totals["total_pt"]
         )
-        review = [r["employee_id"] for r in results if r["status"] != "ok"]
-        totals["status"] = "needs_review" if review else "ok"
+        totals["not_implemented"] = list(NOT_IMPLEMENTED)
+        review = [r["employee_id"] for r in results if r["status"] in ("needs_review", "invalid_input")]
+        totals["status"] = "needs_review" if review else ("provisional" if any(r["status"] == "provisional" for r in results) else "ok")
         totals["needs_review_employees"] = review
         if review:
             totals["total_net_pay"] = None
             totals["total_compliance_liability"] = None
-        totals["warnings"] = sorted({w for r in results for w in r["warnings"]})
+        totals["warnings"] = sorted({w for r in valid for w in r["warnings"]})
         return totals
 
     # ── Zoho-backed methods (requires zoho_enabled=True) ──────────────────

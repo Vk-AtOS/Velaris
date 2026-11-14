@@ -51,6 +51,12 @@ def agent_dir(name: str) -> Path:
     return private_dir(private_dir(data_dir() / "agents") / name)
 
 
+def agent_file(name: str, filename: str) -> str:
+    """THE place an agent's database or document lives: <data_dir>/agents/<name>/<filename> (directory created
+    owner-only). Nothing is written inside the source tree or the working directory (KAN-113)."""
+    return str(agent_dir(name) / filename)
+
+
 def open_private(path: PathLike, mode: str = "rb") -> IO:
     """Open an owner-only file. Modes: "r", "rb" (must exist), "a", "ab" (created 0600 if absent).
 

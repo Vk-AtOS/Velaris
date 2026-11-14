@@ -16,6 +16,7 @@ from velaris.agentkit.checks import ident
 from velaris.agentkit.results import fail, health, invalid
 from velaris.agentkit.state import JsonState
 from velaris.agentkit.aicore_b_text import words
+from velaris.core.access import GOVERNANCE_ADMINS, check_caller
 
 NAME = "NEURAL_ALIGNMENT_ENGINE"
 
@@ -56,6 +57,9 @@ class NeuralAlignmentEngine:
             err = _objective_error(o)
             if err:
                 return invalid(err)
+        _, refused = check_caller(NAME, "set_objectives", {"count": len(objectives)}, roles=GOVERNANCE_ADMINS)
+        if refused:
+            return refused
         self._state.save({"objectives": objectives})
         return {"status": "ok", "objectives": len(objectives)}
 

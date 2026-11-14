@@ -100,10 +100,17 @@ class EOF_GATEWAYAgent:
             return {**base, **fail("unknown_agent", f"no such agent: {', '.join(unknown)}")}
         if src_id == dst_id:
             return {**base, **invalid("src and dst are the same agent")}
-        scan = guard.scan("\n".join(_strings(payload)), source=f"gateway:{src_id}->{dst_id}")
+        try:
+            scan = guard.scan("\n".join(_strings(payload)), source=f"gateway:{src_id}->{dst_id}")
+        except (OSError, ValueError, TypeError) as e:       # the scan is traced; no trace, no delivery
+            logger.warning("EOF_GATEWAY could not scan and trace a payload: %s", e)
+            return {**base, **fail("storage_error", "the message could not be checked and recorded")}
         if scan.level in ("high", "block"):
-            trace.append(NAME, "route.refused", {"src": src_id, "dst": dst_id,
-                                                  "rules": [f["rule"] for f in scan.findings]})
+            try:
+                trace.append(NAME, "route.refused", {"src": src_id, "dst": dst_id,
+                                                      "rules": [f["rule"] for f in scan.findings]})
+            except (OSError, ValueError, TypeError) as e:
+                logger.warning("EOF_GATEWAY could not trace a refusal: %s", e)
             return {**base, **fail("blocked", "payload text looks like instructions to a model",
                                    findings=[f["rule"] for f in scan.findings])}
         message = {"id": new_id("msg"), "ts": time.time(), "src": src_id, "sender": "agent" if sender else "caller",
@@ -112,7 +119,7 @@ class EOF_GATEWAYAgent:
             append_line(agent_dir(NAME) / f"inbox_{dst_id}.jsonl", message)
             entry = trace.append(NAME, "route", {"id": message["id"], "src": src_id, "sender": message["sender"],
                                                  "on_behalf_of": caller.id, "dst": dst_id, "bytes": size})
-        except OSError as e:
+        except (OSError, ValueError, TypeError) as e:
             logger.warning("EOF_GATEWAY could not queue a message for %s: %s", dst_id, e)
             return {**base, **fail("storage_error", "the message could not be stored")}
         return {**base, "routed": True, "status": "ok", "message_id": message["id"], "trace_hash": entry["hash"]}

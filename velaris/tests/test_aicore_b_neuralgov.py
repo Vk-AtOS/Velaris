@@ -90,7 +90,11 @@ OBJECTIVES = [
 
 def test_alignment_matches_keywords_and_respects_avoid_list():
     eng = NeuralAlignmentEngine()
-    assert eng.set_objectives(OBJECTIVES)["status"] == "ok"
+    assert eng.set_objectives(OBJECTIVES)["status"] == "unauthenticated"
+    with acting_as(Caller("clerk", "acme")):
+        assert eng.set_objectives(OBJECTIVES)["status"] == "denied"
+    with acting_as(ADMIN):
+        assert eng.set_objectives(OBJECTIVES)["status"] == "ok"
     r = NeuralAlignmentEngine().align({"intent": "Call accounts with overdue invoices before renewal"})
     assert r["is_aligned"] is True
     assert {m["objective"] for m in r["matches"]} == {"retention", "cash"}

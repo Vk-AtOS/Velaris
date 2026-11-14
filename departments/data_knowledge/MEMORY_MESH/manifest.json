@@ -2,5 +2,6 @@
   "name": "MEMORY_MESH",
   "version": "0.1.0",
   "author": "Velaris",
-  "description": "Which memory node serves which scope, and recall across several scopes."
+  "description": "Which memory node serves which scope, and recall across several scopes.",
+  "entrypoint": "main.py:MEMORY_MESHAgent"
 }

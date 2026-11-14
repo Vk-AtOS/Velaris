@@ -25,3 +25,11 @@ def test_parallel_groups():
     groups = o.parallel_groups(order, tasks)
     assert isinstance(groups, list)
     assert len(groups) >= 2
+
+def test_parallel_groups_respect_transitive_dependencies():
+    o = OrchestrixAgent()
+    chain = {'A': [], 'B': ['A'], 'C': ['B']}                    # was [['A', 'C'], ['B']]: C ran beside A
+    assert o.parallel_groups(o.resolve_dependencies(chain), chain) == [['A'], ['B'], ['C']]
+    diamond = {'A': [], 'B': ['A'], 'C': ['A'], 'D': ['B', 'C']}
+    assert o.parallel_groups(o.resolve_dependencies(diamond), diamond) == [['A'], ['B', 'C'], ['D']]
+    assert o.parallel_groups([], {}) == []

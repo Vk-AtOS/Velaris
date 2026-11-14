@@ -70,7 +70,9 @@ class PortfolioSimEngine:
                 corr = p.correlations[ai][aj]
                 variance += wi * wj * vi * vj * corr
 
-        std_dev = variance ** 0.5
+        if variance < -1e-12:      # a correlation matrix that is not positive semi-definite is not a real portfolio
+            return {"status": "failed", "errors": ["correlations are not consistent (the matrix is not positive semi-definite)"]}
+        std_dev = max(variance, 0.0) ** 0.5
 
         sharpe = 0
         if std_dev>0:

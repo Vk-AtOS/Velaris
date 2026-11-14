@@ -87,7 +87,7 @@ class CRK_INTENTAgent:
             logger.warning("intent model call failed: %s", e)
             return fail("model_error", str(e), intent=None, candidates=leaders)
         choice = reply.get("intent") if isinstance(reply, dict) else None
-        if choice not in self.intents:          # code decides: anything off the list is not an answer
+        if not isinstance(choice, str) or choice not in self.intents:          # code decides: anything off the list is not an answer
             return fail("unresolved", "the model did not return an allowed intent", intent=None,
                         candidates=leaders)
         return ok(intent=choice, method="model", matched=[], candidates=leaders)

@@ -63,24 +63,30 @@ class EmployeeMetricsEngine:
         profile: Dict[str, Any] = {"employee_id": employee_id, "period": f"{year}-{month:02d}"}
 
         try:
-            profile["attendance"] = self.people.get_attendance_summary(employee_id, from_date, to_date)
+            profile["attendance"] = self.people.get_attendance_summary(employee_id, from_date, to_date, caller=caller)
+        except AccessDenied as e:
+            profile["attendance"] = {"withheld": e.reason}
         except Exception as e:
             logger.warning("Attendance fetch failed for %s: %s", employee_id, e)
             profile["attendance"] = {"error": str(e)}
 
         try:
-            profile["leave"] = self.people.get_leave_summary(employee_id, year)
+            profile["leave"] = self.people.get_leave_summary(employee_id, year, caller=caller)
+        except AccessDenied as e:
+            profile["leave"] = {"withheld": e.reason}
         except Exception as e:
             logger.warning("Leave fetch failed for %s: %s", employee_id, e)
             profile["leave"] = {"error": str(e)}
 
         try:
-            perf = self.people.get_performance(employee_id)
+            perf = self.people.get_performance(employee_id, caller=caller)
             profile["performance"] = {
                 "appraisal_count": len(perf),
                 "latest_score": perf[-1].get("Overall_Score") if perf else None,
                 "latest_period": perf[-1].get("Appraisal_Period") if perf else None
             }
+        except AccessDenied as e:
+            profile["performance"] = {"withheld": e.reason}
         except Exception as e:
             logger.warning("Performance fetch failed for %s: %s", employee_id, e)
             profile["performance"] = {"error": str(e)}
@@ -133,7 +139,8 @@ class EmployeeMetricsEngine:
 
         return profile
 
-    def get_team_scorecard(self, employee_ids: List[str], month: int = None, year: int = None) -> List[Dict]:
+    def get_team_scorecard(self, employee_ids: List[str], month: int = None, year: int = None, *,
+                           caller: Optional[Caller] = None) -> List[Dict]:
         """
         Returns ranked scorecard for a list of employees.
         Scores: attendance 30% + delivery 50% + performance 20%
@@ -144,7 +151,7 @@ class EmployeeMetricsEngine:
 
         scorecards = []
         for eid in employee_ids:
-            profile = self._profile(eid, month, year, include_pay=False)      # the score uses no pay
+            profile = self._profile(eid, month, year, include_pay=False, caller=caller)      # the score uses no pay
 
             att_score = profile.get("attendance", {}).get("attendance_pct", 0) * 0.30
             delivery = profile.get("delivery", {})
@@ -165,16 +172,17 @@ class EmployeeMetricsEngine:
 
         return sorted(scorecards, key=lambda x: x["composite_score"], reverse=True)
 
-    def get_org_heatmap(self, employee_ids: List[str], month: int = None, year: int = None) -> Dict:
+    def get_org_heatmap(self, employee_ids: List[str], month: int = None, year: int = None, *,
+                        caller: Optional[Caller] = None) -> Dict:
         """
-        Returns org-level heatmap data: attendance distribution, delivery health, payroll total.
+        Returns org-level heatmap data: attendance distribution, delivery health, hours. (It reads no pay: there is no payroll total.)
         Suitable for dashboard chart rendering.
         """
         today = datetime.date.today()
         month = month or today.month
         year = year or today.year
 
-        scorecard = self.get_team_scorecard(employee_ids, month, year)
+        scorecard = self.get_team_scorecard(employee_ids, month, year, caller=caller)
         att_values = [s["attendance_pct"] for s in scorecard]
         del_values = [s["delivery_pct"] for s in scorecard]
         hrs_values = [s["hours_logged"] for s in scorecard]

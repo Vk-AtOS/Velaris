@@ -1,5 +1,6 @@
 from velaris.intel.memory import MemoryStore
 import logging, json, os
+from velaris.intel.paths import agent_file, write_private
 logger = logging.getLogger("LONGTERM_MEMORY")
 logger.setLevel(logging.DEBUG)
 handler = logging.StreamHandler()
@@ -8,9 +9,9 @@ if not logger.handlers:
     logger.addHandler(handler)
 
 class LONGTERM_MEMORYAgent:
-    def __init__(self, path: str = "/tmp/velaris_longterm.json"):
+    def __init__(self, path: str = ""):
         self.name = "LONGTERM_MEMORY"
-        self.path = path
+        self.path = path or agent_file("LONGTERM_MEMORY", "longterm.json")
         self._store = {}
         self._fact_store = None     # opened on first remember/recall
         try:
@@ -27,8 +28,7 @@ class LONGTERM_MEMORYAgent:
 
     def put(self, k, v):
         self._store[k] = v
-        with open(self.path, "w") as f:
-            json.dump(self._store, f)
+        write_private(self.path, json.dumps(self._store))
         logger.debug(f"PUT {k}")
 
     def get(self, k, default=None):

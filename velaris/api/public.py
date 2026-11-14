@@ -40,10 +40,10 @@ import json
 import logging
 import os
 import re
+import sqlite3
 import time
-from collections import deque
 from dataclasses import dataclass, field
-from typing import Any, Callable, Deque, Dict, List, Mapping, Optional, Tuple
+from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple
 
 from fastapi import FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
@@ -54,7 +54,9 @@ from velaris.agentkit import hiring_intake as intake
 from velaris.agentkit import hiring_record_gateway as interview
 from velaris.agentkit import hiring_sched as sched
 from velaris.agents.ESIGN.main import Esign
+from velaris.api.observability import configure_logging
 from velaris.core.access import acting_as
+from velaris.core.shared import RateStore
 
 logger = logging.getLogger("velaris.api.public")
 
@@ -88,7 +90,7 @@ class PublicSettings:
     limits: Mapping[str, RouteLimit] = field(default_factory=dict)       # per-route overrides of DEFAULT_LIMITS
     trust_proxy: bool = False                    # client IP = last X-Forwarded-For entry (one trusted proxy in front)
     max_keys: int = 50_000                       # rate-counter keys kept; beyond it unknown clients are refused (fail closed)
-    clock: Callable[[], float] = time.monotonic
+    clock: Callable[[], float] = time.time          # wall clock: comparable between worker processes
     esign: Optional[Any] = None                  # an Esign agent; default one built from hr_wiring's ESIGN config
 
     def __post_init__(self) -> None:
@@ -106,30 +108,18 @@ class PublicSettings:
 
 
 class Limiter:
-    """Sliding-window counters in memory, keyed by (route, kind, id). Tokens are keyed by their hash, never stored raw."""
+    """Sliding-window counters shared by every worker process (velaris.core.shared.RateStore), keyed by
+    (route, kind, id). Tokens are keyed by their hash, never stored raw. An unreadable store refuses."""
 
     def __init__(self, settings: PublicSettings) -> None:
-        self._s, self._hits = settings, {}                  # type: Dict[Tuple[str, str, str], Deque[float]]
+        self._s, self._store = settings, RateStore(settings.max_keys)
 
     def allow(self, route: str, kind: str, ident: str, limit: int) -> bool:
-        now, key = self._s.clock(), (route, kind, ident)
-        q = self._hits.get(key)
-        if q is None:
-            if len(self._hits) >= self._s.max_keys:
-                self._sweep(now)
-                if len(self._hits) >= self._s.max_keys:
-                    return False
-            q = self._hits[key] = deque()
-        while q and q[0] <= now - self._s.window_s:
-            q.popleft()
-        if len(q) >= limit:
+        try:
+            return self._store.allow(f"{route}|{kind}|{ident}", limit, self._s.window_s, self._s.clock())
+        except sqlite3.Error as e:
+            logger.warning("rate store unavailable, refusing: %s", type(e).__name__)
             return False
-        q.append(now)
-        return True
-
-    def _sweep(self, now: float) -> None:
-        for k in [k for k, q in self._hits.items() if not q or q[-1] <= now - self._s.window_s]:
-            del self._hits[k]
 
 
 class Refusal(Exception):
@@ -351,7 +341,8 @@ def create_public_app(settings: Optional[PublicSettings] = None) -> FastAPI:
 
 def main() -> None:
     import uvicorn
-    uvicorn.run(create_public_app(PublicSettings.from_env()), host=os.environ.get("VELARIS_PUBLIC_HOST", "127.0.0.1"),
+    configure_logging()                  # JSON lines with link tokens masked (access log included)
+    uvicorn.run(create_public_app(PublicSettings.from_env()), log_config=None, host=os.environ.get("VELARIS_PUBLIC_HOST", "127.0.0.1"),
                 port=int(os.environ.get("VELARIS_PUBLIC_PORT", "8731")), workers=1, log_level="info", proxy_headers=False)
 
 

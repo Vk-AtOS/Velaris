@@ -1,0 +1,100 @@
+"""Replay cache and rate counters that work with several worker processes (KAN-136, decision D4/D5).
+
+One sqlite file under VELARIS_DATA (WAL, so readers never block the writer; sqlite's own file locks make every
+check-and-insert atomic across processes). In-process dicts, which the API used before, give each worker its own
+view: a nonce replayed against another worker passed and a client got N times its rate limit.
+
+  NonceStore.seen_before(nonce, ttl, now)  -> bool    records it; True if it was already there (a replay)
+  RateStore.allow(key, limit, window, now) -> bool    sliding window; False = refused
+
+Both fail CLOSED: when the store is full or unreadable they refuse (NonceStore raises StoreFull / OSError-like
+sqlite3.Error; callers turn that into 503). `now` must be wall-clock seconds (time.time): a monotonic clock is
+not comparable between processes.
+"""
+from __future__ import annotations
+
+import logging
+import sqlite3
+import threading
+import time
+from pathlib import Path
+from typing import Dict, Optional
+
+from velaris.intel.paths import data_dir, private_dir
+
+logger = logging.getLogger("velaris.shared")
+
+
+class StoreFull(Exception):
+    """Too many live entries; refuse rather than forget (a forgotten nonce is a replay)."""
+
+
+class _Db:
+    def __init__(self, filename: str, schema: str) -> None:
+        self._filename, self._schema = filename, schema
+        self._local = threading.local()
+
+    def conn(self) -> sqlite3.Connection:
+        path = Path(private_dir(data_dir() / "shared")) / self._filename     # resolved per use: follows VELARIS_DATA
+        cache: Dict[str, sqlite3.Connection] = self._local.__dict__.setdefault("c", {})
+        c = cache.get(str(path))
+        if c is None:
+            c = cache[str(path)] = sqlite3.connect(str(path), timeout=10, isolation_level=None)
+            c.execute("PRAGMA journal_mode=WAL")
+            c.execute("PRAGMA synchronous=NORMAL")
+            c.executescript(self._schema)
+        return c
+
+
+class NonceStore:
+    def __init__(self, max_live: int = 2_000_000) -> None:
+        self._db = _Db("nonces.db", "CREATE TABLE IF NOT EXISTS nonce(n TEXT PRIMARY KEY, exp REAL NOT NULL) WITHOUT ROWID;"
+                                    "CREATE INDEX IF NOT EXISTS ix_nonce_exp ON nonce(exp);")
+        self._max, self._last_sweep = max_live, 0.0
+
+    def seen_before(self, nonce: str, ttl: float, now: Optional[float] = None) -> bool:
+        now = time.time() if now is None else now
+        c = self._db.conn()
+        if now - self._last_sweep > 1.0:                  # incremental, indexed: no whole-cache rebuild per request
+            self._last_sweep = now
+            c.execute("DELETE FROM nonce WHERE exp<=?", (now,))
+            if c.execute("SELECT count(*) FROM nonce").fetchone()[0] >= self._max:
+                raise StoreFull("too many requests in the replay window")
+        try:
+            c.execute("INSERT INTO nonce(n, exp) VALUES (?,?)", (nonce, now + ttl))
+            return False
+        except sqlite3.IntegrityError:
+            row = c.execute("SELECT exp FROM nonce WHERE n=?", (nonce,)).fetchone()
+            if row and row[0] <= now:                     # expired but not yet swept: reusable
+                c.execute("UPDATE nonce SET exp=? WHERE n=? AND exp<=?", (now + ttl, nonce, now))
+                return False
+            return True
+
+
+class RateStore:
+    def __init__(self, max_keys: int = 50_000) -> None:
+        self._db = _Db("rate.db", "CREATE TABLE IF NOT EXISTS hit(k TEXT NOT NULL, ts REAL NOT NULL);"
+                                  "CREATE INDEX IF NOT EXISTS ix_hit_k ON hit(k, ts);")
+        self._max, self._last_sweep, self._keys = max_keys, 0.0, 0
+
+    def allow(self, key: str, limit: int, window: float, now: Optional[float] = None) -> bool:
+        now = time.time() if now is None else now
+        c = self._db.conn()
+        if now - self._last_sweep > 2.0:
+            self._last_sweep = now
+            c.execute("DELETE FROM hit WHERE ts<=?", (now - window,))
+            self._keys = c.execute("SELECT count(DISTINCT k) FROM hit").fetchone()[0]
+        c.execute("BEGIN IMMEDIATE")                       # check and insert as one step, across processes
+        try:
+            c.execute("DELETE FROM hit WHERE k=? AND ts<=?", (key, now - window))
+            n = c.execute("SELECT count(*) FROM hit WHERE k=?", (key,)).fetchone()[0]
+            if n >= limit or (n == 0 and self._keys >= self._max):      # a full table refuses unknown clients (fail closed)
+                c.execute("COMMIT")
+                return False
+            c.execute("INSERT INTO hit(k, ts) VALUES (?,?)", (key, now))
+            c.execute("COMMIT")
+            self._keys += n == 0                          # exact count is refreshed from the table at each sweep
+            return True
+        except BaseException:
+            c.execute("ROLLBACK")
+            raise

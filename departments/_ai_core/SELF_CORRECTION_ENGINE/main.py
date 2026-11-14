@@ -83,7 +83,8 @@ class SelfCorrectionEngine:
                            else f"converted to {spec['type']}")
             if spec["type"] in ("number", "integer"):
                 low, high = number(spec.get("min")), number(spec.get("max"))
-                bounded = min(max(value, low if low is not None else value), high if high is not None else value)
+                bounded = value if low is None else max(value, low)
+                bounded = bounded if high is None else min(bounded, high)
                 if bounded != value:
                     value = int(bounded) if spec["type"] == "integer" else bounded
                     why.append("clamped to the allowed range")

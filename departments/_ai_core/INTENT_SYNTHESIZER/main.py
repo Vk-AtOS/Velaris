@@ -41,6 +41,9 @@ class IntentSynthesizer:
             return {"intent": None, "source": idea, "status": "invalid_input",
                     "reason": f"expected text, or an object with text under one of {_TEXT_KEYS}"}
         frame = textkit.frame(body)
+        if frame["negated"] and frame["action"]:
+            # "do not delete X" forbids the action: it is not a delete request, and not a destructive one.
+            frame = {**frame, "action": None, "risk": None, "prohibited": frame["action"]}
         found = frame["entities"]
         missing = [k for k in ("action", "object") if not frame[k]]
         intent: Dict[str, Any] = {
@@ -50,6 +53,8 @@ class IntentSynthesizer:
                             "references": found["references"]},
             "urgent": frame["urgent"], "missing": missing, "complete": not missing,
         }
+        if frame.get("prohibited"):
+            intent["prohibited_action"] = frame["prohibited"]
         result = {"intent": intent, "source": idea, "status": "ok" if not missing else "incomplete"}
         if llm is None:
             return result

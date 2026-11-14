@@ -21,12 +21,21 @@ from velaris.intel import guard
 NAME = "UIE_SIGNAL"
 
 
+def _masked_copy(signal: Any) -> Any:
+    """The signal with secrets and personal identifiers masked, for echoing back in a result."""
+    if isinstance(signal, str):
+        return guard.redact(signal)[0]
+    if isinstance(signal, dict):
+        return {k: (guard.redact(v)[0] if isinstance(v, str) else v) for k, v in signal.items()}
+    return signal
+
+
 class UIESignalAgent:
     def health_check(self):
         return health(NAME)
 
     def process(self, signal: Any) -> Dict[str, Any]:
-        base = {"processed": False, "signal": signal}
+        base = {"processed": False, "signal": _masked_copy(signal)}
         meta = signal if isinstance(signal, dict) else {}
         raw = meta.get("text") if isinstance(signal, dict) else signal
         if not isinstance(raw, str) or not raw.strip():
@@ -40,6 +49,6 @@ class UIESignalAgent:
                     "reason": "the message looks like an attempt to instruct a model"}
         clean = textkit.clean(raw)
         safe, pii = guard.redact(clean)
-        return {"processed": True, "status": "ok", "signal": signal, "text": clean, "safe_text": safe,
+        return {"processed": True, "status": "ok", "signal": _masked_copy(signal), "text": clean, "safe_text": safe,
                 "pii": pii, "risk": scan.level, "findings": findings,
                 "channel": meta.get("channel"), "sender": meta.get("sender"), "chars": len(clean)}

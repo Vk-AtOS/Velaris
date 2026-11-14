@@ -39,6 +39,11 @@ def _value(value: Any, redact: bool, stats: Dict[str, int]) -> Any:
     if not isinstance(value, str):
         return value
     text = " ".join(guard.normalise(value).split())
+    if redact:                  # mask first: a number-shaped identifier must not be parsed away before redaction sees it
+        masked, counts = guard.redact(text)
+        if counts:
+            stats["values_redacted"] += sum(counts.values())
+            text = masked
     if _NUMERIC.match(text):
         stats["numbers_parsed"] += 1
         return float(text.replace(",", ""))
@@ -46,9 +51,6 @@ def _value(value: Any, redact: bool, stats: Dict[str, int]) -> Any:
     if m and 1 <= int(m.group(1)) <= 31 and 1 <= int(m.group(2)) <= 12:
         stats["dates_normalised"] += 1
         return f"{m.group(3)}-{int(m.group(2)):02d}-{int(m.group(1)):02d}"
-    if redact:
-        text, counts = guard.redact(text)
-        stats["values_redacted"] += sum(counts.values())
     if text != value:
         stats["text_cleaned"] += 1
     return text

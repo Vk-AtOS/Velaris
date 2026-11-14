@@ -7,12 +7,14 @@ import logging
 import sqlite3
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
+from velaris.intel.paths import agent_file
 
 logger = logging.getLogger("SLA_MONITOR")
 
 
 class SLAMonitor:
-    def __init__(self, db_path: str = "sla_data.db"):
+    def __init__(self, db_path: str = ""):
+        db_path = db_path or agent_file("SLA_MONITOR", "sla_data.db")
         self.db = sqlite3.connect(db_path)
         self._init_db()
 
@@ -97,7 +99,7 @@ class SLAMonitorAgent:
 
     def __init__(self, config: Dict[str, Any] = None):
         self.config = config or {}
-        db_path = self.config.get("db_path", "sla_data.db")
+        db_path = self.config.get("db_path") or agent_file("SLA_MONITOR", "sla_data.db")
         self.monitor = SLAMonitor(db_path)
         logger.info("SLA_MONITOR agent initialised")
 

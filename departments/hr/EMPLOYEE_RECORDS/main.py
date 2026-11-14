@@ -30,7 +30,11 @@ from velaris.agentkit.onboarding_common import (HR_ADMINS, Refused, Store, clean
 from velaris.agentkit.results import fail, health, invalid, ok
 from velaris.core.access import AccessDenied, Caller, authorize_read
 from velaris.intel import trace
+from velaris.agents.ESIGN.main import Esign
+from velaris.agents.LEAVE_MANAGEMENT.main import LeaveManagement
+from velaris.agents.OFFER_LETTERS.main import OfferLetters
 from velaris.agents.ONBOARDING_FLOW.main import OnboardingFlow
+from velaris.agents.PERFORMANCE_REVIEW_ENGINE.main import PerformanceReviewEngine
 from velaris.agents.POLICY_ACKS.main import PolicyAcks
 
 logger = logging.getLogger("EMPLOYEE_RECORDS")
@@ -38,6 +42,16 @@ _AGENT = "EMPLOYEE_RECORDS"
 EXIT_REASONS = ("resignation", "termination", "end_of_contract", "retirement", "other")
 CHANGEABLE = ("department", "designation", "manager_id", "email", "phone")
 PERSONAL = ("email", "phone")
+
+
+def mask_contact(value: Any) -> Any:
+    """j***@example.in / ******7890: enough to recognise, not enough to use."""
+    if not isinstance(value, str) or not value:
+        return value
+    if "@" in value:
+        local, _, host = value.partition("@")
+        return f"{local[:1]}***@{host}"
+    return "*" * max(len(value) - 4, 0) + value[-4:]
 
 
 class EmployeeRecords:
@@ -48,7 +62,8 @@ class EmployeeRecords:
         self.store = Store(_AGENT)
         self.participants = self.config.get("participants")
         if self.participants is None:
-            self.participants = [OnboardingFlow(self.config), PolicyAcks(self.config)]
+            self.participants = [OnboardingFlow(self.config), PolicyAcks(self.config), OfferLetters(self.config), Esign(self.config),
+                                LeaveManagement(self.config), PerformanceReviewEngine(self.config)]
 
     def health_check(self) -> Dict[str, Any]:
         return health(_AGENT, ats=bool(self.config.get("ats")), participants=len(self.participants))
@@ -78,8 +93,6 @@ class EmployeeRecords:
         if any(c["application_id"] == app and c["status"] in ("proposed", "approved") for c in self.store.all("conversions", who.org)):
             return fail("conflict", "this application already has a conversion in progress or done")
         offers = self.config.get("offers")
-        if offer_id and offers is not None and offers.get_offer_status(offer_id, who.org) != "accepted":
-            return fail("conflict", "the offer is not accepted")
         ats = self.config.get("ats")
         if ats is not None:
             cand = ats.get_candidate(app, who.org)
@@ -90,6 +103,12 @@ class EmployeeRecords:
                 cand = {"name": clean_text(name, "name", max_len=120), "email": clean_text(email, "email", max_len=160), "consent": None}
             except ValueError as e:
                 return invalid(f"no applicant tracking agent is configured, so {e}")
+        if not offer_id:
+            return fail("conflict", "a conversion needs the id of the accepted offer")
+        if offers is None:
+            return fail("not_configured", "the offer cannot be checked: OFFER_LETTERS is not connected, so no employee is created")
+        if offers.get_offer_status(offer_id, who.org) != "accepted":
+            return fail("conflict", "the offer is not accepted")
         rec = {"id": new_id("cnv"), "org": who.org, "application_id": app, "status": "proposed", "proposed_by": who.id,
                "proposed_at": iso(self._now()), "candidate": {"name": cand.get("name"), "email": cand.get("email"), "phone": cand.get("phone"),
                                                             "consent": cand.get("consent")},
@@ -345,6 +364,12 @@ class EmployeeRecords:
         rows = self._classes(emp)
         return ok(classes=rows, needs_review=any(r["status"] == "needs_review" for r in rows))
 
+    @staticmethod
+    def _links(emp: Dict[str, Any]) -> Dict[str, Any]:
+        """What other agents know this person by (they key by e-mail, application or offer, not by employee id)."""
+        src = emp.get("source") or {}
+        return {"email": emp.get("email"), "application_id": src.get("application_id"), "offer_id": src.get("offer_id")}
+
     def export_subject(self, employee_id: str) -> Dict[str, Any]:
         """Everything held about a person (the person themselves or an HR administrator), identifiers masked."""
         who, refusal = reader(_AGENT)
@@ -358,8 +383,10 @@ class EmployeeRecords:
         if emp is None:
             return fail("not_found", "no such employee")
         out: Dict[str, Any] = {"employee": emp, "exits": [x for x in self.store.all("exits", who.org) if x["employee_id"] == employee_id]}
+        links = self._links(emp)
         for p in self.participants:
-            out.update(p.dsr_export(who.org, employee_id))
+            out.update(p.dsr_export(who.org, employee_id, links=links))
+        out["employee"] = {**emp, **{f: mask_contact(emp.get(f)) for f in PERSONAL}}      # contact details masked, as the docstring says
         out["retention"] = self._classes(emp)
         trace.append(_AGENT, "subject.exported", {"subject": hashlib.sha256(employee_id.encode()).hexdigest()[:16], "org": who.org, "by": who.id})
         return ok(export=out)
@@ -384,8 +411,16 @@ class EmployeeRecords:
                         "erasure applies after exit")
         erased: List[str] = []
         held: List[Dict[str, Any]] = []
+        failed: List[str] = []
+        links = self._links(emp)
         for p in self.participants:
-            res = p.dsr_erase(who.org, employee_id, self._today())
+            name = type(p).__name__
+            try:
+                res = p.dsr_erase(who.org, employee_id, self._today(), links=links)
+            except Exception as e:           # one store failing must not hide the others, and must not read as "complete"
+                logger.warning("erasure in %s failed for a subject: %s", name, e)
+                failed.append(name)
+                continue
             erased += res["erased"]
             held += res["held"]
         rows = self._classes(emp)
@@ -406,9 +441,10 @@ class EmployeeRecords:
                 e["name"] = f"erased-{digest}"
             e["status"] = "restricted" if core_held else "erased"
             e["erasure"] = {"at": iso(self._now()), "by": who.id, "request_ref": ref, "erased": erased, "held": [h["what"] for h in held],
-                            "needs_review": any(h.get("status") == "needs_review" for h in held)}
+                            "needs_review": any(h.get("status") == "needs_review" for h in held), "failed_stores": failed}
             erased.append(f"{e['id']}:contact details and consent record")
-            return ok(record_status=e["status"], erased=erased, held=held, needs_review=e["erasure"]["needs_review"])
+            return ok(record_status=e["status"], erased=erased, held=held, needs_review=e["erasure"]["needs_review"],
+                      complete=not failed, failed_stores=failed, stores_covered=[type(p).__name__ for p in self.participants])
 
         out = self.store.update("employees", employee_id, who.org, _do)
         trace.append(_AGENT, "subject.erased", {"subject": digest, "org": who.org, "by": who.id, "held": len(held), "erased": len(erased)})

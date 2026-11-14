@@ -23,6 +23,7 @@ import csv
 import hashlib
 import io
 import json
+import logging
 import math
 import posixpath
 import re
@@ -45,6 +46,8 @@ from velaris.intel.llm import LLM, LLMError, cosine
 from velaris.intel.paths import data_dir
 from velaris.intel.research_report import verify_report
 from velaris.intel.web_markdown import chunk, html_to_markdown
+
+logger = logging.getLogger("velaris.intel.docs")
 
 MAX_BYTES = 50_000_000        # one file, as stored
 MAX_MEMBER = 64_000_000       # one unpacked part of an Office file
@@ -412,7 +415,13 @@ class DocStore:
         self.llm = llm or LLM()
         self._db = sqlite3.connect(path or str(data_dir() / "docs.db"), check_same_thread=False)
         self._db.row_factory = sqlite3.Row
+        self._db.execute("PRAGMA secure_delete=ON")          # erased text must not linger in freed pages (DPDP)
+        self._db.execute("PRAGMA busy_timeout=5000")
         self._db.executescript(_SCHEMA)
+        try:                                                 # two current versions of one name can never coexist
+            self._db.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_documents_current ON documents (scope, name) WHERE invalid_at IS NULL")
+        except sqlite3.IntegrityError as e:
+            logger.warning("docs.db already holds duplicate current documents; unique index not created: %s", e)
         self._lock = threading.Lock()
 
     def _current(self, scope: str, name: str) -> Optional[sqlite3.Row]:
@@ -443,6 +452,9 @@ class DocStore:
         flags = [int(guard.scan(p["text"], source=f"docs:{name}").blocked) for p in parts]
         doc_id, now = uuid.uuid4().hex, time.time()
         with self._lock, self._db:
+            old = self._current(scope, name)       # re-read under the lock: another writer may have added a version meanwhile
+            if old and old["sha256"] == sha:
+                return {"action": "UNCHANGED", "doc_id": old["id"], "sha256": sha}
             if old:
                 self._db.execute("UPDATE documents SET invalid_at=? WHERE id=?", (now, old["id"]))
             self._db.execute("INSERT INTO documents VALUES (?,?,?,?,?,?,?,NULL,?)",
@@ -467,6 +479,20 @@ class DocStore:
         if cur.rowcount:
             trace.append("docs", "remove", {"scope": scope, "name": name, "reason": reason})
         return bool(cur.rowcount)
+
+    def erase(self, name: str, *, scope: str, reason: str) -> int:
+        """Hard delete (DPDP erasure): every version of the document and all its passages are removed, not just closed.
+        Returns the number of document versions deleted. Only a hash of the name goes to the trace."""
+        with self._lock, self._db:
+            ids = [r["id"] for r in self._db.execute("SELECT id FROM documents WHERE scope=? AND name=?", (scope, name))]
+            for i in ids:
+                self._db.execute("DELETE FROM chunks WHERE doc_id=?", (i,))
+                self._db.execute("DELETE FROM documents WHERE id=?", (i,))
+        self._db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        if ids:
+            trace.append("docs", "erase", {"scope": scope, "name_sha256": hashlib.sha256(name.encode()).hexdigest(),
+                                           "versions": len(ids), "reason": reason})
+        return len(ids)
 
     def documents(self, scope: str) -> List[Dict[str, Any]]:
         return [dict(r) for r in self._db.execute(

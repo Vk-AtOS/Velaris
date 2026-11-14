@@ -2,6 +2,8 @@
 
 from typing import Dict, Any
 
+from velaris.core.access import SECURITY_ADMINS, check_caller
+
 
 class AgentContainmentModes:
     """
@@ -18,7 +20,11 @@ class AgentContainmentModes:
         self.metadata: Dict[str, Dict[str, Any]] = {}
 
     def set_mode(self, agent: str, mode: str) -> bool:
-        if mode not in self.VALID_MODES:
+        if mode not in self.VALID_MODES or not isinstance(agent, str) or not agent:
+            return False
+        _, refused = check_caller("AGENT_CONTAINMENT_MODES", "set_mode", {"agent": agent[:128], "mode": mode},
+                                  roles=SECURITY_ADMINS)
+        if refused:
             return False
         self.modes[agent] = mode
         return True
@@ -26,8 +32,13 @@ class AgentContainmentModes:
     def get_mode(self, agent: str) -> str:
         return self.modes.get(agent, "UNSET")
 
-    def set_metadata(self, agent: str, info: Dict[str, Any]):
+    def set_metadata(self, agent: str, info: Dict[str, Any]) -> bool:
+        _, refused = check_caller("AGENT_CONTAINMENT_MODES", "set_metadata", {"agent": str(agent)[:128]},
+                                  roles=SECURITY_ADMINS)
+        if refused:
+            return False
         self.metadata[agent] = info
+        return True
 
     def get_metadata(self, agent: str) -> Dict[str, Any]:
         return self.metadata.get(agent, {})

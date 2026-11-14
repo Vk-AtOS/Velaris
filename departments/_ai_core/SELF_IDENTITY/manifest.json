@@ -2,5 +2,6 @@
   "name": "SELF_IDENTITY",
   "version": "1.0.0",
   "author": "Velaris",
-  "description": "Who this Velaris installation is, as a recorded, versioned fact sheet."
+  "description": "Who this Velaris installation is, as a recorded, versioned fact sheet.",
+  "entrypoint": "main.py:SELF_IDENTITYAgent"
 }

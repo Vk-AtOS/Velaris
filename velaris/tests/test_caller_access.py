@@ -120,13 +120,15 @@ def test_profile_pay_needs_own_record_or_a_role():
     assert own["payroll"]["gross"] == 90000 and own["payroll"]["statutory"] == {"EPF": 1800}
     with acting_as(HR):
         assert engine.get_employee_profile("E2", 3, 2026)["payroll"]["net"] == 70000
-    assert [d[0] for d in decisions()] == ["denied", "denied", "granted", "granted", "granted", "granted"]
+    assert [d[0] for d in decisions()][:2] == ["denied", "denied"] and "granted" in [d[0] for d in decisions()]      # attendance, leave and performance are gated too
 
 
 def test_scorecard_reads_no_pay_and_needs_no_pay_permission():
     engine, zoho = metrics_engine()
-    assert [s["employee_id"] for s in engine.get_team_scorecard(["E1", "E2"], 3, 2026)] == ["E1", "E2"]
-    assert not any("payslips" in u for u in zoho.calls) and decisions() == []
+    assert [s["employee_id"] for s in engine.get_team_scorecard(["E1", "E2"], 3, 2026)] == ["E1", "E2"]       # no caller: sections withheld, not read
+    assert not any("payslips" in u for u in zoho.calls)
+    cards = engine.get_team_scorecard(["E1", "E2"], 3, 2026, caller=HR)                      # personal sections are read as the caller
+    assert [s["employee_id"] for s in cards] == ["E1", "E2"] and any(d[0] == "granted" for d in decisions())
 
 
 def test_payroll_connector_engine_and_people_list_are_gated():
@@ -150,12 +152,15 @@ def test_payroll_connector_engine_and_people_list_are_gated():
     assert people.get_employees(caller=HR)[0]["PAN"] == "ABCDE1234F"
 
 
-def test_leave_history_is_health_data(tmp_path):
+def test_leave_history_is_health_data(tmp_path, monkeypatch):
     from velaris.agents.LEAVE_MANAGEMENT import main as lm
-    lm._DB = str(tmp_path / "leaves.db")
+    monkeypatch.setattr(lm, "_DB", str(tmp_path / "leaves.db"))
     leave = lm.LeaveManagement()
-    leave.seed_balances("E1", 2026)
-    leave.apply("E1", "sick", "2026-11-16", "2026-11-17", reason="flu")
+    with pytest.raises(AccessDenied):
+        leave.seed_balances("E1", 2026)                  # no caller
+    with acting_as(HR):
+        leave.seed_balances("E1", 2026)
+        leave.apply("E1", "sick", "2026-11-16", "2026-11-17", reason="flu")
     with pytest.raises(AccessDenied):
         leave.employee_history("E1")
     with pytest.raises(AccessDenied):

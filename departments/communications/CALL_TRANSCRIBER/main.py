@@ -6,6 +6,8 @@ import json
 import subprocess
 from typing import Dict, Any, Optional
 
+from velaris.intel.paths import agent_dir
+
 logger = logging.getLogger("CALL_TRANSCRIBER")
 logger.setLevel(logging.DEBUG)
 handler = logging.StreamHandler()
@@ -100,6 +102,19 @@ class CallTranscriber:
             logger.error("Transcription failed: %s", e)
             return {"error": str(e), "filepath": filepath}
 
+    @staticmethod
+    def _output_problem(filepath: str, output_path: str) -> Optional[str]:
+        """A transcript is a .json file next to the audio or under this agent's data folder; nowhere else."""
+        if not isinstance(output_path, str) or not output_path.endswith(".json") or "\x00" in output_path:
+            return "output_path must be a .json file path"
+        target = os.path.realpath(output_path)
+        if os.path.islink(output_path):
+            return "output_path may not be a symbolic link"
+        roots = [os.path.realpath(os.path.dirname(os.path.abspath(filepath))), os.path.realpath(str(agent_dir("CALL_TRANSCRIBER")))]
+        if not any(os.path.dirname(target) == r or target.startswith(r + os.sep) for r in roots):
+            return "output_path must be next to the audio file or under the transcriber's data folder"
+        return None
+
     def transcribe_and_save(self, filepath: str, output_path: Optional[str] = None,
                              language: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -110,6 +125,9 @@ class CallTranscriber:
             return result
         if output_path is None:
             output_path = os.path.splitext(filepath)[0] + "_transcript.json"
+        problem = self._output_problem(filepath, output_path)
+        if problem:
+            return {"error": problem, "filepath": filepath}
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
         result["transcript_path"] = output_path

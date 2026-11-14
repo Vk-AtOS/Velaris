@@ -76,6 +76,9 @@ class COMPETITIVE_SCANNERAgent:
                                extraction="ok" if not got["error"] else f"error: {got['error']}")
                 else:
                     row.update(extracted=None, extraction="not_configured")
+            if fields is not None and can_extract and row.get("extraction") != "ok":
+                results.append(row)       # extraction failed: keep the old hash so the next scan still sees the change
+                continue
             data["pages"][url] = {"sha256": digest, "seen_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
             results.append(row)
         self._state.save(data)

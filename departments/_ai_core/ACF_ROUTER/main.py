@@ -13,6 +13,27 @@ from velaris.agentkit.conditions import condition_error, holds
 from velaris.agentkit.results import fail, health
 from velaris.intel import guard
 
+
+def _strings(value):
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, dict):
+        for v in value.values():
+            yield from _strings(v)
+    elif isinstance(value, (list, tuple)):
+        for v in value:
+            yield from _strings(v)
+
+
+def _masked(value):
+    if isinstance(value, str):
+        return guard.redact(value)[0]
+    if isinstance(value, dict):
+        return {k: _masked(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_masked(v) for v in value]
+    return value
+
 NAME = "ACF_ROUTER"
 
 
@@ -46,7 +67,7 @@ class ACFRouterAgent:
     def route(self, signal):
         """Accepts raw text, a signal object, or an ACF_CONTEXT.contextualize() result."""
         def refuse(status, reason, destination=None):
-            return fail(status, reason, routed=False, destination=destination, rule=None, signal=signal)
+            return fail(status, reason, routed=False, destination=destination, rule=None, signal=_masked(signal))
         if self.config_error:
             return refuse("not_configured", f"router rules were rejected: {self.config_error}")
         subject = signal
@@ -62,8 +83,11 @@ class ACFRouterAgent:
             return refuse("invalid_input", "signal must be non-empty text or an object")
         if subject.get("risk") == "block":
             return refuse("quarantined", "signal is marked as blocked", "quarantine")
+        if not (isinstance(signal, dict) and "contextualized" in signal):    # not already screened by ACF_CONTEXT
+            if any(guard.scan(s, source=NAME).blocked for s in _strings(subject)):
+                return refuse("quarantined", "instruction-like content", "quarantine")
         rule = next((r for r in self.rules if all(holds(c, subject) for c in r["if"])), None)
         if rule is None and self.default_destination is None:
             return refuse("unrouted", "no rule matched and no default destination is configured")
         return {"status": "ok", "routed": True, "destination": rule["to"] if rule else self.default_destination,
-                "rule": rule["id"] if rule else None, "default": rule is None, "signal": signal}
+                "rule": rule["id"] if rule else None, "default": rule is None, "signal": _masked(signal)}

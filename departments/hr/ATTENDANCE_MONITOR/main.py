@@ -1,6 +1,8 @@
 import logging
 import datetime
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
+
+from velaris.core.access import AccessDenied, Caller
 
 logger = logging.getLogger("ATTENDANCE_MONITOR")
 
@@ -20,16 +22,19 @@ class AttendanceMonitorAgent:
     def health_check(self) -> Dict[str, Any]:
         return {"agent": "ATTENDANCE_MONITOR", "status": "ok"}
 
-    def check_today(self, employee_ids: List[str], date_str: str = None) -> Dict:
-        """Returns today's attendance status for all employees."""
+    def check_today(self, employee_ids: List[str], date_str: str = None, *, caller: Optional[Caller] = None) -> Dict:
+        """Returns today's attendance status for all employees. An employee whose record could not be fetched is `unknown`,
+        never `absent`; a read the caller may not make raises AccessDenied (it is not a finding about the employee)."""
         date_str = date_str or datetime.date.today().strftime("%m-%d-%Y")
-        results: Dict[str, Any] = {"present": [], "absent": [], "late": [], "date": date_str}
+        results: Dict[str, Any] = {"present": [], "absent": [], "late": [], "unknown": [], "date": date_str}
         for eid in employee_ids:
             try:
-                records = self.people.get_attendance(eid, date_str, date_str)
+                records = self.people.get_attendance(eid, date_str, date_str, caller=caller)
+            except AccessDenied:
+                raise
             except Exception as e:
                 logger.warning("Attendance check failed for %s: %s", eid, e)
-                results["absent"].append(eid)
+                results["unknown"].append(eid)
                 continue
             if not records:
                 results["absent"].append(eid)
@@ -42,13 +47,16 @@ class AttendanceMonitorAgent:
         return results
 
     def flag_absence_streaks(
-        self, employee_ids: List[str], from_date: str, to_date: str, threshold: int = 3
+        self, employee_ids: List[str], from_date: str, to_date: str, threshold: int = 3, *,
+        caller: Optional[Caller] = None
     ) -> List[Dict]:
         """Flags employees with consecutive absences >= threshold days."""
         flagged = []
         for eid in employee_ids:
             try:
-                records = self.people.get_attendance(eid, from_date, to_date)
+                records = self.people.get_attendance(eid, from_date, to_date, caller=caller)
+            except AccessDenied:
+                raise
             except Exception as e:
                 logger.warning("Absence streak check failed for %s: %s", eid, e)
                 continue

@@ -2,5 +2,6 @@
   "name": "PERSONALITY_MOD",
   "version": "1.0.0",
   "author": "Velaris",
-  "description": "The house style for messages agents send, and the code that applies it."
+  "description": "The house style for messages agents send, and the code that applies it.",
+  "entrypoint": "main.py:PERSONALITY_MODAgent"
 }

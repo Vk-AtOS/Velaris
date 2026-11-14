@@ -2,5 +2,6 @@
   "name": "SELF_CONSISTENCY",
   "version": "1.0.0",
   "author": "Velaris",
-  "description": "Ask the same question N times and measure how far the answers agree."
+  "description": "Ask the same question N times and measure how far the answers agree.",
+  "entrypoint": "main.py:SELF_CONSISTENCYAgent"
 }

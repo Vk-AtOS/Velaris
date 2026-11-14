@@ -2,5 +2,6 @@
   "name": "EPISODIC_MEMORY",
   "version": "0.1.0",
   "author": "Velaris",
-  "description": "A durable, time-ordered log of what happened."
+  "description": "A durable, time-ordered log of what happened.",
+  "entrypoint": "main.py:EPISODIC_MEMORYAgent"
 }

@@ -22,6 +22,8 @@ from __future__ import annotations
 import hashlib
 import ipaddress
 import json
+import logging
+import os
 import socket
 import threading
 import time
@@ -34,7 +36,9 @@ from urllib.parse import urljoin, urlsplit
 import httpx
 
 from velaris.intel import trace
-from velaris.intel.paths import data_dir
+from velaris.intel.paths import data_dir, write_private
+
+logger = logging.getLogger("velaris.intel.web_fetch")
 
 USER_AGENT = "VelarisBot/1.0 (+company operations assistant; respects robots.txt)"
 MAX_BYTES = 5 * 1024 * 1024
@@ -71,6 +75,12 @@ def _resolve(host: str) -> list:
     return [info[4][0] for info in socket.getaddrinfo(host, None)]
 
 
+def _operator_host() -> str:
+    """Host of SEARXNG_URL when the operator configured one (a self-hosted search engine is often on a private
+    address). Only that exact host is exempt; every redirect hop is still checked against it."""
+    return (urlsplit(os.environ.get("SEARXNG_URL", "")).hostname or "").lower()
+
+
 def check_public(url: str, resolver: Resolver = _resolve) -> List[str]:
     """Raise FetchError unless the URL is http(s) and its host resolves only to public addresses.
 
@@ -86,6 +96,8 @@ def check_public(url: str, resolver: Resolver = _resolve) -> List[str]:
         raise FetchError("dns_failed", parts.hostname) from e
     if not addresses:
         raise FetchError("dns_failed", parts.hostname)
+    if parts.hostname.lower() == _operator_host():
+        return list(dict.fromkeys(addresses))      # the operator's own SearXNG: private addresses are expected there
     for addr in addresses:
         ip = ipaddress.ip_address(addr.split("%")[0])
         if getattr(ip, "ipv4_mapped", None):
@@ -128,6 +140,7 @@ class Fetcher:
         self._lock = threading.Lock()
         self._cache_dir = data_dir() / "web_cache"
         self._cache_dir.mkdir(exist_ok=True)
+        self._puts = 0
 
     # ── gates ────────────────────────────────────────────────────────────────
     def _wait_turn(self, host: str) -> None:
@@ -217,9 +230,40 @@ class Fetcher:
 
     def _cache_get(self, url: str) -> Optional[Fetched]:
         f = self._cache_file(url)
-        if f.exists() and time.time() - f.stat().st_mtime < self._ttl:
-            return Fetched(**json.loads(f.read_text()), from_cache=True)
+        try:
+            if time.time() - f.stat().st_mtime < self._ttl:
+                return Fetched(**json.loads(f.read_text()), from_cache=True)
+        except (OSError, ValueError, TypeError) as e:          # missing, half-written or from an older format: refetch
+            if not isinstance(e, FileNotFoundError):
+                logger.warning("web cache entry %s unusable: %s", f.name, e)
         return None
+
+    def _cache_put(self, target: str, out: "Fetched") -> None:
+        """Atomic (temp + rename) so a reader never sees half a file; expired entries are swept now and then."""
+        body = json.dumps({"url": out.url, "final_url": out.final_url, "status": out.status,
+                           "content_type": out.content_type, "text": out.text})
+        try:
+            write_private(self._cache_file(target), body)
+            self._puts += 1
+            if self._puts % 200 == 1:
+                self._sweep_cache()
+        except OSError as e:
+            logger.warning("web cache write failed: %s", e)
+
+    def _sweep_cache(self) -> None:
+        cutoff = time.time() - max(self._ttl, 60)
+        for f in self._cache_dir.glob("*.json"):
+            try:
+                if f.stat().st_mtime < cutoff:
+                    f.unlink()
+            except OSError as e:
+                logger.warning("web cache sweep skipped %s: %s", f.name, e)
+        for f in self._cache_dir.glob(".*.tmp"):               # temp files left by a crash
+            try:
+                if f.stat().st_mtime < time.time() - 3600:
+                    f.unlink()
+            except OSError as e:
+                logger.warning("web cache sweep skipped %s: %s", f.name, e)
 
     # ── public ───────────────────────────────────────────────────────────────
     def fetch(self, url: str, *, use_cache: bool = True, is_api: bool = False) -> Fetched:
@@ -255,9 +299,7 @@ class Fetcher:
             raise FetchError("not_text", ctype)
         out = Fetched(url=target, final_url=str(httpx.URL(final_url)), status=r.status_code, content_type=ctype, text=r.text)
         if not is_api:
-            self._cache_file(target).write_text(json.dumps(
-                {"url": out.url, "final_url": out.final_url, "status": out.status,
-                 "content_type": out.content_type, "text": out.text}))
+            self._cache_put(target, out)
         trace.append("web", "fetch", {"url": url, "final_url": url if is_api else out.final_url,
                                        "status": out.status, "bytes": len(out.text)})
         return out

@@ -46,6 +46,9 @@ class GovernanceAdaptationLoop:
     def record(self, outcomes: List[Dict[str, Any]]) -> Dict[str, Any]:
         if not isinstance(outcomes, list):
             return invalid("outcomes must be a list")
+        _, refused = check_caller(NAME, "record", {"outcomes": len(outcomes)}, roles=GOVERNANCE_ADMINS)
+        if refused:
+            return refused
         good = [{"rule": o["rule"], "decision": o["decision"], "overridden": o["overridden"], "ts": time.time()}
                 for o in outcomes if self._valid(o)]
         self._state.update(lambda d: d.__setitem__("outcomes", (d.get("outcomes", []) + good)[-MAX_OUTCOMES:]))
@@ -57,6 +60,9 @@ class GovernanceAdaptationLoop:
         The input is echoed back as "adaptive_policy" for pipelines that pass it on unchanged.
         """
         recorded = None
+        _, refused = check_caller(NAME, "adapt", {}, roles=GOVERNANCE_ADMINS)
+        if refused:
+            return {**refused, "adaptive_policy": shaped, "proposals": []}
         if isinstance(shaped, dict) and "outcomes" in shaped:
             recorded = self.record(shaped["outcomes"])
             if recorded["status"] != "ok":
@@ -78,6 +84,9 @@ class GovernanceAdaptationLoop:
                 if kind is None:
                     continue
                 existing = next((p for p in proposals.values() if p["rule"] == rule and p["state"] == "proposed"), None)
+                decided = [p for p in proposals.values() if p["rule"] == rule and p["state"] == "rejected"]
+                if not existing and any(total < p["samples"] + MIN_SAMPLES for p in decided):
+                    continue          # a rejected proposal is not re-created until MIN_SAMPLES new outcomes arrive
                 p = existing or {"id": uuid.uuid4().hex, "rule": rule, "state": "proposed"}
                 p.update(kind=kind, override_rate=round(rate, 4), samples=total)
                 proposals[p["id"]] = p

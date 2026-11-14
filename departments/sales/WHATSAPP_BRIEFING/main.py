@@ -10,6 +10,7 @@ from datetime import datetime
 from typing import Dict, Any, List, Optional
 
 import httpx
+from velaris.intel.paths import agent_file
 
 logger = logging.getLogger("WHATSAPP_BRIEFING")
 
@@ -17,7 +18,7 @@ logger = logging.getLogger("WHATSAPP_BRIEFING")
 class WhatsAppBriefingSystem:
     def __init__(self, config: Dict[str, Any] = None):
         self.config = config or {}
-        db_path = self.config.get("db_path", "briefing_data.db")
+        db_path = self.config.get("db_path") or agent_file("WHATSAPP_BRIEFING", "briefing_data.db")
         self.db = sqlite3.connect(db_path)
         self._init_db()
 

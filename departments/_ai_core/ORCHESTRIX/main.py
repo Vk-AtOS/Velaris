@@ -47,20 +47,17 @@ class OrchestrixAgent:
     def parallel_groups(self, order: List[str], tasks: Dict[str, List[str]]) -> List[List[str]]:
         """
         Group tasks into parallel-safe batches.
-        A task can execute in a batch if none of its dependencies are in that batch.
+        Batch n holds the tasks whose longest dependency chain has n tasks before them, so every
+        dependency sits in an earlier batch (a chain A<-B<-C gives [[A],[B],[C]]).
         """
         logger.debug("Creating parallel groups from order=%s tasks=%s", order, tasks)
 
-        groups = []
+        level: Dict[str, int] = {}
+        for task in order:      # `order` is a topological order, so a task's dependencies already have a level
+            level[task] = 1 + max((level[d] for d in tasks.get(task, []) if d in level), default=-1)
+        groups = [[] for _ in range(max(level.values(), default=-1) + 1)]
         for task in order:
-            placed = False
-            for g in groups:
-                if all(dep not in g for dep in tasks.get(task, [])):
-                    g.append(task)
-                    placed = True
-                    break
-            if not placed:
-                groups.append([task])
+            groups[level[task]].append(task)
 
         logger.debug("Parallel groups: %s", groups)
         return groups

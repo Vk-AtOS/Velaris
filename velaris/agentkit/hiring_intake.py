@@ -9,12 +9,14 @@ expire (SUBMISSION_TTL_DAYS) and are swept.
 from __future__ import annotations
 
 import base64
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 from velaris.agentkit import hiring_forms as hf
 from velaris.agentkit.hiring_common import DAY, HiringError, application_known, audit, hid, iso, new_id, now
 from velaris.agentkit.results import fail, ok
-from velaris.intel.paths import agent_dir, private_dir, read_private, write_private
+from velaris.core import vault
+from velaris.intel.paths import agent_dir, private_dir
 
 MAX_PER_HOUR = 300
 
@@ -52,14 +54,6 @@ def public_submit(form_id: str, answers: Dict[str, Any], pow_solution: Dict[str,
         if (why := hf.check_solution(pow_solution, f["id"])):
             raise HiringError("challenge_failed", why)
         hour = iso(at)[:13]
-
-        def count(d: Dict[str, Any]) -> bool:
-            d["hourly"] = {k: v for k, v in d["hourly"].items() if k.startswith(hour[:10])}
-            key = f"{f['id']}|{hour}"
-            d["hourly"][key] = d["hourly"].get(key, 0) + 1
-            return d["hourly"][key] <= MAX_PER_HOUR
-        if not hf._st().update(count):
-            raise HiringError("rate_limited", "too many applications this hour; try again later")
         clean, errors = hf.validate_answers(f, answers)
         has_file_field = any(x["type"] == "file" for x in f["fields"])
         required_file = any(x["type"] == "file" and x["required"] for x in f["fields"])
@@ -75,16 +69,30 @@ def public_submit(form_id: str, answers: Dict[str, Any], pow_solution: Dict[str,
         sid = new_id("sub")
         if file_info:
             path = private_dir(agent_dir(hf.AGENT) / "uploads") / f"{sid}.bin"
-            write_private(path, bytes(file_bytes))
+            vault.write_sealed(path, bytes(file_bytes), "hiring:SCREENING_FORMS")
             file_info["path"] = str(path)
         consent = {"purpose": f"recruitment: {f['title']}"[:300], "notice_version": f["consent_version"],
                    "retention_until": iso(at + f["retention_days"] * DAY)[:10], "channel": "web_form",
                    "talent_pool": clean.pop("talent_pool")}
         rec = {"id": sid, "org": org, "form_id": f["id"], "requisition_id": f["requisition_id"], "answers": clean, "consent": consent,
                "file": file_info, "received_at": at, "expires_at": at + hf.SUBMISSION_TTL_DAYS * DAY, "status": "pending", "candidate_id": None}
+
+        def accept(d: Dict[str, Any]) -> bool:
+            """ONE write: the hourly cap counts accepted applications only (an invalid post no longer uses up the hour),
+            and the cap check and the insert are atomic."""
+            d["hourly"] = {k: v for k, v in d["hourly"].items() if k.startswith(hour[:10])}
+            key = f"{hour}|{f['id']}"          # date first: the sweep above keeps today's keys only
+            if d["hourly"].get(key, 0) >= MAX_PER_HOUR:
+                return False
+            d["hourly"][key] = d["hourly"].get(key, 0) + 1
+            d["submissions"][sid] = rec
+            return True
+        if not hf._st().update(accept):
+            if file_info:
+                Path(file_info["path"]).unlink(missing_ok=True)
+            raise HiringError("rate_limited", "too many applications this hour; try again later")
         audit(hf.AGENT, "submission.received", org, None, submission=hid(org, sid), form=hid(org, f["id"]),
               consent=hf.digest(consent), file_sha256=file_info["sha256"] if file_info else None)
-        hf._st().update(lambda d: d["submissions"].__setitem__(sid, rec))
         return ok(reference=sid, message="Thank you. Your application was received.")
     except HiringError as e:
         return fail(e.status, e.reason)
@@ -111,8 +119,8 @@ def public_withdraw(token: str) -> Dict[str, Any]:
         d["withdrawals"][t["application_id"]] = {"org": t["org"], "application_id": t["application_id"], "requested_at": now(), "done": False}
     hf._st().update(go)
     audit(hf.AGENT, "withdrawal.requested", t["org"], None, application=hid(t["org"], t["application_id"]))
-    return ok(message="Your request was received. Your data will be erased; we will confirm by e-mail.")
+    return ok(message="Your request was received. Your data will be erased; a recruiter reviews and completes it. No confirmation e-mail is sent automatically.")
 
 
 def file_b64(path: str) -> str:
-    return base64.b64encode(read_private(path)).decode()
+    return base64.b64encode(vault.read_sealed(path, "hiring:SCREENING_FORMS")).decode()

@@ -51,6 +51,6 @@ class OptimaAgent:
         """
         Pivot = (after - before) / max(before, 1)
         """
-        pivot = (after - before) / max(before, 1)
+        pivot = (after - before) / max(abs(before), 1)
         logger.debug("Pivot factor=%s before=%s after=%s", pivot, before, after)
         return pivot

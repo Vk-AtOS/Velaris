@@ -7,7 +7,7 @@ sources conflict is still routed, with the conflicts attached and
 `signal.conflicted` set so a routing rule can send it to review.
 """
 from velaris.agentkit.results import fail, health
-from velaris.agents.ACF_CONTEXT.main import ACFContextAgent
+from velaris.agents.ACF_CONTEXT.main import LEVELS, ACFContextAgent
 from velaris.agents.ACF_FUSION.main import ACFFusionAgent
 from velaris.agents.ACF_ROUTER.main import ACFRouterAgent
 
@@ -38,7 +38,15 @@ class ACFCoreAgent:
                     return fail("invalid_input", fused["reason"], stage="fusion", routed=False, destination=None)
                 conflicts += fused["conflicts"]
                 merged = {"source": merged["source"], "data": fused["merged"]}
-            signal["content"] = merged["data"]      # flattened, agreed fields only
+            # The other sources were never screened: scan and mask the merged record like the first one.
+            rescreened = ACFContextAgent().contextualize(merged["data"], context, now)
+            if not rescreened["contextualized"]:
+                return fail(rescreened["status"], rescreened["reason"], stage="fusion", routed=False, destination=None)
+            signal["content"] = rescreened["signal"]["content"]      # flattened, agreed fields only, masked
+            for kind, n in rescreened["signal"]["redactions"].items():
+                signal["redactions"][kind] = signal["redactions"].get(kind, 0) + n
+            if LEVELS.index(rescreened["signal"]["risk"]) > LEVELS.index(signal["risk"]):
+                signal["risk"] = rescreened["signal"]["risk"]
         signal["conflicted"] = bool(conflicts)
         routed = self.router.route(signal)
         return {**routed, "stage": "routed" if routed["routed"] else "router", "conflicts": conflicts}
