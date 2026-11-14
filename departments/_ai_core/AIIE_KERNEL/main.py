@@ -49,8 +49,17 @@ class AIIEKernel:
             return invalid("stages must be a non-empty list of (label, callable)", output=None, completed=[])
         value, completed, unverified = idea, [], []
 
+        def note(action, payload):
+            """Trace the outcome; the run's own status must survive a trace failure, so say so instead."""
+            try:
+                trace.append(NAME, action, payload)
+                return True
+            except (OSError, ValueError, TypeError) as e:
+                logger.warning("AIIE_KERNEL could not write the trace: %s", e)
+                return False
+
         def halt(label, reason, output):
-            trace.append(NAME, "pipeline.halted", {"at": label, "completed": completed, "reason": reason})
+            note("pipeline.halted", {"at": label, "completed": completed, "reason": reason})
             return {"status": "halted", "halted_at": label, "reason": reason, "completed": completed,
                     "unverified": unverified, "output": output}
         for label, call in stages:
@@ -67,6 +76,6 @@ class AIIEKernel:
                 return halt(label, f"stage returned status {result['status']!r}: {result.get('reason', '')}", result)
             completed.append(label)
             value = result
-        trace.append(NAME, "pipeline.completed", {"completed": completed, "unverified": unverified})
+        traced = note("pipeline.completed", {"completed": completed, "unverified": unverified})
         return {"status": "ok", "halted_at": None, "reason": "", "completed": completed,
-                "unverified": unverified, "output": value}
+                "unverified": unverified, "output": value, "traced": traced}

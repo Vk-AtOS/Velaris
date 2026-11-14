@@ -41,7 +41,7 @@ class EAC_AUDITAgent:
             return invalid("details must be a JSON object")
         try:
             entry = trace.append(actor.strip(), PREFIX + event.strip(), _masked(details))
-        except OSError as e:
+        except (OSError, ValueError, TypeError) as e:
             logger.warning("EAC_AUDIT could not write the trace: %s", e)
             return fail("storage_error", "the audit entry could not be written")
         return {"status": "ok", "hash": entry["hash"], "ts": entry["ts"]}
