@@ -34,8 +34,9 @@ import hashlib
 import hmac
 import json
 import re
+import logging
 import secrets
-import threading
+import sqlite3
 import time
 from typing import Any, Callable, Dict, Iterable, Mapping, Optional
 
@@ -44,13 +45,15 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 
 from velaris.core.access import Caller
+from velaris.core.shared import NonceStore, StoreFull
+
+logger = logging.getLogger("velaris.api.auth")
 
 WINDOW_S = 60
 MAX_ASSERTION_TTL_S = 300
 MIN_SECRET_BYTES = 32
 H_TS, H_NONCE, H_SIG, H_ID = "x-velaris-timestamp", "x-velaris-nonce", "x-velaris-signature", "x-velaris-identity"
 _NONCE = re.compile(r"[A-Za-z0-9_-]{16,128}\Z")
-_MAX_NONCES = 100_000
 
 
 class AuthError(Exception):
@@ -112,10 +115,7 @@ class Verifier:
         if not isinstance(identity_key, Ed25519PublicKey):
             raise ValueError("the identity key must be an Ed25519 public key")
         self._secret, self._key, self._window, self._clock = secret, identity_key, window, clock
-        # ponytail: nonces seen are kept in this process only. Run one API process, or move
-        # this to a shared store (sqlite/redis with expiry) before running several.
-        self._seen: Dict[str, float] = {}
-        self._lock = threading.Lock()
+        self._nonces = NonceStore()      # shared by every worker process (velaris.core.shared)
 
     def verify(self, method: str, path: str, headers: Mapping[str, str], body: bytes) -> Caller:
         ts, nonce, mac, identity = (headers.get(h, "") for h in (H_TS, H_NONCE, H_SIG, H_ID))
@@ -136,14 +136,14 @@ class Verifier:
         return self._caller(identity, nonce, now)
 
     def _remember(self, nonce: str, now: float) -> None:
-        with self._lock:
-            if len(self._seen) >= _MAX_NONCES:
-                self._seen = {n: t for n, t in self._seen.items() if t > now}
-                if len(self._seen) >= _MAX_NONCES:
-                    raise AuthError("busy", "too many requests in the replay window", status=503)
-            if self._seen.get(nonce, 0) > now:
+        try:
+            if self._nonces.seen_before(nonce, 2 * self._window, now):
                 raise AuthError("replay", "this request was already received")
-            self._seen[nonce] = now + 2 * self._window
+        except StoreFull:
+            raise AuthError("busy", "too many requests in the replay window", status=503) from None
+        except sqlite3.Error as e:           # cannot tell whether it is a replay: refuse
+            logger.warning("replay store unavailable: %s", type(e).__name__)
+            raise AuthError("busy", "the replay check is unavailable", status=503) from None
 
     def _caller(self, token: str, nonce: str, now: float) -> Caller:
         try:
