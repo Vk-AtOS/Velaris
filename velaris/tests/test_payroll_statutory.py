@@ -1,5 +1,6 @@
 """Statutory registry and date-driven payroll computation (India, Tamil Nadu). No network."""
 from datetime import date
+from decimal import Decimal
 
 import pytest
 
@@ -57,7 +58,7 @@ def test_ceiling_applied_before_and_after_change():
     before, after = pay(40000, "2026-08", half_year_gross=240000), pay(40000, "2026-10")
     assert before["statutory"]["epf_employee"] == before["statutory"]["epf_employer"] == 1800.0
     assert after["statutory"]["epf_employee"] == after["statutory"]["epf_employer"] == 3000.0
-    assert after["status"] == "ok" and after["net_pay"] == 37000.0
+    assert after["status"] == "provisional" and after["net_pay"] == 37000.0
 
 
 def test_wages_under_ceiling_and_full_wages_basis():
@@ -79,10 +80,10 @@ def test_transition_month_needs_review_without_member_status():
 def test_transition_month_split_matches_epfo_illustration():
     # EPFO FAQ Q7 Scenario C: wages 20,000 -> EPF wages 17,333.33, employee share 2,080.00
     r = pay(20000, "2026-09", epf_basis="ceiling")
-    assert r["status"] == "ok"
-    assert r["statutory"]["epf_wages"] == 17333.33
+    assert r["status"] == "provisional"
+    assert r["statutory"]["epf_wages"] == Decimal("17333.33")
     assert r["statutory"]["epf_employee"] == r["statutory"]["epf_employer"] == 2080.0
-    assert pay(40000, "2026-09", epf_basis="ceiling")["statutory"]["epf_wages"] == 19666.67
+    assert pay(40000, "2026-09", epf_basis="ceiling")["statutory"]["epf_wages"] == Decimal("19666.67")
     assert any(p["name"] == "epf_ceiling_transition" for p in r["parameters_used"])
 
 
@@ -120,7 +121,7 @@ def test_period_before_registry_needs_review():
 def test_pt_slabs_in_deduction_months(half_year_gross, tax):
     for period in ("2026-08", "2027-01"):
         r = pay(10000, period, half_year_gross=half_year_gross)
-        assert r["status"] == "ok" and r["statutory"]["professional_tax"] == tax
+        assert r["status"] == "provisional" and r["statutory"]["professional_tax"] == tax
 
 
 def test_pt_not_deducted_outside_august_and_january():
@@ -151,7 +152,7 @@ def test_unknown_local_body_needs_review(body):
 
 def test_local_body_aliases():
     for body in ("GCC", "chennai", "Greater Chennai Corporation"):
-        assert pay(10000, "2026-10", local_body=body)["status"] == "ok"
+        assert pay(10000, "2026-10", local_body=body)["status"] == "provisional"
 
 
 # ── result contract ───────────────────────────────────────────────────────
@@ -163,7 +164,8 @@ def test_result_lists_parameters_and_unverified_warnings():
     assert ceiling["source_url"].startswith("https://www.labour.gov.in/") and ceiling["fetched_on"] == "2026-11-11"
     unverified = sorted(p["name"] for p in r["parameters_used"] if not p["verified"])
     assert unverified == ["contribution_rounding", "epf_wage_base", "esi_wage_base"]
-    assert len(r["warnings"]) == 3 and all(w.startswith("UNVERIFIED") for w in r["warnings"])
+    assert [w for w in r["warnings"] if w.startswith("UNVERIFIED")] and len(r["warnings"]) == 3 + 2
+    assert r["not_implemented"] == ["edli_employer", "epf_admin_charges"] and sum(w.startswith("NOT IMPLEMENTED") for w in r["warnings"]) == 2
 
 
 def test_unverified_value_is_flagged_when_used(monkeypatch):
@@ -193,4 +195,26 @@ def test_org_summary_flags_review_and_keeps_resolved_sums():
     assert org["status"] == "needs_review" and org["needs_review_employees"] == ["B"]
     assert org["total_net_pay"] is None and org["total_compliance_liability"] is None
     ok = ENG.org_statutory_summary(people[:1], pay_period=date(2026, 10, 31))
-    assert ok["status"] == "ok" and ok["total_compliance_liability"] == 6000.0 and ok["warnings"]
+    assert ok["status"] == "provisional" and ok["total_compliance_liability"] == 6000.0 and ok["warnings"]
+
+
+# ── KAN-107: Decimal money, half-up to paise, input validation, honest status ──
+def test_money_is_decimal_rounded_half_up_to_paise_and_not_float():
+    r = ENG.compute("E1", "33333.335", "0", "0", pay_period="2026-10", local_body=GCC)
+    assert isinstance(r["gross"], Decimal) and r["gross"] == Decimal("33333.34")                   # a float would give .33 (binary 33333.3349...)
+    assert all(isinstance(r["statutory"][k], Decimal) for k in ("epf_employee", "esi_employee", "professional_tax"))
+    assert r["statutory"]["epf_employee"] == Decimal("3000.00")
+    assert str(ENG.compute("E", "10000", "0", "0", pay_period="2026-10", local_body=GCC)["statutory"]["esi_employee"]) == "75.00"   # 0.75% exactly
+
+
+def test_unusable_amounts_are_refused_not_computed():
+    for bad in (-1, "abc", None, float("nan"), True):
+        r = ENG.compute("E1", bad, 0, 0, pay_period="2026-10", local_body=GCC)
+        assert r["status"] == "invalid_input" and "net_pay" not in r
+    assert ENG.compute("E1", 100, 0, 0, tds=-5, pay_period="2026-10")["status"] == "invalid_input"
+
+
+def test_status_is_never_ok_while_parameters_are_unverified_or_charges_missing():
+    r = pay(40000, "2026-10", 16000, 14000)
+    assert r["status"] == "provisional" and r["review_reasons"] == []
+    assert "edli_employer" in r["statutory"] and r["statutory"]["edli_employer"] is None and r["statutory"]["epf_admin_charges"] is None
