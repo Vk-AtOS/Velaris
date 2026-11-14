@@ -57,7 +57,11 @@ class AAE_RUNTIMEAgent:
             return invalid("action must be an object with an 'id' and a 'type'")
         aid, atype = action["id"], action["type"]
         done = self._state.load()["journal"].get(aid)
+        if done and done["outcome"] == "in_progress":
+            return fail("in_progress", "this action id is running or died mid-run; it is not run twice", action=aid)
         if done and done["outcome"] == "done":
+            if done.get("digest") != _digest(action):      # same id, different action: never hand back the old result
+                return fail("id_conflict", "this action id already completed for a different action", action=aid)
             return ok(action=aid, result=done["result"], replayed=True, approved_by=done["approved_by"])
         verdict = self.policy.decide(action)
         if verdict["decision"] == "deny":
@@ -84,6 +88,16 @@ class AAE_RUNTIMEAgent:
             return self._finish(aid, atype, "no_handler",
                                 fail("no_handler", f"no handler registered for {atype!r}", action=aid),
                                 approved_by, requested_by)
+        # Claim the id before the handler runs, so a second caller or a crash cannot run it twice.
+        def claim(data):
+            if data["journal"].get(aid, {}).get("outcome") in ("in_progress", "done"):
+                return False
+            data["journal"][aid] = {"type": atype, "outcome": "in_progress", "at": time.time(),
+                                    "approved_by": approved_by, "requested_by": requested_by,
+                                    "result": None, "reason": None, "digest": _digest(action)}
+            return True
+        if not self._state.update(claim):
+            return fail("in_progress", "this action id is already running or completed", action=aid)
         try:
             result = handler(action.get("params") or {})
         except Exception as e:      # handlers are caller code: report the failure, do not crash the runtime
@@ -92,7 +106,7 @@ class AAE_RUNTIMEAgent:
                                 approved_by, requested_by)
         return self._finish(aid, atype, "done",
                             ok(action=aid, result=result, replayed=False, approved_by=approved_by,
-                               requested_by=requested_by), approved_by, requested_by)
+                               requested_by=requested_by), approved_by, requested_by, _digest(action))
 
     def _request(self, aid, atype, digest, reason):
         """Record who asked for an action that needs approval. Nothing is recorded without a caller."""
@@ -103,9 +117,10 @@ class AAE_RUNTIMEAgent:
         self._state.update(lambda data: data.setdefault("requests", {}).update({aid: request}))
         return fail("needs_approval", reason, action=aid, requested_by=caller.id)
 
-    def _finish(self, aid, atype, outcome, response, approved_by=None, requested_by=None):
+    def _finish(self, aid, atype, outcome, response, approved_by=None, requested_by=None, digest=None):
         entry = {"type": atype, "outcome": outcome, "at": time.time(), "approved_by": approved_by,
-                 "requested_by": requested_by, "result": response.get("result"), "reason": response.get("reason")}
+                 "requested_by": requested_by, "result": response.get("result"), "reason": response.get("reason"),
+                 "digest": digest}
 
         def record(data):
             data["journal"][aid] = entry

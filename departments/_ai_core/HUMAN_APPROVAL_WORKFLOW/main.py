@@ -8,6 +8,7 @@ returns "" and approve()/reject() return False when there is no caller, when the
 requester/approver argument is missing, empty or names someone other than the caller,
 or when the caller would decide their own request.
 """
+import copy
 import uuid
 from typing import Dict, Optional
 
@@ -60,6 +61,7 @@ class HumanApproval:
         return True
 
     def status(self, req_id: str) -> Optional[Dict]:
-        return self.requests.get(req_id)
+        """A copy of the request: editing it cannot change the stored status."""
+        return copy.deepcopy(self.requests.get(req_id))
 
 # ================================================================================

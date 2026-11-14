@@ -3,11 +3,13 @@
 import json
 import logging
 import os
+import re
 from typing import List, Dict, Any
 
 from velaris.intel.paths import agent_dir
 
 logger = logging.getLogger("ROLLBACK_ENGINE")
+_SAFE_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,99}")
 
 class RollbackEngine:
     """
@@ -37,15 +39,21 @@ class RollbackEngine:
             with open(self.LOG_PATH, "w") as f:
                 f.write("[]")
 
+    def _snapshot_path(self, name: str) -> str:
+        """The file for a snapshot name. Names are plain words: "../../x" is refused, not resolved."""
+        if not isinstance(name, str) or not _SAFE_NAME.fullmatch(name) or ".." in name:
+            raise ValueError("snapshot name must be 1-100 letters, digits, '_', '-' or '.' and start with a letter or digit")
+        return os.path.join(self.SNAPSHOT_DIR, f"{name}.json")
+
     def create_snapshot(self, name: str, state: Dict[str, Any]) -> str:
-        path = os.path.join(self.SNAPSHOT_DIR, f"{name}.json")
+        path = self._snapshot_path(name)
         with open(path, "w") as f:
             json.dump(state, f, indent=2)
         self._append_log({"snapshot": name, "action": "CREATE"})
         return path
 
     def load_snapshot(self, name: str) -> Dict[str, Any]:
-        path = os.path.join(self.SNAPSHOT_DIR, f"{name}.json")
+        path = self._snapshot_path(name)
         if not os.path.exists(path):
             raise FileNotFoundError("Snapshot not found")
         with open(path, "r") as f:

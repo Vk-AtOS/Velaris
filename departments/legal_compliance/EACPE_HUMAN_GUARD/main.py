@@ -143,7 +143,7 @@ class EACPE_HUMAN_GUARDAgent:
         return self._state.update(apply)
 
     def validate(self, action: dict, now: Optional[float] = None) -> Dict[str, Any]:
-        """May this exact action go ahead now? Consumes the approval it relies on."""
+        """May this exact action go ahead now? Consumes the approval it relies on (the requester, as the current caller, only)."""
         def no(status: str, reason: str) -> Dict[str, Any]:
             return {"approved": False, "action": action, "status": status, "reason": reason}
         problem = self._shape(action)
@@ -163,6 +163,11 @@ class EACPE_HUMAN_GUARDAgent:
                     if now - req["decided_at"] > APPROVAL_TTL_S:
                         req["state"] = "expired"
                         continue
+                    _, refused = check_caller(NAME, "use_approval", {"id": rid, "hash": digest},
+                                              claimed=action["requested_by"])
+                    if refused:
+                        return no(refused["status"], "only the requester, as an authenticated caller, may use an approval: "
+                                  + refused["reason"])
                     if not audit(NAME, "approval.used", {"id": rid, "hash": digest}):
                         return no("error", "use of the approval could not be recorded")
                     req.update(state="used", used_at=now)

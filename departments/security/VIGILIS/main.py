@@ -35,6 +35,7 @@ from velaris import agents
 from velaris.agentkit import conditions
 from velaris.agentkit.results import fail, invalid
 from velaris.agentkit.state import JsonState
+from velaris.core.access import SECURITY_ADMINS, check_caller
 from velaris.core.utils import sha256_of_file
 
 logger = logging.getLogger("VIGILIS")
@@ -119,6 +120,11 @@ class VigilisAgent:
 
     def baseline(self, paths: Optional[List[str]] = None) -> Dict[str, Any]:
         """Record the current SHA-256 of each file (default: every agent's main.py)."""
+        _, refused = check_caller("VIGILIS", "baseline", {"paths": None if paths is None else len(paths)
+                                                             if isinstance(paths, list) else "invalid"},
+                                  roles=SECURITY_ADMINS)
+        if refused:
+            return refused                # re-baselining would hide every change made since the last one
         targets = self._agent_sources() if paths is None else paths
         if not isinstance(targets, list) or not targets or len(targets) > MAX_WATCHED or not all(
                 isinstance(p, str) and os.path.isabs(p) for p in targets):

@@ -25,6 +25,7 @@ from typing import Any, Dict, List
 from velaris.agentkit.checks import is_name, is_number
 from velaris.agentkit.results import invalid, ok
 from velaris.agentkit.state import JsonState
+from velaris.core.access import GOVERNANCE_ADMINS, check_caller
 
 NAME = "EACPE_PROTOCOL"
 
@@ -48,6 +49,12 @@ class EACPE_PROTOCOLAgent:
             if not isinstance(earlier, list) or not all(e in seen for e in earlier):
                 return invalid(f"{s['step']}: distinct_from may only name earlier steps")
             seen.append(s["step"])
+
+        # The four-eyes rules live here: only a governance admin may redefine them, and each change is traced.
+        _, refused = check_caller(NAME, "define", {"protocol": protocol, "steps": [s["step"] for s in steps]},
+                                  roles=GOVERNANCE_ADMINS)
+        if refused:
+            return refused
 
         def put(data: Dict[str, Any]) -> int:
             entry = data.setdefault("protocols", {}).setdefault(protocol, {"version": 0})

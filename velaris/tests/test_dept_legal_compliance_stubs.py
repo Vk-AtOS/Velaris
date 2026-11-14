@@ -102,7 +102,8 @@ def test_guard_blocks_until_named_person_approves_exact_action():
     with as_("asha"):
         assert g.decide(req["request_id"], "asha", True)["state"] == "approved"
     assert g.validate({**PAYMENT, "amount": 900000})["approved"] is False          # a different action
-    ok = make("EACPE_HUMAN_GUARD").validate(PAYMENT)
+    with as_("bot-ap"):
+        ok = make("EACPE_HUMAN_GUARD").validate(PAYMENT)
     assert ok["approved"] is True and ok["approver"] == "asha"
     assert g.validate(PAYMENT)["approved"] is False                                # single use
     assert [e["action"] for e in trace.entries() if e["actor"] == "EACPE_HUMAN_GUARD"][-1] == "approval.used"
@@ -164,7 +165,11 @@ def test_guard_identity_comes_from_the_caller_never_a_parameter():
     assert g.validate(PAYMENT)["approved"] is False
     with as_("asha"):
         assert g.decide(rid, approve=True)["state"] == "approved"
-    assert g.validate(PAYMENT)["approved"] is True
+    assert g.validate(PAYMENT)["approved"] is False            # an approval is consumed only by its requester, signed in
+    with as_("mallory"):
+        assert g.validate(PAYMENT)["approved"] is False
+    with as_("bot-ap"):
+        assert g.validate(PAYMENT)["approved"] is True
 
 
 # ── EACPE_PROTOCOL ───────────────────────────────────────────────────────────
@@ -178,7 +183,8 @@ def ev(step, actor, ts):
 
 def test_protocol_followed():
     p = make("EACPE_PROTOCOL")
-    assert p.define("change", CHANGE)["version"] == 1
+    with as_("cfo", GOVERNANCE_ADMIN):
+        assert p.define("change", CHANGE)["version"] == 1
     r = make("EACPE_PROTOCOL").evaluate_protocol({"protocol": "change", "events": [
         ev("execute", "ravi", 3), ev("request", "ravi", 1), ev("approve", "asha", 2), ev("verify", "ravi", 4)]})
     assert r["protocol_safe"] is True and r["findings"] == [] and r["version"] == 1
@@ -186,7 +192,8 @@ def test_protocol_followed():
 
 def test_protocol_findings_order_missing_segregation_unknown():
     p = make("EACPE_PROTOCOL")
-    p.define("change", CHANGE)
+    with as_("cfo", GOVERNANCE_ADMIN):
+        p.define("change", CHANGE)
     r = p.evaluate_protocol({"protocol": "change", "events": [
         ev("request", "ravi", 1), ev("execute", "ravi", 2), ev("approve", "ravi", 3), ev("hotfix", "ravi", 4)]})
     assert r["protocol_safe"] is False
@@ -198,9 +205,10 @@ def test_protocol_bad_input():
     p = make("EACPE_PROTOCOL")
     assert p.evaluate_protocol({"check": "rules"})["protocol_safe"] is False
     assert p.evaluate_protocol({"protocol": "none", "events": []})["status"] == "unknown_protocol"
-    assert p.define("x", [{"step": "a", "distinct_from": ["b"]}, {"step": "b"}])["status"] == "invalid_input"
-    assert p.define("x", [{"step": "a"}, {"step": "a"}])["status"] == "invalid_input"
-    p.define("x", [{"step": "a"}])
+    with as_("cfo", GOVERNANCE_ADMIN):
+        assert p.define("x", [{"step": "a", "distinct_from": ["b"]}, {"step": "b"}])["status"] == "invalid_input"
+        assert p.define("x", [{"step": "a"}, {"step": "a"}])["status"] == "invalid_input"
+        p.define("x", [{"step": "a"}])
     assert p.evaluate_protocol({"protocol": "x", "events": [{"step": "a"}]})["status"] == "invalid_input"
 
 
@@ -211,17 +219,21 @@ def outcomes(rule, total, overridden):
 
 def test_adaptation_proposes_review_for_often_overridden_rules():
     g = make("GOVERNANCE_ADAPTATION_LOOP", "GovernanceAdaptationLoop")
-    r = g.adapt({"outcomes": outcomes("travel-cap", 10, 4) + outcomes("vendor-check", 40, 0) + outcomes("new", 5, 5)})
+    assert g.adapt({"outcomes": outcomes("travel-cap", 10, 4)})["status"] == "unauthenticated"
+    with as_("cfo", GOVERNANCE_ADMIN):
+        r = g.adapt({"outcomes": outcomes("travel-cap", 10, 4) + outcomes("vendor-check", 40, 0) + outcomes("new", 5, 5)})
     assert r["recorded"] == 55
     assert {(p["rule"], p["kind"], p["override_rate"]) for p in r["proposals"]} == {
         ("travel-cap", "review_rule", 0.4), ("vendor-check", "keep", 0.0)}           # "new" has too few samples
-    again = make("GOVERNANCE_ADAPTATION_LOOP", "GovernanceAdaptationLoop").adapt()
+    with as_("cfo", GOVERNANCE_ADMIN):
+        again = make("GOVERNANCE_ADAPTATION_LOOP", "GovernanceAdaptationLoop").adapt()
     assert {p["id"] for p in again["proposals"]} == {p["id"] for p in r["proposals"]}   # no duplicates
 
 
 def test_adaptation_needs_a_person_to_accept_and_applies_nothing():
     g = make("GOVERNANCE_ADAPTATION_LOOP", "GovernanceAdaptationLoop")
-    pid = g.adapt({"outcomes": outcomes("travel-cap", 10, 5)})["proposals"][0]["id"]
+    with as_("cfo", GOVERNANCE_ADMIN):
+        pid = g.adapt({"outcomes": outcomes("travel-cap", 10, 5)})["proposals"][0]["id"]
     assert g.resolve(pid, True, by="cfo")["status"] == "unauthenticated"           # naming a person is not enough
     with as_("clerk"):
         assert g.resolve(pid, True)["status"] == "denied"                            # not a governance admin
@@ -230,16 +242,16 @@ def test_adaptation_needs_a_person_to_accept_and_applies_nothing():
         accepted = g.resolve(pid, True, by="cfo")
         assert accepted["proposal"]["state"] == "accepted" and accepted["proposal"]["by"] == "cfo"
         assert g.resolve(pid, False)["status"] == "denied"
-    assert g.adapt()["proposals"][0]["id"] != pid                                    # still overridden: a fresh proposal
+        assert g.adapt()["proposals"][0]["id"] != pid                                # still overridden: a fresh proposal
 
 
 def test_adaptation_bad_input():
     g = make("GOVERNANCE_ADAPTATION_LOOP", "GovernanceAdaptationLoop")
-    assert g.adapt({"intent": "x"})["adaptive_policy"] == {"intent": "x"}
-    assert g.adapt({"outcomes": "lots"})["status"] == "invalid_input"
-    r = g.record([{"rule": "r", "decision": "maybe", "overridden": True}, {"rule": "r", "decision": "deny", "overridden": 1}])
-    assert (r["recorded"], r["rejected"]) == (0, 2)
     with as_("cfo", GOVERNANCE_ADMIN):
+        assert g.adapt({"intent": "x"})["adaptive_policy"] == {"intent": "x"}
+        assert g.adapt({"outcomes": "lots"})["status"] == "invalid_input"
+        r = g.record([{"rule": "r", "decision": "maybe", "overridden": True}, {"rule": "r", "decision": "deny", "overridden": 1}])
+        assert (r["recorded"], r["rejected"]) == (0, 2)
         assert g.resolve("ghost", True)["status"] == "unknown_proposal"
 
 

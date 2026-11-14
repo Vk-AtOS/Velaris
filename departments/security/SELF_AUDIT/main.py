@@ -28,6 +28,7 @@ from velaris.agentkit.results import invalid
 from velaris.agentkit.state import JsonState
 from velaris.agentkit.infra_store import audit
 from velaris.agents.router import AgentRouter
+from velaris.core.access import SECURITY_ADMINS, check_caller
 from velaris.intel import paths, trace
 
 logger = logging.getLogger("SELF_AUDIT")
@@ -103,6 +104,10 @@ class SELF_AUDITAgent:
                  and isinstance(data.get("detail"), str) and data["detail"].strip())
         if not valid:
             return {**invalid(f"need check (a name), severity ({', '.join(SEVERITIES)}) and detail (text)"), "updated": False}
+        _, refused = check_caller(NAME, "update", {"check": data["check"], "severity": data["severity"]},
+                                  roles=SECURITY_ADMINS)
+        if refused:
+            return {**refused, "updated": False}
         entry = {"ts": time.time(), **_finding(data["severity"], data["check"], data["detail"][:500])}
         self._state.update(lambda d: d.__setitem__("reported", (d.get("reported", []) + [entry])[-MAX_REPORTED:]))
         return {"status": "ok", "updated": True}

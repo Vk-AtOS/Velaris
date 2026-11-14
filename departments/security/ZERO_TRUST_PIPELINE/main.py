@@ -49,6 +49,8 @@ TOKEN_PURPOSE = "zt-identity/"
 class _IdentityTokens(SecureActionTokens):
     """SecureActionTokens' format, signed with a key only this agent holds (domain separation)."""
 
+    single_use = False                   # an identity token is a session credential, valid until it expires
+
     def __init__(self) -> None:          # deliberately not super(): never load the shared key
         self.ttl = TOKEN_TTL_S
         self.key = load_or_create_key(agent_dir(NAME) / "identity.key", 32)
