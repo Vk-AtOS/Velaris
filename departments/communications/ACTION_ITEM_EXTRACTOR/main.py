@@ -7,6 +7,7 @@ import re
 import sqlite3
 from datetime import date, datetime
 from typing import Dict, Any, List, Optional
+from velaris.intel.paths import agent_file
 
 logger = logging.getLogger("ACTION_ITEM_EXTRACTOR")
 logger.setLevel(logging.DEBUG)
@@ -14,7 +15,6 @@ handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter("%(asctime)s - ACTION_ITEM_EXTRACTOR - %(levelname)s - %(message)s"))
 logger.addHandler(handler)
 
-_DB = os.path.join(os.path.dirname(__file__), "action_items.db")
 
 # Relative date resolution keywords
 _DAY_MAP = {"today": 0, "tomorrow": 1, "monday": None, "tuesday": None,
@@ -30,7 +30,7 @@ _OWNER_PATTERNS = [
 
 
 def _db() -> sqlite3.Connection:
-    conn = sqlite3.connect(_DB)
+    conn = sqlite3.connect(agent_file("ACTION_ITEM_EXTRACTOR", "action_items.db"))
     conn.row_factory = sqlite3.Row
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS action_items (

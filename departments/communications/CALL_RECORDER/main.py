@@ -8,6 +8,7 @@ import threading
 import uuid
 from datetime import datetime
 from typing import Dict, Any, Optional
+from velaris.intel.paths import agent_file
 
 logger = logging.getLogger("CALL_RECORDER")
 logger.setLevel(logging.DEBUG)
@@ -30,7 +31,7 @@ class CallRecorder:
     def __init__(self, config: Dict[str, Any] = None):
         self.config = config or {}
         self.recordings_dir = self.config.get("recordings_dir",
-            os.path.join(os.path.dirname(__file__), "recordings"))
+            agent_file("CALL_RECORDER", "recordings"))
         os.makedirs(self.recordings_dir, exist_ok=True)
         self._ffmpeg = self.config.get("ffmpeg_path", "ffmpeg")
         # Input device: 'default' on Linux, ':0' on macOS (coreaudio), 'audio=...' on Windows

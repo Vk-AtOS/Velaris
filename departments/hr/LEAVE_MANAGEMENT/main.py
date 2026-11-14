@@ -7,6 +7,7 @@ from datetime import date, timedelta
 from typing import Dict, Any, List, Optional
 
 from velaris.core.access import Caller, authorize_read, current_caller, deployment_org, org_denied
+from velaris.intel.paths import agent_file
 
 logger = logging.getLogger("LEAVE_MANAGEMENT")
 logger.setLevel(logging.DEBUG)
@@ -15,11 +16,10 @@ handler.setFormatter(logging.Formatter("%(asctime)s - LEAVE_MANAGEMENT - %(level
 logger.addHandler(handler)
 
 _LEAVE_TYPES = {"casual": 12, "sick": 12, "earned": 15, "maternity": 182, "paternity": 15}
-_DB = os.path.join(os.path.dirname(__file__), "leaves.db")
 
 
 def _db() -> sqlite3.Connection:
-    conn = sqlite3.connect(_DB)
+    conn = sqlite3.connect(agent_file("LEAVE_MANAGEMENT", "leaves.db"))
     conn.row_factory = sqlite3.Row
     conn.execute("""
         CREATE TABLE IF NOT EXISTS leave_requests (

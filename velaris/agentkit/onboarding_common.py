@@ -114,7 +114,7 @@ class Store:
     """Named collections of records, each stamped with its organisation, in one owner-only JSON file."""
 
     def __init__(self, agent: str, filename: str = "state.json") -> None:
-        self.state = JsonState(agent, filename, {"records": {}})
+        self.state = JsonState(agent, filename, {"records": {}}, encrypted=f"hr:{agent}")
 
     @property
     def lock(self) -> Any:

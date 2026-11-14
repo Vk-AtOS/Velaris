@@ -33,7 +33,7 @@ class MemoryAgentBase:
     def __init__(self, name: str = NAME) -> None:
         self.name = name
         self.llm = None                 # optional velaris.intel.llm.LLM used by recall_across()
-        self._state = JsonState(NAME, "nodes.json")
+        self._state = JsonState(NAME, "nodes.json", encrypted="memory:MEMORY_MESH")
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": self.name, "status": "ok", "version": "1.0.0"}

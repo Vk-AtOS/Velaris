@@ -2,13 +2,11 @@ import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
 import logging
-import math
 import sqlite3
 import json
 from datetime import date, timedelta
 from typing import Dict, Any, List, Optional
-
-from velaris.intel.paths import agent_dir
+from velaris.intel.paths import agent_file
 
 logger = logging.getLogger("SPRINT_PLANNER")
 logger.setLevel(logging.DEBUG)
@@ -19,7 +17,7 @@ logger.addHandler(handler)
 
 
 def _db() -> sqlite3.Connection:
-    conn = sqlite3.connect(os.path.join(str(agent_dir("SPRINT_PLANNER")), "sprints.db"))   # under VELARIS_DATA, never the source tree
+    conn = sqlite3.connect(agent_file("SPRINT_PLANNER", "sprints.db"))
     conn.row_factory = sqlite3.Row
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS sprints (
@@ -86,9 +84,6 @@ class SprintPlanner:
 
     def add_task(self, sprint_id: int, task_id: str, title: str,
                  assignee: str = "", story_points: int = 0) -> Dict[str, Any]:
-        if isinstance(story_points, bool) or not isinstance(story_points, (int, float)) \
-                or not math.isfinite(story_points) or story_points < 0:
-            return {"error": "story_points must be a finite number, zero or more"}
         conn = _db()
         cur = conn.execute(
             "INSERT INTO sprint_tasks (sprint_id, task_id, title, assignee, story_points) VALUES (?,?,?,?,?)",

@@ -35,9 +35,12 @@ from fastapi.responses import JSONResponse
 
 from velaris.api.allowlist import ACT, READ, catalog, prepare, rule_for, tool_params
 from velaris.api.auth import AuthError, Verifier, load_public_key
+from velaris.api.background import interval, lifespan
 from velaris.chat.api import chat_router
+from velaris.chat.service import ChatService
 from velaris.control.api import mount as mount_control
-from velaris.core.access import AccessDenied, Caller, deployment_org
+from velaris.api.trace_check import verify_incremental
+from velaris.core.access import GOVERNANCE_ADMINS, SECURITY_ADMINS, AccessDenied, Caller, deployment_org
 from velaris.core.prime import PrimeGate, gate_from_env, install_read_authoriser
 from velaris.intel import trace
 from velaris.intel.flow import Flow, FlowError, Tool
@@ -48,6 +51,7 @@ logger = logging.getLogger("velaris.api")
 
 MAX_BODY = 64 * 1024
 CALL_TIMEOUT_S = 60.0
+ADMIN_ROLES = GOVERNANCE_ADMINS | SECURITY_ADMINS     # may verify the global trace
 FLOW_APPROVERS = frozenset({"flow_approver"})     # may decide other people's steps (local mode only)
 
 
@@ -104,7 +108,8 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
     verifier = Verifier(settings.secret, settings.identity_key)
     llm = settings.llm or LLM()
     app = FastAPI(title="Velaris", docs_url=None, redoc_url=None, openapi_url=None)
-    app.include_router(chat_router(verifier, settings.org, llm=settings.llm))     # company chat: /chat/... (velaris/chat)
+    chat_service = ChatService()
+    app.include_router(chat_router(verifier, settings.org, service=chat_service, llm=settings.llm))     # company chat: /chat/... (velaris/chat)
     state: Dict[str, Any] = {}
 
     @app.exception_handler(ApiError)
@@ -299,7 +304,9 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
         caller, _ = await authed(request)
         record(caller, "flow.pending", {})
         out = []
-        for run_id in Flow([], llm=llm, path=settings.flow_db).waiting()[-200:]:
+        approver = settings.gate is None and bool(caller.roles & FLOW_APPROVERS)   # approvers see the organisation's runs
+        mine = Flow([], llm=llm, path=settings.flow_db).waiting(org=caller.org, owner=None if approver else caller.id, limit=200)
+        for run_id in mine:                  # filtered BEFORE the cap: the caller's own runs are never crowded out
             try:
                 _owner, flow = owned_run(run_id, caller, deciding=True)
             except ApiError:
@@ -355,10 +362,16 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
     @app.get("/trace/verify")
     async def verify_trace(request: Request) -> Dict[str, Any]:
         caller, _ = await authed(request)
+        if not caller.roles & ADMIN_ROLES:             # the whole trace covers every user: administrators only
+            record(caller, "trace.verify", {"outcome": "denied"})
+            raise ApiError(403, "admin_only", "only an administrator may verify the global trace")
         record(caller, "trace.verify", {})
-        return await in_thread(trace.verify)
+        return await in_thread(partial(verify_incremental, full=request.query_params.get("full") == "true"))
 
     mount_control(app, authed=authed, record=record, in_thread=in_thread, api_error=ApiError, llm=llm,
                   gate=settings.gate, flow_path=settings.flow_db)       # control layer: /control/... (velaris/control)
-    mount_mail(app, settings, authed, record, in_thread)    # company email: /mail/... (velaris/mail)
+    mail = mount_mail(app, settings, authed, record, in_thread)    # company email: /mail/... (velaris/mail)
+    app.router.lifespan_context = lifespan([       # scheduled work, see velaris.api.background
+        ("mail-outbox", interval("VELARIS_MAIL_WORKER_S", 30.0), mail.outbound.process_due),
+        ("chat-sweep", interval("VELARIS_CHAT_SWEEP_S", 3600.0), partial(chat_service.sweep, settings.org))])
     return app

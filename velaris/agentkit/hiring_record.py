@@ -18,11 +18,14 @@ chain head and counts, never text.
 """
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import os
-from typing import Any, Callable, Dict, List, Optional
+import tempfile
+from typing import Any, Callable, Dict, Iterator, List, Optional
 
 from velaris.agentkit.hiring_common import HiringError, bad, digest, now, store
+from velaris.core import vault
 from velaris.agentkit.state import append_line, read_lines
 from velaris.intel.paths import agent_dir, private_dir, write_private
 
@@ -34,6 +37,7 @@ MAX_AUDIO = 200_000_000
 GENESIS = "0" * 64
 STATEMENT = ("This is a factual, replayable record for a human reviewer. It contains no AI-likelihood, cheating or authenticity score, no threshold "
              "and no colour coding, because those signals are not reliable enough to act on (see the module documentation).")
+_SEAL = "hiring:INTERVIEW_RECORD"
 Transcriber = Callable[[str, str], Dict[str, Any]]
 
 
@@ -46,7 +50,7 @@ def _events_path(session_id: str) -> Any:
 
 
 def events_of(session_id: str) -> List[Dict[str, Any]]:
-    return read_lines(_events_path(session_id))
+    return read_lines(_events_path(session_id), encrypted=_SEAL)
 
 
 def verify_chain(events: List[Dict[str, Any]]) -> bool:
@@ -104,14 +108,14 @@ def append_event(org: str, s: Dict[str, Any], participant: str, kind: str, data:
         raise HiringError("denied", "this participant has not consented to event recording")
     body = _clean_event(kind, data)
     path = _events_path(s["id"])
-    prior = read_lines(path)
+    prior = read_lines(path, encrypted=_SEAL)
     if len(prior) >= MAX_EVENTS:
         raise HiringError("conflict", "the session reached its event limit")
     entry = {"seq": len(prior) + 1, "t": now(), "participant": participant, "type": kind, "data": body,
              "client_t": client_t if isinstance(client_t, (int, float)) and not isinstance(client_t, bool) else None,
              "prev": prior[-1]["hash"] if prior else GENESIS}
     entry["hash"] = digest(entry)
-    append_line(path, entry)
+    append_line(path, entry, encrypted=_SEAL)
     return entry
 
 
@@ -143,7 +147,7 @@ def store_audio(org: str, s: Dict[str, Any], participant: str, data: bytes, mime
         raise bad("audio must be 1 byte to 200 MB")
     h = hashlib.sha256(bytes(data)).hexdigest()
     path = private_dir(agent_dir(AGENT) / "audio") / f"{h}.bin"
-    write_private(path, bytes(data))
+    vault.write_sealed(path, bytes(data), _SEAL)
     return track_record(participant, h, len(data), mime, duration_s, str(path))
 
 
@@ -158,6 +162,15 @@ def track_record(participant: str, sha256: str, size: int, mime: str, duration_s
             "path": path, "transcript": None, "transcript_status": "not_requested", "registered_at": now()}
 
 
+@contextlib.contextmanager
+def _plain_copy(path: str) -> Iterator[str]:
+    data = vault.read_sealed(path, _SEAL)
+    with tempfile.TemporaryDirectory(prefix="vl-audio-") as d:
+        tmp = os.path.join(d, os.path.basename(path))
+        write_private(tmp, data)
+        yield tmp
+
+
 def transcribe(track: Dict[str, Any], hook: Optional[Transcriber]) -> Dict[str, Any]:
     """Fill the track's transcript through an optional local hook, or report not_configured. faster-whisper is not installed with
     Velaris: a deployment that adds it passes a function (path, sha256) -> {"language", "segments": [{"start", "end", "text"}]}."""
@@ -168,7 +181,8 @@ def transcribe(track: Dict[str, Any], hook: Optional[Transcriber]) -> Dict[str, 
         track["transcript_status"] = "no_local_file"
         return track
     try:
-        out = hook(track["path"], track["sha256"])
+        with _plain_copy(track["path"]) as plain:       # the hook reads a file; it gets a short-lived private plaintext copy
+            out = hook(plain, track["sha256"])
         segs = [{"start": float(x["start"]), "end": float(x["end"]), "text": str(x["text"])[:2000]} for x in out["segments"]][:20_000]
     except (OSError, KeyError, TypeError, ValueError) as e:
         track["transcript_status"] = f"failed: {type(e).__name__}"

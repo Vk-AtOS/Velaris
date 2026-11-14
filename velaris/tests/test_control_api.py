@@ -79,7 +79,7 @@ def test_tasks_start_state_report_and_the_trace(tmp_path, world):
     assert rep["verification"]["ok"] and rep["org"] == "acme" and len(rep["actions"]) == 3
     assert "verified: yes" in send(c, "GET", f"/control/runs/{run_id}/report?format=text").text
     assert api_entries("control.start")[0]["kind"] == "act" and api_entries("control.started")[0]["outcome"] == "ok"
-    assert send(c, "GET", "/trace/verify").json()["ok"] is True
+    assert send(c, "GET", "/trace/verify", roles=["governance_admin"]).json()["ok"] is True
 
 
 def test_refusals(tmp_path, world):

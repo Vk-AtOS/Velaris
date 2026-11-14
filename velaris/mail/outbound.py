@@ -51,6 +51,7 @@ REASONS = {
     "many_recipients": "the message has many recipients",
 }
 MAX_ATTEMPTS = 4
+STUCK_AFTER_S = 900.0        # a submission in "sending" this long was abandoned by a crashed worker
 _TOOL = "MAIL.send_approved"
 
 
@@ -262,8 +263,20 @@ class Outbound:
         return self.view(self._row(s["id"], who.org))
 
     # ── the worker ───────────────────────────────────────────────────────────
+    def recover_stuck(self, now: float) -> int:
+        """Submissions left in 'sending' by a crash go back to the queue (state 'approved') so they are retried; at
+        MAX_ATTEMPTS they fail instead. A retry can in rare cases deliver twice (crash after the relay accepted); the
+        Message-ID is the same, so receivers drop the duplicate."""
+        cutoff = now - STUCK_AFTER_S
+        n = self.store.run("UPDATE submission SET state='failed', error='gave_up_after_crash' WHERE state='sending' AND send_at<=? AND attempts>=?",
+                           (cutoff, MAX_ATTEMPTS))
+        n += self.store.run("UPDATE submission SET state='approved', send_at=?, error='retry_after_crash' WHERE state='sending' AND send_at<=?",
+                            (now, cutoff))
+        return n
+
     def process_due(self, limit: int = 50) -> List[Dict[str, Any]]:
         now = self.clock()
+        self.recover_stuck(now)
         out = []
         for s in self.store.q("SELECT * FROM submission WHERE state='approved' AND send_at<=? ORDER BY send_at LIMIT ?", (now, limit)):
             out.append(self._send(s, now))
@@ -278,8 +291,8 @@ class Outbound:
         return {"id": s["id"], "result": "failed" if permanent else "retry", "code": code}
 
     def _send(self, s: Any, now: float) -> Optional[Dict[str, Any]]:
-        if not self.store.run("UPDATE submission SET state='sending', undo_status='final', attempts=attempts+1 WHERE id=? AND state='approved' AND send_at<=?",
-                              (s["id"], now)):
+        if not self.store.run("UPDATE submission SET state='sending', undo_status='final', attempts=attempts+1, send_at=? WHERE id=? AND state='approved' AND send_at<=?",
+                              (now, s["id"], now)):
             return None                                                     # another worker has it
         s = self._row(s["id"], s["org"])
         d = self.store.one("SELECT * FROM message WHERE id=? AND draft=1", (s["draft_id"],))

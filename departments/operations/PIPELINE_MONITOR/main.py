@@ -8,16 +8,15 @@ import sqlite3
 import statistics
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
-
-from velaris.intel.paths import agent_dir
+from velaris.intel.paths import agent_file
 
 logger = logging.getLogger("PIPELINE_MONITOR")
 
 
 class PipelineMonitor:
-    def __init__(self, db_path: Optional[str] = None, config: Dict[str, Any] = None):
+    def __init__(self, db_path: str = "", config: Dict[str, Any] = None):
         self.config = config or {}
-        self.db = sqlite3.connect(db_path or str(agent_dir("PIPELINE_MONITOR") / "pipeline_data.db"))   # under VELARIS_DATA, not the working directory
+        self.db = sqlite3.connect(db_path or agent_file("PIPELINE_MONITOR", "pipeline_data.db"))
         self._init_db()
 
     def _init_db(self):
@@ -54,9 +53,7 @@ class PipelineMonitor:
         durations = [r[0] for r in rows]
         mean = statistics.mean(durations)
         std = statistics.stdev(durations) if len(durations) > 1 else 0.1
-        if std <= 0:        # every earlier reading was identical: any real jump is an anomaly, not "normal"
-            return 0.1 if duration <= mean * 1.2 else 0.6
-        z = (duration - mean) / std
+        z = (duration - mean) / std if std > 0 else 0
         if z < 1.5:
             return 0.1
         elif z < 2.0:
@@ -104,7 +101,7 @@ class PipelineMonitorAgent:
 
     def __init__(self, config: Dict[str, Any] = None):
         self.config = config or {}
-        db_path = self.config.get("db_path")
+        db_path = self.config.get("db_path") or agent_file("PIPELINE_MONITOR", "pipeline_data.db")
         self.monitor = PipelineMonitor(db_path, self.config)
         logger.info("PIPELINE_MONITOR agent initialised")
 

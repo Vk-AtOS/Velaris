@@ -31,3 +31,34 @@ def _isolated_velaris_data(monkeypatch, tmp_path_factory):
     Tests that set VELARIS_DATA themselves still win: their fixture runs after this one.
     """
     monkeypatch.setenv("VELARIS_DATA", str(tmp_path_factory.mktemp("velaris_data")))
+
+
+@pytest.fixture(autouse=True)
+def _vault_key(monkeypatch):
+    """A fixed test master key (the real one lives outside VELARIS_DATA; see velaris.core.vault)."""
+    monkeypatch.setenv("VELARIS_VAULT_KEY", "dGVzdC12YXVsdC1rZXktMzItYnl0ZXMtLi4uLi4uLi4=")
+
+
+@pytest.fixture(autouse=True)
+def _tests_may_read_sealed_state(monkeypatch):
+    """Tests inspect state files with Path.read_text(); files sealed by velaris.core.vault are opened for them.
+
+    Production code never does this: it goes through JsonState / vault with the key.
+    """
+    from pathlib import Path
+    from velaris.core import vault
+    orig = Path.read_text
+
+    def read_text(self, *a, **k):
+        try:
+            return orig(self, *a, **k)
+        except UnicodeDecodeError:
+            blob = self.read_bytes()
+            agent = next((p.name for p in self.parents if p.parent.name == "agents"), "")
+            for purpose in (f"hiring:{agent}", f"hr:{agent}", f"memory:{agent}", agent):
+                try:
+                    return vault.open_bytes(blob, purpose).decode()
+                except vault.VaultError:
+                    continue
+            raise
+    monkeypatch.setattr(Path, "read_text", read_text)

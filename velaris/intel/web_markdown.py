@@ -46,6 +46,7 @@ class Node:
     children: List["Node | str"] = field(default_factory=list)
     parent: Optional["Node"] = None
     score: float = 0.0
+    depth: int = 0
 
     def text(self) -> str:
         return "".join(c if isinstance(c, str) else c.text() for c in self.children)
@@ -60,6 +61,9 @@ class Node:
         return out
 
 
+MAX_DEPTH = 100      # deeper nesting is flattened into its ancestor: a hostile page cannot overflow the recursive walkers
+
+
 class _TreeBuilder(HTMLParser):
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
@@ -68,6 +72,7 @@ class _TreeBuilder(HTMLParser):
         self.skip_depth = 0
         self.meta: Dict[str, str] = {}
         self._in_title = False
+        self.flat = 0
 
     def handle_starttag(self, tag: str, attrs) -> None:
         a = {k: (v or "") for k, v in attrs}
@@ -87,7 +92,10 @@ class _TreeBuilder(HTMLParser):
             if tag not in VOID_TAGS:
                 self.skip_depth += 1
             return
-        node = Node(tag, a, parent=self.cur)
+        if tag not in VOID_TAGS and (self.flat or self.cur.depth >= MAX_DEPTH):
+            self.flat += 1
+            return
+        node = Node(tag, a, parent=self.cur, depth=self.cur.depth + 1)
         self.cur.children.append(node)
         if tag not in VOID_TAGS:
             self.cur = node
@@ -98,6 +106,9 @@ class _TreeBuilder(HTMLParser):
         if self.skip_depth:
             if tag not in VOID_TAGS:
                 self.skip_depth -= 1
+            return
+        if self.flat and tag not in VOID_TAGS:
+            self.flat -= 1
             return
         n: Optional[Node] = self.cur     # close the nearest open element with this tag
         while n is not None and n.tag != tag:
@@ -311,8 +322,11 @@ def chunk(markdown: str, max_chars: int = 2000) -> List[Dict[str, str]]:
     chunks: List[Dict[str, str]] = []
     trail: List[str] = []
     buf: List[str] = []
+    size = 0         # running length of buf: re-summing it per line was quadratic on text with no blank lines
 
     def flush() -> None:
+        nonlocal size
+        size = 0
         text = "\n".join(buf).strip()
         if text:
             for i in range(0, len(text), max_chars):
@@ -330,7 +344,8 @@ def chunk(markdown: str, max_chars: int = 2000) -> List[Dict[str, str]]:
             trail[:] = trail[:level - 1] + [m.group(2).strip()]
             continue
         buf.append(line)
-        if sum(len(b) + 1 for b in buf) > max_chars and not in_code and not line.strip():
+        size += len(line) + 1
+        if size > max_chars and not in_code and not line.strip():
             flush()
     flush()
     return chunks

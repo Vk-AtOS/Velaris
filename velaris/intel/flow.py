@@ -49,6 +49,7 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
+import threading
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -104,6 +105,20 @@ def _hash(prev: str, run_id: str, seq: int, ts: float, kind: str, body: str) -> 
     return hashlib.sha256(json.dumps([prev, run_id, seq, ts, kind, body]).encode()).hexdigest()
 
 
+_local = threading.local()
+
+
+def _connection(path: str) -> sqlite3.Connection:
+    """One sqlite connection per (thread, file), reused by every Flow built on that thread: the API builds a
+    Flow per request, and opening + running the schema each time was the cost. A thread uses it sequentially."""
+    conns = _local.__dict__.setdefault("conns", {})
+    c = conns.get(path)
+    if c is None:
+        c = conns[path] = sqlite3.connect(path, timeout=10, check_same_thread=False)
+        c.executescript(_SCHEMA)
+    return c
+
+
 class Flow:
     def __init__(self, tools: Sequence[Tool], *, llm: Optional[LLM] = None, model: Optional[str] = None,
                  instructions: str = "", permit: Optional[Callable[[str, Dict[str, Any]], str]] = None,
@@ -111,8 +126,7 @@ class Flow:
         self.tools = {t.name: t for t in tools}
         self.llm, self.model, self.instructions = llm or LLM(), model, instructions
         self.permit, self.max_turns, self.gate = permit, max_turns, gate
-        self._db = sqlite3.connect(path or str(data_dir() / "flow.db"), check_same_thread=False)
-        self._db.executescript(_SCHEMA)
+        self._db = _connection(path or str(data_dir() / "flow.db"))
 
     # ── the event log ────────────────────────────────────────────────────────
     def history(self, run_id: str) -> List[Dict[str, Any]]:
@@ -329,13 +343,25 @@ class Flow:
         self._append(run_id, [], "start", {**body, "meta": meta} if meta else body)
         return self._advance(run_id)
 
-    def waiting(self) -> List[str]:
-        """Runs whose last event leaves them waiting for a decision (oldest first). Reads only."""
+    def waiting(self, *, org: Optional[str] = None, owner: Optional[str] = None,
+                limit: Optional[int] = None) -> List[str]:
+        """Runs whose last event leaves them waiting for a decision (oldest first). Reads only.
+
+        `org` / `owner` keep only runs whose start event names that caller organisation / user (meta.caller), and
+        `limit` keeps the NEWEST that many AFTER that filter, so one person's runs are not crowded out by everyone
+        else's."""
+        where, args = ["e.kind IN ('call', 'exec', 'gate')"], []
+        for field, value in (("org", org), ("id", owner)):
+            if value is not None:
+                where.append(f"json_extract(s.body, '$.meta.caller.{field}') = ?")
+                args.append(value)
         rows = self._db.execute(
             "SELECT e.run_id, e.kind, e.body FROM events e JOIN (SELECT run_id, MAX(seq) AS m FROM events "
             "GROUP BY run_id) last ON e.run_id = last.run_id AND e.seq = last.m "
-            "WHERE e.kind IN ('call', 'exec', 'gate') ORDER BY e.ts").fetchall()
-        return [r for r, kind, body in rows if kind != "call" or json.loads(body).get("verdict") == "approve"]
+            "JOIN events s ON s.run_id = e.run_id AND s.seq = 0 "
+            f"WHERE {' AND '.join(where)} ORDER BY e.ts", args).fetchall()
+        runs = [r for r, kind, body in rows if kind != "call" or json.loads(body).get("verdict") == "approve"]
+        return runs[-limit:] if limit else runs
 
     def resume(self, run_id: str) -> Result:
         """Carry on after a restart. Also the way to read a run's current status: it only

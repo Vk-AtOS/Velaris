@@ -37,8 +37,7 @@ from fastapi.responses import JSONResponse, Response
 from velaris.core.access import Caller
 from velaris.mail import assistant as assist, connector, dkim, drafts, rules
 from velaris.mail.common import MailError, audit
-from velaris.mail.inbound import InboundPipeline
-from velaris.mail.dnsauth import UnavailableResolver
+from velaris.mail.inbound import InboundPipeline, dnspython_resolver
 from velaris.mail.outbound import Outbound
 from velaris.mail.store import MailStore
 
@@ -68,7 +67,7 @@ def configure(deps: Optional[MailDeps]) -> None:
 def default_deps(settings: Any) -> MailDeps:
     store = MailStore()
     outbound = Outbound(store, relay=connector.relay_from_env(), gate=getattr(settings, "gate", None))
-    inbound = InboundPipeline(store, UnavailableResolver(), outbound=outbound)
+    inbound = InboundPipeline(store, dnspython_resolver(), outbound=outbound)
     outbound.local_delivery = inbound.deliver_local
     return MailDeps(store, outbound, inbound, lambda cfg: connector.ImapLibTransport(cfg.imap_host, cfg.imap_port), connector.vault_secret,
                     getattr(settings, "llm", None))
