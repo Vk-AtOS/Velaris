@@ -33,6 +33,7 @@ jobs:
       # The blocking set is real errors only (syntax, undefined names, bad comparisons). The repository's style findings are
       # reported but do not fail the build until they are cleaned up: then drop --select.
       - run: ruff check --select E9,F63,F7,F82 .
+      - run: pip install -r requirements.txt -c deploy/constraints.txt && python tools/check_structure.py   # KAN-174: size, broad excepts, unresolved imports, cycles
 
   audit:
     runs-on: ubuntu-latest
