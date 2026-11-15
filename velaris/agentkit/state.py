@@ -191,6 +191,36 @@ def append_line(path: Path, record: Dict[str, Any], *, encrypted: Optional[str] 
             os.fsync(f.fileno())
 
 
+def _parse_line(line: str, encrypted: Optional[str]) -> Dict[str, Any]:
+    if line.startswith(_SEALED_LINE):
+        line = vault.open_bytes(base64.b64decode(line[len(_SEALED_LINE):], validate=True), encrypted or "").decode("utf-8")
+    return json.loads(line)
+
+
+def last_line(path: Path, *, encrypted: Optional[str] = None, tail: int = 262_144) -> Optional[Dict[str, Any]]:
+    """The newest parseable record of a JSON-lines file, read from the END (cost does not grow with the file); None if the file
+    is missing or empty. A torn last line is skipped. Lines longer than `tail` bytes are not found (None): callers fall back."""
+    try:
+        with open(path, "rb") as f:
+            size = f.seek(0, os.SEEK_END)
+            f.seek(max(0, size - tail))
+            chunk = f.read()
+    except FileNotFoundError:
+        return None
+    lines = chunk.split(b"\n")
+    if size > tail:
+        lines = lines[1:]                               # the first piece may be the end of a line that starts earlier
+    for raw in reversed(lines):
+        if raw.strip():
+            try:
+                return _parse_line(raw.decode("utf-8"), encrypted)
+            except vault.VaultError:
+                raise
+            except ValueError:
+                continue
+    return None
+
+
 def read_lines(path: Path, *, encrypted: Optional[str] = None) -> List[Dict[str, Any]]:
     """Every parseable JSON line of a file; a torn last line is skipped with a warning.
     With `encrypted`, sealed lines are opened (a wrong key raises) and plaintext legacy lines still read."""

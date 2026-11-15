@@ -26,7 +26,7 @@ from typing import Any, Callable, Dict, Iterator, List, Optional
 
 from velaris.agentkit.hiring_common import DAY, HiringError, bad, digest, now, parse_date, store
 from velaris.core import vault
-from velaris.agentkit.state import append_line, read_lines
+from velaris.agentkit.state import append_line, last_line, read_lines
 from velaris.intel.paths import agent_dir, private_dir
 
 AGENT = "INTERVIEW_RECORD"
@@ -121,14 +121,19 @@ def append_event(org: str, s: Dict[str, Any], participant: str, kind: str, data:
         raise HiringError("denied", "this participant has not consented to event recording")
     body = _clean_event(kind, data)
     path = _events_path(s["id"])
-    prior = read_lines(path, encrypted=_SEAL)
-    if len(prior) >= MAX_EVENTS:
+    count, head = s.get("event_count"), s.get("chain_head")
+    newest = last_line(path, encrypted=_SEAL)                      # O(1): the cost of an append must not grow with the log
+    if count is None or head is None or (newest["hash"] if newest else GENESIS) != head or (newest or {}).get("seq", 0) != count:
+        prior = read_lines(path, encrypted=_SEAL)                  # the session record and the file disagree (crash between the two): trust the file
+        count, head = len(prior), (prior[-1]["hash"] if prior else GENESIS)
+    if count >= MAX_EVENTS:
         raise HiringError("conflict", "the session reached its event limit")
-    entry = {"seq": len(prior) + 1, "t": now(), "participant": participant, "type": kind, "data": body,
+    entry = {"seq": count + 1, "t": now(), "participant": participant, "type": kind, "data": body,
              "client_t": client_t if isinstance(client_t, (int, float)) and not isinstance(client_t, bool) else None,
-             "prev": prior[-1]["hash"] if prior else GENESIS}
+             "prev": head}
     entry["hash"] = digest(entry)
     append_line(path, entry, encrypted=_SEAL)
+    s["event_count"], s["chain_head"] = entry["seq"], entry["hash"]
     return entry
 
 
