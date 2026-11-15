@@ -8,6 +8,7 @@ import hmac
 import base64
 from typing import Dict, Optional
 
+from velaris.agentkit.secure import Throttle
 from velaris.intel.paths import agent_dir, read_private, write_private
 
 logger = logging.getLogger("IDENTITY_FRAMEWORK")
@@ -25,6 +26,7 @@ class IdentityFramework:
         self.AGENT_DIR = str(agent_dir("IDENTITY_FRAMEWORK"))
         self.DB_PATH = os.path.join(self.AGENT_DIR, "identity.db")
         self._load_db()
+        self._throttle = Throttle("IDENTITY_FRAMEWORK")      # 5 wrong passwords in a row lock the account for 15 minutes
 
     def _load_db(self):
         # Password hashes: the file is owner-only (see velaris.intel.paths).
@@ -51,8 +53,11 @@ class IdentityFramework:
         return base64.b64encode(salt + h).decode()
 
     def _verify_password(self, password: str, stored: str) -> bool:
-        raw = base64.b64decode(stored.encode())
-        salt, h = raw[:16], raw[16:]
+        try:
+            raw = base64.b64decode(stored.encode())
+        except ValueError:
+            raw = b""
+        salt, h = raw[:16].ljust(16, b"\0"), raw[16:]
         new_h = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 200000)
         return hmac.compare_digest(h, new_h)
 
@@ -64,10 +69,19 @@ class IdentityFramework:
         self._save_db()
         return True
 
+    _DUMMY = base64.b64encode(b"\0" * 48).decode()
+
     def validate_identity(self, username: str, password: str) -> bool:
-        if username not in self.db:
+        if not isinstance(username, str) or not isinstance(password, str):
             return False
-        return self._verify_password(password, self.db[username]["password"])
+        known = username in self.db
+        if known and self._throttle.locked(username):
+            return False
+        # An unknown user costs the same hashing time as a wrong password: timing does not reveal valid names.
+        ok = self._verify_password(password, self.db[username]["password"] if known else self._DUMMY)
+        if known:
+            self._throttle.clear(username) if ok else self._throttle.fail(username)
+        return ok and known
 
     def update_meta(self, username: str, meta: Dict) -> bool:
         if username not in self.db:
