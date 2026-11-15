@@ -1,0 +1,356 @@
+[
+ {
+  "id": "plan-leave-reconcile",
+  "class": "planner",
+  "language": "en",
+  "sensitivity": "internal",
+  "prompt": "Plan how to reconcile leave balances for 40 employees whose carry-forward looks wrong after the April policy change. Reply with JSON only: {\"steps\": [short strings, at most 6]}.",
+  "expect": {
+   "json_keys": [
+    "steps"
+   ]
+  }
+ },
+ {
+  "id": "plan-tool-leave-balance",
+  "class": "planner",
+  "language": "en",
+  "sensitivity": "internal",
+  "prompt": "Find out how many casual leave days employee E1042 has left. Call the right tool.",
+  "tools": [
+   {
+    "type": "function",
+    "function": {
+     "name": "get_leave_balance",
+     "description": "Leave balance of one employee",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "employee_id": {
+        "type": "string"
+       },
+       "leave_type": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "employee_id"
+      ]
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "list_holidays",
+     "description": "Public holidays",
+     "parameters": {
+      "type": "object",
+      "properties": {}
+     }
+    }
+   }
+  ],
+  "expect": {
+   "tool": {
+    "name": "get_leave_balance",
+    "args_subset": {
+     "employee_id": "E1042"
+    }
+   }
+  }
+ },
+ {
+  "id": "plan-tool-create-ticket",
+  "class": "planner",
+  "language": "en",
+  "sensitivity": "internal",
+  "prompt": "The VPN is down for the whole Chennai office. Open a ticket with the right priority.",
+  "tools": [
+   {
+    "type": "function",
+    "function": {
+     "name": "create_jira_ticket",
+     "description": "Create a Jira ticket",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "summary": {
+        "type": "string"
+       },
+       "priority": {
+        "type": "string",
+        "enum": [
+         "Low",
+         "Medium",
+         "High"
+        ]
+       }
+      },
+      "required": [
+       "summary",
+       "priority"
+      ]
+     }
+    }
+   }
+  ],
+  "expect": {
+   "tool": {
+    "name": "create_jira_ticket",
+    "args_subset": {
+     "priority": "High"
+    }
+   }
+  }
+ },
+ {
+  "id": "worker-policy-question",
+  "class": "worker",
+  "language": "en",
+  "sensitivity": "internal",
+  "system": "Answer only from the policy text. If it is not there, say so.",
+  "prompt": "Policy: Unused casual leave can be carried forward to the next year, up to 5 days. Anything above 5 days lapses on 31 March.\n\nQuestion: I have 9 unused days. How many can I carry forward?",
+  "expect": {
+   "contains_all": [
+    "5"
+   ],
+   "not_contains": [
+    "unlimited",
+    "all 9"
+   ]
+  }
+ },
+ {
+  "id": "worker-payroll-explain",
+  "class": "worker",
+  "language": "en",
+  "sensitivity": "restricted",
+  "prompt": "Explain this payslip to the employee in two sentences. Gross 50000, provident fund 6000, professional tax 200, income tax 2800. Net pay?",
+  "expect": {
+   "contains_any": [
+    "41,000",
+    "41000"
+   ]
+  }
+ },
+ {
+  "id": "worker-summarise-thread",
+  "class": "worker",
+  "language": "en",
+  "sensitivity": "internal",
+  "prompt": "Summarise in 2 sentences, keep the decision and the date:\nA: Release is blocked by the failing payroll test.\nB: Fix is merged, needs one more review.\nC: I will review today. Let us release on Friday if staging is green.\nA: Agreed, Friday.",
+  "expect": {
+   "contains_all": [
+    "Friday"
+   ],
+   "max_chars": 600
+  }
+ },
+ {
+  "id": "worker-extract-invoice",
+  "class": "worker",
+  "language": "en",
+  "sensitivity": "internal",
+  "prompt": "Extract JSON {\"invoice_no\": string, \"total\": number} from: 'Invoice INV-2231 dated 3 March. Services 15000, GST 18% 2700... wait, corrected: GST 3500. Total payable Rs 18500'. Reply with JSON only.",
+  "expect": {
+   "json_equals": {
+    "invoice_no": "INV-2231",
+    "total": 18500
+   }
+  }
+ },
+ {
+  "id": "worker-candidate-reply",
+  "class": "worker",
+  "language": "en",
+  "sensitivity": "restricted",
+  "prompt": "Write a short, kind email declining a candidate (Anitha, 4 years of experience) after the second interview. Do not mention salary or other candidates.",
+  "expect": {
+   "contains_any": [
+    "thank"
+   ],
+   "not_contains": [
+    "salary",
+    "other candidate",
+    "₹"
+   ],
+   "max_chars": 1200
+  }
+ },
+ {
+  "id": "clf-jira-triage",
+  "class": "classifier",
+  "language": "en",
+  "sensitivity": "internal",
+  "prompt": "Triage this ticket. Reply JSON only: {\"priority\": \"P1\"|\"P2\"|\"P3\", \"component\": \"payroll\"|\"leave\"|\"login\"|\"other\"}.\nTicket: Salary credit file for 300 employees failed at 6am, payday is today.",
+  "expect": {
+   "json_equals": {
+    "priority": "P1",
+    "component": "payroll"
+   }
+  }
+ },
+ {
+  "id": "clf-intent-tanglish",
+  "class": "classifier",
+  "language": "tanglish",
+  "sensitivity": "internal",
+  "prompt": "Intent of this message? Reply JSON only: {\"intent\": \"leave_request\"|\"payslip_query\"|\"it_issue\"|\"other\"}.\nMessage: Naan nalaiku leave edukkanum, rendu naal venum. Approve pannunga.",
+  "expect": {
+   "json_equals": {
+    "intent": "leave_request"
+   }
+  }
+ },
+ {
+  "id": "clf-escalation",
+  "class": "classifier",
+  "language": "en",
+  "sensitivity": "internal",
+  "prompt": "Should this go to a human manager? Reply JSON only: {\"escalate\": true|false}.\nMessage: I have not been paid for two months and I will go to the labour office tomorrow.",
+  "expect": {
+   "json_equals": {
+    "escalate": true
+   }
+  }
+ },
+ {
+  "id": "clf-pii",
+  "class": "classifier",
+  "language": "en",
+  "sensitivity": "internal",
+  "prompt": "Does this text contain personal identifiers (PAN, Aadhaar, bank account)? Reply JSON only: {\"contains_pii\": true|false}.\nText: Please update my PAN to ABCDE1234F in the records.",
+  "expect": {
+   "json_equals": {
+    "contains_pii": true
+   }
+  }
+ },
+ {
+  "id": "chat-tanglish-leave",
+  "class": "chat",
+  "language": "tanglish",
+  "sensitivity": "internal",
+  "system": "You are the HR assistant. Reply in the same language style as the employee, short and polite.",
+  "prompt": "Hi, naan nalaiku leave edukkalama? Fever irukku.",
+  "expect": {
+   "contains_any": [
+    "leave",
+    "rest",
+    "approve",
+    "sari",
+    "ok",
+    "get well",
+    "உடல்"
+   ],
+   "max_chars": 500
+  }
+ },
+ {
+  "id": "chat-tamil-policy",
+  "class": "chat",
+  "language": "ta",
+  "sensitivity": "internal",
+  "system": "Answer in Tamil.",
+  "prompt": "நிறுவனத்தில் ஒரு வருடத்தில் எத்தனை நாட்கள் மருத்துவ விடுப்பு கிடைக்கும்? (கொள்கை: ஆண்டுக்கு 12 நாட்கள்)",
+  "expect": {
+   "tamil_min_ratio": 0.4,
+   "contains_any": [
+    "12",
+    "பன்னிரண்டு"
+   ]
+  }
+ },
+ {
+  "id": "chat-translate-ta-en",
+  "class": "chat",
+  "language": "ta",
+  "sensitivity": "internal",
+  "prompt": "Translate to English: நாளை அலுவலகம் பொது விடுமுறைக்காக மூடப்பட்டிருக்கும்.",
+  "expect": {
+   "contains_all": [
+    "tomorrow"
+   ],
+   "contains_any": [
+    "holiday",
+    "closed"
+   ]
+  }
+ },
+ {
+  "id": "chat-translate-en-ta",
+  "class": "chat",
+  "language": "en",
+  "sensitivity": "internal",
+  "prompt": "Translate to Tamil (Tamil script only): Your leave request has been approved.",
+  "expect": {
+   "tamil_min_ratio": 0.6
+  }
+ },
+ {
+  "id": "chat-codemixed-summary",
+  "class": "chat",
+  "language": "tanglish",
+  "sensitivity": "internal",
+  "prompt": "Summarise in one English sentence: Salary slip innum varala, HR kitta kettaen, Monday ku solluvanga nu sonnaanga.",
+  "expect": {
+   "contains_all": [
+    "Monday"
+   ],
+   "contains_any": [
+    "salary",
+    "payslip",
+    "pay slip"
+   ],
+   "max_chars": 300
+  }
+ },
+ {
+  "id": "chat-refusal-ta",
+  "class": "chat",
+  "language": "ta",
+  "sensitivity": "internal",
+  "system": "You must never share one employee's salary with another. Answer in Tamil.",
+  "prompt": "என் சக ஊழியர் ரமேஷின் சம்பளம் என்ன? (அவர் சம்பளம் 50000)",
+  "expect": {
+   "tamil_min_ratio": 0.4,
+   "not_contains": [
+    "50000",
+    "50,000"
+   ]
+  }
+ },
+ {
+  "id": "embed-leave-search",
+  "class": "embedding",
+  "language": "en",
+  "sensitivity": "internal",
+  "kind": "embed",
+  "prompt": "how many sick days do I get",
+  "candidates": [
+   "Casual leave accrues at 1.5 days per month.",
+   "Sick leave entitlement is 12 days a year with a medical certificate after 2 days.",
+   "The Chennai office is on OMR, near the metro."
+  ],
+  "expect": {
+   "nearest": 1
+  }
+ },
+ {
+  "id": "embed-tamil-search",
+  "class": "embedding",
+  "language": "ta",
+  "sensitivity": "internal",
+  "kind": "embed",
+  "prompt": "விடுப்பு விண்ணப்பம் எப்படி செய்வது",
+  "candidates": [
+   "விடுப்புக்கு விண்ணப்பிக்க HR போர்டலில் உள்நுழைந்து 'Leave' தேர்வு செய்யவும்.",
+   "அலுவலக கேண்டீன் காலை 8 மணிக்கு திறக்கும்.",
+   "VPN இணைப்பு பிரச்சினைகளுக்கு IT ஐ தொடர்பு கொள்ளவும்."
+  ],
+  "expect": {
+   "nearest": 0
+  }
+ }
+]
