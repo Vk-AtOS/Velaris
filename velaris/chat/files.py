@@ -19,7 +19,7 @@ from velaris.chat.core import ChatCore
 from velaris.chat.errors import ChatError
 from velaris.core import fieldseal, vault
 from velaris.core.access import Caller
-from velaris.intel.paths import private_dir, read_private, write_private
+from velaris.intel.paths import private_dir, read_private
 
 DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
