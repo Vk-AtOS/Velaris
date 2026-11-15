@@ -224,6 +224,8 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
         approver = deciding and settings.gate is None and bool(caller.roles & FLOW_APPROVERS)
         if owner.id != caller.id and not approver:
             raise ApiError(404, "unknown_run", "no such run")
+        if owner.id == caller.id:            # the owner moves their own run: roles revoked since it started do not carry over
+            owner = Caller(id=owner.id, org=owner.org, roles=owner.roles & caller.roles, employee_id=owner.employee_id)
         return owner, flow_for(owner, events[0]["tools"])
 
     # ── endpoints ────────────────────────────────────────────────────────────
