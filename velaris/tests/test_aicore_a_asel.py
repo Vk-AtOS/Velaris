@@ -108,7 +108,27 @@ def test_executor_failure_approval_and_missing_handler_stop_dependents():
     states = {sid: o["state"] for sid, o in r["steps"].items()}
     assert states == {"a": "done", "b": "failed", "c": "skipped", "d": "done", "pay": "blocked", "e": "blocked"}
     assert r["status"] == "partial" and "supplier API down" in r["steps"]["b"]["error"]
-    assert ex.execute(plan, {"ok": lambda s: 1, "boom": boom}, approved=["pay"])["steps"]["pay"]["state"] == "done"
+    # a caller's own say-so is not an approval (KAN-91): neither the old list form nor an invented hash
+    assert ex.execute(plan, {"ok": lambda s: 1}, approved={"pay": {"trace_hash": "f" * 64}})["steps"]["pay"]["state"] == "blocked"
+    assert ex.execute(plan, {"ok": lambda s: 1}, approved=["pay"])["status"] == "invalid_input"
+
+
+def test_a_step_runs_only_with_a_recorded_approval_of_that_exact_step():
+    from velaris.agentkit.aicore_b_authz import task_digest
+    from velaris.core.access import Caller, acting_as
+    from velaris.intel import trace
+    step = {"id": "pay", "handler": "ok", "action": "payment.execute", "requires_approval": True, "params": {"to": "x"}}
+    approval = trace.append("VCAS_CORE", "decision", {"task_id": "pay", "approved": True, "by": "kumar",
+                                                      "task_digest": task_digest(step)})
+    ex, handlers = ASEL_EXECUTORAgent(), {"ok": lambda s: "paid"}
+    proof = {"pay": {"trace_hash": approval["hash"]}}
+    with acting_as(Caller("bot", "acme")):                                   # not the approver
+        assert ex.execute([step], handlers, approved=proof)["steps"]["pay"]["state"] == "blocked"
+    with acting_as(Caller("kumar", "acme")):
+        changed = {**step, "params": {"to": "attacker"}}                     # approval is bound to the step's content
+        assert ex.execute([changed], handlers, approved=proof)["steps"]["pay"]["state"] == "blocked"
+        assert ex.execute([step], handlers, approved=proof)["steps"]["pay"]["state"] == "done"
+        assert ex.execute([step], handlers, approved=proof)["steps"]["pay"]["state"] == "blocked"   # spent once
 
 
 def test_executor_bad_input():

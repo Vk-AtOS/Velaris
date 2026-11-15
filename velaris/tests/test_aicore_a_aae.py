@@ -4,7 +4,7 @@ import pytest
 from velaris.agents.AAE_POLICY.main import AAE_POLICYAgent
 from velaris.agents.AAE_RUNTIME.main import AAE_RUNTIMEAgent
 from velaris.agents.ADAPTIVE_ACTION_ENGINE.main import ADAPTIVE_ACTION_ENGINEAgent
-from velaris.core.access import Caller, acting_as
+from velaris.core.access import GOVERNANCE_ADMIN, Caller, acting_as
 from velaris.intel import trace
 
 RULES = [
@@ -36,7 +36,12 @@ def test_policy_fails_closed_without_rules_and_persists_them():
     assert AAE_POLICYAgent().decide({"type": "send_email"})["decision"] == "deny"    # nothing configured
     p = AAE_POLICYAgent()
     assert p.set_rules([{"id": "x", "effect": "maybe", "if": []}])["status"] == "invalid_input"
-    assert p.set_rules(RULES)["rules"] == 4
+    assert p.set_rules(RULES)["status"] == "unauthenticated"                  # no caller: nothing is replaced (KAN-91)
+    with acting_as(Caller("u", "acme", frozenset())):
+        assert p.set_rules(RULES)["status"] == "denied"
+    with acting_as(Caller("gov", "acme", frozenset({GOVERNANCE_ADMIN}))):
+        assert p.set_rules(RULES)["rules"] == 4
+    assert any(e["action"] == "change.granted" and e["payload"]["agent"] == "AAE_POLICY" for e in trace.entries())
     assert AAE_POLICYAgent().decide({"type": "send_email"})["decision"] == "allow"   # new instance, stored rules
     assert p.set_rules("rules")["status"] == "invalid_input"
     assert AAE_POLICYAgent().decide({"type": "send_email"})["allowed"] is True       # rejected set changed nothing
@@ -142,6 +147,20 @@ def test_engine_skips_what_policy_refuses_and_reports_it():
     assert none["status"] == "no_action" and none["chosen"] is None
     assert engine.act("", [])["status"] == "invalid_input"
     assert engine.act("s", [{"id": "a", "type": "call"}, {"id": "b", "type": "call"}])["status"] == "invalid_input"
+
+
+def test_engine_stops_at_a_candidate_that_needs_approval_instead_of_running_a_lower_one():
+    rt, sent = runtime()
+    refunds = []
+    rt.register("refund", lambda params: refunds.append(params) or "refunded")
+    engine = ADAPTIVE_ACTION_ENGINEAgent(rt)
+    for _ in range(4):
+        engine.feedback("angry", "refund", True)              # the refund ranks first ...
+    with acting_as(Caller("bot", "acme")):
+        r = engine.act("angry", [{"id": "r1", "type": "refund", "params": {"amount": 5000}},
+                                 {"id": "m1", "type": "send_email", "params": {"to": "x"}}])
+    assert r["status"] == "needs_approval" and r["chosen"] == "refund"     # ... it needs a person: stop there
+    assert refunds == [] and sent == []                        # and the lower-ranked email did not run instead
 
 
 def test_policy_fails_closed_when_a_guard_comparison_cannot_be_made():
