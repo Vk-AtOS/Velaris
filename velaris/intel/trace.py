@@ -84,9 +84,9 @@ def _sign(count: int, last: str) -> str:
     return hmac.new(key, f"{count}|{last}".encode(), hashlib.sha256).hexdigest()
 
 
-def _head_paths() -> list:
+def _head_paths(base: Optional[Path] = None) -> list:
     anchor = os.environ.get("VELARIS_TRACE_ANCHOR_FILE", "").strip()
-    return [data_dir() / "trace.head"] + ([Path(anchor)] if anchor else [])
+    return [(base or data_dir()) / "trace.head"] + ([Path(anchor)] if anchor else [])
 
 
 def _read_head(p: Path) -> Optional[tuple]:
@@ -101,25 +101,25 @@ def _read_head(p: Path) -> Optional[tuple]:
         return None
 
 
-def heads() -> list:
+def heads(base: Optional[Path] = None) -> list:
     """[(path, head or None)] for the local head and the anchor (if configured)."""
-    return [(p, _read_head(p)) for p in _head_paths()]
+    return [(p, _read_head(p)) for p in _head_paths(base)]
 
 
 def _head_body(count: int, last: str) -> str:
     return json.dumps({"count": count, "hash": last, "mac": _sign(count, last)})
 
 
-def _write_heads(count: int, last: str, body: Optional[str] = None) -> None:
+def _write_heads(count: int, last: str, body: Optional[str] = None, base: Optional[Path] = None) -> None:
     body = body or _head_body(count, last)
-    for p in _head_paths():
+    for p in _head_paths(base):
         write_private(p, body)
 
 
 def _count_to(path: Path, head: tuple) -> int:
     """Total entries in the file, checking the entry at the head position is the head hash (else TraceHeadError)."""
     n, found = 0, head[0] == 0
-    for _, e in _lines():
+    for _, e in _lines(path):
         n += 1
         if n == head[0]:
             found = isinstance(e, dict) and e.get("hash") == head[1]
@@ -166,12 +166,13 @@ def append(actor: str, action: str, payload: Optional[Dict[str, Any]] = None) ->
     cannot both chain onto the same previous hash.
     """
     payload = _bound(json.loads(json.dumps(payload or {}, default=str)))  # plain JSON, size bounded
-    path = _path()
+    base = data_dir()                    # ONE data directory for the entry, its lock and its head (the environment may change meanwhile)
+    path = base / "trace.jsonl"
     with _lock, open_private(path.with_suffix(".lock"), "a") as lk:
         fcntl.flock(lk.fileno(), fcntl.LOCK_EX)
         try:
             prev = _last_hash(path)
-            count = _next_count(path, prev)
+            count = _next_count(path, prev, base)
             ts = time.time()
             entry = {"ts": ts, "actor": actor, "action": action, "payload": payload,
                      "prev": prev, "hash": _hash(prev, ts, actor, action, payload)}
@@ -182,17 +183,17 @@ def append(actor: str, action: str, payload: Optional[Dict[str, Any]] = None) ->
                 f.write(json.dumps(entry, sort_keys=True) + "\n")
                 f.flush()
                 os.fsync(f.fileno())
-            _write_heads(count, entry["hash"], head_body)
+            _write_heads(count, entry["hash"], head_body, base)
         finally:
             fcntl.flock(lk.fileno(), fcntl.LOCK_UN)
     return entry
 
 
-def _next_count(path: Path, prev: str) -> int:
+def _next_count(path: Path, prev: str, base: Optional[Path] = None) -> int:
     """Entry number the next append gets, after checking the file still fits every signed head."""
     exists = path.exists() and path.stat().st_size > 0
     counts = []
-    for hp, head in heads():
+    for hp, head in heads(base):
         if head is None:
             if exists or hp.exists():
                 raise TraceHeadError(f"{hp.name}: signed head missing or forged for a non-empty trace; verify and run trace-rebaseline")
@@ -231,8 +232,8 @@ def entries() -> Iterator[Dict[str, Any]]:
             yield e
 
 
-def _lines() -> Iterator[tuple]:
-    path = _path()
+def _lines(path: Optional[Path] = None) -> Iterator[tuple]:
+    path = path or _path()
     if not path.exists():
         return
     with path.open("rb") as f:

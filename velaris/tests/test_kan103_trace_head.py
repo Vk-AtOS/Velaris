@@ -175,3 +175,26 @@ def test_a_missing_vault_key_is_a_refusal_not_a_crash(monkeypatch):
         _, refusal = check_caller("AGENT", "change")
     assert refusal and refusal["status"] == "audit_failed"
     assert trace.verify()["ok"] is True                     # nothing was written, an empty trace has no head to check
+
+
+def test_an_append_in_flight_when_the_data_directory_changes_stays_in_its_own_directory(tmp_path, monkeypatch):
+    """Seen once in the full suite: a background thread of one test appended after the next test had pointed VELARIS_DATA elsewhere; the
+    entry went to one directory and its head to the other, and the next append there refused."""
+    import threading
+    a, b = tmp_path / "a", tmp_path / "b"
+    monkeypatch.setenv("VELARIS_DATA", str(a))
+    trace.append("t", "one", {})
+    real = trace._next_count
+
+    def switch(path, prev, base=None):
+        monkeypatch.setenv("VELARIS_DATA", str(b))             # the environment moves while this append is running
+        return real(path, prev, base)
+    monkeypatch.setattr(trace, "_next_count", switch)
+    t = threading.Thread(target=lambda: trace.append("t", "two", {}))
+    t.start()
+    t.join()
+    monkeypatch.setattr(trace, "_next_count", real)
+    monkeypatch.setenv("VELARIS_DATA", str(a))
+    assert trace.verify() == {"ok": True, "entries": 2, "broken_at": None, "reason": ""}
+    monkeypatch.setenv("VELARIS_DATA", str(b))
+    assert not (b / "trace.jsonl").exists() and not (b / "trace.head").exists()
