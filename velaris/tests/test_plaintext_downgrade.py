@@ -71,3 +71,43 @@ def test_migration_window_seals_at_once_and_closes_for_good(tmp_path, monkeypatc
         JsonState("XP", path=j2, encrypted="x").load()
     monkeypatch.setenv("VELARIS_VAULT_ALLOW_PLAINTEXT", "true")           # only the exact value "1" counts
     assert vault.plaintext_allowed() is False
+
+
+def test_window_needs_a_token_only_the_key_holder_can_make(tmp_path, monkeypatch):
+    monkeypatch.setenv("VELARIS_VAULT_ALLOW_PLAINTEXT", "1")
+    assert vault.plaintext_allowed() is False                              # switch alone: closed, nothing to delete
+    tok = vault._data_dir() / vault.OPEN_TOKEN
+    tok.parent.mkdir(parents=True, exist_ok=True)
+    tok.write_text(json.dumps({"expires": 4102444800, "mac": "0" * 64}))   # a data-directory writer forges one
+    assert vault.plaintext_allowed() is False
+    vault.start_plaintext_migration()
+    assert vault.plaintext_allowed() is True
+    good = json.loads(tok.read_text())
+    tok.write_text(json.dumps({"expires": good["expires"] + 10_000, "mac": good["mac"]}))   # extends it
+    assert vault.plaintext_allowed() is False
+    tok.write_text(json.dumps({"expires": 1, "mac": vault._token_mac(1)}))  # genuine but expired
+    assert vault.plaintext_allowed() is False
+    vault.start_plaintext_migration()
+    monkeypatch.setenv("VELARIS_VAULT_KEY", vault.new_key())              # token made under another key
+    assert vault.plaintext_allowed() is False
+
+
+@pytest.mark.parametrize("v", ["", "plain", b"plain", 5, 1.5])
+def test_unseal_refuses_everything_that_is_not_a_sealed_text(v):
+    with pytest.raises(vault.PlaintextRefused):
+        fieldseal.unseal(v, "chat")
+    assert fieldseal.unseal(None, "chat") is None
+    assert fieldseal.unseal(fieldseal.seal("", "chat"), "chat") == ""      # '' is valid only sealed
+    with pytest.raises(TypeError):
+        fieldseal.seal(5, "chat")
+
+
+def test_old_empty_strings_are_sealed_silently_but_text_is_not():
+    c = sqlite3.connect(":memory:")
+    c.execute("CREATE TABLE m(id INTEGER PRIMARY KEY, body TEXT)")
+    c.execute("INSERT INTO m(body) VALUES ('')")
+    assert fieldseal.seal_existing(c, "m", ["body"], "chat", key="id") == 1
+    assert fieldseal.unseal(c.execute("SELECT body FROM m").fetchone()[0], "chat") == ""
+    c.execute("INSERT INTO m(body) VALUES (7)")
+    with pytest.raises(vault.PlaintextRefused):
+        fieldseal.seal_existing(c, "m", ["body"], "chat", key="id")

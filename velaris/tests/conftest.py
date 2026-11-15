@@ -86,7 +86,9 @@ def _tests_may_read_sealed_state(monkeypatch):
 @pytest.fixture
 def plaintext_migration(monkeypatch):
     """The one-time migration window of velaris.core.vault (stores accept and seal plaintext of older releases)."""
+    from velaris.core import vault
     monkeypatch.setenv("VELARIS_VAULT_ALLOW_PLAINTEXT", "1")
+    vault.start_plaintext_migration()
 
 
 @pytest.fixture(autouse=True)
