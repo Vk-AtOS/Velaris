@@ -38,4 +38,4 @@ own; outcomes live in AUTO_LEARN_CORE and the action journal in AAE_RUNTIME.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_a_aae.py`, `velaris/tests/test_layer25_aae.py`
+- **tests:** `velaris/tests/test_aicore_a_aae.py`, `velaris/tests/test_kan106_aicore.py`, `velaris/tests/test_layer25_aae.py`

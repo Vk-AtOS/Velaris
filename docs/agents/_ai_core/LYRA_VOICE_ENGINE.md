@@ -2,11 +2,19 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `real`
-- **Source:** `departments/_ai_core/LYRA_VOICE_ENGINE/main.py` (233 lines)
+- **Source:** `departments/_ai_core/LYRA_VOICE_ENGINE/main.py` (243 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Lyra voice engine: turns a spoken or typed command into a keyword-routed, simulated request and speaks the result.
+
+LyraVoiceConfig.mode picks the input: "mock" (fixed fake transcript), "cli" (typed text) or anything else (microphone
+via sounddevice, with whisper transcription when asr_backend is "whisper", else a typed fallback). Methods: listen()
+(audio bytes or None), transcribe(audio), speak(text) (pyttsx3 or print; False only for empty text),
+interpret_intent(text) (keyword match on infra/balance/status/simulate, otherwise "customer"; returns request_id, domain,
+payload), run_once(user_text) and run_loop(handler, stop_after). run_once only names the engine it would route to and
+returns a simulated {"status": "ok", ...}; it calls no other agent. A handler exception in run_loop becomes a failed reply.
+Keeps no state. Missing audio packages are logged and the affected step returns None or an empty string.
 
 ## Class `LyraVoiceConfig`
 
@@ -33,4 +41,4 @@ _No module docstring yet._
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** none found
+- **tests:** `velaris/tests/test_agents_coverage_c.py`

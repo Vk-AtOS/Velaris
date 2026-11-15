@@ -2,11 +2,19 @@
 
 - **Department:** `communications`
 - **Status (static inventory):** `real`
-- **Source:** `departments/communications/MEETING_SUMMARIZER/main.py` (199 lines)
+- **Source:** `departments/communications/MEETING_SUMMARIZER/main.py` (209 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Meeting summarizer: builds a rule-based summary, decisions and action items from a transcript and stores them.
+
+summarize(transcript, meeting_meta) takes a dict with "text" and "segments" (each segment has "text") and optional meta
+(call_id, title, participants, recorded_at, transcript_path). It returns the summary (the five highest keyword-scoring
+sentences in original order), decisions and action_items_raw (segments matching fixed regex phrase lists), word and
+segment counts. No LLM is used; the llm_callable hook is declared but never called. summarize_from_file(path, meta) loads
+a transcript JSON file first; a missing or invalid file raises OSError or ValueError. get_recent_meetings(limit) and
+get_meeting(id) read back rows; an unknown id returns {"error": "not_found"}.
+State: sqlite at <VELARIS_DATA>/agents/MEETING_SUMMARIZER/meetings.db, one row per summarize() call.
 
 ## Class `MeetingSummarizer`
 
@@ -26,7 +34,7 @@ Optional: pass an LLM callable for richer summaries.
 
 ## Depends on
 
-- nothing from velaris.*
+- `velaris.intel.paths`
 
 ## State and configuration
 
@@ -36,4 +44,4 @@ Optional: pass an LLM callable for richer summaries.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** none found
+- **tests:** `velaris/tests/test_no_state_in_source_tree.py`

@@ -2,11 +2,17 @@
 
 - **Department:** `project_management`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/project_management/EXECUTION_SANDBOX/main.py` (54 lines)
+- **Source:** `departments/project_management/EXECUTION_SANDBOX/main.py` (62 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Execution sandbox: runs a code string with a restricted set of globals and logs every run.
+
+safe_exec(code) parses and exec()s the code with only abs, min, max, sum and range available and an empty __builtins__;
+the value of a variable named "_" afterwards is the result. It returns {"code", "status": "OK" or "ERROR", "result",
+"error"}; a syntax error or any exception is caught and returned as a traceback string rather than raised. get_last_result(),
+get_last_error() and get_log() read back. This restricts names only and is not a hardened security boundary: it has no
+time or memory limit and must not be given untrusted code. State: in memory only, lost on exit.
 
 ## Class `ExecutionSandbox`
 
@@ -33,4 +39,4 @@ Velaris Execution Sandbox
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** none found
+- **tests:** `velaris/tests/test_agents_coverage_a.py`

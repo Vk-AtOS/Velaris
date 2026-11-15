@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/_ai_core/ACF_CORE/main.py` (45 lines)
+- **Source:** `departments/_ai_core/ACF_CORE/main.py` (53 lines)
 
 ## Purpose
 
@@ -35,4 +35,4 @@ sources conflict is still routed, with the conflicts attached and
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_a_acf.py`, `velaris/tests/test_layer16_acf.py`
+- **tests:** `velaris/tests/test_aicore_a_acf.py`, `velaris/tests/test_kan106_intake_guards.py`, `velaris/tests/test_layer16_acf.py`

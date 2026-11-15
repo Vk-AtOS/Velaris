@@ -2,11 +2,21 @@
 
 - **Department:** `security`
 - **Status (static inventory):** `real`
-- **Source:** `departments/security/COGNITIVE_INTENT_FIREWALL/main.py` (54 lines)
+- **Source:** `departments/security/COGNITIVE_INTENT_FIREWALL/main.py` (66 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Cognitive intent firewall: keyword-based intent classification and screening of untrusted text.
+CognitiveIntentFirewall.classify(text) checks substrings in order and returns {"intent", "reason"}:
+BLOCKED for harm/attack/illegal/kill, RISKY for bypass/override/exploit, SAFE for
+help/info/guide/learn, else UNKNOWN. Plain substring matching, so it is easy to evade and also
+matches inside longer words. add_rule(rule) stores a rule dict and evaluate_rules(text) returns
+"Forbidden content: <term>" for each term of each rule's "forbidden" list found in the text.
+scan_untrusted(text, source="") delegates to velaris.intel.guard.scan and returns level, blocked,
+score and findings.
+State: rules are in memory only, nothing persisted. Failure: classify and evaluate_rules raise
+AttributeError for non-string text; a rule without "forbidden" is ignored; the guard's own errors
+propagate.
 
 ## Class `CognitiveIntentFirewall`
 
@@ -32,4 +42,4 @@ Velaris Cognitive Intent Firewall
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** none found
+- **tests:** `velaris/tests/test_agents_coverage_c.py`

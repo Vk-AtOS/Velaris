@@ -2,7 +2,7 @@
 
 - **Department:** `hr`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/hr/INTERVIEW_RECORD/main.py` (215 lines)
+- **Source:** `departments/hr/INTERVIEW_RECORD/main.py` (225 lines)
 
 ## Purpose
 
@@ -32,6 +32,7 @@ Consent-gated interview event record and evidence view. No judgement of any pers
 - `transcribe_track(caller, session_id, participant)` — Fill the transcript with the local transcriber hook, or report not_configured (the field stays empty). Needs transcript consent.
 - `close_session(caller, session_id)` — Close the session. The ledger gets the chain head hash and counts, never content.
 - `mark_event(caller, session_id, seq, mark, reason)` — A named reviewer marks an event 'relevant' or 'explained', with a reason. The mark is a ledger entry; it changes nothing else.
+- `purge_expired_sessions(caller)` — Erase every session of the organisation past its retention_until date: events, audio, transcripts, consents (HR admins).
 - `list_sessions(caller, application_id)` — Sessions with counts only: no content, no names.
 - `evidence_view(caller, session_id)` — For a human reviewer: consent, the time-ordered events, pad edit summary, audio tracks by hash, transcript status and the
 - `replay_pad(caller, session_id, pad_id, upto_seq)` — The shared pad's text as it stood after event `upto_seq` (0 = the end), rebuilt from the operation log.
@@ -51,4 +52,4 @@ Consent-gated interview event record and evidence view. No judgement of any pers
 
 - **other agents:** none found
 - **platform modules:** `velaris/agentkit/hiring_common.py`, `velaris/agentkit/hiring_record.py`, `velaris/agentkit/hiring_record_gateway.py`, `velaris/api/allowlist.py`
-- **tests:** `velaris/tests/test_api_public.py`, `velaris/tests/test_hiring_api.py`, `velaris/tests/test_hiring_record.py`
+- **tests:** `velaris/tests/test_api_public.py`, `velaris/tests/test_hiring_api.py`, `velaris/tests/test_hiring_record.py`, `velaris/tests/test_hr_data_interview_retention.py`

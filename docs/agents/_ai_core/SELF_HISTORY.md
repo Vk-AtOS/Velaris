@@ -2,11 +2,15 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/_ai_core/SELF_HISTORY/main.py` (25 lines)
+- **Source:** `departments/_ai_core/SELF_HISTORY/main.py` (31 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Self history: a minimal in-memory event log for the system's own activity.
+
+record(event) appends any event dict; last() returns the most recent one, or {} when empty;
+health_check() reports status ok. It is close to a stub: no validation, no size limit, no
+persistence. State: a list in memory only, lost on restart.
 
 ## Class `SELF_HISTORYAgent`
 

@@ -2,7 +2,7 @@
 
 - **Department:** `security`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/security/CYBER_RISK_ENGINE/main.py` (123 lines)
+- **Source:** `departments/security/CYBER_RISK_ENGINE/main.py` (128 lines)
 
 ## Purpose
 
@@ -42,6 +42,7 @@ declared model, not a measurement of any real network.
 - `velaris.agentkit.checks`
 - `velaris.agentkit.results`
 - `velaris.agentkit.state`
+- `velaris.core.access`
 
 ## State and configuration
 
@@ -51,4 +52,4 @@ declared model, not a measurement of any real network.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_dept_security_stubs.py`
+- **tests:** `velaris/tests/test_dept_security_stubs.py`, `velaris/tests/test_kan104_unauthenticated_writes.py`

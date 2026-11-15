@@ -2,7 +2,7 @@
 
 - **Department:** `sales`
 - **Status (static inventory):** `real`
-- **Source:** `departments/sales/WHATSAPP_BRIEFING/main.py` (142 lines)
+- **Source:** `departments/sales/WHATSAPP_BRIEFING/main.py` (143 lines)
 
 ## Purpose
 
@@ -31,7 +31,7 @@ Ported from VKatOS whatsapp_briefing.
 
 ## Depends on
 
-- nothing from velaris.*
+- `velaris.intel.paths`
 
 ## State and configuration
 
@@ -41,4 +41,4 @@ Ported from VKatOS whatsapp_briefing.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_requirements.py`
+- **tests:** `velaris/tests/test_no_state_in_source_tree.py`, `velaris/tests/test_requirements.py`

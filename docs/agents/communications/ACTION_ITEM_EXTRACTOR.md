@@ -2,11 +2,24 @@
 
 - **Department:** `communications`
 - **Status (static inventory):** `real`
-- **Source:** `departments/communications/ACTION_ITEM_EXTRACTOR/main.py` (180 lines)
+- **Source:** `departments/communications/ACTION_ITEM_EXTRACTOR/main.py` (195 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Action item extractor: finds action items in meeting text with regex rules and stores them in SQLite.
+
+ActionItemExtractor(config): health_check(); extract_from_segments(segments, meeting_id)
+takes [{"text", "start", "end"}], keeps segments matching keyword patterns (will ... by,
+need to, action item, follow up, due, deadline, assign, ensure, ...), guesses an owner from
+capitalised-name patterns and a due-date hint, inserts rows and returns them;
+extract_from_text(text, meeting_id) splits into sentences first; close_item(item_id) marks
+a row closed; get_open_items(owner=None); get_overdue() lists open items whose due_date
+string sorts before today.
+This is pattern matching, not language understanding; due hints can be non-ISO text
+("oct 15", "friday"), which are compared as plain strings by get_overdue().
+State: sqlite file action_items.db under the agent data dir (velaris.intel.paths.agent_file).
+Failure: segments without a match are skipped; close_item on an unknown id still returns
+status closed.
 
 ## Class `ActionItemExtractor`
 
@@ -24,7 +37,7 @@ Creates tasks in local SQLite; ready to integrate with Zoho Projects or Jira.
 
 ## Depends on
 
-- nothing from velaris.*
+- `velaris.intel.paths`
 
 ## State and configuration
 
@@ -34,4 +47,4 @@ Creates tasks in local SQLite; ready to integrate with Zoho Projects or Jira.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** none found
+- **tests:** `velaris/tests/test_agents_coverage_c.py`, `velaris/tests/test_no_state_in_source_tree.py`

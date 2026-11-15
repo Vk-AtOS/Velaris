@@ -29,4 +29,4 @@ Thin wrapper over velaris.intel.council, where the pipeline and its tests live.
 
 - **other agents:** none found
 - **platform modules:** `velaris/api/allowlist.py`
-- **tests:** none found
+- **tests:** `velaris/tests/test_agents_coverage_c.py`

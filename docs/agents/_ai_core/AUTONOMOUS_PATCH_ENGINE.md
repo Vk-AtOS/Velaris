@@ -2,11 +2,18 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `real`
-- **Source:** `departments/_ai_core/AUTONOMOUS_PATCH_ENGINE/main.py` (67 lines)
+- **Source:** `departments/_ai_core/AUTONOMOUS_PATCH_ENGINE/main.py` (76 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Autonomous patch engine: applies a JSON patch (a dict of field changes) to a dict and records it in a history.
+
+validate_patch(patch) is True only when the patch has "target" and a dict "changes". simulate_patch(original, patch)
+returns a copy of original with the changes overlaid (no validation, so a patch without "changes" raises KeyError).
+apply_patch(original, patch) validates, then returns the updated copy and appends {"patch", "status": "APPLIED"} to the
+history; an invalid patch raises ValueError. It never edits any module or file named by "target". get_history() returns a copy.
+State: <VELARIS_DATA>/agents/AUTONOMOUS_PATCH_ENGINE/patch_history.json (created as [] on start; an unreadable file is
+logged and the history starts empty, and the next apply overwrites it). Write errors (OSError) propagate.
 
 ## Class `AutonomousPatchEngine`
 

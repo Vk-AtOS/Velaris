@@ -2,11 +2,16 @@
 
 - **Department:** `executive`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/executive/INSIGHTA/main.py` (54 lines)
+- **Source:** `departments/executive/INSIGHTA/main.py` (61 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Insighta: simple statistics over number series for executive reporting (formulas only, no model).
+
+detect_trend(series) is (last - first)/(n - 1), 0.0 under two points; behavioral_shift(before,
+after) is mean(after) - mean(before), 0.0 if either is empty; consistency_score(values) is
+1/(1 + population variance), 0.0 if empty. config["sensitivity"] is stored but unused.
+Keeps no state. Non-numeric items raise TypeError.
 
 ## Class `InsightaAgent`
 

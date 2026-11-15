@@ -2,7 +2,7 @@
 
 - **Department:** `operations`
 - **Status (static inventory):** `real`
-- **Source:** `departments/operations/PIPELINE_MONITOR/main.py` (128 lines)
+- **Source:** `departments/operations/PIPELINE_MONITOR/main.py` (133 lines)
 
 ## Purpose
 
@@ -29,7 +29,7 @@ Ported from VKatOS pipeline_monitor.
 
 ## Depends on
 
-- nothing from velaris.*
+- `velaris.intel.paths`
 
 ## State and configuration
 
@@ -39,4 +39,4 @@ Ported from VKatOS pipeline_monitor.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** none found
+- **tests:** `velaris/tests/test_kan106_business_agents.py`, `velaris/tests/test_no_state_in_source_tree.py`

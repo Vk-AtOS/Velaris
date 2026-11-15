@@ -2,11 +2,17 @@
 
 - **Department:** `legal_compliance`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/legal_compliance/LEGAL_INTELLIGENCE_ENGINE/main.py` (59 lines)
+- **Source:** `departments/legal_compliance/LEGAL_INTELLIGENCE_ENGINE/main.py` (67 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Legal intelligence engine: an in-memory store of legal rule texts with exact lookup and keyword search.
+
+Rules are kept as category -> rule -> text; category and rule names are lower-cased. add_rule(category, rule, text) returns
+False if that rule already exists, update_rule(...) returns False if the category or rule is missing, lookup(category, rule)
+returns the text or the string "NOT_FOUND". search(keyword) does a case-insensitive substring match on rule names and texts
+and returns "category:rule" strings. It holds no built-in rules and gives no legal advice or interpretation.
+State: in-memory dicts only, lost on exit. A non-string argument raises AttributeError.
 
 ## Class `LegalIntelligenceEngine`
 
@@ -33,4 +39,4 @@ Velaris Legal Intelligence Engine (Offline)
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** none found
+- **tests:** `velaris/tests/test_agents_coverage_a.py`

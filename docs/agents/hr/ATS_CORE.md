@@ -2,7 +2,7 @@
 
 - **Department:** `hr`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/hr/ATS_CORE/main.py` (438 lines)
+- **Source:** `departments/hr/ATS_CORE/main.py` (447 lines)
 
 ## Purpose
 
@@ -64,6 +64,6 @@ Applicant tracking core. See the module docstring.
 
 ## Called by
 
-- **other agents:** `INTERVIEW_RECORD`, `JOB_POSTINGS`, `RESUME_EVIDENCE`, `SCREENING_FORMS`
+- **other agents:** `INTERVIEW_RECORD`, `INTERVIEW_SCHEDULER`, `JOB_POSTINGS`, `RECRUITMENT_ATS`, `RESUME_EVIDENCE`, `SCREENING_FORMS`
 - **platform modules:** `velaris/agentkit/hiring_ats.py`, `velaris/agentkit/hiring_common.py`, `velaris/agentkit/hiring_forms.py`, `velaris/agentkit/hiring_intake.py`, `velaris/agentkit/hr_wiring.py`, `velaris/agentkit/onboarding_adapters.py`, `velaris/api/allowlist.py`
-- **tests:** `velaris/tests/test_api_public.py`, `velaris/tests/test_hiring_api.py`, `velaris/tests/test_hiring_ats.py`, `velaris/tests/test_hiring_forms.py`, `velaris/tests/test_hiring_kit.py`, `velaris/tests/test_hiring_postings.py`, `velaris/tests/test_hiring_record.py`, `velaris/tests/test_hiring_resume.py`, `velaris/tests/test_hiring_scheduler.py`, `velaris/tests/test_hr_wiring.py`
+- **tests:** `velaris/tests/test_api_public.py`, `velaris/tests/test_hiring_api.py`, `velaris/tests/test_hiring_ats.py`, `velaris/tests/test_hiring_forms.py`, `velaris/tests/test_hiring_kit.py`, `velaris/tests/test_hiring_postings.py`, `velaris/tests/test_hiring_record.py`, `velaris/tests/test_hiring_resume.py`, `velaris/tests/test_hiring_scheduler.py`, `velaris/tests/test_hr_data_ats.py`, `velaris/tests/test_hr_wiring.py`, `velaris/tests/test_state_crossprocess.py`

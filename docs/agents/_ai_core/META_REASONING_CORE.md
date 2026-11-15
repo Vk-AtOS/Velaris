@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `real`
-- **Source:** `departments/_ai_core/META_REASONING_CORE/main.py` (73 lines)
+- **Source:** `departments/_ai_core/META_REASONING_CORE/main.py` (75 lines)
 
 ## Purpose
 
@@ -40,4 +40,4 @@ Not a reasoning engine. It is a bounded loop around MRF_EVAL and MRF_REFLECT:
 
 - **other agents:** `MRF_EVAL`, `MRF_REFLECT`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_b_mrf.py`, `velaris/tests/test_layer26_mrf.py`
+- **tests:** `velaris/tests/test_aicore_b_mrf.py`, `velaris/tests/test_kan106_aicore.py`, `velaris/tests/test_layer26_mrf.py`

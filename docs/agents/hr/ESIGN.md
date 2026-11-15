@@ -2,7 +2,7 @@
 
 - **Department:** `hr`
 - **Status (static inventory):** `real`
-- **Source:** `departments/hr/ESIGN/main.py` (513 lines)
+- **Source:** `departments/hr/ESIGN/main.py` (537 lines)
 
 ## Purpose
 
@@ -41,6 +41,8 @@ Signing requests: create, send, ceremony (token-authenticated), seal, verify. Se
 - `seal_request(request_id)` — Retry sealing a request that completed but could not be sealed (HR administrators).
 - `verify(request_id)` — Recompute the document hash, every evidence hash, the seal chain, the sealed PDF and the trace anchor.
 - `request_info(request_id, org)` — Status and document_ref of a request of `org` for another agent (OFFER_LETTERS); not an HTTP method. No names, no tokens.
+- `dsr_export(org, subject_id, links)`
+- `dsr_erase(org, subject_id, on, links)` — Anonymise the subject's signer data on requests that were never sealed; sealed evidence is held as the registry says.
 - `get_request(request_id)` — Status of a request (its drafter and HR administrators). No tokens are ever included.
 - `list_requests(status)`
 - `get_sealed_document(request_id)` — The sealed PDF (base64) of a sealed request, and the platform-signed one when a signer was configured.
@@ -61,6 +63,6 @@ Signing requests: create, send, ceremony (token-authenticated), seal, verify. Se
 
 ## Called by
 
-- **other agents:** `OFFER_LETTERS`
-- **platform modules:** `velaris/agentkit/hr_wiring.py`, `velaris/agentkit/onboarding_adapters.py`, `velaris/agentkit/onboarding_common.py`, `velaris/api/allowlist.py`, `velaris/api/public.py`
-- **tests:** `velaris/tests/test_api_public.py`, `velaris/tests/test_hr_wiring.py`, `velaris/tests/test_onboarding_esign.py`, `velaris/tests/test_onboarding_records.py`
+- **other agents:** `EMPLOYEE_RECORDS`, `OFFER_LETTERS`
+- **platform modules:** `velaris/agentkit/hr_wiring.py`, `velaris/agentkit/onboarding_adapters.py`, `velaris/agentkit/onboarding_common.py`, `velaris/agentkit/onboarding_dsr.py`, `velaris/api/allowlist.py`, `velaris/api/public.py`
+- **tests:** `velaris/tests/test_api_public.py`, `velaris/tests/test_hr_data_traces.py`, `velaris/tests/test_hr_wiring.py`, `velaris/tests/test_onboarding_esign.py`, `velaris/tests/test_onboarding_records.py`

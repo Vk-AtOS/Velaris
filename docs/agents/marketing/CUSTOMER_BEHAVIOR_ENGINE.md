@@ -44,4 +44,4 @@ account for marketing follow-up. It is not a score and not a decision about a pe
 
 - **other agents:** `LYRA_VOICE_ENGINE`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_dept_marketing_stubs.py`
+- **tests:** `velaris/tests/test_agents_coverage_c.py`, `velaris/tests/test_dept_marketing_stubs.py`

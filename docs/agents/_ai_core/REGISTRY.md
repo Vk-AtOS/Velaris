@@ -2,11 +2,19 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `real`
-- **Source:** `departments/_ai_core/REGISTRY/main.py` (95 lines)
+- **Source:** `departments/_ai_core/REGISTRY/main.py` (110 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Agent registry: discovers agents from their manifest.json files and loads or creates them by name.
+
+At construction it scans each department folder (or the single base_path folder) one level down for
+<AGENT>/manifest.json and indexes it by the manifest "name"; a manifest that is not valid JSON or has no "name" raises.
+list_agents() returns the sorted names. get_agent_class(name) imports velaris.agents.<name>.<module> from the manifest
+"entrypoint" ("main.py:ClassName") and returns the class; an unknown name or a missing or malformed entrypoint raises
+ValueError. create(name, config) instantiates it, passing config only if the constructor takes an argument.
+health_all() builds every agent and calls health_check(); a failure becomes {"status": "error", "error": ...} for that agent.
+State: in-memory index only, rebuilt on every construction; nothing is written to disk.
 
 ## Class `AgentRegistry`
 
@@ -33,4 +41,4 @@ Provides dynamic agent class loading.
 
 - **other agents:** `CONVERGENCE_BRIDGE`, `ENGINE`, `PRIME`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_registry.py`, `velaris/tests/test_system_integration.py`
+- **tests:** `velaris/tests/test_alias_layers.py`, `velaris/tests/test_registry.py`, `velaris/tests/test_system_integration.py`

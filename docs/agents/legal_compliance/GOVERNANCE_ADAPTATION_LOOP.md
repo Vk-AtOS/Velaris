@@ -2,7 +2,7 @@
 
 - **Department:** `legal_compliance`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/legal_compliance/GOVERNANCE_ADAPTATION_LOOP/main.py` (114 lines)
+- **Source:** `departments/legal_compliance/GOVERNANCE_ADAPTATION_LOOP/main.py` (123 lines)
 
 ## Purpose
 
@@ -44,4 +44,4 @@ resolve(); even then this agent changes no rule. The owner of the policy
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_dept_legal_compliance_stubs.py`, `velaris/tests/test_layer5_neuralgov.py`
+- **tests:** `velaris/tests/test_dept_legal_compliance_stubs.py`, `velaris/tests/test_kan104_unauthenticated_writes.py`, `velaris/tests/test_layer5_neuralgov.py`

@@ -2,11 +2,16 @@
 
 - **Department:** `operations`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/operations/MULTI_TENANT_ENGINE/main.py` (47 lines)
+- **Source:** `departments/operations/MULTI_TENANT_ENGINE/main.py` (54 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Multi-tenant engine: an in-memory key-value store partitioned by tenant id.
+
+create_tenant(id) returns False if it exists; delete_tenant(id) returns False if unknown. set_value(tenant, key, value)
+returns False for an unknown tenant; get_value(tenant, key) returns None for an unknown tenant or key; tenant_snapshot(id)
+returns a shallow copy or None; list_tenants() returns the ids. Separation is only that each tenant has its own dict: there
+is no caller or authorisation check and no persistence. State: in memory only, lost on exit.
 
 ## Class `MultiTenantEngine`
 
@@ -35,4 +40,4 @@ Velaris Multi-Tenant Engine
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** none found
+- **tests:** `velaris/tests/test_agents_coverage_a.py`

@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `real`
-- **Source:** `departments/_ai_core/ACF_ROUTER/main.py` (70 lines)
+- **Source:** `departments/_ai_core/ACF_ROUTER/main.py` (94 lines)
 
 ## Purpose
 
@@ -38,4 +38,4 @@ Conditions read the signal's fields, e.g. "kind", "risk", "content.amount",
 
 - **other agents:** `ACF_CORE`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_a_acf.py`, `velaris/tests/test_layer16_acf.py`
+- **tests:** `velaris/tests/test_aicore_a_acf.py`, `velaris/tests/test_kan106_intake_guards.py`, `velaris/tests/test_layer16_acf.py`

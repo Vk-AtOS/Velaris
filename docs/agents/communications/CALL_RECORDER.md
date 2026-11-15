@@ -2,11 +2,21 @@
 
 - **Department:** `communications`
 - **Status (static inventory):** `real`
-- **Source:** `departments/communications/CALL_RECORDER/main.py` (154 lines)
+- **Source:** `departments/communications/CALL_RECORDER/main.py` (167 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Call recorder: records microphone audio to local WAV files by running ffmpeg.
+
+start(call_id, participants=None, meeting_title="") launches ffmpeg (avfoundation on macOS,
+dshow on Windows, alsa elsewhere; 16 kHz mono) and returns the session info; stop(session_id)
+terminates it and returns filepath, size and duration (estimated from file size), or
+{"error": "session_not_found"}. get_session(session_id) returns the public session fields
+({} if unknown); list_recordings() lists the WAV files in the recordings directory;
+health_check() reports status "degraded" when ffmpeg cannot be run. No consent or caller
+check is made here, and a missing ffmpeg raises when start or health_check is called.
+State: sessions live in a module-level dict (lost on restart); audio goes to
+config["recordings_dir"], default under the agent's VELARIS_DATA directory.
 
 ## Class `CallRecorder`
 
@@ -24,7 +34,7 @@ No audio leaves the machine — fully local.
 
 ## Depends on
 
-- nothing from velaris.*
+- `velaris.intel.paths`
 
 ## State and configuration
 
@@ -34,4 +44,4 @@ No audio leaves the machine — fully local.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** none found
+- **tests:** `velaris/tests/test_no_state_in_source_tree.py`

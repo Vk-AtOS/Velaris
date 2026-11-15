@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `real`
-- **Source:** `departments/_ai_core/UIE_SIGNAL/main.py` (46 lines)
+- **Source:** `departments/_ai_core/UIE_SIGNAL/main.py` (55 lines)
 
 ## Purpose
 
@@ -39,4 +39,4 @@ stored or shown to a model), and what was found.
 
 - **other agents:** `UIE_CORE`, `UIE_SEMANTICS`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_b_uie.py`, `velaris/tests/test_layer17_uie.py`
+- **tests:** `velaris/tests/test_aicore_b_uie.py`, `velaris/tests/test_kan106_intake_guards.py`, `velaris/tests/test_layer17_uie.py`

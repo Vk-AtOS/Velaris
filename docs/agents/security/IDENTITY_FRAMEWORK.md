@@ -2,11 +2,18 @@
 
 - **Department:** `security`
 - **Status (static inventory):** `real`
-- **Source:** `departments/security/IDENTITY_FRAMEWORK/main.py` (84 lines)
+- **Source:** `departments/security/IDENTITY_FRAMEWORK/main.py` (93 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Identity framework: stores user profiles with salted password hashes and checks passwords.
+
+create_identity(username, password, meta) hashes the password (PBKDF2-HMAC-SHA256, 200000 rounds, random 16-byte salt) and
+returns False if the username exists. validate_identity(username, password) returns True only for a matching password
+(constant-time compare), False for an unknown user. update_meta(username, meta) merges into the profile (False if unknown);
+get_meta(username) returns the profile dict or None. There is no caller check, lockout or password policy.
+State: <VELARIS_DATA>/agents/IDENTITY_FRAMEWORK/identity.db (JSON, owner-only file). If that file cannot be parsed or is not
+a JSON object, construction raises RuntimeError rather than starting empty and overwriting the accounts.
 
 ## Class `IdentityFramework`
 

@@ -41,6 +41,6 @@ credit. These figures need an accountant's check before use.
 
 ## Called by
 
-- **other agents:** none found
+- **other agents:** `REGISTRY`
 - **platform modules:** `departments/hr/PAYROLL_ENGINE/registry.py`
-- **tests:** `velaris/tests/test_gst_engine.py`
+- **tests:** `velaris/tests/test_alias_layers.py`, `velaris/tests/test_gst_engine.py`

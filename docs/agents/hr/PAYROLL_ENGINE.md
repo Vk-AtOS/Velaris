@@ -1,12 +1,25 @@
 # PAYROLL_ENGINE
 
 - **Department:** `hr`
-- **Status (static inventory):** `rule_based`
-- **Source:** `departments/hr/PAYROLL_ENGINE/main.py` (304 lines)
+- **Status (static inventory):** `not_implemented`
+- **Source:** `departments/hr/PAYROLL_ENGINE/main.py` (344 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Payroll engine: India statutory payroll computation (Tamil Nadu scope) from salary components.
+PayrollEngine.compute(employee_id, basic, hra, special_allowance, tds=0, *, pay_period, local_body,
+half_year_gross, epf_basis) returns gross, EPF and ESI (employee and employer), Tamil Nadu profession
+tax, deductions, net pay and CTC, using Decimal money and parameters looked up by pay-period date from
+the statutory registry. compute_bulk(employees, pay_period) maps compute over a list, and
+org_statutory_summary(employees, pay_period) totals the EPF/ESI/PT liability. get_payslip,
+get_statutory_deductions and get_ytd_summary read stored data through ZohoPayrollConnector and take a
+caller, which the connector checks (AccessDenied is raised there); they need config zoho_enabled.
+EDLI and EPF admin charges are not implemented and are named in every result.
+State: keeps none locally; the statutory parameters are in the statutory module and payslips in Zoho.
+Failure: unparsable amounts or period return status "invalid_input" with a reason; a figure that
+cannot be established is None with status "needs_review" and review_reasons (never pay from it);
+unverified parameters or omitted charges give "provisional"; an invalid epf_basis raises ValueError;
+the Zoho methods return {"error": "zoho_not_configured"} when Zoho is off.
 
 ## Class `_Run`
 
@@ -39,6 +52,7 @@ says why in "review_reasons". Never pay from such a result.
 ## Depends on
 
 - `velaris.agents.PAYROLL_ENGINE`
+- `velaris.agents.PAYROLL_ENGINE.registry`
 - `velaris.agents.ZOHO_PAYROLL.main`
 - `velaris.core.access`
 

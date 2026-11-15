@@ -2,11 +2,17 @@
 
 - **Department:** `operations`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/operations/DYNAMICA/main.py` (49 lines)
+- **Source:** `departments/operations/DYNAMICA/main.py` (57 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Dynamica: simple step-wise system evolution (a simulation stub).
+DynamicaAgent.evolve_linear(initial, delta) returns config "steps" values (default 5) rising by delta.
+evolve_multi(initial, update) returns the initial dict plus the results of applying the update
+function to a copy of the previous state, steps in total. system_state(name) returns a descriptive
+dict with the name and step count. health_check() returns status ok and version.
+State: keeps none beyond config. Failure: exceptions from the update function propagate; with steps
+of 0 or less evolve_linear returns [] while evolve_multi still returns the initial state.
 
 ## Class `DynamicaAgent`
 

@@ -2,11 +2,19 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/_ai_core/ENGINE/main.py` (92 lines)
+- **Source:** `departments/_ai_core/ENGINE/main.py` (99 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Velaris engine: runs methods of registered agents by name, singly or as a pipeline.
+VelarisEngine.run(agent, method, params) creates the agent through AgentRegistry.create and calls the
+method with params as keyword arguments. pipeline(steps) runs a list of {"agent", "method", "params"}
+steps in order and returns [{"step", "result"}]. run_with_balance is a plain passthrough to run (the
+load balancer is not consulted). health_check() reports the number of registered agents.
+State: keeps none of its own beyond the registry instance; parameters and results are never logged.
+Failure: an unknown agent propagates the registry's error, a missing method raises AttributeError, and
+an exception from the agent or a malformed pipeline step (KeyError) propagates and stops the pipeline.
+Note: __post_init__ is never called by __init__, so self.lifecycle and self.clb are not created.
 
 ## Class `VelarisEngine`
 
@@ -30,4 +38,4 @@ _No module docstring yet._
 
 - **other agents:** `CORE_CONVERGENCE`, `FSCL`, `PRIME`
 - **platform modules:** `velaris/backend/engine.py`
-- **tests:** `velaris/tests/test_engine.py`, `velaris/tests/test_system_integration.py`
+- **tests:** `velaris/tests/test_engine.py`, `velaris/tests/test_kan106_intake_guards.py`, `velaris/tests/test_system_integration.py`

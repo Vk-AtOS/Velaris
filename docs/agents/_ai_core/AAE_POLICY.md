@@ -42,4 +42,4 @@ State (the rule set): <VELARIS_DATA>/agents/AAE_POLICY/state.json.
 
 - **other agents:** `AAE_RUNTIME`, `ADAPTIVE_ACTION_ENGINE`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_a_aae.py`, `velaris/tests/test_layer25_aae.py`, `velaris/tests/test_security_review_round2.py`
+- **tests:** `velaris/tests/test_aicore_a_aae.py`, `velaris/tests/test_kan104_unauthenticated_writes.py`, `velaris/tests/test_layer25_aae.py`, `velaris/tests/test_security_review_round2.py`

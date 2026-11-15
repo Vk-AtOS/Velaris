@@ -2,11 +2,18 @@
 
 - **Department:** `it_infrastructure`
 - **Status (static inventory):** `real`
-- **Source:** `departments/it_infrastructure/TELEMETRY_SPINE/main.py` (67 lines)
+- **Source:** `departments/it_infrastructure/TELEMETRY_SPINE/main.py` (76 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Telemetry spine: central event collector with a persistent log.
+TelemetrySpine.record(event_type, payload) appends {"ts", "type", "payload"} and rewrites the log
+file, returning the entry. query(event_type=None) returns all events or those of one type.
+stats() returns {"total_events", "by_type"} counts. The whole log is held in memory and rewritten on
+every record, so it suits low volume only.
+State: <VELARIS_DATA>/agents/TELEMETRY_SPINE/telemetry.log (a JSON list, created as [] if absent).
+Failure: an unreadable log is logged as a warning and treated as empty (the next record overwrites
+it); a failed write raises OSError; there is no payload validation or access control.
 
 ## Class `TelemetrySpine`
 
