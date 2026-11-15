@@ -1,0 +1,28 @@
+{
+  "name": "SAFETY_PERIMETER",
+  "version": "0.1.0",
+  "description": "Safety perimeter: a jurisdiction allow-list and a call-name deny-list, both failing closed.",
+  "entrypoint": "main.py:SafetyPerimeter",
+  "harness": {
+    "schema": 1,
+    "purpose": "Safety perimeter: a jurisdiction allow-list and a call-name deny-list, both failing closed.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/security/SAFETY_PERIMETER.json",
+    "wave": "KAN-40",
+    "status": "deterministic_tool",
+    "tools": {
+      "can_execute": {
+        "kind": "read"
+      },
+      "check_jurisdiction": {
+        "kind": "read"
+      },
+      "check_syscall": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

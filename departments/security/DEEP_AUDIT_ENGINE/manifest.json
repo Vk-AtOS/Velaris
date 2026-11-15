@@ -1,0 +1,31 @@
+{
+  "name": "DEEP_AUDIT_ENGINE",
+  "version": "0.1.0",
+  "description": "Deep audit engine: pins a checksum baseline per name, detects drift from it, and keeps a hash-chained audit log.",
+  "entrypoint": "main.py:DeepAuditEngine",
+  "harness": {
+    "schema": 1,
+    "purpose": "Deep audit engine: pins a checksum baseline per name, detects drift from it, and keeps a hash-chained audit log.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/security/DEEP_AUDIT_ENGINE.json",
+    "wave": "KAN-40",
+    "status": "deterministic_tool",
+    "tools": {
+      "audit": {
+        "kind": "act"
+      },
+      "checksum": {
+        "kind": "read"
+      },
+      "detect_drift": {
+        "kind": "read"
+      },
+      "verify_log": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

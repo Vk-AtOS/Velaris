@@ -3,5 +3,24 @@
   "version": "0.1.0",
   "author": "Velaris",
   "description": "A persistent block list of decision keys.",
-  "entrypoint": "main.py:DECISION_FIREWALLAgent"
+  "entrypoint": "main.py:DECISION_FIREWALLAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "DECISION_FIREWALL: a persistent block list of decision keys.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/security/DECISION_FIREWALL.json",
+    "wave": "KAN-40",
+    "status": "deterministic_tool",
+    "tools": {
+      "allow": {
+        "kind": "read"
+      },
+      "block": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

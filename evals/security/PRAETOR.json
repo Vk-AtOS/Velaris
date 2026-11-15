@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "agent": "PRAETOR",
+  "cases": [
+    {
+      "id": "select-detect_anomaly",
+      "input": "Use the detect_anomaly operation of PRAETOR with {\"values\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "detect_anomaly",
+            "args": {
+              "values": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

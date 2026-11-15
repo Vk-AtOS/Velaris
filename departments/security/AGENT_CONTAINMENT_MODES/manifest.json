@@ -1,0 +1,34 @@
+{
+  "name": "AGENT_CONTAINMENT_MODES",
+  "version": "0.1.0",
+  "description": "Agent containment modes: records a containment level per agent and says which actions that level allows.",
+  "entrypoint": "main.py:AgentContainmentModes",
+  "harness": {
+    "schema": 1,
+    "purpose": "Agent containment modes: records a containment level per agent and says which actions that level allows.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/security/AGENT_CONTAINMENT_MODES.json",
+    "wave": "KAN-40",
+    "status": "deterministic_tool",
+    "tools": {
+      "allowed_actions": {
+        "kind": "read"
+      },
+      "get_metadata": {
+        "kind": "read"
+      },
+      "get_mode": {
+        "kind": "read"
+      },
+      "set_metadata": {
+        "kind": "act"
+      },
+      "set_mode": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

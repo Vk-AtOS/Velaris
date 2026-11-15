@@ -5,5 +5,35 @@
   "description": "Signatures, a deny-by-default policy check, and a file-integrity watch.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:VigilisAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "VIGILIS: signatures, a deny-by-default policy check, and a file-integrity watch.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/security/VIGILIS.json",
+    "wave": "KAN-40",
+    "status": "deterministic_tool",
+    "tools": {
+      "baseline": {
+        "kind": "act"
+      },
+      "check": {
+        "kind": "act"
+      },
+      "evaluate_policy": {
+        "kind": "read"
+      },
+      "sign_message": {
+        "kind": "act"
+      },
+      "verify_signature": {
+        "kind": "act"
+      }
+    },
+    "excluded": {
+      "generate_test_keypair": "returns a private key"
+    },
+    "reviewed": true
+  }
 }

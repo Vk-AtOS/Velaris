@@ -1,0 +1,28 @@
+{
+  "name": "IDENTITY_FRAMEWORK",
+  "version": "0.1.0",
+  "description": "Identity framework: stores user profiles with salted password hashes and checks passwords.",
+  "entrypoint": "main.py:IdentityFramework",
+  "harness": {
+    "schema": 1,
+    "purpose": "Identity framework: stores user profiles with salted password hashes and checks passwords.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/security/IDENTITY_FRAMEWORK.json",
+    "wave": "KAN-40",
+    "status": "deterministic_tool",
+    "tools": {
+      "get_meta": {
+        "kind": "act"
+      },
+      "update_meta": {
+        "kind": "act"
+      }
+    },
+    "excluded": {
+      "create_identity": "parameter 'password' is a secret; it would pass through the model",
+      "validate_identity": "parameter 'password' is a secret; it would pass through the model"
+    },
+    "reviewed": true
+  }
+}

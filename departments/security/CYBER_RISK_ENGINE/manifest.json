@@ -1,0 +1,31 @@
+{
+  "name": "CYBER_RISK_ENGINE",
+  "version": "0.1.0",
+  "description": "CYBER_RISK_ENGINE: a residual-risk score for a declared asset, by a stated formula.",
+  "entrypoint": "main.py:CyberRiskEngine",
+  "harness": {
+    "schema": 1,
+    "purpose": "CYBER_RISK_ENGINE: a residual-risk score for a declared asset, by a stated formula.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/security/CYBER_RISK_ENGINE.json",
+    "wave": "KAN-40",
+    "status": "deterministic_tool",
+    "tools": {
+      "compute_risk": {
+        "kind": "read"
+      },
+      "register": {
+        "kind": "act"
+      },
+      "top_risks": {
+        "kind": "read"
+      },
+      "validate": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

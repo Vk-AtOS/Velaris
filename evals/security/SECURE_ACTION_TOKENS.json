@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "agent": "SECURE_ACTION_TOKENS",
+  "cases": [
+    {
+      "id": "not-harnessed",
+      "input": "Do the job of SECURE_ACTION_TOKENS.",
+      "expect": {
+        "status": "not_harnessed"
+      },
+      "forbid": {}
+    }
+  ]
+}

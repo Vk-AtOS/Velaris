@@ -1,0 +1,28 @@
+{
+  "name": "PIN_UNLOCK_LAYER",
+  "version": "0.1.0",
+  "description": "PIN unlock layer: per-user PINs with a locked/unlocked flag and a lockout after repeated wrong PINs.",
+  "entrypoint": "main.py:PINUnlockLayer",
+  "harness": {
+    "schema": 1,
+    "purpose": "PIN unlock layer: per-user PINs with a locked/unlocked flag and a lockout after repeated wrong PINs.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/security/PIN_UNLOCK_LAYER.json",
+    "wave": "KAN-40",
+    "status": "deterministic_tool",
+    "tools": {
+      "is_locked": {
+        "kind": "act"
+      },
+      "lock": {
+        "kind": "act"
+      }
+    },
+    "excluded": {
+      "register_pin": "parameter 'pin' is a secret; it would pass through the model",
+      "unlock": "parameter 'pin' is a secret; it would pass through the model"
+    },
+    "reviewed": true
+  }
+}

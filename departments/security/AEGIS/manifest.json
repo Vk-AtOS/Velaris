@@ -5,5 +5,30 @@
   "description": "Public methods: record_event, is_rate_limited, adjust_threat, get_threat (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:AegisAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Aegis: per-source sliding-window rate limiting and a running threat score.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/security/AEGIS.json",
+    "wave": "KAN-40",
+    "status": "deterministic_tool",
+    "tools": {
+      "adjust_threat": {
+        "kind": "act"
+      },
+      "get_threat": {
+        "kind": "read"
+      },
+      "is_rate_limited": {
+        "kind": "act"
+      },
+      "record_event": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

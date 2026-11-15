@@ -1,0 +1,20 @@
+{
+  "name": "SECRETS_VAULT",
+  "version": "0.1.0",
+  "description": "Secrets vault: stores named secrets as encrypted files.",
+  "entrypoint": "main.py:SecretsVault",
+  "harness": {
+    "schema": 1,
+    "status": "not_harnessed",
+    "purpose": "Secrets vault: stores named secrets as encrypted files.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "tools": {},
+    "excluded": {},
+    "reason_code": "unsafe",
+    "reason": "get_secret returns stored secret values and set_secret takes them as arguments: every use would pass a secret through the model. Use the vault from code or the security admin console.",
+    "eval": "evals/security/SECRETS_VAULT.json",
+    "wave": "KAN-40",
+    "reviewed": true
+  }
+}
