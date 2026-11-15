@@ -1,11 +1,15 @@
 """Behaviour of twelve small agents: creativity, search, stability, LYRA, sales,
 owner verification, PIN unlock, successor key, document library, business ops,
 marketing and economic intelligence. Offline; VELARIS_DATA is isolated per test."""
+import json
 from importlib import import_module
 
 import pytest
 
-from velaris.core.access import Caller, acting_as
+from velaris.core.access import SECURITY_ADMIN, Caller, acting_as
+from velaris.intel.paths import agent_dir
+
+SEC = Caller("sec", "kf", frozenset({SECURITY_ADMIN}))
 
 
 @pytest.fixture(autouse=True)
@@ -120,19 +124,29 @@ def test_AUTONOMOUS_SALES_NAVIGATOR_scores_ranks_and_picks_strategy():
     assert [x["name"] for x in n.top_leads(2)] == ["Hot", "Warm"]
 
 
-def test_AUTONOMOUS_SALES_NAVIGATOR_caps_probability_and_handles_empty_and_bad_leads():
+def test_AUTONOMOUS_SALES_NAVIGATOR_refuses_out_of_range_and_incomplete_leads():
     n = make("AUTONOMOUS_SALES_NAVIGATOR", "AutonomousSalesNavigator")
     assert n.top_leads(3) == []
-    assert n.predict_close_probability({"budget": 500, "interest": 500, "fit": 500}) == 1.0
-    with pytest.raises(KeyError):                          # a lead without a 'fit' is not scored
+    assert n.predict_close_probability({"budget": 100, "interest": 100, "fit": 100}) == 1.0
+    with pytest.raises(ValueError):                        # ratings are 0-100: 500 is refused, not capped
+        n.predict_close_probability({"budget": 500, "interest": 500, "fit": 500})
+    with pytest.raises(ValueError):                        # a lead without a 'fit' is not scored
         n.score_lead({"budget": 1, "interest": 1})
+    with pytest.raises(ValueError):
+        n.top_leads(-1)
+    assert n.leads == []                                   # nothing invalid was stored
 
 
 # ── OWNER_VERIFICATION ───────────────────────────────────────────────────────
 def test_OWNER_VERIFICATION_needs_all_three_factors_to_match_and_stores_only_hashes():
     o = make("OWNER_VERIFICATION", "OwnerVerification")
     assert o.verify("f", "c", "v") is False                # nobody enrolled: fail closed
-    o.enroll("finger-1", "face-1", "voice-1")
+    assert o.enroll("finger-1", "face-1", "voice-1") is False and o.owner_templates == {}   # no caller
+    with acting_as(SEC):                                   # only a security admin enrols the owner
+        assert o.enroll("finger-1", "face-1", "") is False     # all three templates are required
+        assert o.enroll("finger-1", "face-1", "voice-1") is True
+    assert sorted(o.owner_templates) == ["face", "finger", "voice"]
+    assert all(h.startswith("scrypt$") for h in o.owner_templates.values())
     assert "finger-1" not in str(o.owner_templates)
     assert o.verify("finger-1", "face-1", "voice-1") is True
     assert o.verify("finger-1", "face-1", "voice-X") is False
@@ -141,19 +155,24 @@ def test_OWNER_VERIFICATION_needs_all_three_factors_to_match_and_stores_only_has
 
 def test_OWNER_VERIFICATION_partial_verify_fails_closed():
     o = make("OWNER_VERIFICATION", "OwnerVerification")
-    assert o.partial_verify(finger="x") is False           # not enrolled
-    o.enroll("finger-1", "face-1", "voice-1")
-    assert o.partial_verify(finger="finger-1") is True
+    assert o.partial_verify(finger="x", face="y") is False     # not enrolled
+    with acting_as(SEC):
+        o.enroll("finger-1", "face-1", "voice-1")
+    assert o.partial_verify(finger="finger-1") is False        # one factor is never enough
+    assert o.partial_verify(finger="finger-1", face="face-1") is True
     assert o.partial_verify(finger="finger-1", face="wrong") is False
-    assert o.partial_verify(iris="x") is False             # unknown factor
+    assert o.partial_verify(finger="finger-1", iris="x") is False   # unknown factor
     assert o.partial_verify() is False                     # no factor presented
-    o.enroll("other", "other", "other")                    # single owner: re-enrol replaces
-    assert o.partial_verify(finger="finger-1") is False
+    with acting_as(SEC):
+        assert o.enroll("other-f", "other-a", "other-v") is True    # single owner: re-enrol replaces
+    assert o.partial_verify(finger="finger-1", face="face-1") is False
+    assert o.partial_verify(finger="other-f", voice="other-v") is True
 
 
 # ── PIN_UNLOCK_LAYER ─────────────────────────────────────────────────────────
 def test_PIN_UNLOCK_LAYER_registers_locked_unlocks_with_right_pin_and_relocks():
     p = make("PIN_UNLOCK_LAYER", "PINUnlockLayer")
+    assert p.register_pin("bob", "12") is False and p.register_pin("bob", "abcd") is False   # 4-12 digits only
     assert p.register_pin("asha", "4821") is True
     assert p.register_pin("asha", "0000") is False         # cannot overwrite
     assert p.is_locked("asha") is True
@@ -161,28 +180,38 @@ def test_PIN_UNLOCK_LAYER_registers_locked_unlocks_with_right_pin_and_relocks():
     assert p.unlock("asha", "4821") is True and p.is_locked("asha") is False
     p.lock("asha")
     assert p.is_locked("asha") is True
-    assert "4821" not in p.pins["asha"]
+    assert make("PIN_UNLOCK_LAYER", "PINUnlockLayer").is_locked("asha") is True    # state is on disk, not in the object
+    stored = json.loads((agent_dir("PIN_UNLOCK_LAYER") / "pins.json").read_text())["pins"]
+    assert list(stored) == ["asha"] and stored["asha"].startswith("scrypt$") and stored["asha"] != "4821"
 
 
 def test_PIN_UNLOCK_LAYER_unknown_user_cannot_unlock_and_reads_as_locked():
     p = make("PIN_UNLOCK_LAYER", "PINUnlockLayer")
-    assert p.unlock("ghost", "1234") is False
+    for _ in range(6):
+        assert p.unlock("ghost", "1234") is False
     assert p.is_locked("ghost") is True
     p.lock("ghost")                                        # no-op, no crash
-    assert p.locked == {}
+    folder = agent_dir("PIN_UNLOCK_LAYER")                 # unknown names leave no lock state and no throttle record
+    assert all("ghost" not in f.read_text() for f in folder.glob("*.json"))
+    assert p.register_pin("ghost", "1234") is True and p.unlock("ghost", "1234") is True   # and were not locked out
 
 
 # ── SUCCESSOR_KEY_MODULE ─────────────────────────────────────────────────────
 def test_SUCCESSOR_KEY_MODULE_key_is_set_once_verified_and_wiped():
     k = make("SUCCESSOR_KEY_MODULE", "SuccessorKeyModule")
     assert k.has_key() is False and k.verify("anything") is False
-    assert k.set_successor_key("heir-key") is True
-    assert k.set_successor_key("other") is False           # no overwrite without a wipe
-    assert k.verify("heir-key") is True and k.verify("other") is False
-    assert "heir-key" not in k.successor_hash
-    k.wipe_key()
-    assert k.has_key() is False and k.verify("heir-key") is False
-    assert k.set_successor_key("new-key") is True
+    assert k.set_successor_key("heir-key-1") is False and k.has_key() is False   # no caller
+    with acting_as(SEC):                                   # setting and wiping need a security admin
+        assert k.set_successor_key("short") is False       # under 8 characters
+        assert k.set_successor_key("heir-key-1") is True
+        assert k.set_successor_key("other-key-2") is False     # no overwrite without a wipe
+    assert k.verify("heir-key-1") is True and k.verify("other-key-2") is False
+    assert k.successor_hash.startswith("scrypt$") and "heir-key-1" not in k.successor_hash
+    assert k.wipe_key() is False and k.has_key() is True   # no caller: the key stays
+    with acting_as(SEC):
+        assert k.wipe_key() is True
+        assert k.has_key() is False and k.verify("heir-key-1") is False
+        assert k.set_successor_key("new-key-33") is True
 
 
 # ── DOCUMENT_LIBRARY ─────────────────────────────────────────────────────────
@@ -234,11 +263,19 @@ def test_AUTONOMOUS_MARKETING_ENGINE_campaign_is_recorded_with_per_channel_strat
     assert m.get_history() == [c]
 
 
-def test_AUTONOMOUS_MARKETING_ENGINE_audience_score_is_deterministic_and_maps_to_channels():
+def test_AUTONOMOUS_MARKETING_ENGINE_audience_score_comes_from_measurements_and_maps_to_channels():
     m = make("AUTONOMOUS_MARKETING_ENGINE", "AutonomousMarketingEngine")
-    assert m.score_audience("a") == 97 and m.score_audience("A") == 65 and m.score_audience("") == 0
-    assert m.suggest_channels(m.score_audience("a")) == ["social", "video", "influencers"]
-    assert m.suggest_channels(65) == ["email", "social"]
+    with pytest.raises(ValueError):                        # a name alone says nothing about an audience
+        m.score_audience("students")
+    with pytest.raises(ValueError):
+        m.score_audience({"size": 1000, "engagement": 0.5})    # conversion missing
+    full = {"size": 1_000_000, "engagement": 1, "conversion": 1}
+    mid = {"size": 999, "engagement": 0.5, "conversion": 0.5}  # 100 * (0.25 + 0.15 + 0.2 * 3/6)
+    assert m.score_audience(full) == 100 and m.score_audience(mid) == 50
+    assert m.score_audience(mid) == m.score_audience(dict(mid))    # same numbers, same score
+    assert m.score_audience({"size": 0, "engagement": 0, "conversion": 0}) == 0
+    assert m.suggest_channels(m.score_audience(full)) == ["social", "video", "influencers"]
+    assert m.suggest_channels(m.score_audience(mid)) == ["email", "social"]
     assert m.suggest_channels(70) == ["email", "social"]   # 70 is not above 70
     assert m.suggest_channels(0) == ["email"]
 
@@ -246,7 +283,7 @@ def test_AUTONOMOUS_MARKETING_ENGINE_audience_score_is_deterministic_and_maps_to
 # ── ECONOMIC_INTELLIGENCE_MESH ───────────────────────────────────────────────
 def test_ECONOMIC_INTELLIGENCE_MESH_trend_is_mean_step_and_drives_the_risk_label():
     e = make("ECONOMIC_INTELLIGENCE_MESH", "EconomicIntelligenceMesh")
-    assert e.summary() == {"count": 0, "trend": 0.0, "risk": "RISK"}   # no data reads as RISK
+    assert e.summary() == {"count": 0, "trend": 0.0, "risk": "STABLE"}  # a flat 0.0 trend is STABLE, not RISK
     e.add_indicator("gdp", 100)
     assert e.trend_score() == 0.0                          # one point is no trend
     e.add_indicator("gdp", 110)

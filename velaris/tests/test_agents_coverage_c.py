@@ -7,6 +7,11 @@ from importlib import import_module
 import pytest
 
 from velaris.agents.LYRA_VOICE_ENGINE import main as lyra_mod
+from velaris.core.access import SECURITY_ADMIN, Caller, acting_as
+from velaris.intel.paths import agent_dir
+
+SEC = Caller("sec", "kf", frozenset({SECURITY_ADMIN}))
+ANN = Caller("ann", "kf")
 
 
 @pytest.fixture(autouse=True)
@@ -38,17 +43,28 @@ def test_model_council_unknown_provider_gives_insufficient_not_an_answer():
 # ── LOCAL_BIOMETRICS_INTERFACE ───────────────────────────────────────────────
 def test_local_biometrics_interface_enroll_verify_update_fail_closed():
     b = make("LOCAL_BIOMETRICS_INTERFACE", "LocalBiometricsInterface")
-    assert b.enroll("ann", {"face": "f1", "finger": "p1"}) is True
-    assert b.enroll("ann", {"face": "other"}) is False            # no silent overwrite
-    assert b.templates["ann"]["face"] != "f1"                     # only a hash is kept
-    assert b.verify("ann", {"face": "f1"}) is True
+    assert b.enroll("ann", {"face": "f1", "finger": "p1"}) is False   # no caller
+    with acting_as(Caller("eve", "kf")):
+        assert b.enroll("ann", {"face": "f1"}) is False               # not her own enrolment, and no role
+    with acting_as(SEC):                                              # a security admin may enrol someone else
+        assert b.enroll("ann", {"face": "f1", "finger": "p1"}) is True
+        assert b.enroll("ann", {"face": "other"}) is False            # no silent overwrite
+        assert b.enroll("bob", {"iris": "x"}) is False                # unknown factor
+    stored = (agent_dir("LOCAL_BIOMETRICS_INTERFACE") / "templates.json").read_text()
+    assert "f1" not in stored and stored.count("scrypt$") == 2        # only salted hashes are kept
+    assert b.verify("ann", {"face": "f1"}) is True                    # verifying needs no role
     assert b.verify("ann", {"face": "f1", "finger": "wrong"}) is False
-    assert b.verify("ann", {"voice": "v"}) is False               # un-enrolled factor
-    assert b.verify("ann", {}) is False                           # nothing presented
-    assert b.verify("bob", {"face": "f1"}) is False               # unknown user
-    assert b.update("bob", {"face": "x"}) is False
-    assert b.update("ann", {"face": "f2"}) is True
-    assert b.verify("ann", {"face": "f1"}) is False and b.verify("ann", {"face": "f2"}) is True
+    assert b.verify("ann", {"face": "f1"}) is True
+    assert b.verify("ann", {"voice": "v"}) is False                   # un-enrolled factor
+    assert b.verify("ann", {}) is False                               # nothing presented
+    assert b.verify("bob", {"face": "f1"}) is False                   # unknown user
+    assert b.update("ann", {"face": "f1"}, {"face": "f2"}) is False   # proof given, but no caller
+    with acting_as(ANN):                                              # the person themselves, with proof of the old one
+        assert b.update("bob", {"face": "x"}, {"face": "y"}) is False
+        assert b.update("ann", {"face": "nope"}, {"face": "f2"}) is False
+        assert b.update("ann", {"face": "f1"}, {"face": "f2", "voice": "v1"}) is True
+    assert b.verify("ann", {"face": "f1"}) is False and b.verify("ann", {"face": "f2", "voice": "v1"}) is True
+    assert b.verify("ann", {"finger": "p1"}) is True                  # a factor that was not updated is kept
     assert b.list_users() == ["ann"]
 
 
@@ -100,13 +116,16 @@ def test_lyra_voice_engine_interpret_intent_accepts_none():
 # ── SAFETY_PERIMETER ─────────────────────────────────────────────────────────
 def test_safety_perimeter_gate_allows_and_denies():
     s = make("SAFETY_PERIMETER", "SafetyPerimeter")
-    assert s.can_execute("IN", "open") is True
-    assert s.can_execute("US", "open") is False
-    assert s.can_execute("in", "open") is False                   # case-sensitive code
+    assert s.can_execute("IN", "len") is True
+    assert s.can_execute("US", "len") is False
+    assert s.can_execute("in", "len") is False                    # case-sensitive code
     assert s.can_execute("SG", "eval") is False
-    assert s.can_execute("EU", "") is True
-    s.execution_gate_enabled = False
-    assert s.can_execute("US", "exec") is True                    # gate off: everything passes
+    assert s.can_execute("IN", "open") is False                   # file access is on the deny-list
+    assert s.can_execute("IN", "os.remove") is False              # so is everything under os.
+    assert s.can_execute("EU", "") is False                       # an empty call name is refused, not allowed
+    with pytest.raises(AttributeError):
+        s.execution_gate_enabled = False                          # the gate has no off switch
+    assert s.execution_gate_enabled is True and s.can_execute("US", "exec") is False
 
 
 # ── COGNITIVE_INTENT_FIREWALL ────────────────────────────────────────────────
@@ -134,24 +153,38 @@ def test_cognitive_intent_firewall_rules_and_untrusted_scan():
 # ── MFA_RECOVERY_WORKFLOW ────────────────────────────────────────────────────
 def test_mfa_recovery_workflow_codes_tokens_and_reset():
     m = make("MFA_RECOVERY_WORKFLOW", "MFARecoveryWorkflow")
-    assert m.verify_recovery_code("ann", "123456") is False       # nothing issued
-    code = m.issue_recovery_code("ann")
-    assert len(code) == 6 and code.isdigit() and code not in m.recovery_codes["ann"]
-    assert m.verify_recovery_code("ann", code) is True
-    assert m.verify_recovery_code("ann", "x" + code) is False
-    assert m.verify_recovery_code("bob", code) is False
-    assert m.reset_credentials("ann", "h") is False               # no token yet
-    tok = m.issue_reset_token("ann")
-    assert len(tok) == 16 and m.verify_reset_token("ann", tok) and not m.verify_reset_token("ann", "bad")
-    assert m.reset_credentials("ann", "h") is True
-    assert m.reset_credentials("ann", "h") is False and not m.verify_reset_token("ann", tok)
+    with acting_as(ANN):
+        assert m.verify_recovery_code("ann", "12345678") is None  # nothing issued
+        assert m.issue_recovery_code("ann") is None               # a user cannot mint her own code
+    with acting_as(SEC):
+        code = m.issue_recovery_code("ann")
+    assert len(code) == 8 and code.isdigit()
+    assert code not in (agent_dir("MFA_RECOVERY_WORKFLOW") / "recovery.json").read_text()   # stored hashed
+    assert m.verify_recovery_code("ann", code) is None            # no caller: not even the right code
+    with acting_as(ANN):
+        assert m.verify_recovery_code("ann", "x" + code) is None
+        assert m.verify_recovery_code("bob", code) is None        # ann may not try bob's code
+        assert m.reset_credentials("ann", "no-token", "h") is False
+        tok = m.verify_recovery_code("ann", code)                 # the correct code returns the reset token itself
+        assert isinstance(tok, str) and len(tok) >= 32
+        assert m.verify_reset_token("ann", tok) and not m.verify_reset_token("ann", "bad")
+        assert m.reset_credentials("ann", tok, "h") is True and m.credential_hash("ann") == "h"
+        assert m.reset_credentials("ann", tok, "h") is False and not m.verify_reset_token("ann", tok)
 
 
-def test_mfa_recovery_workflow_code_is_one_time():
+def test_mfa_recovery_workflow_code_is_one_time_and_a_new_code_drops_the_pending_token():
     m = make("MFA_RECOVERY_WORKFLOW", "MFARecoveryWorkflow")
-    code = m.issue_recovery_code("ann")
-    assert m.verify_recovery_code("ann", code) is True
-    assert m.verify_recovery_code("ann", code) is False
+    with acting_as(SEC):
+        code = m.issue_recovery_code("ann")
+    with acting_as(ANN):
+        tok = m.verify_recovery_code("ann", code)
+        assert tok and m.verify_recovery_code("ann", code) is None
+    assert m.verify_reset_token("ann", tok) is True
+    with acting_as(SEC):
+        m.issue_recovery_code("ann")
+    assert m.verify_reset_token("ann", tok) is False
+    with acting_as(ANN):
+        assert m.reset_credentials("ann", tok, "h") is False and m.credential_hash("ann") is None
 
 
 # ── DIGITAL_TWIN_XR_ENGINE ───────────────────────────────────────────────────
@@ -242,7 +275,8 @@ def test_business_funnel_designer_records_and_computes_drop_off():
 def test_financial_ai_engine_growth_forecast_health():
     e = make("FINANCIAL_AI_ENGINE", "FinancialAIEngine")
     assert e.compute_growth(100, 125) == 25.0
-    assert e.compute_growth(0, 50) == 0.0 and e.compute_growth(-5, 50) == 0.0
+    assert e.compute_growth(100, 100) == 0.0                           # 0.0 means "no growth"...
+    assert e.compute_growth(0, 50) is None and e.compute_growth(-5, 50) is None   # ...undefined is None
     assert e.forecast_linear([]) == 0.0 and e.forecast_linear([7.0]) == 7.0
     assert e.forecast_linear([10, 20, 30]) == pytest.approx(40.0)
     assert e.forecast_linear([5, 5, 5]) == pytest.approx(5.0)

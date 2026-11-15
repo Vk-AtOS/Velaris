@@ -7,7 +7,7 @@ from importlib import import_module
 
 import pytest
 
-from velaris.core.access import AccessDenied, Caller
+from velaris.core.access import GOVERNANCE_ADMIN, AccessDenied, Caller, acting_as
 
 
 @pytest.fixture(autouse=True)
@@ -21,6 +21,7 @@ def cls(agent, name):
 
 HR = Caller(id="u-hr", org="kf", roles=frozenset({"hr_admin"}))
 ASHA = Caller(id="u-asha", org="kf", employee_id="E1")
+GOV = Caller(id="u-gov", org="kf", roles=frozenset({GOVERNANCE_ADMIN}))
 
 
 # ── MCD ──────────────────────────────────────────────────────────────────────
@@ -67,29 +68,33 @@ def test_AGENT_EVOLUTION_proposes_tuning_only_after_more_than_five_records():
 
 # ── ZOHO_PROJECTS ────────────────────────────────────────────────────────────
 class FakeZoho:
-    def __init__(self, resp):
-        self.resp, self.calls = resp, []
+    def __init__(self, resp, configured=True):
+        self.resp, self.calls, self.configured = resp, [], configured
 
     def get(self, url, params=None):
         self.calls.append((url, params))
         return self.resp
 
+    def health_check(self):
+        return {"configured": self.configured}
 
-def zp(resp):
+
+def zp(resp, configured=True):
     z = cls("ZOHO_PROJECTS", "ZohoProjectsConnector")({"portal_id": "P1"})
-    z.zoho = FakeZoho(resp)
+    z.zoho = FakeZoho(resp, configured)
     return z
 
 
-def test_ZOHO_PROJECTS_task_summary_counts_closed_and_overdue():
+def test_ZOHO_PROJECTS_task_summary_counts_closed_overdue_and_late_closed():
     past, future = 1_000, 10 ** 15
-    tasks = [{"status": {"name": "Closed"}, "end_date_long": past},
+    tasks = [{"status": {"name": "Closed"}, "end_date_long": past, "completed_time_long": past + 1},   # closed late
              {"status": {"name": "Open"}, "end_date_long": past},      # overdue
              {"status": {"name": "Open"}, "end_date_long": future},
-             {"status": {"name": "Closed"}, "end_date_long": future}]
+             {"status": {"name": "Closed"}, "end_date_long": future, "completed_time_long": past}]      # closed on time
     z = zp({"tasks": tasks})
     assert z.get_task_summary("PR", "O1") == {
-        "total_tasks": 4, "completed": 2, "completion_rate": 50.0, "overdue": 1, "on_time_rate": 50.0}
+        "total_tasks": 4, "completed": 2, "completion_rate": 50.0, "overdue": 1, "late_closed": 1,
+        "on_time_rate": 50.0}                                  # on time = closed and not closed late
     url, params = z.zoho.calls[0]
     assert url.endswith("/portal/P1/projects/PR/tasks/") and params == {"owner": "O1"}
 
@@ -97,8 +102,14 @@ def test_ZOHO_PROJECTS_task_summary_counts_closed_and_overdue():
 def test_ZOHO_PROJECTS_empty_responses_give_zero_rates_and_empty_lists():
     z = zp({})
     assert z.get_projects() == [] and z.get_timelogs("PR", "O1", "01-01-2026", "01-31-2026") == []
-    assert z.get_task_summary("PR", "O1")["completion_rate"] == 0
-    assert z.health_check() == {"agent": "ZOHO_PROJECTS", "status": "ok"}
+    s = z.get_task_summary("PR", "O1")
+    assert s["completion_rate"] == 0 and s["on_time_rate"] == 0 and s["late_closed"] == 0
+
+
+def test_ZOHO_PROJECTS_health_reports_whether_zoho_credentials_are_configured():
+    assert zp({}).health_check() == {"agent": "ZOHO_PROJECTS", "status": "ok", "configured": True}
+    assert zp({}, configured=False).health_check() == {
+        "agent": "ZOHO_PROJECTS", "status": "unconfigured", "configured": False}
 
 
 def test_ZOHO_PROJECTS_constructs_without_a_config_argument():
@@ -106,13 +117,15 @@ def test_ZOHO_PROJECTS_constructs_without_a_config_argument():
 
 
 # ── THREAT_DETECTION_MESH ────────────────────────────────────────────────────
-def test_THREAT_DETECTION_MESH_scores_ten_per_matching_signature_field():
+def test_THREAT_DETECTION_MESH_scores_ten_per_field_of_fully_matching_signatures_only():
     t = cls("THREAT_DETECTION_MESH", "ThreatDetectionMesh")()
     assert t.add_signature("brute", {"action": "login", "ok": False}) is True
     assert t.add_signature("brute", {"x": 1}) is False               # duplicate name refused
+    assert t.add_signature("probe", {"action": "scan"}) is True
     assert t.detect({"action": "login", "ok": False})["level"] == "HIGH"
     assert t.detect({"action": "login", "ok": True}) == {"event": {"action": "login", "ok": True},
-                                                         "score": 10, "level": "MEDIUM"}
+                                                         "score": 0, "level": "LOW"}   # a partial match is not evidence
+    assert t.detect({"action": "scan"}) == {"event": {"action": "scan"}, "score": 10, "level": "MEDIUM"}
     assert t.detect({"action": "read"})["level"] == "LOW"
     t.record_event({"action": "login", "ok": False})
     t.record_event({})
@@ -128,20 +141,33 @@ def test_THREAT_DETECTION_MESH_without_signatures_everything_is_low():
 # ── COMPLIANCE_GUARD ─────────────────────────────────────────────────────────
 def test_COMPLIANCE_GUARD_flags_missing_and_forbidden_fields():
     g = cls("COMPLIANCE_GUARD", "ComplianceGuard")()
-    assert g.add_rule("kyc", {"requires": ["id", "pan"], "forbidden": ["password"]}) is True
-    assert g.add_rule("kyc", {}) is False and g.list_rules() == ["kyc"]
-    bad = g.evaluate({"id": 1, "password": "x"})
+    kyc = {"requires": ["id", "pan"], "forbidden": ["password"]}
+    assert g.add_rule("kyc", kyc) is False and g.list_rules() == []  # no caller: rules are governance-admin only
+    with acting_as(ASHA):
+        assert g.add_rule("kyc", kyc) is False                       # a caller without the role
+    with acting_as(GOV):
+        assert g.add_rule("kyc", kyc) is True
+        assert g.add_rule("kyc", {"requires": ["x"]}) is False       # duplicate name refused
+        assert g.add_rule("empty", {}) is False                      # a rule must name fields
+    assert g.list_rules() == ["kyc"]
+    bad = g.evaluate({"id": 1, "password": "x"})                     # evaluating needs no role
     assert bad["status"] == "VIOLATION"
     assert bad["violations"] == ["Missing field: pan", "Forbidden field: password"]
     assert g.evaluate({"id": 1, "pan": "A"})["status"] == "OK"
+    assert g.evaluate("not a dict")["status"] == "VIOLATION"         # fail closed on a non-dict action
 
 
 def test_COMPLIANCE_GUARD_removing_rules_and_empty_registry():
     g = cls("COMPLIANCE_GUARD", "ComplianceGuard")()
-    assert g.remove_rule("ghost") is False
-    assert g.evaluate({})["status"] == "OK"                          # no rules, nothing to violate
-    g.add_rule("r", {"requires": ["a"]})
-    assert g.remove_rule("r") is True and g.evaluate({})["violations"] == []
+    with acting_as(GOV):
+        assert g.remove_rule("ghost") is False
+    assert g.evaluate({}) == {"action": {}, "violations": [], "status": "NO_RULES"}   # no rules approve nothing
+    with acting_as(GOV):
+        assert g.add_rule("r", {"requires": ["a"]}) is True
+    assert g.remove_rule("r") is False and g.list_rules() == ["r"]   # no caller: the rule stays
+    with acting_as(GOV):
+        assert g.remove_rule("r") is True
+    assert g.evaluate({})["status"] == "NO_RULES"
 
 
 # ── EXECUTION_SANDBOX ────────────────────────────────────────────────────────
@@ -157,7 +183,9 @@ def test_EXECUTION_SANDBOX_blocks_builtins_and_records_errors():
     for code in ("import os", "open('/etc/passwd')", "print(1)", "def ("):
         e = s.safe_exec(code)
         assert e["status"] == "ERROR" and e["error"], code
-    assert "ImportError" in s.get_log()[0]["error"] and "SyntaxError" in s.get_log()[3]["error"]
+    # Refused while parsing the tree (nothing is ever handed to exec), so the error is a refusal, not an ImportError.
+    assert s.get_log()[0]["error"] == "Refused: Import statements are not allowed"
+    assert s.get_log()[1]["error"].startswith("Refused:") and "SyntaxError" in s.get_log()[3]["error"]
     assert s.get_last_result() is None and s.get_last_error() == s.get_log()[3]["error"]
     log = s.get_log()
     log.clear()
