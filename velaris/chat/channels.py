@@ -11,6 +11,8 @@ from velaris.chat.errors import ChatError
 from velaris.chat.events import BadQueue
 from velaris.chat.policy import ROLES, is_assistant
 from velaris.core.access import Caller
+from velaris.chat.store import SEAL
+from velaris.core import fieldseal
 
 _NAME = re.compile(r"[\w][\w .\-]{0,79}\Z")
 _CHANGES = {"name", "archived", "retention_days", "ai_enabled"}
@@ -310,7 +312,7 @@ class ChannelsMixin(ChatCore):
             if body.strip():
                 db.execute("INSERT INTO drafts VALUES(?,?,?,?,?) ON CONFLICT(user_id, channel_id, topic) "
                            "DO UPDATE SET body=excluded.body, updated=excluded.updated",
-                           (caller.id, ch["id"], topic, body, self.clock()))
+                           (caller.id, ch["id"], topic, fieldseal.seal(body, SEAL), self.clock()))
             else:
                 db.execute("DELETE FROM drafts WHERE user_id=? AND channel_id=? AND topic=?", (caller.id, ch["id"], topic))
 

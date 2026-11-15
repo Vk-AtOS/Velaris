@@ -20,6 +20,7 @@ _No module docstring yet._
 ## Depends on
 
 - `velaris.intel.memory`
+- `velaris.intel.paths`
 
 ## State and configuration
 
@@ -29,4 +30,4 @@ _No module docstring yet._
 
 - **other agents:** `LOCAL_MEMORY_STORE`, `SHORTTERM_MEMORY`
 - **platform modules:** `velaris/api/allowlist.py`
-- **tests:** `velaris/tests/test_memory_substrate.py`
+- **tests:** `velaris/tests/test_memory_substrate.py`, `velaris/tests/test_no_state_in_source_tree.py`

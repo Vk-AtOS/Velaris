@@ -109,7 +109,7 @@ def test_errors_are_structured_and_never_carry_exception_text_or_input(env):
         assert set(r.json()["error"]) == {"code", "message"} and "Traceback" not in r.text and "sqlite" not in r.text.lower()
     assert call(env, "POST", f"/mail/mailboxes/{mb}/drafts", raw=b"not json").json()["error"]["code"] == "invalid_json"
     assert call(env, "POST", f"/mail/mailboxes/{mb}/drafts", raw=b"[1,2]").json()["error"]["code"] == "bad_request"
-    big = call(env, "POST", f"/mail/mailboxes/{mb}/drafts", raw=b'{"text":"' + b"x" * 70_000 + b'"}')
+    big = call(env, "POST", f"/mail/mailboxes/{mb}/folders", raw=b'{"name":"' + b"x" * 70_000 + b'"}')
     assert big.status_code == 413 and big.json()["error"]["code"] == "too_large"
 
 
@@ -271,3 +271,17 @@ def test_export_and_erase_over_http_and_every_call_is_traced_without_content(env
     api = [e["payload"] for e in entries if e["actor"] == "api" and e["action"].startswith("mail.")]
     assert api and all(p["caller"] and p["org"] == "acme" for p in api) and {"mail.export", "mail.erase"} <= {e["action"] for e in entries if e["actor"] == "api"}
     assert trace.verify()["ok"]
+
+
+def test_a_draft_may_carry_attachments_beyond_64_kib_but_other_bodies_stay_small(env):
+    """KAN-108: the app-wide 64 KiB body cap limited attachments to about 45 KB."""
+    ids = setup_world(env)
+    mb = ids["alice"]
+    data = base64.b64encode(b"x" * 300_000).decode()
+    r = call(env, "POST", f"/mail/mailboxes/{mb}/drafts", {"to": ["bob@acme.com"], "subject": "big", "text": "see attached",
+                                                          "attachments": [{"name": "a.bin", "data_b64": data}]})
+    assert r.status_code == 201, r.text
+    over = call(env, "POST", f"/mail/mailboxes/{mb}/folders", {"name": "x" * 70_000})
+    assert over.status_code == 413 and over.json()["error"]["code"] == "too_large"
+    huge = call(env, "POST", f"/mail/mailboxes/{mb}/drafts", raw=b'{"text": "' + b"x" * (17 * 1024 * 1024) + b'"}')
+    assert huge.status_code == 413

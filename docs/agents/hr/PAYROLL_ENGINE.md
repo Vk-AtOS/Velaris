@@ -1,12 +1,21 @@
 # PAYROLL_ENGINE
 
 - **Department:** `hr`
-- **Status (static inventory):** `rule_based`
-- **Source:** `departments/hr/PAYROLL_ENGINE/main.py` (304 lines)
+- **Status (static inventory):** `not_implemented`
+- **Source:** `departments/hr/PAYROLL_ENGINE/main.py` (340 lines)
 
 ## Purpose
 
-_No module docstring yet._
+PAYROLL_ENGINE: India statutory payroll computation (Tamil Nadu scope), Decimal arithmetic, every figure dated and sourced.
+
+Deliberately NOT implemented (KAN-198; each needs the accountant/lawyer verification of KAN-79 and is listed here so nobody assumes
+it works; a result carries status "provisional" or "needs_review" while any of it matters):
+  * ESI wage ceiling of Rs 25,000 for persons with disability (the engine applies Rs 21,000 to everyone).
+  * ESI exemption for employees earning up to Rs 176 a day.
+  * The ESI contribution-period rule (Apr-Sep / Oct-Mar: coverage held to the end of the period); the engine tests the ceiling monthly.
+  * EDLI and EPF administration charges (explicit null fields, listed under not_implemented).
+  * Statutory rounding rules of EPFO/ESIC (the engine rounds to paise, ROUND_HALF_UP).
+See statutory.py for each parameter's source, date and verified flag.
 
 ## Class `_Run`
 
@@ -39,6 +48,7 @@ says why in "review_reasons". Never pay from such a result.
 ## Depends on
 
 - `velaris.agents.PAYROLL_ENGINE`
+- `velaris.agents.PAYROLL_ENGINE.registry`
 - `velaris.agents.ZOHO_PAYROLL.main`
 - `velaris.core.access`
 

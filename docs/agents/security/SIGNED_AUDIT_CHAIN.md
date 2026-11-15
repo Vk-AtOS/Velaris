@@ -2,7 +2,7 @@
 
 - **Department:** `security`
 - **Status (static inventory):** `real`
-- **Source:** `departments/security/SIGNED_AUDIT_CHAIN/main.py` (66 lines)
+- **Source:** `departments/security/SIGNED_AUDIT_CHAIN/main.py` (101 lines)
 
 ## Purpose
 
@@ -12,7 +12,7 @@ _No module docstring yet._
 
 - `__init__()`
 - `append_event(actor, action, details)`
-- `verify_chain()`
+- `verify_chain()` — True only if every line is signed and linked and the signed head matches the end. Never raises on bad data.
 
 ## Depends on
 
@@ -26,4 +26,4 @@ _No module docstring yet._
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_agent_paths.py`, `velaris/tests/test_private_files.py`, `velaris/tests/test_signed_audit_chain.py`
+- **tests:** `velaris/tests/test_agent_paths.py`, `velaris/tests/test_kan103_trace_durability.py`, `velaris/tests/test_private_files.py`, `velaris/tests/test_signed_audit_chain.py`

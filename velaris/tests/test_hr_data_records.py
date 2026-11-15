@@ -155,3 +155,12 @@ def test_performance_export_hides_reviewers_comments_and_calibration_from_the_su
         mine = e.dsr_export("acme", "E7")["performance"]
     assert mine["calibration"] == [] and "withheld" in mine and len(mine["reviews"]) == 2
     assert "p1" not in str(mine) and "private remark" not in str(mine) and "my own comment" not in str(mine)
+
+
+def test_performance_records_have_a_retention_row_that_holds_until_verified():
+    from datetime import date
+    from velaris.agentkit import onboarding_retention as r
+    d = r.decide("performance_records", None, date(2030, 1, 1))
+    assert d["action"] == "hold" and d["status"] == "needs_review" and d["planning_years"] == 3
+    assert "no retention row" not in d["reason"]
+    assert "performance_records" in r.STATUTORY

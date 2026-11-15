@@ -17,6 +17,7 @@ import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
 import base64
+import hashlib
 import functools
 import hmac
 import logging
@@ -40,6 +41,7 @@ logger = logging.getLogger("ESIGN")
 _AGENT = "ESIGN"
 _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 MAX_DOC = 5 * 1024 * 1024
+OUTBOX_SEAL = "hr:ESIGN:outbox"       # purpose of the outbox encryption; an operator's relay reads it with state.read_lines(path, encrypted=OUTBOX_SEAL)
 MAX_FAILS, MAX_OTP_TRIES, OTP_MINUTES, MAX_REMINDERS = 10, 5, 10, 3
 _PENDING = ("sent", "viewed", "consented")
 
@@ -95,7 +97,7 @@ class Esign:
                 logger.warning("sender failed for %s %s: %s", kind, req_id, e)
         append_line(self.store.files_dir("outbox") / "outbox.jsonl",
                     {"kind": kind, "to": to, "subject": subject, "body": body, "request": req_id, "signer": signer_id,
-                     "at": iso(self._now())})
+                     "at": iso(self._now())}, encrypted=OUTBOX_SEAL)       # signing codes and addresses: sealed at rest
         return "queued_in_outbox"
 
     def _invite_body(self, req: Dict[str, Any], signer: Dict[str, Any], token: str) -> str:
@@ -287,7 +289,7 @@ class Esign:
                 raise Refused(fail("not_open", f"the request is {r['status']}" if r["status"] != "sent" else "the request has expired"))
             if s["failed"] >= MAX_FAILS:
                 raise Refused(fail("locked", "too many wrong attempts; ask for a new signing code"))
-            if not isinstance(email, str) or not hmac.compare_digest(email.strip().lower(), s["email"]):
+            if not isinstance(email, str) or not hmac.compare_digest(email.strip().lower().encode(), s["email"].encode()):   # bytes: non-ASCII is a mismatch, not a TypeError
                 s["failed"] += 1                       # returned (not raised) so the counter is saved
                 self._trace_step(req_id, sid, org, "identity_mismatch", s["state"], must=False)
                 return fail("identity_mismatch", "the e-mail does not belong to this signing code")
@@ -475,9 +477,14 @@ class Esign:
 
     # ---- reads ---------------------------------------------------------------------------------------
     def request_info(self, request_id: str, org: str) -> Optional[Dict[str, Any]]:
-        """Status and document_ref of a request of `org` for another agent (OFFER_LETTERS); not an HTTP method. No names, no tokens."""
+        """Status, document_ref, the document's SHA-256 and a SHA-256 of each signer's e-mail, for another agent (OFFER_LETTERS) that
+        must check it is the right document signed by the right person; not an HTTP method. No names, no addresses, no tokens."""
         req = self.store.get("requests", request_id, org)
-        return {"status": req["status"], "document_ref": req["document_ref"]} if req else None
+        if not req:
+            return None
+        return {"status": req["status"], "document_ref": req["document_ref"], "document_sha256": req["document_sha256"],
+                "signer_email_sha256": sorted(hashlib.sha256(s["email"].lower().encode()).hexdigest() for s in req["signers"]
+                                              if s.get("state") == "signed")}
 
     # ---- data-subject support (called by EMPLOYEE_RECORDS; not an HTTP method) ----------------------
     def dsr_export(self, org: str, subject_id: str, links: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:

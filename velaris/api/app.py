@@ -23,6 +23,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
@@ -31,13 +32,15 @@ from typing import Any, Dict, List, Optional, Tuple
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
+from velaris.api.atlassian_api import mount_atlassian
 from velaris.api.allowlist import ACT, READ, catalog, prepare, rule_for, tool_params
 from velaris.api.auth import AuthError, Verifier, load_public_key
 from velaris.api.background import interval, lifespan
 from velaris.api.observability import CountingLLM, Metrics, install as install_observability
 from velaris.chat.api import chat_router
+from velaris.chat.assistant import llm_from_env
 from velaris.chat.service import ChatService
 from velaris.control.api import mount as mount_control
 from velaris.api.trace_check import verify_incremental
@@ -51,6 +54,13 @@ from velaris.mail.api import mount_mail
 logger = logging.getLogger("velaris.api")
 
 MAX_BODY = 64 * 1024
+MAIL_DRAFT_BODY = 16 * 1024 * 1024      # a draft carries its attachments base64-encoded in the JSON body (10 MB each by default)
+_MAIL_DRAFT_PATH = re.compile(r"^/mail/mailboxes/[^/]+/drafts(/[^/]+)?$")
+
+
+def body_limit(method: str, path: str) -> int:
+    """The most bytes a request body may have: 64 KiB everywhere, except composing a mail draft with attachments."""
+    return MAIL_DRAFT_BODY if method in ("POST", "PUT") and _MAIL_DRAFT_PATH.match(path) else MAX_BODY
 CALL_TIMEOUT_S = 60.0
 ADMIN_ROLES = GOVERNANCE_ADMINS | SECURITY_ADMINS     # may verify the global trace
 FLOW_APPROVERS = frozenset({"flow_approver"})     # may decide other people's steps (local mode only)
@@ -113,7 +123,9 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
     llm = CountingLLM(settings.llm or LLM(), metrics)      # LLM spend counters for /metrics
     app = FastAPI(title="Velaris", docs_url=None, redoc_url=None, openapi_url=None)
     chat_service = ChatService()
-    app.include_router(chat_router(verifier, settings.org, service=chat_service, llm=settings.llm))     # company chat: /chat/... (velaris/chat)
+    chat_model = settings.llm or llm_from_env()             # chat builds its own gateway when none is given: count that one too
+    app.include_router(chat_router(verifier, settings.org, service=chat_service,       # company chat: /chat/... (velaris/chat)
+                                   llm=CountingLLM(chat_model, metrics) if chat_model is not None else None))
     state: Dict[str, Any] = {}
 
     @app.exception_handler(ApiError)
@@ -140,13 +152,16 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
     # ── plumbing ─────────────────────────────────────────────────────────────
     async def authed(request: Request) -> Tuple[Caller, Any]:
         """(caller, parsed JSON body or None). Refuses anything not signed by the gateway."""
-        if int(request.headers.get("content-length") or 0) > MAX_BODY:
-            raise ApiError(413, "too_large", f"the body may be at most {MAX_BODY} bytes")
-        body = b""
+        limit = body_limit(request.method, request.url.path)
+        if int(request.headers.get("content-length") or 0) > limit:
+            raise ApiError(413, "too_large", f"the body may be at most {limit} bytes")
+        chunks, size = [], 0
         async for chunk in request.stream():
-            body += chunk
-            if len(body) > MAX_BODY:
-                raise ApiError(413, "too_large", f"the body may be at most {MAX_BODY} bytes")
+            size += len(chunk)
+            if size > limit:
+                raise ApiError(413, "too_large", f"the body may be at most {limit} bytes")
+            chunks.append(chunk)
+        body = b"".join(chunks)
         path = request.url.path + (f"?{request.url.query}" if request.url.query else "")
         try:
             caller = verifier.verify(request.method, path, request.headers, body)
@@ -226,6 +241,8 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
         approver = deciding and settings.gate is None and bool(caller.roles & FLOW_APPROVERS)
         if owner.id != caller.id and not approver:
             raise ApiError(404, "unknown_run", "no such run")
+        if owner.id == caller.id:            # the owner moves their own run: roles revoked since it started do not carry over
+            owner = Caller(id=owner.id, org=owner.org, roles=owner.roles & caller.roles, employee_id=owner.employee_id)
         return owner, flow_for(owner, events[0]["tools"])
 
     # ── endpoints ────────────────────────────────────────────────────────────
@@ -234,12 +251,13 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
         return {"status": "ok"}
 
     @app.get("/agents")
-    async def agents(request: Request) -> Dict[str, Any]:
+    async def agents(request: Request) -> Response:
         caller, _ = await authed(request)
         record(caller, "agents.list", {})
         if "catalog" not in state:
-            state["catalog"] = await asyncio.to_thread(catalog, engine)
-        return state["catalog"]
+            built = await asyncio.to_thread(catalog, engine)
+            state["catalog"] = json.dumps(built, default=str).encode()          # serialised ONCE (346 agents: ~76 ms each time)
+        return Response(state["catalog"], media_type="application/json")
 
     @app.post("/agents/{agent}/{method}")
     async def call_agent(agent: str, method: str, request: Request) -> JSONResponse:
@@ -386,6 +404,7 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
     mount_control(app, authed=authed, record=record, in_thread=in_thread, api_error=ApiError, llm=llm,
                   gate=settings.gate, flow_path=settings.flow_db)       # control layer: /control/... (velaris/control)
     mail = mount_mail(app, settings, authed, record, in_thread)    # company email: /mail/... (velaris/mail)
+    mount_atlassian(app, authed, record, in_thread)                # per-user Atlassian OAuth: /integrations/atlassian/...
     app.router.lifespan_context = lifespan([       # scheduled work, see velaris.api.background
         ("mail-outbox", interval("VELARIS_MAIL_WORKER_S", 30.0), mail.outbound.process_due),
         ("chat-sweep", interval("VELARIS_CHAT_SWEEP_S", 3600.0), partial(chat_service.sweep, settings.org))])

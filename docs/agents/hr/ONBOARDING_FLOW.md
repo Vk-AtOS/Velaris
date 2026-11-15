@@ -2,7 +2,7 @@
 
 - **Department:** `hr`
 - **Status (static inventory):** `real`
-- **Source:** `departments/hr/ONBOARDING_FLOW/main.py` (536 lines)
+- **Source:** `departments/hr/ONBOARDING_FLOW/main.py` (545 lines)
 
 ## Purpose
 
@@ -44,8 +44,8 @@ Onboarding cases: checklist tasks, minimal-data capture, masked identifiers. See
 - `get_form(case_id, form)` — A submitted form's fields (identity access: the person's own, or an HR administrator).
 - `collect_document(case_id, doc_type, filename, content_base64)` — Store a scanned document: sealed at rest, hashed, with a deletion date from the retention registry.
 - `get_document(case_id, document_id)` — A collected document (base64), after authorize_read("identity"); its hash is re-checked on the way out.
-- `dsr_export(org, subject_id)` — Everything this agent holds about a person, identifiers masked. The caller has already authorised the request.
-- `dsr_erase(org, subject_id, on)` — Erase what the retention registry allows; hold the rest and say why. Returns {"erased": [...], "held": [...]}.
+- `dsr_export(org, subject_id, links)` — Everything this agent holds about a person, identifiers masked. The caller has already authorised the request.
+- `dsr_erase(org, subject_id, on, links)` — Erase what the retention registry allows; hold the rest and say why. Returns {"erased": [...], "held": [...]}.
 
 ## Depends on
 
@@ -62,6 +62,6 @@ Onboarding cases: checklist tasks, minimal-data capture, masked identifiers. See
 
 ## Called by
 
-- **other agents:** `EMPLOYEE_RECORDS`, `OFFER_LETTERS`, `POLICY_ACKS`
+- **other agents:** `EMPLOYEE_ONBOARDING`, `EMPLOYEE_RECORDS`, `OFFER_LETTERS`, `POLICY_ACKS`
 - **platform modules:** `velaris/agentkit/hr_wiring.py`, `velaris/agentkit/onboarding_adapters.py`, `velaris/agentkit/onboarding_common.py`, `velaris/api/allowlist.py`
-- **tests:** `velaris/tests/test_hr_wiring.py`, `velaris/tests/test_onboarding_flow.py`, `velaris/tests/test_onboarding_records.py`
+- **tests:** `velaris/tests/test_hr_data_legacy.py`, `velaris/tests/test_hr_data_onboarding.py`, `velaris/tests/test_hr_wiring.py`, `velaris/tests/test_onboarding_flow.py`, `velaris/tests/test_onboarding_records.py`

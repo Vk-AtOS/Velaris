@@ -2,7 +2,7 @@
 
 - **Department:** `operations`
 - **Status (static inventory):** `real`
-- **Source:** `departments/operations/OPS_REPORT/main.py` (149 lines)
+- **Source:** `departments/operations/OPS_REPORT/main.py` (155 lines)
 
 ## Purpose
 
@@ -33,7 +33,8 @@ Ported from VKatOS ops_report.
 
 ## Depends on
 
-- nothing from velaris.*
+- `velaris.core.sqlite_util`
+- `velaris.intel.paths`
 
 ## State and configuration
 
@@ -43,4 +44,4 @@ Ported from VKatOS ops_report.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** none found
+- **tests:** `velaris/tests/test_kan106_business_agents.py`, `velaris/tests/test_no_state_in_source_tree.py`

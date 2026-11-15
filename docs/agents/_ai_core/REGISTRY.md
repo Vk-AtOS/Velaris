@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `real`
-- **Source:** `departments/_ai_core/REGISTRY/main.py` (95 lines)
+- **Source:** `departments/_ai_core/REGISTRY/main.py` (100 lines)
 
 ## Purpose
 
@@ -33,4 +33,4 @@ Provides dynamic agent class loading.
 
 - **other agents:** `CONVERGENCE_BRIDGE`, `ENGINE`, `PRIME`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_registry.py`, `velaris/tests/test_system_integration.py`
+- **tests:** `velaris/tests/test_alias_layers.py`, `velaris/tests/test_registry.py`, `velaris/tests/test_system_integration.py`

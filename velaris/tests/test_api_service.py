@@ -247,3 +247,17 @@ def test_deployment_serves_one_organisation(tmp_path, monkeypatch):
     monkeypatch.delenv("VELARIS_ORG", raising=False)
     with pytest.raises(ValueError, match="VELARIS_ORG"):
         Settings.from_env()
+
+
+def test_owner_moving_a_run_loses_roles_revoked_since_it_started(tmp_path, monkeypatch):
+    """KAN-108: a run's owner roles were frozen at start; now the owner's current roles cap what the run can do."""
+    seen = []
+    monkeypatch.setattr(DemoAgent, "act_roles", lambda self, room: seen.append(sorted(current_caller().roles)) or {"ok": 1}, raising=False)
+    monkeypatch.setitem(allowlist.METHODS["DEMO"], "act_roles", Rule(ACT))
+    fake = FakePrime()
+    c = app_client(tmp_path, gate=PrimeGate("http://aetheros.test", "aesk_x", transport=httpx.MockTransport(fake.handler)))
+    r = send(c, "POST", "/agents/DEMO/act_roles", {"room": "C"}, roles=["hr_admin"]).json()
+    run_id = r["run"]["run_id"]
+    fake.req.update(state="approved", decided_by="u2", execution={"status": "succeeded"})
+    assert send(c, "GET", f"/flows/{run_id}", roles=[]).json()["status"] == "done"      # u1 is no longer hr_admin
+    assert seen == [[]]

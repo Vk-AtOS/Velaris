@@ -26,7 +26,7 @@ from velaris.agentkit.checks import ident
 from velaris.agentkit.results import fail, health, invalid, ok
 from velaris.agentkit.state import JsonState
 from velaris.agents.AAE_POLICY.main import AAE_POLICYAgent
-from velaris.core.access import check_caller
+from velaris.core.access import GOVERNANCE_ADMINS, SECURITY_ADMINS, check_caller
 from velaris.intel import trace
 
 NAME = "AAE_RUNTIME"
@@ -130,6 +130,26 @@ class AAE_RUNTIMEAgent:
         trace.append(NAME, f"action.{outcome}", {"action": aid, "type": atype, "approved_by": approved_by,
                                                  "requested_by": requested_by})
         return response
+
+    def clear_stuck(self, action_id):
+        """Operator action (security or governance admin, traced): forget an action id left 'in_progress' by a crash.
+
+        The id is blocked on purpose (at-most-once). The operator confirms first that the handler's side
+        effect did not happen (or finished), because the next run(action) with this id runs the handler again.
+        A finished, denied or failed record is never touched, and the request/approval record is kept."""
+        if ident(action_id) is None:
+            return invalid("action_id must be a name")
+        caller, refused = check_caller(NAME, "clear_stuck", {"action": action_id},
+                                       roles=GOVERNANCE_ADMINS | SECURITY_ADMINS)
+        if refused:
+            return {**refused, "action": action_id}
+        cleared = []
+        self._state.update(lambda d: cleared.append(d["journal"].pop(action_id)) if d["journal"].get(action_id, {}).get("outcome") == "in_progress" else None)
+        if not cleared:
+            return fail("not_stuck", "that action id is not in progress", action=action_id)
+        trace.append(NAME, "action.cleared", {"action": action_id, "type": cleared[0].get("type"), "by": caller.id,
+                                              "started_at": cleared[0].get("at")})
+        return ok(action=action_id, cleared=True)
 
     def history(self, action_id):
         entry = self._state.load()["journal"].get(action_id) if isinstance(action_id, str) else None

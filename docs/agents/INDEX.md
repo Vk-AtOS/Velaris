@@ -15,14 +15,14 @@
 | [ACTION_MODELING_CORE](_ai_core/ACTION_MODELING_CORE.md) | rule_based | Action modelling core: orders the actions needed for an intent by their preconditions. |
 | [ADAPTIVE_ACTION_ENGINE](_ai_core/ADAPTIVE_ACTION_ENGINE.md) | rule_based | Adaptive action engine: tries the action that has worked best for this kind of situation. |
 | [ADVANCED_SEARCH_ENGINE](_ai_core/ADVANCED_SEARCH_ENGINE.md) | real |  |
-| [AEIL](_ai_core/AEIL.md) | rule_based | Alias wrapper agent: AEIL |
+| [AEIL](_ai_core/AEIL.md) | not_implemented | Alias agent AEIL: fronts ECON_INTEL_CORE, MARKET_GAP_ANALYZER, ECONOVA. See velaris.agentkit.alias. |
 | [AGENT_EVOLUTION](_ai_core/AGENT_EVOLUTION.md) | rule_based |  |
 | [AGENT_LIFECYCLE](_ai_core/AGENT_LIFECYCLE.md) | rule_based | Agent lifecycle: message-style front for AGENT_LIFECYCLE_MANAGER. |
 | [AGENT_LIFECYCLE_MANAGER](_ai_core/AGENT_LIFECYCLE_MANAGER.md) | rule_based | Agent lifecycle manager: the state machine for every agent's operational state. |
 | [AIIE_KERNEL](_ai_core/AIIE_KERNEL.md) | real | AIIE kernel: runs the initiative pipeline stage by stage and stops at the first stage that does not pass. |
 | [ALK_ADAPT](_ai_core/ALK_ADAPT.md) | rule_based | ALK adapt: nudges a numeric setting toward the value that brings a metric to its target. |
 | [ALK_EVO](_ai_core/ALK_EVO.md) | rule_based | ALK evo: champion/challenger selection between named versions of a configuration. |
-| [ASEL](_ai_core/ASEL.md) | rule_based | Alias wrapper agent: ASEL |
+| [ASEL](_ai_core/ASEL.md) | not_implemented | Alias agent ASEL: fronts ASEL_PLANNER, ASEL_EXECUTOR, ASEL_ROUTER, ASEL_STRATEGIST, ASEL_EVALUATOR. See velaris.agentkit.alias. |
 | [ASEL_EVALUATOR](_ai_core/ASEL_EVALUATOR.md) | rule_based | ASEL evaluator: says whether an executed plan achieved what it was for. |
 | [ASEL_EXECUTOR](_ai_core/ASEL_EXECUTOR.md) | rule_based | ASEL executor: runs the steps of a plan in dependency order through caller-supplied handlers. |
 | [ASEL_PLANNER](_ai_core/ASEL_PLANNER.md) | rule_based | ASEL planner: schedules a set of dependent tasks (critical path method). |
@@ -44,8 +44,8 @@
 | [COHERENCE_SYNC_CORE](_ai_core/COHERENCE_SYNC_CORE.md) | rule_based | Coherence sync core: detects when copies of the same state have drifted apart, and says how to fix each. |
 | [CONTEXTUAL_SELF_MODEL](_ai_core/CONTEXTUAL_SELF_MODEL.md) | rule_based | Contextual self model: the platform's own record of facts about itself, with per-context overrides. |
 | [CONTROL_LAYER](_ai_core/CONTROL_LAYER.md) | rule_based | CONTROL_LAYER: narrow, scripted work in files, a terminal or a browser, logged and mostly reversible. |
-| [CORE_CONVERGENCE](_ai_core/CORE_CONVERGENCE.md) | rule_based | Alias wrapper agent: CORE_CONVERGENCE |
-| [CRK](_ai_core/CRK.md) | rule_based | Alias wrapper agent: CRK |
+| [CORE_CONVERGENCE](_ai_core/CORE_CONVERGENCE.md) | not_implemented | Alias agent CORE_CONVERGENCE: fronts EOF_CORE, EOF_GATEWAY, EOF_POLICY, ENGINE. See velaris.agentkit.alias. |
+| [CRK](_ai_core/CRK.md) | not_implemented | Alias agent CRK: fronts CRK_CHAIN, CRK_CONTEXT, CRK_INTENT, CRK_REASONER, CRK_VALIDATOR. See velaris.agentkit.alias. |
 | [CRK_CHAIN](_ai_core/CRK_CHAIN.md) | rule_based | CRK chain: puts the steps of an argument in dependency order and seals them. |
 | [CRK_CONTEXT](_ai_core/CRK_CONTEXT.md) | real | CRK context: turns raw facts into a screened fact set that rules can safely run on. |
 | [CRK_INTENT](_ai_core/CRK_INTENT.md) | real | CRK intent: names what a short request is asking for, from a fixed list of intents. |
@@ -72,8 +72,8 @@
 | [EOF_CORE](_ai_core/EOF_CORE.md) | rule_based | EOF_CORE: turns a plan into ordered, policy-checked hand-offs. |
 | [EOF_GATEWAY](_ai_core/EOF_GATEWAY.md) | real | EOF_GATEWAY: a durable message hand-off between agents. |
 | [EOF_POLICY](_ai_core/EOF_POLICY.md) | rule_based | EOF_POLICY: checks one record (a plan step, an action) against one declared policy. |
-| [FSCL](_ai_core/FSCL.md) | rule_based | Alias wrapper agent: FSCL |
-| [GCK](_ai_core/GCK.md) | rule_based | Alias wrapper agent: GCK |
+| [FSCL](_ai_core/FSCL.md) | not_implemented | Alias agent FSCL: fronts SOUL_VELARIS, PRIME, ENGINE. See velaris.agentkit.alias. |
+| [GCK](_ai_core/GCK.md) | not_implemented | Alias agent GCK: fronts GLOBAL_STATE_MAP. See velaris.agentkit.alias. |
 | [HFAL](_ai_core/HFAL.md) | real |  |
 | [HUMAN_APPROVAL_WORKFLOW](_ai_core/HUMAN_APPROVAL_WORKFLOW.md) | rule_based | HUMAN_APPROVAL_WORKFLOW: an in-memory approval request book. |
 | [HYPERSTATE_SYNTHESIZER](_ai_core/HYPERSTATE_SYNTHESIZER.md) | rule_based | HYPERSTATE_SYNTHESIZER: merges several partial state snapshots into one, reporting conflicts. |
@@ -250,7 +250,7 @@
 | [LEAVE_MANAGEMENT](hr/LEAVE_MANAGEMENT.md) | real |  |
 | [OFFER_LETTERS](hr/OFFER_LETTERS.md) | real | OFFER_LETTERS: generate, approve, version, send, expire and record the outcome of an offer letter. |
 | [ONBOARDING_FLOW](hr/ONBOARDING_FLOW.md) | real | ONBOARDING_FLOW: a checklist-and-task flow for a new joiner, plus minimal-data capture of the paperwork. |
-| [PAYROLL_ENGINE](hr/PAYROLL_ENGINE.md) | rule_based |  |
+| [PAYROLL_ENGINE](hr/PAYROLL_ENGINE.md) | not_implemented | PAYROLL_ENGINE: India statutory payroll computation (Tamil Nadu scope), Decimal arithmetic, every figure dated and sourced. |
 | [PERFORMANCE_REVIEW_ENGINE](hr/PERFORMANCE_REVIEW_ENGINE.md) | real |  |
 | [POLICY_ACKS](hr/POLICY_ACKS.md) | real | POLICY_ACKS: policy documents with versions, per-employee acknowledgement evidence, reminders and a compliance report. |
 | [RECRUITMENT_ATS](hr/RECRUITMENT_ATS.md) | real | RECRUITMENT_ATS — Velaris BOS agent for Knackforge |
@@ -324,23 +324,23 @@
 | [BUSINESS_OPS_ENGINE](operations/BUSINESS_OPS_ENGINE.md) | rule_based |  |
 | [CODEX](operations/CODEX.md) | rule_based |  |
 | [CONNECTOR_LAYER](operations/CONNECTOR_LAYER.md) | rule_based |  |
-| [CONVERGENCE_BRIDGE](operations/CONVERGENCE_BRIDGE.md) | rule_based | Alias wrapper agent: CONVERGENCE_BRIDGE |
+| [CONVERGENCE_BRIDGE](operations/CONVERGENCE_BRIDGE.md) | not_implemented | Alias agent CONVERGENCE_BRIDGE: fronts ORCHESTRIX, COHERENCE_SYNC_CORE, REGISTRY. See velaris.agentkit.alias. |
 | [DYNAMICA](operations/DYNAMICA.md) | rule_based |  |
 | [FABRICA](operations/FABRICA.md) | rule_based |  |
 | [FLUXOR](operations/FLUXOR.md) | rule_based |  |
 | [GENEFLOW](operations/GENEFLOW.md) | rule_based |  |
 | [HELIX](operations/HELIX.md) | rule_based |  |
-| [HYPERSYNC](operations/HYPERSYNC.md) | rule_based | Alias wrapper agent: HYPERSYNC |
+| [HYPERSYNC](operations/HYPERSYNC.md) | not_implemented | Alias agent HYPERSYNC: fronts COHERENCE_SYNC_CORE, CSG_STATEALIGN. See velaris.agentkit.alias. |
 | [MULTI_TENANT_ENGINE](operations/MULTI_TENANT_ENGINE.md) | rule_based |  |
-| [NIRVANA](operations/NIRVANA.md) | rule_based | Alias wrapper agent: NIRVANA |
+| [NIRVANA](operations/NIRVANA.md) | not_implemented | Alias agent NIRVANA: fronts SELF_CORRECTION_ENGINE, SANITY_VERIFIER, FAILOVER_ROUTER. See velaris.agentkit.alias. |
 | [OPERATUS](operations/OPERATUS.md) | rule_based |  |
 | [OPS_REPORT](operations/OPS_REPORT.md) | real | OPS_REPORT — Velaris BOS agent for Knackforge |
 | [OPTIMA](operations/OPTIMA.md) | rule_based |  |
 | [PIPELINE_MONITOR](operations/PIPELINE_MONITOR.md) | real | PIPELINE_MONITOR — Velaris BOS agent for Knackforge |
 | [POLARIS](operations/POLARIS.md) | rule_based |  |
 | [QUALITY_CONTROL_ENGINE](operations/QUALITY_CONTROL_ENGINE.md) | rule_based | QUALITY_CONTROL_ENGINE: a batch checked against a u-chart and explicit disposition rules. |
-| [SAGE](operations/SAGE.md) | rule_based | Alias wrapper agent: SAGE |
-| [SANDE](operations/SANDE.md) | rule_based | Alias wrapper agent: SANDE |
+| [SAGE](operations/SAGE.md) | not_implemented | Alias agent SAGE: fronts STRATEGOS, STRATEGIC_INTEL, CSM_CORE. See velaris.agentkit.alias. |
+| [SANDE](operations/SANDE.md) | not_implemented | Alias agent SANDE: fronts LOCAL_ACCELERATOR, LOCAL_AUTONOMY_CORE, LOCAL_REGISTRY_CACHE, LOCAL_ROUTER, LOCAL_MEMORY_STORE. See velaris.agentkit.alias. |
 | [SKILLPACK_LOADER](operations/SKILLPACK_LOADER.md) | real |  |
 | [SLA_MONITOR](operations/SLA_MONITOR.md) | real | SLA_MONITOR — Velaris BOS agent for Knackforge |
 | [VELOCITY_LOOP](operations/VELOCITY_LOOP.md) | rule_based | VELOCITY_LOOP: where one piece of work lost its time. |

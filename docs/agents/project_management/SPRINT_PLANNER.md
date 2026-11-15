@@ -2,7 +2,7 @@
 
 - **Department:** `project_management`
 - **Status (static inventory):** `real`
-- **Source:** `departments/project_management/SPRINT_PLANNER/main.py` (170 lines)
+- **Source:** `departments/project_management/SPRINT_PLANNER/main.py` (178 lines)
 
 ## Purpose
 
@@ -24,7 +24,8 @@ Integrates with ZOHO_PROJECTS for task sync when configured.
 
 ## Depends on
 
-- nothing from velaris.*
+- `velaris.core.sqlite_util`
+- `velaris.intel.paths`
 
 ## State and configuration
 
@@ -34,4 +35,4 @@ Integrates with ZOHO_PROJECTS for task sync when configured.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** none found
+- **tests:** `velaris/tests/test_kan106_business_agents.py`, `velaris/tests/test_no_state_in_source_tree.py`

@@ -2,7 +2,7 @@
 
 - **Department:** `communications`
 - **Status (static inventory):** `real`
-- **Source:** `departments/communications/CALL_TRANSCRIBER/main.py` (123 lines)
+- **Source:** `departments/communications/CALL_TRANSCRIBER/main.py` (141 lines)
 
 ## Purpose
 
@@ -23,7 +23,7 @@ No audio is sent to any external API. Fully air-gapped capable.
 
 ## Depends on
 
-- nothing from velaris.*
+- `velaris.intel.paths`
 
 ## State and configuration
 
@@ -33,4 +33,4 @@ No audio is sent to any external API. Fully air-gapped capable.
 
 - **other agents:** `MEETING_SUMMARIZER`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_requirements.py`
+- **tests:** `velaris/tests/test_kan104_unauthenticated_writes.py`, `velaris/tests/test_requirements.py`

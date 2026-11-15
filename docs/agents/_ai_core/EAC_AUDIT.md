@@ -36,4 +36,4 @@ identifiers before they are written.
 
 - **other agents:** `EAC_CORE`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_b_eac.py`, `velaris/tests/test_layer29_eac.py`
+- **tests:** `velaris/tests/test_aicore_b_eac.py`, `velaris/tests/test_kan103_trace_durability.py`, `velaris/tests/test_layer29_eac.py`

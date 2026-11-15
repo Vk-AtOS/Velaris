@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/_ai_core/VPSE_SCENARIO/main.py` (141 lines)
+- **Source:** `departments/_ai_core/VPSE_SCENARIO/main.py` (144 lines)
 
 ## Purpose
 
@@ -44,4 +44,4 @@ zero it causes) is reported as an error without hiding the others.
 
 - **other agents:** `VPSE_CORE`, `VPSE_MODELER`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_b_vpse.py`, `velaris/tests/test_layer30_vpse.py`
+- **tests:** `velaris/tests/test_aicore_b_vpse.py`, `velaris/tests/test_kan106_aicore.py`, `velaris/tests/test_layer30_vpse.py`

@@ -2,7 +2,7 @@
 
 - **Department:** `security`
 - **Status (static inventory):** `real`
-- **Source:** `departments/security/ZERO_TRUST_PIPELINE/main.py` (193 lines)
+- **Source:** `departments/security/ZERO_TRUST_PIPELINE/main.py` (195 lines)
 
 ## Purpose
 

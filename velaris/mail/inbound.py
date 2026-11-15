@@ -23,7 +23,7 @@ import sqlite3
 from typing import Any, Callable, Optional, Tuple
 
 from velaris.core.access import deployment_org
-from velaris.mail import dkim, rules, spam
+from velaris.mail import dkim, dsn, rules, spam
 from velaris.mail.common import DnsError, MailError, audit
 from velaris.mail.dnsauth import DmarcResult, SpfResult, UnavailableResolver, authentication_results, check_dmarc, check_spf
 from velaris.mail.mime import domain_of, parse_message
@@ -95,6 +95,11 @@ class InboundPipeline:
                 logger.warning("delivery storage failed: %s", type(e).__name__)
                 temp = True
                 continue
+            if pk:
+                try:        # a bounce of something we sent marks that submission, whatever the spam verdict on the report: it only
+                    dsn.apply(self.store, mb, env.data)       # counts if it quotes the random Message-ID of one of our own sent messages
+                except (MailError, sqlite3.Error, ValueError, KeyError) as e:
+                    logger.warning("bounce handling failed: %s", type(e).__name__)
             if pk and not quarantine:
                 try:
                     rules.apply_inbound(self.store, self.outbound, mb, pk)
@@ -114,6 +119,7 @@ class InboundPipeline:
         pk = self.store.deliver(mb["id"], p, auth_results=f"{self.authserv}; internal=trusted", source="inbound")
         if pk:
             try:
+                dsn.apply(self.store, mb, raw)
                 rules.apply_inbound(self.store, self.outbound, mb, pk)
             except (MailError, sqlite3.Error, ValueError, KeyError) as e:
                 logger.warning("rules failed: %s", type(e).__name__)

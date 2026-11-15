@@ -21,6 +21,8 @@ import threading
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Sequence
 
+from velaris.core import fieldseal
+from velaris.core.sqlite_util import connect as connect_db
 from velaris.intel.paths import PRIVATE_FILE, agent_dir
 
 SCHEMA = """
@@ -63,6 +65,9 @@ CREATE TABLE IF NOT EXISTS ai_proposals(run_id TEXT PRIMARY KEY, org TEXT NOT NU
   source_message_id INTEGER NOT NULL, decided_by TEXT, requester_confirmed INTEGER NOT NULL DEFAULT 0,
   confirmed_hash TEXT, confirmed_at REAL, context_authors TEXT NOT NULL DEFAULT '[]');
 """
+SEAL = "chat"                 # message text is sealed at rest (velaris.core.fieldseal); the search index holds blind tokens
+SEALED = ("body",)
+_SCAN_LIMIT = 2000            # no-FTS fallback: newest messages of the user's channels that are decrypted and searched
 _PROPOSAL_COLUMNS = ("requester_confirmed INTEGER NOT NULL DEFAULT 0", "confirmed_hash TEXT", "confirmed_at REAL",
                      "context_authors TEXT NOT NULL DEFAULT '[]'")
 _FTS = "CREATE VIRTUAL TABLE IF NOT EXISTS msg_fts USING fts5(body, tokenize='unicode61')"
@@ -81,10 +86,11 @@ class Store:
         os.fchmod(fd, PRIVATE_FILE)
         os.close(fd)
         self.lock = threading.RLock()
-        self.db = sqlite3.connect(self.path, check_same_thread=False, isolation_level=None)
-        self.db.row_factory = sqlite3.Row
+        self.db = connect_db(self.path, check_same_thread=False, isolation_level=None)
+        self.db.row_factory = fieldseal.row_class(SEAL, SEALED)
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.execute("PRAGMA foreign_keys=ON")
+        self.db.execute("PRAGMA secure_delete=ON")        # erased and edited text must not linger in freed pages (DPDP)
         self.db.executescript(SCHEMA)
         self._migrate()
         self.fts = False
@@ -94,10 +100,27 @@ class Store:
                 self.fts = True
             except sqlite3.OperationalError:
                 self.fts = False
+        self._seal_at_rest()
         for suffix in ("-wal", "-shm"):
             side = Path(str(self.path) + suffix)
             if side.exists():
                 os.chmod(side, PRIVATE_FILE)
+
+    def _seal_at_rest(self) -> None:
+        """Seal message text written before sealing existed and rebuild the search index from blind tokens (once)."""
+        done = self.one("SELECT 1 FROM settings WHERE org='' AND key='sealed_v1'")
+        if done:
+            return
+        for table, key in (("messages", "id"), ("edits", "rowid"), ("drafts", "rowid"), ("ai_drafts", "id")):
+            fieldseal.seal_existing(self.db, table, ["body"], SEAL, key=key)
+        if self.fts:                                    # the old index holds readable words: replace it
+            self.db.execute("DROP TABLE IF EXISTS msg_fts")
+            self.db.execute(_FTS)
+            for r in self.db.execute("SELECT id, body FROM messages WHERE deleted_at IS NULL AND erased=0").fetchall():
+                self.db.execute("INSERT INTO msg_fts(rowid, body) VALUES(?,?)", (r["id"], fieldseal.blind_tokens(r["body"], SEAL)))
+        self.db.execute("INSERT OR REPLACE INTO settings VALUES('', 'sealed_v1', '1')")
+        self.db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        self.db.execute("VACUUM")                       # the plaintext pages (rows, old index) must not stay in the file
 
     def _migrate(self) -> None:
         """Idempotent, in place. Proposals made before the two-key rule have no requester confirmation and no
@@ -175,7 +198,7 @@ class Store:
     def index(self, db: sqlite3.Connection, message_id: int, body: str) -> None:
         if self.fts:
             db.execute("DELETE FROM msg_fts WHERE rowid=?", (message_id,))
-            db.execute("INSERT INTO msg_fts(rowid, body) VALUES(?,?)", (message_id, body))
+            db.execute("INSERT INTO msg_fts(rowid, body) VALUES(?,?)", (message_id, fieldseal.blind_tokens(body, SEAL)))
 
     def unindex(self, db: sqlite3.Connection, message_id: int) -> None:
         if self.fts:
@@ -196,12 +219,11 @@ class Store:
         if self.fts:
             sql = (f"SELECT m.* FROM msg_fts JOIN messages m ON m.id = msg_fts.rowid WHERE msg_fts MATCH ? AND {scope} "
                    "ORDER BY m.id DESC LIMIT ?")
-            first: List[Any] = [" ".join(f'"{t}"' for t in terms)]      # \w+ tokens only: no query syntax can get in
-        else:
-            like = " AND ".join("lower(m.body) LIKE ? ESCAPE '\\'" for _ in terms)
-            sql = f"SELECT m.* FROM messages m WHERE {like} AND {scope} ORDER BY m.id DESC LIMIT ?"
-            first = [f"%{_escape_like(t)}%" for t in terms]
-        return self.all(sql, first + args + [limit])
+            first = " ".join(f'"{t}"' for t in fieldseal.blind_query(terms, SEAL))   # hex tokens only: no query syntax can get in
+            return self.all(sql, [first] + args + [limit]) if first else []
+        # ponytail: without FTS5 the newest _SCAN_LIMIT messages of the user's channels are decrypted and filtered here.
+        rows = self.all(f"SELECT m.* FROM messages m WHERE {scope} ORDER BY m.id DESC LIMIT {_SCAN_LIMIT}", args)
+        return [m for m in rows if all(t in (m["body"] or "").lower() for t in terms)][:limit]
 
 
 def message_view(row: sqlite3.Row, reactions: Dict[str, List[str]]) -> Dict[str, Any]:

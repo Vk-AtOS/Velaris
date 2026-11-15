@@ -13,8 +13,11 @@ root user are out of scope.
 """
 from __future__ import annotations
 
+import logging
 import os
 import secrets
+import shutil
+import sqlite3
 import stat
 from pathlib import Path
 from typing import IO, Union
@@ -23,6 +26,10 @@ PRIVATE_FILE = 0o600
 PRIVATE_DIR = 0o700
 _NOFOLLOW = getattr(os, "O_NOFOLLOW", 0)
 _OPEN_FLAGS = {"r": os.O_RDONLY, "a": os.O_WRONLY | os.O_APPEND | os.O_CREAT}
+
+logger = logging.getLogger(__name__)
+_REPO = Path(__file__).resolve().parents[2]
+_OLD_TMP = {"longterm.json": "/tmp/velaris_longterm.json", "registry.json": "/tmp/velaris_offline_registry.json"}
 
 PathLike = Union[str, "os.PathLike[str]"]
 
@@ -53,8 +60,52 @@ def agent_dir(name: str) -> Path:
 
 def agent_file(name: str, filename: str) -> str:
     """THE place an agent's database or document lives: <data_dir>/agents/<name>/<filename> (directory created
-    owner-only). Nothing is written inside the source tree or the working directory (KAN-113)."""
-    return str(agent_dir(name) / filename)
+    owner-only). Nothing is written inside the source tree or the working directory (KAN-113).
+
+    A file the agent used to keep in the source tree, the working directory or /tmp is adopted ONCE (copied, the
+    original is left in place) when the new file does not exist yet, so an upgrade does not start from empty."""
+    dest = agent_dir(name) / filename
+    adopt_legacy(name, dest)
+    return str(dest)
+
+
+def legacy_candidates(name: str, filename: str) -> list:
+    """Where older releases kept <name>/<filename>: next to the agent's source, in the working directory, in /tmp."""
+    found = sorted(_REPO.glob(f"departments/*/{name}/{filename}"))
+    found += [Path.cwd() / filename]
+    if filename in _OLD_TMP:
+        found.append(Path(_OLD_TMP[filename]))
+    return [p for p in found if p.is_file() and not p.is_symlink()]
+
+
+def adopt_legacy(name: str, dest: PathLike) -> bool:
+    """Copy the first legacy file for agent `name` to `dest` if `dest` is absent. SQLite files go through the online
+    backup API (a consistent copy even if something still holds them open); a file that is not a valid database is not
+    adopted. Returns True when something was copied. VELARIS_ADOPT_LEGACY=0 turns it off."""
+    dest = Path(dest)
+    if dest.exists() or os.environ.get("VELARIS_ADOPT_LEGACY", "1") == "0":
+        return False
+    for src in legacy_candidates(name, dest.name):
+        tmp = dest.with_name(f".{dest.name}.adopt.{secrets.token_hex(4)}")
+        try:
+            if dest.suffix == ".db":
+                s, d = sqlite3.connect(f"file:{src}?mode=ro", uri=True), sqlite3.connect(tmp)
+                try:
+                    s.backup(d)
+                finally:
+                    s.close()
+                    d.close()
+                os.chmod(tmp, PRIVATE_FILE)
+            else:
+                write_private(tmp, src.read_bytes())
+            os.replace(tmp, dest)
+        except (OSError, sqlite3.Error) as e:
+            logger.warning("legacy file %s for %s was not adopted: %s", src, name, type(e).__name__)
+            tmp.unlink(missing_ok=True)
+            continue
+        logger.warning("adopted legacy file %s into %s (original left in place; remove it once checked)", src, dest)
+        return True
+    return False
 
 
 def open_private(path: PathLike, mode: str = "rb") -> IO:

@@ -1,4 +1,7 @@
-"""Desktop surface: macOS accessibility (AX). A documented stub; nothing is automated here.
+"""Desktop surface: macOS accessibility (AX). OUT OF SCOPE for this release (KAN-198): a declared stub, nothing is automated here.
+It needs a device with the Accessibility permission, an app allow-list and a VM or dedicated session, which only the owner can
+provide; every call answers `not_configured`, so no task can run on the desktop by mistake. The browser surface is
+velaris.control.browser (KAN-72).
 
 What a real one would be: observe() walks the AX tree of the front window (role, title, value,
 element path) and assigns refs exactly like the other surfaces; act() presses a ref, sets a

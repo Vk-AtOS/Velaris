@@ -2,7 +2,7 @@
 
 - **Department:** `marketing`
 - **Status (static inventory):** `real`
-- **Source:** `departments/marketing/VMRK/main.py` (24 lines)
+- **Source:** `departments/marketing/VMRK/main.py` (26 lines)
 
 ## Purpose
 
@@ -26,4 +26,4 @@ _No module docstring yet._
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_agent_paths.py`, `velaris/tests/test_private_files.py`
+- **tests:** `velaris/tests/test_agent_paths.py`, `velaris/tests/test_kan106_business_agents.py`, `velaris/tests/test_private_files.py`

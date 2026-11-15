@@ -26,7 +26,7 @@ DEFAULTS: Dict[str, Any] = {
     "max_recipients": 5,            # more than this (to+cc+bcc) needs a second person
     "undo_window_s": 30, "max_message_bytes": 25 * MB, "max_attachment_bytes": 10 * MB, "default_quota_bytes": 1024 * MB,
     "retention_days": 0, "trash_retention_days": 30, "spam_retention_days": 30,
-    "spam_threshold": 5.0, "autoreply_external": True,
+    "spam_threshold": 5.0, "autoreply_external": False,
 }
 _INT = {"max_recipients": (1, 500), "undo_window_s": (0, 300), "max_message_bytes": (1024, 100 * MB),
         "max_attachment_bytes": (0, 100 * MB), "default_quota_bytes": (MB, 1024 * 1024 * MB), "retention_days": (0, 36500),

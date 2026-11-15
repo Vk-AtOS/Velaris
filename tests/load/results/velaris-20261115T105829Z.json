@@ -1,0 +1,64 @@
+{
+  "when_utc": "2026-11-15T10:58:29Z",
+  "tool": "tools/load_velaris.py",
+  "users": 50,
+  "seconds_per_endpoint": 15.0,
+  "workers": 1,
+  "startup_s": 37.2,
+  "first_agents_call_s": 15.52,
+  "first_agents_status": 200,
+  "trace_entries_after": 1850,
+  "trace_verify_after_status": 200,
+  "results": [
+    {
+      "endpoint": "health",
+      "users": 50,
+      "requests": 2345,
+      "errors": 0,
+      "per_second": 152.8,
+      "p50_ms": 320.4,
+      "p95_ms": 463.1,
+      "p99_ms": 629.8,
+      "max_ms": 674.8
+    },
+    {
+      "endpoint": "agents",
+      "users": 50,
+      "requests": 254,
+      "errors": 0,
+      "per_second": 13.1,
+      "p50_ms": 3462.2,
+      "p95_ms": 4492.7,
+      "p99_ms": 4650.3,
+      "max_ms": 4667.2
+    },
+    {
+      "endpoint": "trace_verify",
+      "users": 50,
+      "requests": 717,
+      "errors": 0,
+      "per_second": 43.0,
+      "p50_ms": 1031.3,
+      "p95_ms": 1995.1,
+      "p99_ms": 2148.2,
+      "max_ms": 2336.6
+    },
+    {
+      "endpoint": "mail_list",
+      "users": 50,
+      "requests": 877,
+      "errors": 0,
+      "per_second": 57.1,
+      "p50_ms": 811.5,
+      "p95_ms": 1426.0,
+      "p99_ms": 1502.7,
+      "max_ms": 1587.7
+    }
+  ],
+  "machine": {
+    "platform": "macOS-26.7.3-x86_64-i386-64bit",
+    "python": "3.11.14",
+    "cpus": 12
+  },
+  "caveat": "one machine, loopback, no Redis/Postgres, other processes may share the CPU: a design measurement, not a production capacity figure"
+}

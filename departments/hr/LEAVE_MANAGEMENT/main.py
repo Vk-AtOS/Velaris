@@ -3,6 +3,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 
 import logging
 import sqlite3
+
+from velaris.core.sealed_sqlite import connect_sealed
 from datetime import date, timedelta
 from typing import Dict, Any, List, Optional
 
@@ -18,7 +20,7 @@ _DB = ""          # tests may point this elsewhere; empty means <VELARIS_DATA>/a
 
 
 def _db() -> sqlite3.Connection:
-    conn = sqlite3.connect(_DB or str(agent_dir("LEAVE_MANAGEMENT") / "leaves.db"))
+    conn = connect_sealed(_DB or str(agent_dir("LEAVE_MANAGEMENT") / "leaves.db"), "hr:LEAVE_MANAGEMENT")
     conn.row_factory = sqlite3.Row
     conn.execute("""
         CREATE TABLE IF NOT EXISTS leave_requests (
@@ -113,10 +115,21 @@ class LeaveManagement:
         who = gate_change("LEAVE_MANAGEMENT", "apply", None if mine else HR_ADMINS, {"employee": str(employee_id)[:40]})
         if leave_type not in _LEAVE_TYPES:
             return {"error": f"invalid leave_type; must be one of {list(_LEAVE_TYPES.keys())}"}
+        try:
+            from_date, to_date = date.fromisoformat(from_date).isoformat(), date.fromisoformat(to_date).isoformat()   # canonical: comparable as text
+        except (TypeError, ValueError):
+            return {"error": "invalid_date", "reason": "from_date and to_date must be YYYY-MM-DD"}
         days = _business_days(from_date, to_date)
         if days <= 0:
             return {"error": "no business days in requested range"}
         conn = _db()
+        clash = conn.execute(
+            "SELECT id, from_date, to_date, status FROM leave_requests WHERE employee_id=? AND org=? AND status IN ('pending','approved') "
+            "AND from_date<=? AND to_date>=? LIMIT 1", (employee_id, who.org, to_date, from_date)).fetchone()
+        if clash:                                   # the same days cannot be taken twice (and would be deducted twice)
+            conn.close()
+            return {"error": "overlapping_leave", "existing_id": clash["id"], "existing_from": clash["from_date"],
+                    "existing_to": clash["to_date"], "existing_status": clash["status"]}
         # check balance
         row = conn.execute(
             "SELECT entitlement, used FROM leave_balances WHERE employee_id=? AND leave_type=? AND year=?",

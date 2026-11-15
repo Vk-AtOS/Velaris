@@ -248,3 +248,22 @@ def test_staff_actions_on_a_session_need_a_connection_to_it(env):
         assert rec.issue_participant_token(session_id=sess)["status"] == "denied"
     with as_(c["mgr"]):
         assert rec.mark_event(session_id=sess, seq=1, mark="relevant", reason="x")["status"] == "ok"
+
+
+def test_appending_an_event_does_not_read_the_whole_log_and_heals_a_session_record_that_lags(monkeypatch):
+    """KAN-64 review: every event decrypted and parsed up to 50,000 lines under the store lock shared by all organisations."""
+    from velaris.agentkit import hiring_record as hr
+    from velaris.agentkit.state import append_line
+    s = {"id": "s1", "status": "open", "org": "acme", "event_count": 0, "chain_head": hr.GENESIS, "tracks": {},
+         "consents": {"candidate": {"scopes": ["events"], "notice_version": "v", "at": 1, "withdrawn_at": None}},
+         "retention_until": "2999-01-01"}
+    reads = []
+    real = hr.read_lines
+    monkeypatch.setattr(hr, "read_lines", lambda *a, **k: reads.append(1) or real(*a, **k))
+    for i in range(30):
+        hr.append_event("acme", s, "candidate", "join", None)
+    assert reads == [] and s["event_count"] == 30
+    assert hr.verify_chain(real(hr._events_path("s1"), encrypted=hr._SEAL))
+    s["event_count"], s["chain_head"] = 29, "x" * 64                  # the session record lags behind the file (crash between the two writes)
+    e = hr.append_event("acme", s, "candidate", "join", None)
+    assert reads == [1] and e["seq"] == 31 and hr.verify_chain(real(hr._events_path("s1"), encrypted=hr._SEAL))

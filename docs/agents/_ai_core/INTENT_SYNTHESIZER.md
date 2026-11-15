@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `real`
-- **Source:** `departments/_ai_core/INTENT_SYNTHESIZER/main.py` (68 lines)
+- **Source:** `departments/_ai_core/INTENT_SYNTHESIZER/main.py` (73 lines)
 
 ## Purpose
 
@@ -42,4 +42,4 @@ The model never fills in action, amounts or dates.
 
 - **other agents:** `AIIE_KERNEL`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_AI_IE_layer.py`, `velaris/tests/test_aicore_b_aiie.py`
+- **tests:** `velaris/tests/test_AI_IE_layer.py`, `velaris/tests/test_aicore_b_aiie.py`, `velaris/tests/test_kan106_aicore.py`

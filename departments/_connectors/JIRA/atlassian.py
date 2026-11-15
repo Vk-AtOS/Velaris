@@ -15,6 +15,11 @@ therefore read only inside an explicit allow-list, config jira_projects / conflu
 secrets ATLASSIAN_JIRA_PROJECTS / ATLASSIAN_CONFLUENCE_SPACES (comma-separated keys). Unset or empty means
 nothing is readable. Queries are wrapped server-side (scope_query); results are checked again.
 
+Per-user mode (KAN-73): with config["auth"] == "oauth" (or VELARIS_ATLASSIAN_AUTH=oauth) no service credential is used. Each call runs
+with the CURRENT CALLER's own OAuth 2.0 (3LO) token (velaris.core.atlassian_oauth) against api.atlassian.com/ex/{jira|confluence}/{cloud id},
+so Atlassian applies that person's own permissions. A caller who has not connected, or whose grant was revoked, gets
+AtlassianError("user_not_connected" / "reauthorize_required"); there is no fallback to a shared account. The allow-lists still apply.
+
 Rate limits: 429 (and 503) with Retry-After is waited out, up to MAX_RETRIES times and MAX_WAIT_S
 each, then AtlassianError("rate_limited") is raised.
 """
@@ -22,6 +27,7 @@ from __future__ import annotations
 
 import base64
 import logging
+import os
 import re
 import time
 from typing import Any, Callable, Dict, List, Optional
@@ -31,7 +37,8 @@ import httpx
 
 import sys
 
-from velaris.core.access import check_caller
+from velaris.core.access import Caller, check_caller, current_caller
+from velaris.core.atlassian_oauth import API_BASE, OAuth, OAuthError
 from velaris.intel import guard
 from velaris.intel.flow import Flow
 from velaris.intel.web_fetch import FetchError, Resolver, _resolve, check_public, pinned
@@ -194,8 +201,11 @@ class AtlassianClient:
     def __init__(self, config: Optional[Dict[str, Any]] = None, *, transport: Optional[httpx.BaseTransport] = None,
                  resolver: Resolver = _resolve, sleep: Callable[[float], None] = time.sleep, vault: Any = None) -> None:
         config = config or {}
-        self._creds = load_credentials(config, vault)
+        self._creds = {} if (config.get("auth") == "oauth" or os.environ.get("VELARIS_ATLASSIAN_AUTH") == "oauth") else load_credentials(config, vault)
         self._config, self._vault, self._scopes = config, vault, {}
+        self._oauth: Optional[OAuth] = None
+        if config.get("auth") == "oauth" or os.environ.get("VELARIS_ATLASSIAN_AUTH") == "oauth":
+            self._oauth = config.get("oauth") or OAuth()
         self._resolver, self._sleep = resolver, sleep
         self._hosts = {h.lower() for h in config.get("allowed_hosts", [])}
         self.site = self._creds.get("site", "").rstrip("/")
@@ -211,6 +221,8 @@ class AtlassianClient:
 
     @property
     def configured(self) -> bool:
+        if self._oauth is not None:
+            return self._oauth.configured
         return all(k in self._creds for k in SECRET_NAMES) and self._site_error() is None
 
     def _site_error(self) -> Optional[str]:
@@ -230,17 +242,38 @@ class AtlassianClient:
                 json_body: Optional[Dict[str, Any]] = None) -> Any:
         """One API call; returns the decoded JSON (None for an empty body). Raises AtlassianError."""
         if not self.configured:
-            raise AtlassianError("not_configured", "Atlassian site, email and API token are required")
+            raise AtlassianError("not_configured", "Atlassian OAuth app settings are required" if self._oauth else
+                                 "Atlassian site, email and API token are required")
         if not path.startswith("/") or path.startswith("//") or ".." in path:
             raise AtlassianError("bad_path", path[:80])
-        url = self.site + path
-        for attempt in range(MAX_RETRIES + 1):
-            response = self._send(method, url, params, json_body)
+        who = None
+        if self._oauth is not None:
+            who = current_caller()
+            if not isinstance(who, Caller):
+                raise AtlassianError("unauthenticated", "per-user Atlassian access needs an authenticated caller")
+        refreshed = False
+        for attempt in range(MAX_RETRIES + 2):
+            url, auth = self.site + path, self._auth() if self._oauth is None else ""
+            if who is not None:
+                url, auth = self._oauth_target(who, path)
+            response = self._send(method, url, params, json_body, auth)
+            if response.status_code == 401 and who is not None and not refreshed:
+                refreshed = True                                     # revoked or rotated on Atlassian's side: one forced refresh
+                self._oauth.expire_access(who)
+                continue
             if response.status_code in (429, 503) and attempt < MAX_RETRIES:
                 self._sleep(self._retry_after(response))
                 continue
             return self._decode(response)
-        raise AssertionError("unreachable")
+        raise AtlassianError("rate_limited", "gave up waiting", 429)
+
+    def _oauth_target(self, who: "Caller", path: str) -> tuple:
+        try:
+            token, cloud = self._oauth.access_token(who)
+        except OAuthError as e:
+            raise AtlassianError(e.code, "connect your Atlassian account" if e.code in ("user_not_connected", "reauthorize_required") else "") from None
+        product = "confluence" if path.startswith("/wiki") else "jira"
+        return f"{API_BASE}/ex/{product}/{cloud}{path}", "Bearer " + token
 
     @staticmethod
     def _retry_after(response: httpx.Response) -> float:
@@ -250,7 +283,7 @@ class AtlassianClient:
             wait = 1.0
         return min(max(wait, 0.0), MAX_WAIT_S)
 
-    def _send(self, method: str, url: str, params: Optional[Dict[str, Any]], body: Optional[Dict[str, Any]]) -> httpx.Response:
+    def _send(self, method: str, url: str, params: Optional[Dict[str, Any]], body: Optional[Dict[str, Any]], auth: str = "") -> httpx.Response:
         try:
             addresses = check_public(url, self._resolver)
         except FetchError as e:
@@ -258,7 +291,7 @@ class AtlassianClient:
         failure: Optional[httpx.HTTPError] = None
         for address in addresses:
             target, headers, extensions = pinned(url, address)
-            headers = {**headers, "Authorization": self._auth(), "Accept": "application/json"}
+            headers = {**headers, "Authorization": auth or self._auth(), "Accept": "application/json"}
             try:
                 with self._client.stream(method, target, params=params, json=body, headers=headers,
                                          extensions=extensions) as r:

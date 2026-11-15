@@ -118,8 +118,7 @@ class Outbound:
                                                  n_attachments=self.store.one("SELECT COUNT(*) AS n FROM attachment WHERE message_pk=?", (draft["id"],))["n"])
         now, sid, ph = self.clock(), uid(), payload_hash(self.store, draft)
         self.store.run("UPDATE message SET message_id=? WHERE id=?", (f"{uid()}@{domain_of(draft['from_addr']) or 'localhost'}", draft["id"]))
-        state, send_at, undo = ("awaiting_approval", None, "pending") if reasons else ("approved", now + (0 if direct else s["undo_window_s"]),
-                                                                                       "final" if direct else "pending")
+        state, send_at, undo = ("awaiting_approval", None, "pending") if reasons else ("approved", now + s["undo_window_s"], "pending")
         run_id = ""
         if reasons:
             with self._flow_lock:
@@ -156,7 +155,9 @@ class Outbound:
         return self._create(mb, self.store.one("SELECT * FROM message WHERE id=?", (pk,)), f"rule:{rule_id}", "", "rule_forward")["id"]
 
     def send_auto_reply(self, mb: Any, orig: Any, subject: str, body: str, kind: str) -> Optional[str]:
-        """An automatic reply (vacation, auto-reply rule): fixed text the mailbox owner wrote, no undo window."""
+        """An automatic reply (vacation, auto-reply rule): fixed text the mailbox owner wrote. It waits out the organisation's
+        undo window like any send (the owner can cancel it), and goes outside the organisation only when an administrator
+        turned on autoreply_external (default off: that setting is the approval for external auto-replies)."""
         s = self.store.org_settings(mb["org"])
         to = orig.from_addr
         if not s["autoreply_external"] and domain_of(to) not in set(s["local_domains"]) | set(s["allowlisted_domains"]):

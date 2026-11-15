@@ -2,7 +2,7 @@
 
 - **Department:** `hr`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/hr/EMPLOYEE_METRICS_ENGINE/main.py` (199 lines)
+- **Source:** `departments/hr/EMPLOYEE_METRICS_ENGINE/main.py` (207 lines)
 
 ## Purpose
 
@@ -21,8 +21,8 @@ scorecard and heatmap never read pay at all.
 - `__init__(config)`
 - `health_check()`
 - `get_employee_profile(employee_id, month, year, caller)` — Full unified profile for one employee.
-- `get_team_scorecard(employee_ids, month, year)` — Returns ranked scorecard for a list of employees.
-- `get_org_heatmap(employee_ids, month, year)` — Returns org-level heatmap data: attendance distribution, delivery health, payroll total.
+- `get_team_scorecard(employee_ids, month, year, caller)` — Returns ranked scorecard for a list of employees.
+- `get_org_heatmap(employee_ids, month, year, caller)` — Returns org-level heatmap data: attendance distribution, delivery health, hours. (It reads no pay: there is no payroll total.)
 
 ## Depends on
 

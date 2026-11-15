@@ -2,7 +2,7 @@
 
 - **Department:** `operations`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/operations/OPERATUS/main.py` (41 lines)
+- **Source:** `departments/operations/OPERATUS/main.py` (62 lines)
 
 ## Purpose
 
@@ -12,7 +12,8 @@ _No module docstring yet._
 
 - `__init__(config)`
 - `health_check()`
-- `execute_workflow(steps)` — Execute workflow steps in order. Returns execution report.
+- `register(step, handler)` — The code that runs a step of this name.
+- `execute_workflow(steps)` — Run workflow steps in order with their registered handlers. A step is "done" only if its handler ran
 - `validate_inputs(inputs, required)` — Validate that required keys exist in input dictionary.
 
 ## Depends on

@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `real`
-- **Source:** `departments/_ai_core/EOF_GATEWAY/main.py` (137 lines)
+- **Source:** `departments/_ai_core/EOF_GATEWAY/main.py` (144 lines)
 
 ## Purpose
 

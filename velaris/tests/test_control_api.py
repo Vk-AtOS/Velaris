@@ -133,3 +133,20 @@ def test_allowlist_and_agent_wrapper(tmp_path, world, monkeypatch):
         assert a.health_check()["status"] == "ok"
         out = a.start_run("terminal.diagnostics", {"bundle": "system"})
         assert out["status"] == "succeeded" and a.run_report(out["task_id"])["owner"] == "u1"
+
+
+def test_restored_run_keeps_the_owners_recorded_roles_capped_by_current(tmp_path, world, monkeypatch):
+    """KAN-104: after a restart the owner used to be rebuilt with no roles at all."""
+    built = []
+    orig = control_api.ControlService
+    monkeypatch.setattr(control_api, "ControlService", lambda *a, **k: built.append(orig(*a, **k)) or built[-1])
+    c = client(tmp_path, world, step("navigate", "about:blank", to=FORM), step("fill", "Full name", "Asha"),
+               step("submit", "Submit"), FINAL)
+    r = send(c, "POST", "/control/runs", {"task_id": "browser.fill_form",
+                                          "params": {"url": FORM, "fields": {"Full name": "Asha"}, "submit": True}},
+             roles=["hr_admin", "recruiter"])
+    run_id = r.json()["task_id"]
+    svc = built[-1]
+    row = svc._row(Caller("u1", "acme", frozenset({"hr_admin"})), run_id)
+    assert svc._owner(Caller("u2", "acme", frozenset({"flow_approver"})), row).roles == {"hr_admin", "recruiter"}
+    assert svc._owner(Caller("u1", "acme", frozenset({"hr_admin"})), row).roles == {"hr_admin"}   # recruiter was revoked

@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `real`
-- **Source:** `departments/_ai_core/AIIE_KERNEL/main.py` (73 lines)
+- **Source:** `departments/_ai_core/AIIE_KERNEL/main.py` (82 lines)
 
 ## Purpose
 
@@ -34,4 +34,4 @@ Each run is recorded in the velaris.intel trace (stage names and outcome only).
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_AI_IE_layer.py`, `velaris/tests/test_aicore_a_aiie.py`
+- **tests:** `velaris/tests/test_AI_IE_layer.py`, `velaris/tests/test_aicore_a_aiie.py`, `velaris/tests/test_kan103_trace_durability.py`

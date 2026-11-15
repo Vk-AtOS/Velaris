@@ -187,6 +187,16 @@ def _token(d: Dict[str, Any], raw: Any, at: float) -> Optional[Dict[str, Any]]:
     return t if t and t["expires"] > at else None
 
 
+def revoke_tokens(org: str, application_ids: List[str]) -> int:
+    """Remove every self-scheduling link of these applications (a withdrawal: the candidate must not be able to book again)."""
+    def go(d: Dict[str, Any]) -> int:
+        gone = [h for h, t in d["tokens"].items() if t["org"] == org and t["application_id"] in application_ids]
+        for h in gone:
+            del d["tokens"][h]
+        return len(gone)
+    return st().update(go)
+
+
 def public_slots(token: str) -> Dict[str, Any]:
     """Candidate side (no login): the slots recorded for this token's round that are still free. Same set for every candidate of the stage."""
     at, d = now(), st().load()

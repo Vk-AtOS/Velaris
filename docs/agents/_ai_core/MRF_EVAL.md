@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `real`
-- **Source:** `departments/_ai_core/MRF_EVAL/main.py` (90 lines)
+- **Source:** `departments/_ai_core/MRF_EVAL/main.py` (93 lines)
 
 ## Purpose
 
@@ -43,4 +43,4 @@ every check passed. Deterministic.
 
 - **other agents:** `META_REASONING_CORE`, `MRF_REFLECT`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_b_mrf.py`, `velaris/tests/test_layer26_mrf.py`, `velaris/tests/test_security_review_fixes.py`
+- **tests:** `velaris/tests/test_aicore_b_mrf.py`, `velaris/tests/test_kan106_aicore.py`, `velaris/tests/test_layer26_mrf.py`, `velaris/tests/test_security_review_fixes.py`

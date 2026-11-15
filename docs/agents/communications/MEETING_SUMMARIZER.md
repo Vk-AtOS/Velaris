@@ -2,7 +2,7 @@
 
 - **Department:** `communications`
 - **Status (static inventory):** `real`
-- **Source:** `departments/communications/MEETING_SUMMARIZER/main.py` (199 lines)
+- **Source:** `departments/communications/MEETING_SUMMARIZER/main.py` (201 lines)
 
 ## Purpose
 
@@ -26,7 +26,8 @@ Optional: pass an LLM callable for richer summaries.
 
 ## Depends on
 
-- nothing from velaris.*
+- `velaris.core.sqlite_util`
+- `velaris.intel.paths`
 
 ## State and configuration
 
@@ -36,4 +37,4 @@ Optional: pass an LLM callable for richer summaries.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** none found
+- **tests:** `velaris/tests/test_no_state_in_source_tree.py`

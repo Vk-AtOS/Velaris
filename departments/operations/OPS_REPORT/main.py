@@ -5,6 +5,8 @@ Ported from VKatOS ops_report. Daily operations report with categories, blockers
 """
 import logging
 import sqlite3
+
+from velaris.core.sqlite_util import connect as connect_db
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 from velaris.intel.paths import agent_file
@@ -18,7 +20,7 @@ class OpsReport:
     def __init__(self, company: str = "Knackforge", db_path: str = ""):
         db_path = db_path or agent_file("OPS_REPORT", "ops_data.db")
         self.company = company
-        self.db = sqlite3.connect(db_path or str(agent_dir("OPS_REPORT") / "ops_data.db"))   # under VELARIS_DATA, not the working directory
+        self.db = connect_db(db_path or str(agent_dir("OPS_REPORT") / "ops_data.db"))   # under VELARIS_DATA, not the working directory
         self._init_db()
 
     def _init_db(self):

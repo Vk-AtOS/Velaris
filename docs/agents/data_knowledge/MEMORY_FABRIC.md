@@ -17,12 +17,12 @@ _No module docstring yet._
 
 ## Class `MemoryFabric`
 
-Minimal MemoryFabric compatibility shim (repair).
-Provides a simple API expected by other agents:
+The in-process key/value store with optional expiry that other agents use. It is the only implementation (there is no other
+"real" MemoryFabric): it lives in this process's memory and is lost on restart; durable data belongs in JsonState.
+Provides the API other agents expect:
   - health_check()
   - get_store(name) -> dict-like object
   - put(namespace, key, value, ttl=None) / get(namespace, key) / query(namespace, prefix=None)
-This stub will be used only if the real MemoryFabric export is missing.
 
 - `__init__()`
 - `health_check()`

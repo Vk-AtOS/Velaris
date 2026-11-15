@@ -17,7 +17,7 @@ _No module docstring yet._
 
 ## Depends on
 
-- nothing from velaris.*
+- `velaris.intel.paths`
 
 ## State and configuration
 
@@ -27,4 +27,4 @@ _No module docstring yet._
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_memory_substrate.py`
+- **tests:** `velaris/tests/test_memory_substrate.py`, `velaris/tests/test_no_state_in_source_tree.py`

@@ -31,7 +31,8 @@ HEADINGS = {
     "summary": ("summary", "profile", "objective", "about me"),
     "certifications": ("certifications", "certificates", "courses"),
 }
-_YEARS = re.compile(r"(\d{1,2}(?:\.\d)?)\s*\+?\s*(?:years?|yrs?)\b", re.I)
+MAX_LINE, MAX_LINES = 2000, 20_000      # a résumé line or file beyond this is cut, not scanned (a candidate controls the text)
+_YEARS = re.compile(r"(\d{1,2}(?:\.\d)?)[ \t]{0,8}\+?[ \t]{0,8}(?:years?|yrs?)\b", re.I)
 _DATE = r"(?:(?:(?P<{p}m>[A-Za-z]{{3,9}})\.?,?\s+|(?P<{p}n>\d{{1,2}})/)?(?P<{p}y>(?:19|20)\d{{2}}))"
 _RANGE = re.compile(_DATE.format(p="s") + r"\s*(?:-|–|—|to)\s*(?:" + _DATE.format(p="e")
                     + r"|(?P<now>present|current|till date|till now|now|ongoing))", re.I)
@@ -146,7 +147,7 @@ def _unknown_phrases(line: str, hits: List[sk.Hit]) -> List[str]:
 def parse(org: str, text: str, table: Optional[sk.Table] = None, today: Optional[float] = None) -> Dict[str, Any]:
     table = table or sk.load_table(org)
     today = today if today is not None else now()
-    lines = text.splitlines()
+    lines = [ln[:MAX_LINE] for ln in text.splitlines()[:MAX_LINES]]       # every regex below runs per line: bound its input
     secs = _sections(lines)
     skills: Dict[str, Dict[str, Any]] = {}
     unknown: List[str] = []

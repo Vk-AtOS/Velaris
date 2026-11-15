@@ -28,7 +28,7 @@ EXPECTED = {("GET", "/careers/forms/{form_id}"), ("GET", "/careers/challenge/{fo
             ("GET", "/careers/status/{token}"), ("POST", "/careers/withdraw/{token}"),
             ("GET", "/schedule/{token}/slots"), ("POST", "/schedule/{token}/pick"), ("POST", "/schedule/{token}/cancel"),
             ("POST", "/interview/{token}/consent"), ("POST", "/interview/{token}/events"), ("POST", "/interview/{token}/withdraw"),
-            ("POST", "/sign/{token}/open"), ("POST", "/sign/{token}/otp/request"), ("POST", "/sign/{token}/otp/verify"),
+            ("POST", "/interview/{token}/audio"), ("POST", "/sign/{token}/open"), ("POST", "/sign/{token}/otp/request"), ("POST", "/sign/{token}/otp/verify"),
             ("POST", "/sign/{token}/consent"), ("POST", "/sign/{token}/sign"), ("POST", "/sign/{token}/decline")}
 BODIES = {"/schedule/{token}/pick": {"start": 1}, "/interview/{token}/consent": {"scopes": ["events"], "notice_version": "v"},
           "/interview/{token}/events": {"type": "join"}, "/sign/{token}/open": {"email": "a@b.co"}, "/sign/{token}/otp/request": {"email": "a@b.co"},
@@ -192,6 +192,41 @@ def test_interview_events_need_participant_token_and_consent(client, world):
     err(client.post(f"/interview/{tok}/events", json={"type": "join"}), 403, "denied")                          # recording stopped
 
 
+def wav(n=2000):
+    return b"RIFF" + (n + 28).to_bytes(4, "little") + b"WAVEfmt " + bytes(range(256)) * (n // 256 + 1)
+
+
+def test_audio_upload_streams_seals_and_obeys_consent_type_size_and_one_track(client, world, monkeypatch):
+    """KAN-74: the HTTP ingress for audio: consent first, a file that is what it claims, capped size, sealed at rest, once."""
+    from velaris.agents.INTERVIEW_RECORD.main import InterviewRecord
+    from velaris.core import vault
+    from velaris.intel.paths import data_dir
+    tok, url = world["itok"], None
+    url = f"/interview/{tok}/audio?duration_s=12.5"
+    hdr = {"content-type": "audio/wav"}
+    monkeypatch.setitem(public.DEFAULT_LIMITS, "i_audio", RouteLimit(10_000_000, 50, 50))
+    err(client.post(url, content=wav(), headers=hdr), 403, "denied")                                           # no audio consent yet
+    assert client.post(f"/interview/{tok}/consent", json={"scopes": ["audio"], "notice_version": "v1"}).status_code == 200
+    err(client.post(url, content=wav(), headers={"content-type": "text/plain"}), 415, "unsupported_media_type")
+    err(client.post(f"/interview/{tok}/audio", content=wav(), headers=hdr), 400, "invalid_input")               # no duration
+    err(client.post(url, content=b"not audio at all, just text", headers=hdr), 400, "invalid_input")           # wrong magic bytes
+    monkeypatch.setitem(public.DEFAULT_LIMITS, "i_audio", RouteLimit(1500, 50, 50))
+    err(client.post(url, content=wav(), headers=hdr), 413, "too_large")                                       # over the route's cap
+    monkeypatch.setitem(public.DEFAULT_LIMITS, "i_audio", RouteLimit(10_000_000, 50, 50))
+    data = wav(3_000_000)
+    r = client.post(url, content=data, headers=hdr)
+    assert r.status_code == 200, r.text
+    sha = r.json()["result"]["sha256"]
+    stored = data_dir() / "agents" / "INTERVIEW_RECORD" / "audio" / f"{sha}.bin"
+    assert stored.exists() and stored.read_bytes()[:4] == vault.STREAM_MAGIC and data[:300] not in stored.read_bytes()
+    assert vault.read_sealed(stored, "hiring:INTERVIEW_RECORD") == data
+    err(client.post(url, content=wav(), headers=hdr), 409, "conflict")                                        # one track per participant
+    assert not list((data_dir() / "uploads").glob("*"))                                                        # no temp file left behind
+    with pytest.raises(vault.VaultError):
+        stored.write_bytes(stored.read_bytes()[:-30])                                                         # cut short: refused when read
+        vault.read_sealed(stored, "hiring:INTERVIEW_RECORD")
+
+
 # ---- the signing ceremony, end to end against ESIGN ----------------------------------------------------------------------------
 def make_request(e, sender, signers, ref="ofr-1"):
     with acting_as(HR1):
@@ -273,10 +308,24 @@ def test_ip_buckets_are_separate_and_x_forwarded_for_is_only_trusted_when_set(es
     assert codes == [404, 404, 404]                                           # the proxy's own entry (last) separates clients
 
 
-def test_counter_table_is_bounded_and_fails_closed(esign_world, tick):
-    c = TestClient(create_public_app(PublicSettings(esign=esign_world[0], clock=tick, max_keys=4)), raise_server_exceptions=False)
-    codes = [c.post(f"/schedule/{chr(97 + i) * 32}/cancel").status_code for i in range(6)]
-    assert 429 in codes
+def test_counter_table_is_bounded_and_fails_closed_for_addresses_but_random_ids_cannot_lock_clients_out(esign_world, tick):
+    """KAN-64 review: random tokens in the URL used to create rate keys until the table was full and every new client got 429."""
+    c = TestClient(create_public_app(PublicSettings(esign=esign_world[0], clock=tick, max_keys=4, trust_proxy=True)), raise_server_exceptions=False)
+    flood = [c.post(f"/schedule/{chr(97 + i) * 32}/cancel", headers={"x-forwarded-for": "198.51.100.200"}).status_code for i in range(8)]
+    assert 429 not in flood                                           # ids are not counted once their table is full
+    legit = c.post(f"/schedule/{'z' * 32}/cancel", headers={"x-forwarded-for": "198.51.100.7"})
+    assert legit.status_code == 404                                   # a real client is still served (and told "not found", not "busy")
+    for i in range(6):                                                # distinct ADDRESSES do fill the address table: fail closed
+        last = c.post(f"/schedule/{'y' * 32}/cancel", headers={"x-forwarded-for": f"198.51.100.{20 + i}"})
+    assert last.status_code == 429
+
+
+def test_malformed_ids_never_reach_a_counter_and_deep_json_is_a_400(client, world, tick):
+    for i in range(30):
+        client.post(f"/schedule/short{i}/cancel")
+    deep = b"[" * 1000 + b"]" * 1000
+    err(client.post(f"/schedule/{world['sched']}/pick", content=deep, headers={"content-type": "application/json"}), 400, "invalid_input")
+    err(client.post(f"/schedule/{world['sched']}/pick", json={"start": 10 ** 400}), 400, "invalid_input")
 
 
 def test_body_size_limits_content_type_and_shape(client, world):
@@ -338,3 +387,16 @@ def test_failures_never_leak_exception_text(client, monkeypatch):
     assert r.status_code == 503 and "/root" not in r.text
     assert client.get("/nope").json() == {"error": {"code": "not_found", "message": "no such endpoint"}}
     assert client.put(f"/careers/status/{TOKEN}").json()["error"]["code"] == "method_not_allowed"
+
+
+def test_a_withdrawal_stops_new_bookings_and_asking_twice_keeps_the_first_date(client, world):
+    """KAN-64 review: a candidate who had withdrawn could still book interviews, and a repeat call reset the request."""
+    app_id, sched_tok = world["apps"][0], world["sched"]
+    wtok = hf.issue_token("acme", app_id, "withdraw", 3)
+    assert client.get(f"/schedule/{sched_tok}/slots").status_code == 200
+    assert client.post(f"/careers/withdraw/{wtok}").status_code == 200
+    stamp = hf._st().load()["withdrawals"][app_id]["requested_at"]
+    assert client.post(f"/careers/withdraw/{wtok}").status_code == 200
+    assert hf._st().load()["withdrawals"][app_id]["requested_at"] == stamp
+    err(client.get(f"/schedule/{sched_tok}/slots"), 404, "not_found")
+    err(client.post(f"/schedule/{sched_tok}/pick", json={"start": 1}), 404, "not_found")

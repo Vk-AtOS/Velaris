@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/_ai_core/SCHEDULON/main.py` (51 lines)
+- **Source:** `departments/_ai_core/SCHEDULON/main.py` (53 lines)
 
 ## Purpose
 
@@ -27,4 +27,4 @@ _No module docstring yet._
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_schedulon.py`
+- **tests:** `velaris/tests/test_kan106_aicore.py`, `velaris/tests/test_schedulon.py`

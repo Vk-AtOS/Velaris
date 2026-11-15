@@ -13,12 +13,14 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from velaris.agentkit import hiring_forms as hf
+from velaris.agentkit import hiring_sched as sched
 from velaris.agentkit.hiring_common import DAY, HiringError, application_known, audit, hid, iso, new_id, now
 from velaris.agentkit.results import fail, ok
 from velaris.core import vault
 from velaris.intel.paths import agent_dir, private_dir
 
 MAX_PER_HOUR = 300
+MAX_PENDING_PER_FORM = 500       # unreviewed submissions one form may hold (each is a record in the shared 1 MiB state file)
 
 
 def _form(form_id: Any) -> Dict[str, Any]:
@@ -77,20 +79,30 @@ def public_submit(form_id: str, answers: Dict[str, Any], pow_solution: Dict[str,
         rec = {"id": sid, "org": org, "form_id": f["id"], "requisition_id": f["requisition_id"], "answers": clean, "consent": consent,
                "file": file_info, "received_at": at, "expires_at": at + hf.SUBMISSION_TTL_DAYS * DAY, "status": "pending", "candidate_id": None}
 
-        def accept(d: Dict[str, Any]) -> bool:
+        def accept(d: Dict[str, Any]) -> str:
             """ONE write: the hourly cap counts accepted applications only (an invalid post no longer uses up the hour),
-            and the cap check and the insert are atomic."""
+            and the cap check and the insert are atomic. Unreviewed submissions per form are capped too: they all live in one
+            size-limited state file shared by every organisation, and a flood must not be able to fill it."""
             d["hourly"] = {k: v for k, v in d["hourly"].items() if k.startswith(hour[:10])}
             key = f"{hour}|{f['id']}"          # date first: the sweep above keeps today's keys only
             if d["hourly"].get(key, 0) >= MAX_PER_HOUR:
-                return False
+                return "hour"
+            if sum(1 for x in d["submissions"].values() if x["form_id"] == f["id"] and x["status"] == "pending") >= MAX_PENDING_PER_FORM:
+                return "full"
             d["hourly"][key] = d["hourly"].get(key, 0) + 1
             d["submissions"][sid] = rec
-            return True
-        if not hf._st().update(accept):
+            return "ok"
+        try:
+            verdict = hf._st().update(accept)
+        except Exception:                      # e.g. the state file is full: the sealed upload must not be left behind
             if file_info:
                 Path(file_info["path"]).unlink(missing_ok=True)
-            raise HiringError("rate_limited", "too many applications this hour; try again later")
+            raise
+        if verdict != "ok":
+            if file_info:
+                Path(file_info["path"]).unlink(missing_ok=True)
+            raise HiringError("rate_limited", "too many applications this hour; try again later" if verdict == "hour"
+                              else "this form is not taking more applications until the recruiter reviews the ones waiting")
         audit(hf.AGENT, "submission.received", org, None, submission=hid(org, sid), form=hid(org, f["id"]),
               consent=hf.digest(consent), file_sha256=file_info["sha256"] if file_info else None)
         return ok(reference=sid, message="Thank you. Your application was received.")
@@ -116,8 +128,10 @@ def public_withdraw(token: str) -> Dict[str, Any]:
         return fail("not_found", "this link is not valid or has expired")
 
     def go(d: Dict[str, Any]) -> None:
-        d["withdrawals"][t["application_id"]] = {"org": t["org"], "application_id": t["application_id"], "requested_at": now(), "done": False}
+        if t["application_id"] not in d["withdrawals"]:      # asking again must not move the date or reopen a completed request
+            d["withdrawals"][t["application_id"]] = {"org": t["org"], "application_id": t["application_id"], "requested_at": now(), "done": False}
     hf._st().update(go)
+    sched.revoke_tokens(t["org"], [t["application_id"]])     # no new booking after a withdrawal; the status/withdraw links keep working
     audit(hf.AGENT, "withdrawal.requested", t["org"], None, application=hid(t["org"], t["application_id"]))
     return ok(message="Your request was received. Your data will be erased; a recruiter reviews and completes it. No confirmation e-mail is sent automatically.")
 
