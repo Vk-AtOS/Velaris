@@ -91,3 +91,21 @@ def test_internal_listener_serves_only_metrics():
         assert e.value.code == 404
     finally:
         s.shutdown()
+
+
+def test_aetheros_trace_id_becomes_the_request_id_and_reaches_the_trace(tmp_path):
+    import secrets as _s
+    from velaris.tests.test_api_service import KEY, SECRET, api_entries, make_assertion, sign
+    c = app_client(tmp_path)
+
+    def signed_get(trace_id):
+        nonce = _s.token_urlsafe(16)
+        h = sign(SECRET, "GET", "/agents", b"", make_assertion(KEY, sub="u1", org="acme", roles=(), employee_id=None,
+                                                                  nonce=nonce), nonce=nonce)
+        return c.get("/agents", headers={**h, "X-Trace-Id": trace_id})
+
+    r = signed_get("aeth-trace-0123456789abcdef")
+    assert r.headers["x-request-id"] == "aeth-trace-0123456789abcdef"
+    assert api_entries("agents.list")[-1]["request_id"] == "aeth-trace-0123456789abcdef"   # the signed trace names it
+    hostile = signed_get("x injected id").headers["x-request-id"]
+    assert hostile != "x injected id" and len(hostile) == 16

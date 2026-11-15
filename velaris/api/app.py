@@ -36,7 +36,7 @@ from fastapi.responses import JSONResponse
 from velaris.api.allowlist import ACT, READ, catalog, prepare, rule_for, tool_params
 from velaris.api.auth import AuthError, Verifier, load_public_key
 from velaris.api.background import interval, lifespan
-from velaris.api.observability import CountingLLM, Metrics, install as install_observability
+from velaris.api.observability import CountingLLM, Metrics, current_request_id, install as install_observability
 from velaris.chat.api import chat_router
 from velaris.chat.service import ChatService
 from velaris.control.api import mount as mount_control
@@ -165,7 +165,7 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
         metrics.on_record(action, payload)
         try:
             trace.append("api", action, {"caller": caller.id, "org": caller.org, "roles": sorted(caller.roles),
-                                         **payload})
+                                         "request_id": current_request_id(), **payload})
         except (OSError, ValueError, TypeError) as e:
             logger.warning("trace write failed for %s: %s", action, type(e).__name__)
             metrics.inc("velaris_trace_failures_total")
