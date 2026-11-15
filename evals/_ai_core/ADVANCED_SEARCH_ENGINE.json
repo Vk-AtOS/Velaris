@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "agent": "ADVANCED_SEARCH_ENGINE",
+  "cases": [
+    {
+      "id": "select-read_page",
+      "input": "Use the read_page operation of ADVANCED_SEARCH_ENGINE with {\"url\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "read_page",
+            "args": {
+              "url": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-web_search",
+      "input": "Use the web_search operation of ADVANCED_SEARCH_ENGINE with {\"query\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "web_search",
+            "args": {
+              "query": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

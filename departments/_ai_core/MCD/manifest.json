@@ -5,5 +5,27 @@
   "description": "Public methods: render, route_exists, get_route_target",
   "owner": "Velaris Core",
   "entrypoint": "main.py:MasterControlDashboard",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "MCD (Master Control Dashboard): a fixed route table and a one-line HTML page template.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/MCD.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "get_route_target": {
+        "kind": "read"
+      },
+      "render": {
+        "kind": "read"
+      },
+      "route_exists": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

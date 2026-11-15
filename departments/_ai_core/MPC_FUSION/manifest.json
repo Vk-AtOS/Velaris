@@ -5,5 +5,21 @@
   "description": "MPC_FUSION: merges records about the same thing from several sources into one, field by field.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:MPC_FUSIONAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "MPC_FUSION: merges records about the same thing from several sources into one, field by field.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/MPC_FUSION.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "fuse": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

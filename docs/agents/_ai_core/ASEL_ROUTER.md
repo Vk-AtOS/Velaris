@@ -32,4 +32,4 @@ take are returned as unroutable; they are not given to a default handler.
 
 - **other agents:** `ASEL`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_aicore_a_asel.py`, `velaris/tests/test_layer13_asel.py`
+- **tests:** `velaris/tests/test_aicore_a_asel.py`, `velaris/tests/test_layer13_asel.py`

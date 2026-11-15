@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "agent": "UIE_SIGNAL",
+  "cases": [
+    {
+      "id": "select-process",
+      "input": "Use the process operation of UIE_SIGNAL with {\"signal\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "process",
+            "args": {
+              "signal": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

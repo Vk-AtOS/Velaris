@@ -5,5 +5,30 @@
   "description": "SELF_DIRECTED_TASKER: works through an ordered task list, releasing tasks as their dependencies finish.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:SelfDirectedTasker",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "SELF_DIRECTED_TASKER: works through an ordered task list, releasing tasks as their dependencies finish.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/SELF_DIRECTED_TASKER.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "complete": {
+        "kind": "act"
+      },
+      "next_tasks": {
+        "kind": "read"
+      },
+      "prepare": {
+        "kind": "act"
+      },
+      "start": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

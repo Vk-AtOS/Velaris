@@ -5,5 +5,21 @@
   "description": "DSS load balancer: weighted least-load node selection with health checks and shedding.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:DSS_LOAD_BALANCERAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "DSS load balancer: weighted least-load node selection with health checks and shedding.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/DSS_LOAD_BALANCER.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "pick": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

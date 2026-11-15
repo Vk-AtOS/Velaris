@@ -5,5 +5,21 @@
   "description": "Causality resolver: merges observed cause-to-effect paths into one graph and ranks root causes.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:CausalityResolver",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Causality resolver: merges observed cause-to-effect paths into one graph and ranks root causes.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/CAUSALITY_RESOLVER.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "resolve": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

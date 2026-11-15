@@ -5,5 +5,27 @@
   "description": "Auto-learn core: a ledger of which option worked, per context.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:AUTO_LEARN_COREAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Auto-learn core: a ledger of which option worked, per context.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/AUTO_LEARN_CORE.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "best": {
+        "kind": "read"
+      },
+      "record": {
+        "kind": "act"
+      },
+      "stats": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

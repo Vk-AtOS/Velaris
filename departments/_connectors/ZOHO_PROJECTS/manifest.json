@@ -4,5 +4,30 @@
   "domain": "connectors",
   "entrypoint": "main.py:ZohoProjectsConnector",
   "description": "Zoho Projects connector — pulls active projects, per-employee task lists, time logs, and task completion/on-time delivery summaries.",
-  "hitl_required": false
+  "hitl_required": false,
+  "harness": {
+    "schema": 1,
+    "purpose": "Zoho Projects connector: reads project delivery data from the Zoho Projects REST API (India region).",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_connectors/ZOHO_PROJECTS.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "get_projects": {
+        "kind": "read"
+      },
+      "get_task_summary": {
+        "kind": "read"
+      },
+      "get_tasks_by_owner": {
+        "kind": "read"
+      },
+      "get_timelogs": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

@@ -1,0 +1,93 @@
+{
+  "schema": 1,
+  "agent": "ZOHO_PEOPLE",
+  "cases": [
+    {
+      "id": "select-get_attendance",
+      "input": "Use the get_attendance operation of ZOHO_PEOPLE with {\"employee_id\": \"sample\", \"from_date\": \"sample\", \"to_date\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "get_attendance",
+            "args": {
+              "employee_id": "sample",
+              "from_date": "sample",
+              "to_date": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-get_attendance_summary",
+      "input": "Use the get_attendance_summary operation of ZOHO_PEOPLE with {\"employee_id\": \"sample\", \"from_date\": \"sample\", \"to_date\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "get_attendance_summary",
+            "args": {
+              "employee_id": "sample",
+              "from_date": "sample",
+              "to_date": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-get_employees",
+      "input": "Use the get_employees operation of ZOHO_PEOPLE with {}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "get_employees",
+            "args": {}
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-get_leave_summary",
+      "input": "Use the get_leave_summary operation of ZOHO_PEOPLE with {\"employee_id\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "get_leave_summary",
+            "args": {
+              "employee_id": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

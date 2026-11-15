@@ -5,5 +5,27 @@
   "description": "Public methods: evaluate_strategy, rank_strategies, pick_best (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:StrategosAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Strategos: scores and ranks candidate strategies with a simple heuristic.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/STRATEGOS.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "evaluate_strategy": {
+        "kind": "read"
+      },
+      "pick_best": {
+        "kind": "read"
+      },
+      "rank_strategies": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

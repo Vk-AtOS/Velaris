@@ -42,4 +42,4 @@ when a topic passes a few hundred thousand events.
 
 - **other agents:** `RCI_CONTEXT`, `RCI_CORE`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_aicore_b_rci.py`, `velaris/tests/test_kan95_core.py`, `velaris/tests/test_layer23_rci.py`
+- **tests:** `velaris/tests/test_aicore_b_rci.py`, `velaris/tests/test_kan95_core.py`, `velaris/tests/test_layer23_rci.py`

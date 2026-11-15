@@ -5,5 +5,29 @@
   "description": "VCAS_AUTOPILOT: runs a task through a registered handler, once, and only with an approval.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:VCASAutopilotAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "VCAS_AUTOPILOT: runs a task through a registered handler, once, and only with an approval.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/VCAS_AUTOPILOT.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "execute": {
+        "kind": "act"
+      },
+      "handlers": {
+        "kind": "read"
+      },
+      "run_of": {
+        "kind": "read"
+      }
+    },
+    "excluded": {
+      "register": "required parameter 'handler' is a collaborator or callable, wired by code"
+    },
+    "reviewed": true
+  }
 }

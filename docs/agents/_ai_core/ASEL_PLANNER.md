@@ -34,4 +34,4 @@ to run in parallel.
 
 - **other agents:** `ASEL`, `DECISION_GRAPH_ENGINE`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_aicore_a_asel.py`, `velaris/tests/test_layer13_asel.py`
+- **tests:** `velaris/tests/test_aicore_a_asel.py`, `velaris/tests/test_layer13_asel.py`

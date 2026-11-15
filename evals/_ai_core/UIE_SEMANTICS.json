@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "agent": "UIE_SEMANTICS",
+  "cases": [
+    {
+      "id": "select-interpret",
+      "input": "Use the interpret operation of UIE_SEMANTICS with {\"x\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "interpret",
+            "args": {
+              "x": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

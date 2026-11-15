@@ -31,4 +31,4 @@ file. This class adds no rules of its own.
 
 - **other agents:** `AGENT_LIFECYCLE_MANAGER`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_aicore_a_ops.py`
+- **tests:** `velaris/tests/test_aicore_a_ops.py`

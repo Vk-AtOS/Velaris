@@ -11,5 +11,30 @@
     "decisions",
     "action-items",
     "transcript"
-  ]
+  ],
+  "harness": {
+    "schema": 1,
+    "purpose": "Meeting summarizer: builds a rule-based summary, decisions and action items from a transcript and stores them.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/communications/MEETING_SUMMARIZER.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "get_meeting": {
+        "kind": "act"
+      },
+      "get_recent_meetings": {
+        "kind": "act"
+      },
+      "summarize": {
+        "kind": "act"
+      },
+      "summarize_from_file": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

@@ -34,4 +34,4 @@ budget are listed as truncated instead of silently lost.
 
 - **other agents:** `CRK`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_aicore_a_crk.py`, `velaris/tests/test_kan87_aicore_guards.py`, `velaris/tests/test_layer12_crk.py`
+- **tests:** `velaris/tests/test_aicore_a_crk.py`, `velaris/tests/test_kan87_aicore_guards.py`, `velaris/tests/test_layer12_crk.py`

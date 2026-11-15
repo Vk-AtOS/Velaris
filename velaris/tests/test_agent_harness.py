@@ -190,13 +190,12 @@ def test_a_misbehaving_model_fails_the_eval_and_the_fake_model_passes_it():
 
 # Departments still without harness entries. Each wave (KAN-36 .. KAN-44) removes its departments from this set; the last one
 # empties it, and then every one of the 346 agents is checked below.
-PENDING = {"_ai_core", "_connectors", "client_success", "communications", "supply_chain"}
-# KAN-43 finished the policy, runtime, context and routing agents of _ai_core before the rest of the department (KAN-44).
-EARLY = frozenset(['AAE_POLICY', 'AAE_RUNTIME', 'ACF_CONTEXT', 'ACF_ROUTER', 'AGENT_LIFECYCLE', 'AGENT_LIFECYCLE_MANAGER', 'ASEL', 'ASEL_EVALUATOR', 'ASEL_EXECUTOR', 'ASEL_PLANNER', 'ASEL_ROUTER', 'ASEL_STRATEGIST', 'CCSF_CORE', 'CCSF_FUSION', 'CCSF_RESOLVER', 'CONTEXTUAL_SELF_MODEL', 'CRK_CONTEXT', 'CRK_INTENT', 'CSM_CORE', 'CSM_LINKER', 'CSM_POLICY', 'CSM_REASONER', 'EOF_CORE', 'EOF_GATEWAY', 'EOF_POLICY', 'INTENT_SYNTHESIZER', 'MCFE_ROUTER', 'MODEL_REGISTRY_CANARY', 'NEURAL_ALIGNMENT_ENGINE', 'NEURAL_CONSTRAINT_FIELD', 'NEURAL_CREATIVITY_ENGINE', 'NEURAL_DRIFT_MONITOR', 'NEURAL_MESH', 'NEURAL_POLICY_MESH', 'PRIME', 'RCI_CONTEXT', 'RCI_CORE', 'RCI_STREAM', 'REGISTRY', 'VCAS_ROUTER', 'VHOE_ROUTER'])
+# Departments whose agents are not yet checked by the walk below: none (KAN-36 .. KAN-44 finished every wave).
+PENDING = frozenset()
 
 
 def _agents():
-    return sorted((a, d) for a, d in backend.router.departments.items() if d not in PENDING or a in EARLY)
+    return sorted((a, d) for a, d in backend.router.departments.items() if d not in PENDING)
 
 
 @pytest.mark.parametrize("agent,department", _agents())
@@ -400,3 +399,12 @@ def test_a_scope_parameter_without_an_allowlist_rule_is_act():
     src = "class M:\n    def recall(self, scope, key):\n        if key:\n            return {}\n    def peek(self, key):\n        if key:\n            return {}\n"
     assert D.derived_kind("M", "data_knowledge", src, "M", "recall", M.recall) == "act"
     assert D.derived_kind("M", "data_knowledge", src, "M", "peek", M.peek) == "read"
+
+
+def test_every_agent_of_every_department_is_walked_and_has_a_harness_entry():
+    """KAN-35 acceptance: a test walks every manifest and fails on a missing or invalid harness entry or eval set."""
+    assert not PENDING
+    walked = {a for a, _ in _agents()}
+    assert walked == set(backend.list_agents()) and len(walked) == 346
+    classes = {json.loads(S.manifest_path(d, a).read_text())["harness"]["status"] for a, d in _agents()}
+    assert classes <= set(S.STATUSES)

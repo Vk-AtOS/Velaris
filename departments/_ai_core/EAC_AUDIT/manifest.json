@@ -5,5 +5,30 @@
   "description": "EAC_AUDIT: the compliance family's view of the audit trail.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:EAC_AUDITAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "EAC_AUDIT: the compliance family's view of the audit trail.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/EAC_AUDIT.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "find": {
+        "kind": "act"
+      },
+      "record": {
+        "kind": "act"
+      },
+      "summary": {
+        "kind": "act"
+      },
+      "verify": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

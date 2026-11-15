@@ -5,5 +5,21 @@
   "description": "MCFE_CORE: one pass over an incoming text: domain, fields, department.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:MCFECoreAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "MCFE_CORE: one pass over an incoming text: domain, fields, department.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/MCFE_CORE.json",
+    "wave": "KAN-44",
+    "status": "mixed",
+    "tools": {
+      "process": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

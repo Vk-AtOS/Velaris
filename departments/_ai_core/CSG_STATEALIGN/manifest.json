@@ -5,5 +5,24 @@
   "description": "CSG state align: compares the state something should have with the state it has, and produces the fix.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:CSG_STATEALIGNAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "CSG state align: compares the state something should have with the state it has, and produces the fix.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/CSG_STATEALIGN.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "align": {
+        "kind": "read"
+      },
+      "apply": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

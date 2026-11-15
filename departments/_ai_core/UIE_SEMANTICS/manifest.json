@@ -5,5 +5,21 @@
   "description": "UIE_SEMANTICS: turns a message into a structured request frame.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:UIESemanticsAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "UIE_SEMANTICS: turns a message into a structured request frame.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/UIE_SEMANTICS.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "interpret": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

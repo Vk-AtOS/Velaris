@@ -5,5 +5,18 @@
   "description": "Alias agent CRK: fronts CRK_CHAIN, CRK_CONTEXT, CRK_INTENT, CRK_REASONER, CRK_VALIDATOR. See velaris.agentkit.alias.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:CRKAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Alias agent CRK: fronts CRK_CHAIN, CRK_CONTEXT, CRK_INTENT, CRK_REASONER, CRK_VALIDATOR.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/CRK.json",
+    "wave": "KAN-44",
+    "status": "not_harnessed",
+    "reason_code": "stub",
+    "reason": "the agent is a stub (inventory: not_implemented); a harness around it would claim a capability that is not there",
+    "tools": {},
+    "reviewed": true
+  }
 }

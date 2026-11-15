@@ -5,5 +5,24 @@
   "description": "EAC_CORE: one compliance assessment, end to end.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:EAC_COREAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "EAC_CORE: one compliance assessment, end to end.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/EAC_CORE.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "assess": {
+        "kind": "act"
+      },
+      "history": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

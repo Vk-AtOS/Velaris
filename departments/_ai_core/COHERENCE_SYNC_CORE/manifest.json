@@ -5,5 +5,27 @@
   "description": "Coherence sync core: detects when copies of the same state have drifted apart, and says how to fix each.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:COHERENCE_SYNC_COREAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Coherence sync core: detects when copies of the same state have drifted apart, and says how to fix each.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/COHERENCE_SYNC_CORE.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "check": {
+        "kind": "read"
+      },
+      "forget": {
+        "kind": "act"
+      },
+      "report": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

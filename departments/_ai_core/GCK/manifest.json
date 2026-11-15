@@ -5,5 +5,18 @@
   "description": "Alias agent GCK: fronts GLOBAL_STATE_MAP. See velaris.agentkit.alias.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:GCKAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Alias agent GCK: fronts GLOBAL_STATE_MAP.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/GCK.json",
+    "wave": "KAN-44",
+    "status": "not_harnessed",
+    "reason_code": "stub",
+    "reason": "the agent is a stub (inventory: not_implemented); a harness around it would claim a capability that is not there",
+    "tools": {},
+    "reviewed": true
+  }
 }

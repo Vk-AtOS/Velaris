@@ -3,5 +3,24 @@
   "version": "0.1.0",
   "author": "Velaris",
   "description": "Public methods: record, last (the module has no docstring).",
-  "entrypoint": "main.py:SELF_HISTORYAgent"
+  "entrypoint": "main.py:SELF_HISTORYAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "Self history: a small persisted event log for the system's own activity.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/SELF_HISTORY.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "last": {
+        "kind": "read"
+      },
+      "record": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

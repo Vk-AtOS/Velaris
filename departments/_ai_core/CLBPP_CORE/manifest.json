@@ -5,5 +5,33 @@
   "description": "CLBPP core: the workload ledger for a pool of workers (people, queues or agents).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:CLBPP_COREAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "CLBPP core: the workload ledger for a pool of workers (people, queues or agents).",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/CLBPP_CORE.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "complete": {
+        "kind": "act"
+      },
+      "rebalance_plan": {
+        "kind": "act"
+      },
+      "register_worker": {
+        "kind": "act"
+      },
+      "status": {
+        "kind": "act"
+      },
+      "submit": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

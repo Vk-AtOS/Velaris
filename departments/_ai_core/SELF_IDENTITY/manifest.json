@@ -3,5 +3,27 @@
   "version": "1.0.0",
   "author": "Velaris",
   "description": "Who this Velaris installation is, as a recorded, versioned fact sheet.",
-  "entrypoint": "main.py:SELF_IDENTITYAgent"
+  "entrypoint": "main.py:SELF_IDENTITYAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "SELF_IDENTITY: who this Velaris installation is, as a recorded, versioned fact sheet.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/SELF_IDENTITY.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "get_identity": {
+        "kind": "read"
+      },
+      "history": {
+        "kind": "act"
+      },
+      "set_identity": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

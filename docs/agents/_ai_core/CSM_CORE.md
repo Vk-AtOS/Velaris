@@ -40,4 +40,4 @@ State: <VELARIS_DATA>/agents/CSM_CORE/state.json.
 
 - **other agents:** `SAGE`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_aicore_a_csm.py`, `velaris/tests/test_layer15_csm.py`
+- **tests:** `velaris/tests/test_aicore_a_csm.py`, `velaris/tests/test_layer15_csm.py`

@@ -42,4 +42,4 @@ ponytail: numeric measures only; add a category-share comparison for labels.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_aicore_b_neuralgov.py`
+- **tests:** `velaris/tests/test_aicore_b_neuralgov.py`

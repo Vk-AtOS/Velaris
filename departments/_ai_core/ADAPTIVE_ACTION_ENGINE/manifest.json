@@ -5,5 +5,27 @@
   "description": "Adaptive action engine: tries the action that has worked best for this kind of situation.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:ADAPTIVE_ACTION_ENGINEAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Adaptive action engine: tries the action that has worked best for this kind of situation.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/ADAPTIVE_ACTION_ENGINE.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "act": {
+        "kind": "act"
+      },
+      "choose": {
+        "kind": "act"
+      },
+      "feedback": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

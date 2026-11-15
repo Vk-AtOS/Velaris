@@ -5,5 +5,21 @@
   "description": "CRK reasoner: forward-chaining rule inference over a set of facts.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:CRK_REASONERAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "CRK reasoner: forward-chaining rule inference over a set of facts.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/CRK_REASONER.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "reason": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

@@ -33,4 +33,4 @@ new VCAS_AUTOPILOT, which has none.
 
 - **other agents:** `VCAS_CORE`, `VCAS_SUPERVISOR`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_aicore_b_prime_vcas.py`, `velaris/tests/test_layer19_vcas.py`
+- **tests:** `velaris/tests/test_aicore_b_prime_vcas.py`, `velaris/tests/test_layer19_vcas.py`

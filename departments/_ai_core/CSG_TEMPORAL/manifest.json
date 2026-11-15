@@ -5,5 +5,21 @@
   "description": "CSG temporal: checks that a sequence of timestamped events is consistent in time.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:CSG_TEMPORALAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "CSG temporal: checks that a sequence of timestamped events is consistent in time.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/CSG_TEMPORAL.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "check": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

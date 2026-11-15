@@ -40,4 +40,4 @@ Velaris Neural Creativity Engine (Offline)
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_agents_coverage_b.py`
+- **tests:** `velaris/tests/test_agents_coverage_b.py`

@@ -41,4 +41,4 @@ A plan is either one step {"task", "target", ...} or
 
 - **other agents:** `CORE_CONVERGENCE`, `EOF_POLICY`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_aicore_b_eof.py`, `velaris/tests/test_layer31_eof.py`
+- **tests:** `velaris/tests/test_aicore_b_eof.py`, `velaris/tests/test_layer31_eof.py`

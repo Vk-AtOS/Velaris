@@ -41,4 +41,4 @@ Objectives are stored under this agent's state directory.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_aicore_b_neuralgov.py`, `velaris/tests/test_kan104_unauthenticated_writes.py`, `velaris/tests/test_layer5_neuralgov.py`
+- **tests:** `velaris/tests/test_aicore_b_neuralgov.py`, `velaris/tests/test_kan104_unauthenticated_writes.py`, `velaris/tests/test_layer5_neuralgov.py`

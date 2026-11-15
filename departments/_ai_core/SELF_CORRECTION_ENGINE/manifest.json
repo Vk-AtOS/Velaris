@@ -5,5 +5,21 @@
   "description": "SELF_CORRECTION_ENGINE: repairs a record against a declared schema and says what it changed.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:SelfCorrectionEngine",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "SELF_CORRECTION_ENGINE: repairs a record against a declared schema and says what it changed.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/SELF_CORRECTION_ENGINE.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "correct": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

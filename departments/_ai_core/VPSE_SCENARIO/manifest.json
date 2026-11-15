@@ -5,5 +5,21 @@
   "description": "VPSE_SCENARIO: recomputes outcomes under what-if changes to their drivers.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:VPSE_SCENARIOAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "VPSE_SCENARIO: recomputes outcomes under what-if changes to their drivers.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/VPSE_SCENARIO.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "run": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

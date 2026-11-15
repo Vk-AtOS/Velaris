@@ -5,5 +5,30 @@
   "description": "Public methods: validate_patch, simulate_patch, apply_patch, get_history",
   "owner": "Velaris Core",
   "entrypoint": "main.py:AutonomousPatchEngine",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Autonomous patch engine: applies a JSON patch (a dict of field changes) to a dict and records it in a history.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/AUTONOMOUS_PATCH_ENGINE.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "apply_patch": {
+        "kind": "act"
+      },
+      "get_history": {
+        "kind": "read"
+      },
+      "simulate_patch": {
+        "kind": "act"
+      },
+      "validate_patch": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

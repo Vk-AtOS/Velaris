@@ -4,5 +4,36 @@
   "domain": "connectors",
   "entrypoint": "main.py:JiraConnector",
   "description": "Jira Cloud connector (REST v3, API token). Read-only: search_issues, get_issue, get_transitions, list_projects. Consequential (approval required): create_issue, transition_issue.",
-  "hitl_required": true
+  "hitl_required": true,
+  "harness": {
+    "schema": 1,
+    "purpose": "JIRA connector: Atlassian Jira Cloud REST API v3 (API token + account email, HTTP Basic).",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_connectors/JIRA.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "create_issue": {
+        "kind": "act"
+      },
+      "get_issue": {
+        "kind": "read"
+      },
+      "get_transitions": {
+        "kind": "read"
+      },
+      "list_projects": {
+        "kind": "read"
+      },
+      "search_issues": {
+        "kind": "read"
+      },
+      "transition_issue": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

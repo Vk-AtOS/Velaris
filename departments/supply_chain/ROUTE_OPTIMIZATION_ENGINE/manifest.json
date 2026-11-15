@@ -1,0 +1,25 @@
+{
+  "name": "ROUTE_OPTIMIZATION_ENGINE",
+  "version": "0.1.0",
+  "description": "ROUTE_OPTIMIZATION_ENGINE: a round trip through every location, by a real heuristic.",
+  "entrypoint": "main.py:RouteOptimizationEngine",
+  "harness": {
+    "schema": 1,
+    "purpose": "ROUTE_OPTIMIZATION_ENGINE: a round trip through every location, by a real heuristic.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/supply_chain/ROUTE_OPTIMIZATION_ENGINE.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "compute_route": {
+        "kind": "act"
+      },
+      "validate": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

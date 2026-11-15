@@ -32,4 +32,4 @@ injection attempt is not contextualised: the result says "blocked".
 
 - **other agents:** `ACF_CORE`, `ACF_ROUTER`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_aicore_a_acf.py`, `velaris/tests/test_layer16_acf.py`
+- **tests:** `velaris/tests/test_aicore_a_acf.py`, `velaris/tests/test_layer16_acf.py`

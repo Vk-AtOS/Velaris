@@ -1,0 +1,25 @@
+{
+  "name": "WAREHOUSE_FLOW_ENGINE",
+  "version": "0.1.0",
+  "description": "WAREHOUSE_FLOW_ENGINE: one period of warehouse flow, worked through as arithmetic.",
+  "entrypoint": "main.py:WarehouseFlowEngine",
+  "harness": {
+    "schema": 1,
+    "purpose": "WAREHOUSE_FLOW_ENGINE: one period of warehouse flow, worked through as arithmetic.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/supply_chain/WAREHOUSE_FLOW_ENGINE.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "assess": {
+        "kind": "act"
+      },
+      "validate": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

@@ -38,4 +38,4 @@ same for a topic held by RCI_STREAM. Nothing is stored here: the stream is the s
 
 - **other agents:** `RCI_CORE`, `RCI_STREAM`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_aicore_b_rci.py`, `velaris/tests/test_layer23_rci.py`
+- **tests:** `velaris/tests/test_aicore_b_rci.py`, `velaris/tests/test_layer23_rci.py`

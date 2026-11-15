@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "agent": "CRK",
+  "cases": [
+    {
+      "id": "not-harnessed",
+      "input": "Do the job of CRK.",
+      "expect": {
+        "status": "not_harnessed"
+      },
+      "forbid": {}
+    }
+  ]
+}

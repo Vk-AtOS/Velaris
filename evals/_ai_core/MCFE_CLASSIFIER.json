@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "agent": "MCFE_CLASSIFIER",
+  "cases": [
+    {
+      "id": "select-classify",
+      "input": "Use the classify operation of MCFE_CLASSIFIER with {\"text\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "classify",
+            "args": {
+              "text": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

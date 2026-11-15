@@ -38,4 +38,4 @@ Conditions read the signal's fields, e.g. "kind", "risk", "content.amount",
 
 - **other agents:** `ACF_CORE`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_aicore_a_acf.py`, `velaris/tests/test_kan106_intake_guards.py`, `velaris/tests/test_layer16_acf.py`
+- **tests:** `velaris/tests/test_aicore_a_acf.py`, `velaris/tests/test_kan106_intake_guards.py`, `velaris/tests/test_layer16_acf.py`

@@ -1,0 +1,38 @@
+{
+  "schema": 1,
+  "agent": "ACF_FUSION",
+  "cases": [
+    {
+      "id": "select-fuse",
+      "input": "Use the fuse operation of ACF_FUSION with {\"a\": \"sample\", \"b\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "fuse",
+            "args": {
+              "a": "sample",
+              "b": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

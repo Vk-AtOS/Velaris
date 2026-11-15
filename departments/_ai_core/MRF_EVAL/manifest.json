@@ -5,5 +5,21 @@
   "description": "MRF_EVAL: scores a piece of output (a draft, an answer, a JSON reply) against a stated rubric.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:MRF_EVALAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "MRF_EVAL: scores a piece of output (a draft, an answer, a JSON reply) against a stated rubric.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/MRF_EVAL.json",
+    "wave": "KAN-44",
+    "status": "model_driven",
+    "tools": {
+      "evaluate": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

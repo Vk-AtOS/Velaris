@@ -1,0 +1,73 @@
+{
+  "schema": 1,
+  "agent": "STRATEGOS",
+  "cases": [
+    {
+      "id": "select-evaluate_strategy",
+      "input": "Use the evaluate_strategy operation of STRATEGOS with {\"strategy\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "evaluate_strategy",
+            "args": {
+              "strategy": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-pick_best",
+      "input": "Use the pick_best operation of STRATEGOS with {\"strategies\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "pick_best",
+            "args": {
+              "strategies": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-rank_strategies",
+      "input": "Use the rank_strategies operation of STRATEGOS with {\"strategies\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "rank_strategies",
+            "args": {
+              "strategies": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

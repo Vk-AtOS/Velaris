@@ -39,4 +39,4 @@ Stores conversation context into MemoryFabric and routes messages using scores.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_infra_agents.py`, `velaris/tests/test_kan106_aicore.py`, `velaris/tests/test_kan89_aicore.py`
+- **tests:** `velaris/tests/test_infra_agents.py`, `velaris/tests/test_kan106_aicore.py`, `velaris/tests/test_kan89_aicore.py`

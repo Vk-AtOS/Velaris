@@ -5,5 +5,21 @@
   "description": "MCFE_CLASSIFIER: which subject domain is a piece of text about?",
   "owner": "Velaris Core",
   "entrypoint": "main.py:MCFEClassifierAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "MCFE_CLASSIFIER: which subject domain is a piece of text about?",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/MCFE_CLASSIFIER.json",
+    "wave": "KAN-44",
+    "status": "model_driven",
+    "tools": {
+      "classify": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

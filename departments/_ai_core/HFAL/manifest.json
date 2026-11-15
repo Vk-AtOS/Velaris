@@ -5,5 +5,23 @@
   "description": "Public methods: create_session, validate, destroy_session",
   "owner": "Velaris Core",
   "entrypoint": "main.py:HFAL",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "HFAL (Human-Friendly Auth Layer): issues PIN-backed session tokens that expire, and validates them.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/HFAL.json",
+    "wave": "KAN-44",
+    "status": "not_harnessed",
+    "reason_code": "no_methods",
+    "reason": "the agent has no public method a model can call",
+    "tools": {},
+    "excluded": {
+      "create_session": "parameter 'pin' is a secret; it would pass through the model",
+      "destroy_session": "parameter 'token' is a secret; it would pass through the model",
+      "validate": "parameter 'token' is a secret; it would pass through the model"
+    },
+    "reviewed": true
+  }
 }

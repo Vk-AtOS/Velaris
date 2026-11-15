@@ -5,5 +5,27 @@
   "description": "CLBPP overload monitor: flags a worker whose utilisation stays high.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:CLBPP_OVERLOAD_MONITORAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "CLBPP overload monitor: flags a worker whose utilisation stays high.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/CLBPP_OVERLOAD_MONITOR.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "history": {
+        "kind": "read"
+      },
+      "record": {
+        "kind": "act"
+      },
+      "status": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

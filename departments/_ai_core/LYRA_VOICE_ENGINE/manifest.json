@@ -5,5 +5,36 @@
   "description": "Voice interface for LYRA: wake word, intent capture and hand-off to a handler.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:LyraVoiceEngine",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Lyra voice engine: turns a spoken or typed command into a keyword-routed, simulated request and speaks the result.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/LYRA_VOICE_ENGINE.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "interpret_intent": {
+        "kind": "read"
+      },
+      "listen": {
+        "kind": "act"
+      },
+      "run_loop": {
+        "kind": "act"
+      },
+      "run_once": {
+        "kind": "act"
+      },
+      "speak": {
+        "kind": "act"
+      },
+      "transcribe": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

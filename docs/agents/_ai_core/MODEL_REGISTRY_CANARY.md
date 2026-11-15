@@ -46,4 +46,4 @@ Velaris Model Registry + Canary Deploy System
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_agent_paths.py`, `velaris/tests/test_kan89_aicore.py`
+- **tests:** `velaris/tests/test_agent_paths.py`, `velaris/tests/test_kan89_aicore.py`

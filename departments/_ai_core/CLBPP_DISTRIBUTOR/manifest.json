@@ -5,5 +5,21 @@
   "description": "CLBPP distributor: assigns a batch of tasks to workers without overfilling anyone.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:CLBPP_DISTRIBUTORAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "CLBPP distributor: assigns a batch of tasks to workers without overfilling anyone.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/CLBPP_DISTRIBUTOR.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "distribute": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

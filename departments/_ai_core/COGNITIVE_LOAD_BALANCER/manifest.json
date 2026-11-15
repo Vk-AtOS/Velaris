@@ -5,5 +5,21 @@
   "description": "Public methods: health_check, choose",
   "owner": "Velaris Core",
   "entrypoint": "main.py:LoadBalancer",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Cognitive load balancer: picks which candidate agent should take a task, by lifecycle state.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/COGNITIVE_LOAD_BALANCER.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "choose": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

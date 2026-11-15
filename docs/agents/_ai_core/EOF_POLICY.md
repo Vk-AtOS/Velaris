@@ -36,4 +36,4 @@ policy or a missing subject is never "compliant".
 
 - **other agents:** `CORE_CONVERGENCE`, `EOF_CORE`, `NEURAL_POLICY_MESH`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_aicore_b_eof.py`, `velaris/tests/test_kan87_aicore_guards.py`, `velaris/tests/test_layer31_eof.py`
+- **tests:** `velaris/tests/test_aicore_b_eof.py`, `velaris/tests/test_kan87_aicore_guards.py`, `velaris/tests/test_layer31_eof.py`

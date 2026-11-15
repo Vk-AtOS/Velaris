@@ -1,0 +1,25 @@
+{
+  "name": "INVENTORY_DECISION_ENGINE",
+  "version": "0.1.0",
+  "description": "INVENTORY_DECISION_ENGINE: reorder point, safety stock and order quantity for one item.",
+  "entrypoint": "main.py:InventoryDecisionEngine",
+  "harness": {
+    "schema": 1,
+    "purpose": "INVENTORY_DECISION_ENGINE: reorder point, safety stock and order quantity for one item.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/supply_chain/INVENTORY_DECISION_ENGINE.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "compute": {
+        "kind": "act"
+      },
+      "validate": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

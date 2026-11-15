@@ -5,5 +5,24 @@
   "description": "DSS failover: keeps one primary node and promotes a standby when it goes down.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:DSS_FAILOVERAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "DSS failover: keeps one primary node and promotes a standby when it goes down.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/DSS_FAILOVER.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "evaluate": {
+        "kind": "act"
+      },
+      "status": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }
