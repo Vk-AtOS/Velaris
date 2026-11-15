@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/_ai_core/LONG_RUN_STABILITY_SIMULATOR/main.py` (72 lines)
+- **Source:** `departments/_ai_core/LONG_RUN_STABILITY_SIMULATOR/main.py` (82 lines)
 
 ## Purpose
 
@@ -14,7 +14,9 @@ failure_prob = min(1, (variance + drift)/100). An empty series gives stability 0
 failure_prob 1.0; a single value gives stability 100 and failure_prob 0.0 (neither is
 recorded). batch_simulate(batch) maps simulate over several series; summary() averages the
 recorded runs (zeros when there are none). This is a fixed formula, not a model of components.
-State: self.results in memory only, lost on restart. Non-numeric input raises.
+State: self.results in memory only, lost on restart; it keeps the newest 1,000 runs. Input that is not a list or tuple
+of at most 100,000 finite real numbers (booleans, strings, NaN and infinity included) raises ValueError, so a bad
+value can never produce a "stable" score.
 
 ## Class `LongRunStabilitySimulator`
 
@@ -40,4 +42,4 @@ Velaris Long-Run Stability Simulator
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_agents_coverage_b.py`
+- **tests:** `velaris/tests/test_agents_coverage_b.py`, `velaris/tests/test_r3_voice_sim_lang.py`
