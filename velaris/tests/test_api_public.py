@@ -387,3 +387,16 @@ def test_failures_never_leak_exception_text(client, monkeypatch):
     assert r.status_code == 503 and "/root" not in r.text
     assert client.get("/nope").json() == {"error": {"code": "not_found", "message": "no such endpoint"}}
     assert client.put(f"/careers/status/{TOKEN}").json()["error"]["code"] == "method_not_allowed"
+
+
+def test_a_withdrawal_stops_new_bookings_and_asking_twice_keeps_the_first_date(client, world):
+    """KAN-64 review: a candidate who had withdrawn could still book interviews, and a repeat call reset the request."""
+    app_id, sched_tok = world["apps"][0], world["sched"]
+    wtok = hf.issue_token("acme", app_id, "withdraw", 3)
+    assert client.get(f"/schedule/{sched_tok}/slots").status_code == 200
+    assert client.post(f"/careers/withdraw/{wtok}").status_code == 200
+    stamp = hf._st().load()["withdrawals"][app_id]["requested_at"]
+    assert client.post(f"/careers/withdraw/{wtok}").status_code == 200
+    assert hf._st().load()["withdrawals"][app_id]["requested_at"] == stamp
+    err(client.get(f"/schedule/{sched_tok}/slots"), 404, "not_found")
+    err(client.post(f"/schedule/{sched_tok}/pick", json={"start": 1}), 404, "not_found")

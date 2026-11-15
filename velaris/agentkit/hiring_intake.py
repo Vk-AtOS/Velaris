@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from velaris.agentkit import hiring_forms as hf
+from velaris.agentkit import hiring_sched as sched
 from velaris.agentkit.hiring_common import DAY, HiringError, application_known, audit, hid, iso, new_id, now
 from velaris.agentkit.results import fail, ok
 from velaris.core import vault
@@ -127,8 +128,10 @@ def public_withdraw(token: str) -> Dict[str, Any]:
         return fail("not_found", "this link is not valid or has expired")
 
     def go(d: Dict[str, Any]) -> None:
-        d["withdrawals"][t["application_id"]] = {"org": t["org"], "application_id": t["application_id"], "requested_at": now(), "done": False}
+        if t["application_id"] not in d["withdrawals"]:      # asking again must not move the date or reopen a completed request
+            d["withdrawals"][t["application_id"]] = {"org": t["org"], "application_id": t["application_id"], "requested_at": now(), "done": False}
     hf._st().update(go)
+    sched.revoke_tokens(t["org"], [t["application_id"]])     # no new booking after a withdrawal; the status/withdraw links keep working
     audit(hf.AGENT, "withdrawal.requested", t["org"], None, application=hid(t["org"], t["application_id"]))
     return ok(message="Your request was received. Your data will be erased; a recruiter reviews and completes it. No confirmation e-mail is sent automatically.")
 
