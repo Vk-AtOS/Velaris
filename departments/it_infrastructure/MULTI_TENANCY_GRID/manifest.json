@@ -5,5 +5,42 @@
   "description": "Tenants, their quotas, and usage that cannot exceed them.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:MultiTenancyGridAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "MULTI_TENANCY_GRID: tenants, their quotas, and usage that cannot exceed them.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/it_infrastructure/MULTI_TENANCY_GRID.json",
+    "wave": "KAN-39",
+    "status": "deterministic_tool",
+    "tools": {
+      "consume": {
+        "kind": "act"
+      },
+      "create_tenant": {
+        "kind": "act"
+      },
+      "release": {
+        "kind": "act"
+      },
+      "resume": {
+        "kind": "act"
+      },
+      "run": {
+        "kind": "act"
+      },
+      "set_quota": {
+        "kind": "act"
+      },
+      "suspend": {
+        "kind": "act"
+      },
+      "usage": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

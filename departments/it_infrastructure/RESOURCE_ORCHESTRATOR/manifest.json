@@ -1,0 +1,31 @@
+{
+  "name": "RESOURCE_ORCHESTRATOR",
+  "version": "0.1.0",
+  "description": "RESOURCE_ORCHESTRATOR: named resource pools with hard capacity.",
+  "entrypoint": "main.py:RESOURCE_ORCHESTRATORAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "RESOURCE_ORCHESTRATOR: named resource pools with hard capacity.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/it_infrastructure/RESOURCE_ORCHESTRATOR.json",
+    "wave": "KAN-39",
+    "status": "deterministic_tool",
+    "tools": {
+      "allocate": {
+        "kind": "act"
+      },
+      "define_pool": {
+        "kind": "act"
+      },
+      "release": {
+        "kind": "act"
+      },
+      "usage": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

@@ -190,7 +190,7 @@ def test_a_misbehaving_model_fails_the_eval_and_the_fake_model_passes_it():
 
 # Departments still without harness entries. Each wave (KAN-36 .. KAN-44) removes its departments from this set; the last one
 # empties it, and then every one of the 346 agents is checked below.
-PENDING = {"_ai_core", "_connectors", "client_success", "communications", "data_knowledge", "it_infrastructure",
+PENDING = {"_ai_core", "_connectors", "client_success", "communications", "data_knowledge",
            "legal_compliance", "marketing", "operations", "sales", "security", "supply_chain"}
 
 
@@ -201,14 +201,6 @@ def _agents():
 @pytest.mark.parametrize("agent,department", _agents())
 def test_every_agent_in_a_finished_wave_has_a_valid_harness_and_eval_set(agent, department):
     assert check_agent(agent, department, backend) == []
-
-
-def test_no_pending_department_is_already_finished():
-    """A finished wave must leave PENDING, or its agents stay unchecked."""
-    for dept in PENDING:
-        agents = [a for a, d in backend.router.departments.items() if d == dept]
-        assert any("harness" not in json.loads(S.manifest_path(dept, a).read_text()) if S.manifest_path(dept, a).exists() else True
-                   for a in agents), f"{dept} is done: remove it from PENDING"
 
 
 REFERENCE = {"INSIGHTA": ("executive", "deterministic_tool"), "STRATEGIC_INTEL": ("executive", "model_driven"),

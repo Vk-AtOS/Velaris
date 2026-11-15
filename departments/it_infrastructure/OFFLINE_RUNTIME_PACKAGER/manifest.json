@@ -1,0 +1,25 @@
+{
+  "name": "OFFLINE_RUNTIME_PACKAGER",
+  "version": "0.1.0",
+  "description": "Offline runtime packager: bundles a Velaris source folder into a tar archive for offline installs, leaving secrets out.",
+  "entrypoint": "main.py:OfflineRuntimePackager",
+  "harness": {
+    "schema": 1,
+    "purpose": "Offline runtime packager: bundles a Velaris source folder into a tar archive for offline installs, leaving secrets out.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/it_infrastructure/OFFLINE_RUNTIME_PACKAGER.json",
+    "wave": "KAN-39",
+    "status": "deterministic_tool",
+    "tools": {
+      "inspect_package": {
+        "kind": "act"
+      },
+      "package": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "name": "OFFLINE_SANDBOX",
+  "version": "0.1.0",
+  "description": "OFFLINE_SANDBOX: run a small allow-list of read-only commands, contained as a process.",
+  "entrypoint": "main.py:OfflineSandbox",
+  "harness": {
+    "schema": 1,
+    "purpose": "OFFLINE_SANDBOX: run a small allow-list of read-only commands, contained as a process.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/it_infrastructure/OFFLINE_SANDBOX.json",
+    "wave": "KAN-39",
+    "status": "deterministic_tool",
+    "tools": {
+      "allowed": {
+        "kind": "read"
+      },
+      "run": {
+        "kind": "act"
+      },
+      "safe": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

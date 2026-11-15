@@ -1,0 +1,31 @@
+{
+  "name": "SYSTEM_TELEMETRY",
+  "version": "0.1.0",
+  "description": "SYSTEM_TELEMETRY: host metrics for the machine Velaris runs on.",
+  "entrypoint": "main.py:SYSTEM_TELEMETRYAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "SYSTEM_TELEMETRY: host metrics for the machine Velaris runs on.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/it_infrastructure/SYSTEM_TELEMETRY.json",
+    "wave": "KAN-39",
+    "status": "deterministic_tool",
+    "tools": {
+      "alerts": {
+        "kind": "act"
+      },
+      "collect": {
+        "kind": "act"
+      },
+      "history": {
+        "kind": "read"
+      },
+      "summary": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

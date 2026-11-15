@@ -1,0 +1,25 @@
+{
+  "name": "LOCAL_ROUTER",
+  "version": "0.1.0",
+  "description": "LOCAL_ROUTER: should this task run on this machine or be handed to the cloud?",
+  "entrypoint": "main.py:LocalRouter",
+  "harness": {
+    "schema": 1,
+    "purpose": "LOCAL_ROUTER: should this task run on this machine or be handed to the cloud?",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/it_infrastructure/LOCAL_ROUTER.json",
+    "wave": "KAN-39",
+    "status": "deterministic_tool",
+    "tools": {
+      "decide": {
+        "kind": "act"
+      },
+      "route": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

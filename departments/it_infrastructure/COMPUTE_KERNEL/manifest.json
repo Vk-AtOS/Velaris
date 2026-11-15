@@ -1,0 +1,31 @@
+{
+  "name": "COMPUTE_KERNEL",
+  "version": "0.1.0",
+  "description": "COMPUTE_KERNEL: admission queue for compute jobs.",
+  "entrypoint": "main.py:COMPUTE_KERNELAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "COMPUTE_KERNEL: admission queue for compute jobs.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/it_infrastructure/COMPUTE_KERNEL.json",
+    "wave": "KAN-39",
+    "status": "deterministic_tool",
+    "tools": {
+      "complete": {
+        "kind": "act"
+      },
+      "schedule": {
+        "kind": "act"
+      },
+      "status": {
+        "kind": "act"
+      },
+      "submit": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

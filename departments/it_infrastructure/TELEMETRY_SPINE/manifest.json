@@ -1,0 +1,28 @@
+{
+  "name": "TELEMETRY_SPINE",
+  "version": "0.1.0",
+  "description": "Telemetry spine: an append-only local log of typed events with a simple query and per-type counts.",
+  "entrypoint": "main.py:TelemetrySpine",
+  "harness": {
+    "schema": 1,
+    "purpose": "Telemetry spine: an append-only local log of typed events with a simple query and per-type counts.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/it_infrastructure/TELEMETRY_SPINE.json",
+    "wave": "KAN-39",
+    "status": "deterministic_tool",
+    "tools": {
+      "query": {
+        "kind": "read"
+      },
+      "record": {
+        "kind": "act"
+      },
+      "stats": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

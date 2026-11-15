@@ -1,0 +1,31 @@
+{
+  "name": "LOCAL_REGISTRY_CACHE",
+  "version": "0.1.0",
+  "description": "LOCAL_REGISTRY_CACHE: an offline copy of \"which agents exist and where\".",
+  "entrypoint": "main.py:LocalRegistryCache",
+  "harness": {
+    "schema": 1,
+    "purpose": "LOCAL_REGISTRY_CACHE: an offline copy of \"which agents exist and where\".",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/it_infrastructure/LOCAL_REGISTRY_CACHE.json",
+    "wave": "KAN-39",
+    "status": "deterministic_tool",
+    "tools": {
+      "is_stale": {
+        "kind": "act"
+      },
+      "lookup": {
+        "kind": "act"
+      },
+      "refresh": {
+        "kind": "act"
+      },
+      "update": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

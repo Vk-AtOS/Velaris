@@ -1,0 +1,34 @@
+{
+  "name": "LOAD_DISTRIBUTOR",
+  "version": "0.1.0",
+  "description": "LOAD_DISTRIBUTOR: picks which backend gets the next request.",
+  "entrypoint": "main.py:LOAD_DISTRIBUTORAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "LOAD_DISTRIBUTOR: picks which backend gets the next request.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/it_infrastructure/LOAD_DISTRIBUTOR.json",
+    "wave": "KAN-39",
+    "status": "deterministic_tool",
+    "tools": {
+      "backends": {
+        "kind": "read"
+      },
+      "pick": {
+        "kind": "act"
+      },
+      "register": {
+        "kind": "act"
+      },
+      "remove": {
+        "kind": "act"
+      },
+      "set_health": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}
