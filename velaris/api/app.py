@@ -23,6 +23,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
@@ -51,6 +52,13 @@ from velaris.mail.api import mount_mail
 logger = logging.getLogger("velaris.api")
 
 MAX_BODY = 64 * 1024
+MAIL_DRAFT_BODY = 16 * 1024 * 1024      # a draft carries its attachments base64-encoded in the JSON body (10 MB each by default)
+_MAIL_DRAFT_PATH = re.compile(r"^/mail/mailboxes/[^/]+/drafts(/[^/]+)?$")
+
+
+def body_limit(method: str, path: str) -> int:
+    """The most bytes a request body may have: 64 KiB everywhere, except composing a mail draft with attachments."""
+    return MAIL_DRAFT_BODY if method in ("POST", "PUT") and _MAIL_DRAFT_PATH.match(path) else MAX_BODY
 CALL_TIMEOUT_S = 60.0
 ADMIN_ROLES = GOVERNANCE_ADMINS | SECURITY_ADMINS     # may verify the global trace
 FLOW_APPROVERS = frozenset({"flow_approver"})     # may decide other people's steps (local mode only)
@@ -138,13 +146,16 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
     # ── plumbing ─────────────────────────────────────────────────────────────
     async def authed(request: Request) -> Tuple[Caller, Any]:
         """(caller, parsed JSON body or None). Refuses anything not signed by the gateway."""
-        if int(request.headers.get("content-length") or 0) > MAX_BODY:
-            raise ApiError(413, "too_large", f"the body may be at most {MAX_BODY} bytes")
-        body = b""
+        limit = body_limit(request.method, request.url.path)
+        if int(request.headers.get("content-length") or 0) > limit:
+            raise ApiError(413, "too_large", f"the body may be at most {limit} bytes")
+        chunks, size = [], 0
         async for chunk in request.stream():
-            body += chunk
-            if len(body) > MAX_BODY:
-                raise ApiError(413, "too_large", f"the body may be at most {MAX_BODY} bytes")
+            size += len(chunk)
+            if size > limit:
+                raise ApiError(413, "too_large", f"the body may be at most {limit} bytes")
+            chunks.append(chunk)
+        body = b"".join(chunks)
         path = request.url.path + (f"?{request.url.query}" if request.url.query else "")
         try:
             caller = verifier.verify(request.method, path, request.headers, body)
