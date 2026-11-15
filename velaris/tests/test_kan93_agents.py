@@ -3,7 +3,6 @@ import io
 import json
 import os
 import random
-import sqlite3
 import urllib.error
 from datetime import date, timedelta
 from importlib import import_module
@@ -75,7 +74,6 @@ def test_redirects_are_not_followed():
 
 
 def test_payroll_statutory_names_match_whole_words_and_health_reports_config(monkeypatch):
-    P = mod("ZOHO_PAYROLL").ZohoPayroll if hasattr(mod("ZOHO_PAYROLL"), "ZohoPayroll") else None
     cls = next(v for k, v in vars(mod("ZOHO_PAYROLL")).items() if isinstance(v, type) and hasattr(v, "get_statutory_deductions"))
     p = cls({})
     assert p.health_check()["status"] == "unconfigured"
@@ -103,7 +101,6 @@ def test_action_items_with_relative_dates_do_not_crash_and_overdue_ignores_text_
     a = next(v for k, v in vars(X).items() if isinstance(v, type) and hasattr(v, "get_overdue"))()
     assert X._extract_due_hint("send the report tomorrow") == (date.today() + timedelta(days=1)).isoformat()
     assert X._extract_due_hint("finish by oct 15") == "oct 15"
-    from velaris.intel.paths import agent_file
     conn = X._db()
     cols = [r[1] for r in conn.execute("PRAGMA table_info(action_items)")]
     base = {c: None for c in cols}

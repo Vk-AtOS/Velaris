@@ -8,7 +8,6 @@ from importlib import import_module
 import pytest
 
 from velaris.core.access import GOVERNANCE_ADMIN, SECURITY_ADMIN, Caller, acting_as
-from velaris.intel.paths import agent_dir
 
 GOV = Caller("gov", "kf", frozenset({GOVERNANCE_ADMIN}))
 SEC = Caller("sec", "kf", frozenset({SECURITY_ADMIN}))

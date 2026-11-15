@@ -22,7 +22,6 @@ import os
 import platform
 import secrets
 import socket
-import statistics
 import subprocess
 import sys
 import tempfile

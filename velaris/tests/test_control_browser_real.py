@@ -4,16 +4,13 @@ The browser has no network of its own: every request is answered by the SSRF-saf
 httpx.MockTransport (host app.test -> a public-looking address, so the same checks as production run). The app has a form that POSTs,
 a records endpoint (the system of record) and a switch that makes it ACCEPT a submission but store a wrong value (a false success).
 """
-import json
 import urllib.parse
 
 import httpx
 import pytest
 
 from velaris.control.browser import PlaywrightDriver
-from velaris.control.checkpoint import CheckpointStore
-from velaris.control.service import ControlService
-from velaris.control.testing import FINAL, FakeRunner, FakeSink, env, step
+from velaris.control.testing import FINAL, env, step
 from velaris.core.access import Caller
 from velaris.intel.web_fetch import Fetcher
 

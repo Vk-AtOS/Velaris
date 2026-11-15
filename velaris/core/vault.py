@@ -126,7 +126,7 @@ def write_sealed_stream(path, chunks: Iterable[bytes], purpose: str) -> int:
     try:
         with os.fdopen(fd, "wb") as f:
             f.write(STREAM_MAGIC)
-            pending, index = b"", 0
+            index = 0
             buf = bytearray()
 
             def emit(block: bytes, last: bool) -> None:

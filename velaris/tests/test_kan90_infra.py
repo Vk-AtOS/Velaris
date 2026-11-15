@@ -7,7 +7,6 @@ from importlib import import_module
 import pytest
 
 from velaris.core.access import INFRA_ADMIN, Caller, acting_as
-from velaris.intel.paths import agent_dir
 
 ADMIN = Caller("ops", "kf", frozenset({INFRA_ADMIN}))
 MEMBER = Caller("tenant-a", "kf", frozenset())

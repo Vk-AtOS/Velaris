@@ -62,7 +62,6 @@ def test_connector_layer_does_not_hand_out_its_live_config():
 
 
 def test_dynamica_and_tenant_engine_do_not_share_state_with_callers():
-    d = agent("DYNAMICA", "evolve_multi", 3) if False else None
     m = import_module("velaris.agents.DYNAMICA.main")
     cls = next(v for v in vars(m).values() if isinstance(v, type) and hasattr(v, "evolve_multi"))
     start = {"x": 1}

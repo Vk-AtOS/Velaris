@@ -253,7 +253,6 @@ def test_staff_actions_on_a_session_need_a_connection_to_it(env):
 def test_appending_an_event_does_not_read_the_whole_log_and_heals_a_session_record_that_lags(monkeypatch):
     """KAN-64 review: every event decrypted and parsed up to 50,000 lines under the store lock shared by all organisations."""
     from velaris.agentkit import hiring_record as hr
-    from velaris.agentkit.state import append_line
     s = {"id": "s1", "status": "open", "org": "acme", "event_count": 0, "chain_head": hr.GENESIS, "tracks": {},
          "consents": {"candidate": {"scopes": ["events"], "notice_version": "v", "at": 1, "withdrawn_at": None}},
          "retention_until": "2999-01-01"}

@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import json
 import logging
-import sqlite3
 
 from velaris.core.sqlite_util import connect as connect_db
 import threading

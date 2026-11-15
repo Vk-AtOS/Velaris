@@ -3,7 +3,6 @@ table for the Confluence page needs one (see tools/tier_eval.py)."""
 import json
 from collections import Counter
 
-import pytest
 
 from velaris.intel import catalogue, llm, providers, tiereval
 

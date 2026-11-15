@@ -1,4 +1,5 @@
 """The public HTML pages (KAN-123..127): shells, strict CSP, static allowlist, /jobs/<slug>, CSRF origin guard, abuse cases, the browser PoW."""
+# ruff: noqa: F811  (pytest fixtures imported from test_api_public are named again as test arguments)
 import base64
 import json
 import logging

@@ -24,7 +24,6 @@ class Atlassian:
         self.n = 0
 
     def handle(self, request: httpx.Request) -> httpx.Response:
-        url = str(request.url)
         host = request.headers["host"]
         body = json.loads(request.content) if request.content else {}
         self.calls.append((request.method, host, request.url.path, body, request.headers.get("authorization", "")))

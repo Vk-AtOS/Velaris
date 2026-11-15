@@ -1,4 +1,5 @@
 """KAN-123/124: the real pages in a real browser against a live public app (skipped where no Chromium is installed: UNVERIFIED there)."""
+# ruff: noqa: F811  (pytest fixtures imported from test_api_public are named again as test arguments)
 import socket
 import threading
 import time

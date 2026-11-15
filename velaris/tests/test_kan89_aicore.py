@@ -1,11 +1,10 @@
 """KAN-89: _ai_core GCK..NEURAL_MESH: HFAL, biometrics, canary registry, MCD, NAVARCH, LYRA."""
-import json
 import os
 from importlib import import_module
 
 import pytest
 
-from velaris.core.access import SECURITY_ADMIN, Caller, acting_as
+from velaris.core.access import Caller, acting_as
 from velaris.intel.paths import agent_dir
 
 

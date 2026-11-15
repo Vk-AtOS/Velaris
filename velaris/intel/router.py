@@ -21,7 +21,7 @@ import os
 import threading
 import time
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Optional
+from typing import Callable, List, Optional
 
 from velaris.agentkit.state import JsonState
 from velaris.intel import llm as gateway

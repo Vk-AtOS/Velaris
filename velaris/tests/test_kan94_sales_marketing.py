@@ -1,6 +1,5 @@
 """KAN-94: sales and marketing agent defects."""
 import asyncio
-import sqlite3
 from datetime import datetime
 from importlib import import_module
 

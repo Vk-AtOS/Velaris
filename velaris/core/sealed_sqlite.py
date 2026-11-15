@@ -16,7 +16,6 @@ Several API workers need the shared database of the Postgres decision (KAN-113 b
 from __future__ import annotations
 
 import logging
-import os
 import sqlite3
 from pathlib import Path
 from typing import Callable, Dict, Optional, Tuple
@@ -24,7 +23,7 @@ from typing import Callable, Dict, Optional, Tuple
 from velaris.core import vault
 from velaris.core.filelock import lock_for
 from velaris.core.sqlite_util import SchemaTooNew, _upgrade, adopt_if_agent_file
-from velaris.intel.paths import read_private, write_private
+from velaris.intel.paths import read_private
 
 logger = logging.getLogger("velaris.sealed_sqlite")
 

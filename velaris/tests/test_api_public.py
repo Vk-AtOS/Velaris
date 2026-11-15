@@ -203,7 +203,6 @@ def wav(n=2000):
 
 def test_audio_upload_streams_seals_and_obeys_consent_type_size_and_one_track(client, world, monkeypatch):
     """KAN-74: the HTTP ingress for audio: consent first, a file that is what it claims, capped size, sealed at rest, once."""
-    from velaris.agents.INTERVIEW_RECORD.main import InterviewRecord
     from velaris.core import vault
     from velaris.intel.paths import data_dir
     tok, url = world["itok"], None

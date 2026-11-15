@@ -2,7 +2,7 @@
 import pytest
 
 from velaris.intel import health, llm, providers
-from velaris.tests.fake_model_server import FakeModelServer, chat_reply
+from velaris.tests.fake_model_server import FakeModelServer
 
 
 def test_preset_is_a_free_pool_that_never_sees_restricted_data():
