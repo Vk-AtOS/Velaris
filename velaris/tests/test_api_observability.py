@@ -156,3 +156,28 @@ def test_healthz_is_liveness_and_readyz_is_503_when_the_data_dir_is_not_usable(t
     full = c.get("/readyz")
     assert full.status_code == 503 and full.json()["ready"] is False
     assert c.get("/healthz").status_code == 200                             # liveness does not depend on the volume
+
+
+def test_chat_spend_is_priced_by_the_model_that_answered_and_unpriced_is_separate(monkeypatch):
+    """KAN-120: chat calls pass no `model`, so they were labelled "default" (always unpriced) and not told apart from other callers."""
+    import json as _json
+    from velaris.intel.llm import Completion
+    monkeypatch.setenv("VELARIS_LLM_PRICES", _json.dumps({"fake:real": {"in": 2.0, "out": 4.0}}))
+
+    class Gateway:
+        def __init__(self, model):
+            self.model = model
+
+        def complete(self, prompt, **kw):
+            return Completion(text="y" * 80, model=self.model, seconds=0.1)
+
+    m = obs.Metrics()
+    obs.CountingLLM(Gateway("fake:real"), m).complete("x" * 400, purpose="chat.assistant")          # no model argument
+    obs.CountingLLM(Gateway("fake:nopriced"), m).complete("x" * 40, purpose="chat.assistant")
+    obs.CountingLLM(Gateway("fake:real"), m).complete("x" * 40, purpose="Bad Label!!")
+    text = m.render()
+    assert 'velaris_llm_calls_total{model="fake:real"} 2' in text and "default" not in text
+    spend = [float(l.split()[-1]) for l in text.splitlines() if l.startswith('velaris_llm_purpose_spend_usd_total{purpose="chat.assistant"}')]
+    assert len(spend) == 1 and abs(spend[0] - (100 * 2.0 + 20 * 4.0) / 1e6) < 1e-9
+    assert 'velaris_llm_purpose_unpriced_calls_total{purpose="chat.assistant"} 1' in text
+    assert 'velaris_llm_purpose_calls_total{purpose="chat.assistant"} 2' in text and 'purpose="other"' in text

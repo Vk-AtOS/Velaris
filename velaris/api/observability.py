@@ -10,7 +10,9 @@ is scraped, so several workers give one set of totals; they are flushed at least
 is counted in calls, prompt and output characters and seconds per model; with VELARIS_LLM_PRICES (JSON, USD per million tokens,
 {"provider:model": {"in": 3.0, "out": 15.0}, "*": {...}}) spend is also counted as velaris_llm_spend_usd_total{model} using
 the estimate 1 token = 4 characters (the gateway returns no token counts); calls to a model with no price are counted in
-velaris_llm_unpriced_calls_total so a missing price shows up instead of reading as free. The queue-depth gauge sums the
+velaris_llm_unpriced_calls_total so a missing price shows up instead of reading as free. The model label is the model
+that answered (Completion.model), and the same figures per caller are kept by purpose (velaris_llm_purpose_spend_usd_total{purpose="chat.assistant"},
+velaris_llm_purpose_calls_total, velaris_llm_purpose_unpriced_calls_total). The queue-depth gauge sums the
 in-flight requests of all live workers.
 
 Logs: one JSON object per line (VELARIS_LOG_JSON=0 for plain text) with `request_id`; any run of 24+ token characters and any
@@ -149,6 +151,14 @@ def _prices() -> Dict[str, Dict[str, float]]:
         return {}
 
 
+_PURPOSE = re.compile(r"[a-z0-9_.]{1,40}\Z")
+
+
+def _purpose(raw: Any) -> str:
+    """The caller's `purpose` as a metric label: a short code like "chat.assistant"; anything else is "other" (bounded cardinality)."""
+    return raw if isinstance(raw, str) and _PURPOSE.match(raw) else ("none" if not raw else "other")
+
+
 class CountingLLM:
     """Wraps the gateway: counts calls, failures, characters and seconds per model; everything else is passed through."""
 
@@ -166,16 +176,23 @@ class CountingLLM:
         except Exception:
             self._m.inc("velaris_llm_failures_total", model=model)
             raise
-        self._m.inc("velaris_llm_calls_total", model=model)
-        self._m.inc("velaris_llm_prompt_chars_total", len(prompt), model=model)
-        self._m.inc("velaris_llm_output_chars_total", len(getattr(out, "text", "") or ""), model=model)
-        self._m.inc("velaris_llm_seconds_total", round(time.time() - start, 3), model=model)
-        price = _prices().get(model) or _prices().get("*")
+        used = str(getattr(out, "model", "") or model)[:60]          # the model that really answered (a call without `model` used the default)
+        text_out = getattr(out, "text", "") or ""
+        purpose = _purpose(kw.get("purpose"))
+        self._m.inc("velaris_llm_calls_total", model=used)
+        self._m.inc("velaris_llm_prompt_chars_total", len(prompt), model=used)
+        self._m.inc("velaris_llm_output_chars_total", len(text_out), model=used)
+        self._m.inc("velaris_llm_seconds_total", round(time.time() - start, 3), model=used)
+        self._m.inc("velaris_llm_purpose_calls_total", purpose=purpose)
+        prices = _prices()
+        price = prices.get(used) or prices.get("*")
         if price is None:
-            self._m.inc("velaris_llm_unpriced_calls_total", model=model)
+            self._m.inc("velaris_llm_unpriced_calls_total", model=used)
+            self._m.inc("velaris_llm_purpose_unpriced_calls_total", purpose=purpose)
         else:                                               # 1 token ~ 4 characters: an estimate, labelled as such in the module doc
-            self._m.inc("velaris_llm_spend_usd_total", (len(prompt) / 4 * price["in"] + len(getattr(out, "text", "") or "") / 4 * price["out"]) / 1e6,
-                        model=model)
+            usd = (len(prompt) / 4 * price["in"] + len(text_out) / 4 * price["out"]) / 1e6
+            self._m.inc("velaris_llm_spend_usd_total", usd, model=used)
+            self._m.inc("velaris_llm_purpose_spend_usd_total", usd, purpose=purpose)      # e.g. purpose="chat.assistant" (KAN-120)
         return out
 
 
