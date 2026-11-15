@@ -61,3 +61,43 @@ def test_remember_does_not_hold_the_lock_across_the_model_call():
     mem.remember("Asha Verma lives in Chennai and works on payroll.", scope="acme")
     mem.remember("Asha Verma lives in Chennai and works on payroll systems.", scope="acme")
     assert held and not any(held)
+
+
+def _chat_file_bytes(svc):
+    svc.store.db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+    return svc.store.path.read_bytes() + (svc.store.path.parent / (svc.store.path.name + "-wal")).read_bytes() \
+        if (svc.store.path.parent / (svc.store.path.name + "-wal")).exists() else svc.store.path.read_bytes()
+
+
+@pytest.mark.parametrize("fts", [True, False])
+def test_chat_text_is_sealed_in_the_file_and_search_still_works(tmp_path, fts):
+    from velaris.chat.store import Store
+    from velaris.tests.chat_support import ALICE, service
+    svc = service(store=Store(str(tmp_path / f"c{fts}.db"), fts=fts))
+    ch = svc.create_channel(ALICE, "private", "mine")
+    m = svc.post(ALICE, ch["id"], "the quarterly zebra payroll figures")
+    svc.edit(ALICE, m["id"], "the quarterly giraffe payroll figures")
+    raw = _chat_file_bytes(svc)
+    for word in (b"zebra", b"giraffe", b"payroll"):
+        assert word not in raw
+    assert svc.search(ALICE, "giraffe")[0]["body"] == "the quarterly giraffe payroll figures"
+    assert svc.search(ALICE, "zebra") == [] and svc.edit_history(ALICE, m["id"])[0]["body"].startswith("the quarterly zebra")
+    assert svc.store.fts is fts
+
+
+def test_chat_database_of_an_older_release_is_sealed_and_reindexed_once(tmp_path):
+    import sqlite3
+    from velaris.chat.store import SCHEMA, Store
+    from velaris.tests.chat_support import ALICE, service
+    path = tmp_path / "old.db"
+    c = sqlite3.connect(path)
+    c.executescript(SCHEMA)
+    c.execute("INSERT INTO channels(org, kind, name, created_by, created_at) VALUES('acme','private','old','alice',1)")
+    c.execute("INSERT INTO members VALUES(1,'alice','owner',1,0)")
+    c.execute("INSERT INTO messages(org, channel_id, topic, sender, body, created_at) VALUES('acme',1,'','alice','legacy rhinoceros text',1)")
+    c.execute("CREATE VIRTUAL TABLE msg_fts USING fts5(body, tokenize='unicode61')")
+    c.execute("INSERT INTO msg_fts(rowid, body) VALUES(1,'legacy rhinoceros text')")
+    c.commit()
+    c.close()
+    svc = service(store=Store(str(path)))
+    assert b"rhinoceros" not in path.read_bytes() and svc.search(ALICE, "rhinoceros")[0]["body"] == "legacy rhinoceros text"

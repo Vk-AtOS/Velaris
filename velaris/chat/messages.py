@@ -10,6 +10,8 @@ from velaris.chat.core import ChatCore, sha
 from velaris.chat.errors import ChatError
 from velaris.chat.policy import mentions as parse_mentions, valid_emoji
 from velaris.core.access import Caller
+from velaris.chat.store import SEAL
+from velaris.core import fieldseal
 
 _HASH = re.compile(r"[0-9a-f]{64}\Z")
 MAX_PAGE = 100
@@ -80,7 +82,7 @@ class MessagesMixin(ChatCore):
             cur = db.execute(
                 "INSERT INTO messages(org, channel_id, topic, sender, body, created_at, reply_to, thread_root, local_id, "
                 "mentions, attachments, ai_assisted, context_authors) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                (caller.org, ch["id"], topic, caller.id, body, self.clock(), reply_to,
+                (caller.org, ch["id"], topic, caller.id, fieldseal.seal(body, SEAL), self.clock(), reply_to,
                  (parent["thread_root"] or parent["id"]) if parent else None, local, json.dumps(mentioned),
                  json.dumps(files), int(ai_assisted),
                  None if context_authors is None else json.dumps(context_authors)))
@@ -134,9 +136,9 @@ class MessagesMixin(ChatCore):
         self._spend(caller)
         with self._write() as db:
             (n,) = db.execute("SELECT COUNT(*) FROM edits WHERE message_id=?", (msg["id"],)).fetchone()
-            db.execute("INSERT INTO edits VALUES(?,?,?,?,?)", (msg["id"], n + 1, msg["body"], caller.id, self.clock()))
+            db.execute("INSERT INTO edits VALUES(?,?,?,?,?)", (msg["id"], n + 1, fieldseal.seal(msg["body"], SEAL), caller.id, self.clock()))
             db.execute("UPDATE messages SET body=?, edited_at=?, mentions=? WHERE id=?",
-                       (body, self.clock(), json.dumps(mentioned), msg["id"]))
+                       (fieldseal.seal(body, SEAL), self.clock(), json.dumps(mentioned), msg["id"]))
             self.store.index(db, msg["id"], body)
             self._audit("message.edit", caller.id, caller.org, channel=ch["id"], message=msg["id"], version=n + 1,
                         body_sha256=sha(body))
