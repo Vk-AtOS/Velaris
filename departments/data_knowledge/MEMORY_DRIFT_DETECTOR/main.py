@@ -5,7 +5,7 @@ import logging
 import os
 from typing import Any, Dict
 
-from velaris.intel.paths import agent_dir
+from velaris.intel.paths import agent_dir, read_private, write_private
 
 
 logger = logging.getLogger("MEMORY_DRIFT_DETECTOR")
@@ -22,22 +22,17 @@ class MemoryDriftDetector:
         # Resolved per instance so VELARIS_DATA is honoured on any machine.
         self.AGENT_DIR = str(agent_dir("MEMORY_DRIFT_DETECTOR"))
         self.BASELINE_PATH = os.path.join(self.AGENT_DIR, "baseline.json")
-        if not os.path.exists(self.BASELINE_PATH):
-            with open(self.BASELINE_PATH, "w") as f:
-                f.write("{}")
         self._load()
 
     def _load(self):
         try:
-            with open(self.BASELINE_PATH, "r") as f:
-                self.baseline: Dict[str, Any] = json.load(f)
+            self.baseline: Dict[str, Any] = json.loads(read_private(self.BASELINE_PATH)) if os.path.exists(self.BASELINE_PATH) else {}
         except (OSError, ValueError) as e:
             logger.warning("Drift baseline %s is unreadable, starting empty: %s", self.BASELINE_PATH, e)
             self.baseline = {}
 
     def _save(self):
-        with open(self.BASELINE_PATH, "w") as f:
-            json.dump(self.baseline, f, indent=2)
+        write_private(self.BASELINE_PATH, json.dumps(self.baseline, indent=2))      # atomic, owner-only
 
     def set_baseline(self, label: str, data: Dict[str, Any]):
         self.baseline[label] = data

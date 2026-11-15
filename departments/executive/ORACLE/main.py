@@ -11,9 +11,7 @@ logger.addHandler(handler)
 class OracleAgent:
     def __init__(self, config: Dict[str, Any] = None):
         self.config = config or {}
-        seed = self.config.get("seed")
-        if seed is not None:
-            random.seed(seed)
+        self._rng = random.Random(self.config.get("seed"))      # own generator: never reseed the process-wide one
         self.version = self.config.get("version", "0.1.0")
 
     def health_check(self):
@@ -32,8 +30,9 @@ class OracleAgent:
         influence = sum(v for v in factors.values())
         effective = max(0.0, min(1.0, base + influence))
         wins = 0
+        trials = min(max(int(trials), 0), 1_000_000)           # bounded work per call
         for _ in range(trials):
-            if random.random() < effective:
+            if self._rng.random() < effective:
                 wins += 1
         rate = wins / trials if trials > 0 else 0
         result = {"effective": effective, "wins": wins, "trials": trials, "probability": rate}

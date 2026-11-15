@@ -198,11 +198,15 @@ def test_mesh_recall_never_leaves_the_listed_scopes():
     store.remember("Invoices above 10,000 rupees need approval from the owner.", scope="globex")
     store.remember("Invoices are archived for eight years.", scope="initech")
     m = with_llm(make("MEMORY_MESH"))
-    r = m.recall_across("invoices approval", scopes=["acme", "globex"], k=5)
-    assert {x["scope"] for x in r["memories"]} == {"acme", "globex"} and len(r["memories"]) == 2
-    assert r["memories"][0]["score"] >= r["memories"][1]["score"]
-    assert len(m.recall_across("invoices approval", scopes=["acme", "globex", "initech"], k=1)["memories"]) == 1
-    assert m.recall_across("invoices", scopes=["nobody"])["memories"] == []
+    with acting_as(Caller("u1", "acme")):
+        r = m.recall_across("invoices approval", scopes=["acme"], k=5)
+        assert {x["scope"] for x in r["memories"]} == {"acme"} and len(r["memories"]) == 1
+        denied = m.recall_across("invoices approval", scopes=["acme", "globex"], k=5)      # another organisation's scope
+        assert denied["status"] == "denied" and denied["scopes"] == ["globex"]
+        assert m.recall_across("invoices", scopes=["acme:team"])["memories"] == []          # own org's sub-scope is allowed
+        assert m.recall_across("invoices", scopes=["acmeX"])["status"] == "denied"          # a prefix is not the organisation
+    with acting_as(None):
+        assert m.recall_across("invoices", scopes=["acme"])["status"] == "denied"           # no caller, no recall
 
 
 def test_mesh_bad_input():

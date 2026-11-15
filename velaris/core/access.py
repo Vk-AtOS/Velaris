@@ -256,6 +256,12 @@ def resource_matches(pattern: Any, resource: Any) -> bool:
 
 # ---- memory scopes -----------------------------------------------------------
 
+def may_read_scope(caller: Optional[Caller], scope: Any) -> bool:
+    """A caller reads memory of their own organisation only: scope "<org>" or "<org>:<anything>"."""
+    return (isinstance(caller, Caller) and isinstance(scope, str)
+            and (scope == caller.org or scope.startswith(caller.org + ":")))
+
+
 def may_write_scope(caller: Optional[Caller], scope: Any) -> bool:
     """A memory scope belongs to an organisation: "<org>" or "<org>:<anything>".
 
