@@ -1,0 +1,74 @@
+{
+  "schema": 1,
+  "agent": "WORKFLOW_ANALYST",
+  "cases": [
+    {
+      "id": "select-analyse",
+      "input": "Use the analyse operation of WORKFLOW_ANALYST with {\"export\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "analyse",
+            "args": {
+              "export": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-compare",
+      "input": "Use the compare operation of WORKFLOW_ANALYST with {\"export\": {}, \"events\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "compare",
+            "args": {
+              "export": {},
+              "events": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-discover",
+      "input": "Use the discover operation of WORKFLOW_ANALYST with {\"events\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "discover",
+            "args": {
+              "events": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

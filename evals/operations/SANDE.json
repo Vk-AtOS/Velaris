@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "agent": "SANDE",
+  "cases": [
+    {
+      "id": "not-harnessed",
+      "input": "Do the job of SANDE.",
+      "expect": {
+        "status": "not_harnessed"
+      },
+      "forbid": {}
+    }
+  ]
+}

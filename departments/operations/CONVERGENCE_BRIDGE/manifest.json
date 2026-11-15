@@ -1,0 +1,19 @@
+{
+  "name": "CONVERGENCE_BRIDGE",
+  "version": "0.1.0",
+  "description": "Alias agent CONVERGENCE_BRIDGE: fronts ORCHESTRIX, COHERENCE_SYNC_CORE, REGISTRY.",
+  "entrypoint": "main.py:CONVERGENCE_BRIDGEAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "Alias agent CONVERGENCE_BRIDGE: fronts ORCHESTRIX, COHERENCE_SYNC_CORE, REGISTRY.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/operations/CONVERGENCE_BRIDGE.json",
+    "wave": "KAN-41",
+    "status": "not_harnessed",
+    "reason_code": "stub",
+    "reason": "the agent is a stub (inventory: not_implemented); a harness around it would claim a capability that is not there",
+    "tools": {},
+    "reviewed": true
+  }
+}

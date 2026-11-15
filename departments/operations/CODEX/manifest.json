@@ -1,0 +1,31 @@
+{
+  "name": "CODEX",
+  "version": "0.1.0",
+  "description": "Codex: detects changes in rule sets by hashing a canonical JSON form of each.",
+  "entrypoint": "main.py:CodexAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "Codex: detects changes in rule sets by hashing a canonical JSON form of each.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/operations/CODEX.json",
+    "wave": "KAN-41",
+    "status": "deterministic_tool",
+    "tools": {
+      "encode_rules": {
+        "kind": "read"
+      },
+      "rules_changed": {
+        "kind": "read"
+      },
+      "rules_hash": {
+        "kind": "read"
+      },
+      "store_rules": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

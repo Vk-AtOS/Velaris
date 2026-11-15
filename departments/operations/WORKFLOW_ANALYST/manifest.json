@@ -1,0 +1,28 @@
+{
+  "name": "WORKFLOW_ANALYST",
+  "version": "0.1.0",
+  "description": "Workflow analyst agent: understand a company's existing automation and how work really flows.",
+  "entrypoint": "main.py:WorkflowAnalyst",
+  "harness": {
+    "schema": 1,
+    "purpose": "Workflow analyst agent: understand a company's existing automation and how work really flows.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/operations/WORKFLOW_ANALYST.json",
+    "wave": "KAN-41",
+    "status": "model_driven",
+    "tools": {
+      "analyse": {
+        "kind": "read"
+      },
+      "compare": {
+        "kind": "read"
+      },
+      "discover": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

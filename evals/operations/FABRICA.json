@@ -1,0 +1,74 @@
+{
+  "schema": 1,
+  "agent": "FABRICA",
+  "cases": [
+    {
+      "id": "select-build_layers",
+      "input": "Use the build_layers operation of FABRICA with {\"layers\": []}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "build_layers",
+            "args": {
+              "layers": []
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-combine",
+      "input": "Use the combine operation of FABRICA with {\"a\": {}, \"b\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "combine",
+            "args": {
+              "a": {},
+              "b": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-composition_score",
+      "input": "Use the composition_score operation of FABRICA with {\"layers\": []}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "composition_score",
+            "args": {
+              "layers": []
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

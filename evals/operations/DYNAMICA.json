@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "agent": "DYNAMICA",
+  "cases": [
+    {
+      "id": "select-evolve_linear",
+      "input": "Use the evolve_linear operation of DYNAMICA with {\"initial\": 1.0, \"delta\": 1.0}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "evolve_linear",
+            "args": {
+              "initial": 1.0,
+              "delta": 1.0
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-system_state",
+      "input": "Use the system_state operation of DYNAMICA with {\"name\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "system_state",
+            "args": {
+              "name": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

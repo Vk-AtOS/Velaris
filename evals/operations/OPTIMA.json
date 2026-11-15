@@ -1,0 +1,76 @@
+{
+  "schema": 1,
+  "agent": "OPTIMA",
+  "cases": [
+    {
+      "id": "select-efficiency_score",
+      "input": "Use the efficiency_score operation of OPTIMA with {\"ctr\": 1.0, \"cvr\": 1.0, \"roi\": 1.0}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "efficiency_score",
+            "args": {
+              "ctr": 1.0,
+              "cvr": 1.0,
+              "roi": 1.0
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-metric_normalize",
+      "input": "Use the metric_normalize operation of OPTIMA with {\"metrics\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "metric_normalize",
+            "args": {
+              "metrics": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-pivot_factor",
+      "input": "Use the pivot_factor operation of OPTIMA with {\"before\": 1.0, \"after\": 1.0}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "pivot_factor",
+            "args": {
+              "before": 1.0,
+              "after": 1.0
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

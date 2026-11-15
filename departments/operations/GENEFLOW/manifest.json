@@ -5,5 +5,24 @@
   "description": "Public methods: compute_diff, apply_migration (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:GeneFlowAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Geneflow: diffs two dicts and applies the diff as a migration.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/operations/GENEFLOW.json",
+    "wave": "KAN-41",
+    "status": "deterministic_tool",
+    "tools": {
+      "apply_migration": {
+        "kind": "act"
+      },
+      "compute_diff": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

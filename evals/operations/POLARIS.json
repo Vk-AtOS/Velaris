@@ -1,0 +1,73 @@
+{
+  "schema": 1,
+  "agent": "POLARIS",
+  "cases": [
+    {
+      "id": "select-best_trajectory",
+      "input": "Use the best_trajectory operation of POLARIS with {\"strategies\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "best_trajectory",
+            "args": {
+              "strategies": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-compute_score",
+      "input": "Use the compute_score operation of POLARIS with {\"strategy\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "compute_score",
+            "args": {
+              "strategy": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-rank_long_term",
+      "input": "Use the rank_long_term operation of POLARIS with {\"strategies\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "rank_long_term",
+            "args": {
+              "strategies": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

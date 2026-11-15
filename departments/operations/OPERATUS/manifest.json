@@ -5,5 +5,26 @@
   "description": "Public methods: execute_workflow, validate_inputs (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:OperatusAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Operatus: runs a named workflow by calling the handler registered for each step in order.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/operations/OPERATUS.json",
+    "wave": "KAN-41",
+    "status": "deterministic_tool",
+    "tools": {
+      "execute_workflow": {
+        "kind": "act"
+      },
+      "validate_inputs": {
+        "kind": "read"
+      }
+    },
+    "excluded": {
+      "register": "required parameter 'handler' is a collaborator or callable, wired by code"
+    },
+    "reviewed": true
+  }
 }

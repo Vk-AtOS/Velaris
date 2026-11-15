@@ -191,7 +191,7 @@ def test_a_misbehaving_model_fails_the_eval_and_the_fake_model_passes_it():
 # Departments still without harness entries. Each wave (KAN-36 .. KAN-44) removes its departments from this set; the last one
 # empties it, and then every one of the 346 agents is checked below.
 PENDING = {"_ai_core", "_connectors", "client_success", "communications", "data_knowledge",
-           "legal_compliance", "marketing", "operations", "sales", "supply_chain"}
+           "legal_compliance", "marketing", "sales", "supply_chain"}
 
 
 def _agents():
