@@ -5,5 +5,24 @@
   "description": "CCSF core: one agreed view of an entity that several systems each hold a copy of.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:CCSF_COREAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "CCSF core: one agreed view of an entity that several systems each hold a copy of.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/CCSF_CORE.json",
+    "wave": "KAN-43",
+    "status": "deterministic_tool",
+    "tools": {
+      "ingest": {
+        "kind": "act"
+      },
+      "view": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

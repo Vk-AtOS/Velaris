@@ -51,4 +51,4 @@ State (journal by action id): <VELARIS_DATA>/agents/AAE_RUNTIME/state.json.
 
 - **other agents:** `ADAPTIVE_ACTION_ENGINE`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_a_aae.py`, `velaris/tests/test_kan104_operator_clear.py`, `velaris/tests/test_kan104_unauthenticated_writes.py`, `velaris/tests/test_layer25_aae.py`
+- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_aicore_a_aae.py`, `velaris/tests/test_kan104_operator_clear.py`, `velaris/tests/test_kan104_unauthenticated_writes.py`, `velaris/tests/test_layer25_aae.py`

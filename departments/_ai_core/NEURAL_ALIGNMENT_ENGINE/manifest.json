@@ -5,5 +5,24 @@
   "description": "NEURAL_ALIGNMENT_ENGINE: does a proposed piece of work serve a declared company objective?",
   "owner": "Velaris Core",
   "entrypoint": "main.py:NeuralAlignmentEngine",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "NEURAL_ALIGNMENT_ENGINE: does a proposed piece of work serve a declared company objective?",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/NEURAL_ALIGNMENT_ENGINE.json",
+    "wave": "KAN-43",
+    "status": "deterministic_tool",
+    "tools": {
+      "align": {
+        "kind": "act"
+      },
+      "set_objectives": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

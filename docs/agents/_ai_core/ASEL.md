@@ -23,4 +23,4 @@ Alias agent ASEL: fronts ASEL_PLANNER, ASEL_EXECUTOR, ASEL_ROUTER, ASEL_STRATEGI
 
 - **other agents:** `ASEL_EVALUATOR`, `ASEL_EXECUTOR`, `ASEL_PLANNER`, `ASEL_ROUTER`, `ASEL_STRATEGIST`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_a_asel.py`, `velaris/tests/test_alias_layers.py`
+- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_aicore_a_asel.py`, `velaris/tests/test_alias_layers.py`

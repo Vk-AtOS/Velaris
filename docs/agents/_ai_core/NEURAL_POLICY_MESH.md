@@ -46,4 +46,4 @@ registered ones; they can only add restrictions, never replace the register.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_b_neuralgov.py`, `velaris/tests/test_aicore_b_prime_vcas.py`, `velaris/tests/test_layer5_neuralgov.py`
+- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_aicore_b_neuralgov.py`, `velaris/tests/test_aicore_b_prime_vcas.py`, `velaris/tests/test_layer5_neuralgov.py`

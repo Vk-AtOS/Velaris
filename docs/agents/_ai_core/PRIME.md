@@ -66,4 +66,4 @@ Backward-compatible alias (test_phase4_intel.py and integration tests use this n
 
 - **other agents:** `ASEL_EXECUTOR`, `ENGINE`, `FSCL`, `VCAS_AUTOPILOT`, `VCAS_CORE`, `VCAS_SUPERVISOR`
 - **platform modules:** `velaris/agentkit/aicore_b_authz.py`, `velaris/core/access.py`
-- **tests:** `velaris/tests/test_aicore_a_ops.py`, `velaris/tests/test_aicore_b_eof.py`, `velaris/tests/test_aicore_b_prime_vcas.py`, `velaris/tests/test_kan95_core.py`, `velaris/tests/test_layer31_eof.py`, `velaris/tests/test_phase4_intel.py`, `velaris/tests/test_prime.py`
+- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_aicore_a_ops.py`, `velaris/tests/test_aicore_b_eof.py`, `velaris/tests/test_aicore_b_prime_vcas.py`, `velaris/tests/test_kan95_core.py`, `velaris/tests/test_layer31_eof.py`, `velaris/tests/test_phase4_intel.py`, `velaris/tests/test_prime.py`

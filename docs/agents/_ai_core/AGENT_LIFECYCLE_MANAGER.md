@@ -38,4 +38,4 @@ State: <VELARIS_DATA>/agents/AGENT_LIFECYCLE_MANAGER/state.json.
 
 - **other agents:** `AGENT_LIFECYCLE`, `COGNITIVE_LOAD_BALANCER`, `ENGINE`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_a_ops.py`
+- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_aicore_a_ops.py`

@@ -37,4 +37,4 @@ worker: {"id", "skills": [...], "capacity": hours, "load": hours (default 0)}
 
 - **other agents:** `VHOE_OPTIMIZER`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_b_vhoe.py`, `velaris/tests/test_layer21_vhoe.py`
+- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_aicore_b_vhoe.py`, `velaris/tests/test_layer21_vhoe.py`

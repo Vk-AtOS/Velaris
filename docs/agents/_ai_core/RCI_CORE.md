@@ -36,4 +36,4 @@ bounded context built by RCI_CONTEXT.
 
 - **other agents:** `RCI_STREAM`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_b_rci.py`, `velaris/tests/test_layer23_rci.py`
+- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_aicore_b_rci.py`, `velaris/tests/test_layer23_rci.py`

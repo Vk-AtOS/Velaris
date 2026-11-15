@@ -5,5 +5,21 @@
   "description": "ASEL strategist: picks one option from several by weighted multi-criteria scoring.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:ASEL_STRATEGISTAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "ASEL strategist: picks one option from several by weighted multi-criteria scoring.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/ASEL_STRATEGIST.json",
+    "wave": "KAN-43",
+    "status": "deterministic_tool",
+    "tools": {
+      "choose": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

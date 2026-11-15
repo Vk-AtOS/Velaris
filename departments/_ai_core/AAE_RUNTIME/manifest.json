@@ -5,5 +5,29 @@
   "description": "AAE runtime: runs one approved action, once, and keeps a record of it.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:AAE_RUNTIMEAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "AAE runtime: runs one approved action, once, and keeps a record of it.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/AAE_RUNTIME.json",
+    "wave": "KAN-43",
+    "status": "deterministic_tool",
+    "tools": {
+      "clear_stuck": {
+        "kind": "act"
+      },
+      "history": {
+        "kind": "read"
+      },
+      "run": {
+        "kind": "act"
+      }
+    },
+    "excluded": {
+      "register": "required parameter 'handler' is a collaborator or callable, wired by code"
+    },
+    "reviewed": true
+  }
 }

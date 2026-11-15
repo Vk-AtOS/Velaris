@@ -38,4 +38,4 @@ State: <VELARIS_DATA>/agents/CCSF_CORE/state.json.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_a_ccsf.py`, `velaris/tests/test_layer22_ccsf.py`
+- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_aicore_a_ccsf.py`, `velaris/tests/test_layer22_ccsf.py`

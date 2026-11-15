@@ -59,4 +59,4 @@ separators), so it can never name a file outside this agent's directory.
 
 - **other agents:** `CORE_CONVERGENCE`, `EOF_CORE`, `EOF_POLICY`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_b_eof.py`, `velaris/tests/test_layer31_eof.py`
+- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_aicore_b_eof.py`, `velaris/tests/test_layer31_eof.py`

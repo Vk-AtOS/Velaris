@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "agent": "MCFE_ROUTER",
+  "cases": [
+    {
+      "id": "select-route",
+      "input": "Use the route operation of MCFE_ROUTER with {\"domain\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "route",
+            "args": {
+              "domain": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

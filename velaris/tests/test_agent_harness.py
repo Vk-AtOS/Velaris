@@ -190,12 +190,13 @@ def test_a_misbehaving_model_fails_the_eval_and_the_fake_model_passes_it():
 
 # Departments still without harness entries. Each wave (KAN-36 .. KAN-44) removes its departments from this set; the last one
 # empties it, and then every one of the 346 agents is checked below.
-PENDING = {"_ai_core", "_connectors", "client_success", "communications",
-           "supply_chain"}
+PENDING = {"_ai_core", "_connectors", "client_success", "communications", "supply_chain"}
+# KAN-43 finished the policy, runtime, context and routing agents of _ai_core before the rest of the department (KAN-44).
+EARLY = frozenset(['AAE_POLICY', 'AAE_RUNTIME', 'ACF_CONTEXT', 'ACF_ROUTER', 'AGENT_LIFECYCLE', 'AGENT_LIFECYCLE_MANAGER', 'ASEL', 'ASEL_EVALUATOR', 'ASEL_EXECUTOR', 'ASEL_PLANNER', 'ASEL_ROUTER', 'ASEL_STRATEGIST', 'CCSF_CORE', 'CCSF_FUSION', 'CCSF_RESOLVER', 'CONTEXTUAL_SELF_MODEL', 'CRK_CONTEXT', 'CRK_INTENT', 'CSM_CORE', 'CSM_LINKER', 'CSM_POLICY', 'CSM_REASONER', 'EOF_CORE', 'EOF_GATEWAY', 'EOF_POLICY', 'INTENT_SYNTHESIZER', 'MCFE_ROUTER', 'MODEL_REGISTRY_CANARY', 'NEURAL_ALIGNMENT_ENGINE', 'NEURAL_CONSTRAINT_FIELD', 'NEURAL_CREATIVITY_ENGINE', 'NEURAL_DRIFT_MONITOR', 'NEURAL_MESH', 'NEURAL_POLICY_MESH', 'PRIME', 'RCI_CONTEXT', 'RCI_CORE', 'RCI_STREAM', 'REGISTRY', 'VCAS_ROUTER', 'VHOE_ROUTER'])
 
 
 def _agents():
-    return sorted((a, d) for a, d in backend.router.departments.items() if d not in PENDING)
+    return sorted((a, d) for a, d in backend.router.departments.items() if d not in PENDING or a in EARLY)
 
 
 @pytest.mark.parametrize("agent,department", _agents())

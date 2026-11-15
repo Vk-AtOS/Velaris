@@ -5,5 +5,24 @@
   "description": "CSM policy: builds a checkable policy from a short specification, and checks records against it.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:CSMPolicyAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "CSM policy: builds a checkable policy from a short specification, and checks records against it.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/CSM_POLICY.json",
+    "wave": "KAN-43",
+    "status": "deterministic_tool",
+    "tools": {
+      "check": {
+        "kind": "read"
+      },
+      "generate_policy": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

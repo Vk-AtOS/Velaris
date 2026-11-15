@@ -42,4 +42,4 @@ The model never fills in action, amounts or dates.
 
 - **other agents:** `AIIE_KERNEL`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_AI_IE_layer.py`, `velaris/tests/test_aicore_b_aiie.py`, `velaris/tests/test_kan106_aicore.py`
+- **tests:** `velaris/tests/test_AI_IE_layer.py`, `velaris/tests/test_agent_harness.py`, `velaris/tests/test_aicore_b_aiie.py`, `velaris/tests/test_kan106_aicore.py`

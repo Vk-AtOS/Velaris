@@ -31,4 +31,4 @@ default department.
 
 - **other agents:** `MCFE_CLASSIFIER`, `MCFE_CORE`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_b_mcfe.py`, `velaris/tests/test_layer18_mcfe.py`
+- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_aicore_b_mcfe.py`, `velaris/tests/test_layer18_mcfe.py`

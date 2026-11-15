@@ -5,5 +5,24 @@
   "description": "RCI_CORE: the way events get into the running context, and the way the context is read.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:RCI_COREAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "RCI_CORE: the way events get into the running context, and the way the context is read.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/RCI_CORE.json",
+    "wave": "KAN-43",
+    "status": "deterministic_tool",
+    "tools": {
+      "context": {
+        "kind": "act"
+      },
+      "ingest": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

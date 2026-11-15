@@ -5,5 +5,21 @@
   "description": "ASEL router: decides which handler carries out each plan step.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:ASEL_ROUTERAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "ASEL router: decides which handler carries out each plan step.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/ASEL_ROUTER.json",
+    "wave": "KAN-43",
+    "status": "not_harnessed",
+    "reason_code": "no_methods",
+    "reason": "the agent has no public method a model can call",
+    "tools": {},
+    "excluded": {
+      "route": "required parameter 'handlers' is a collaborator or callable, wired by code"
+    },
+    "reviewed": true
+  }
 }

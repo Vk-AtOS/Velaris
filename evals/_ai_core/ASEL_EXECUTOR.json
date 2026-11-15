@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "agent": "ASEL_EXECUTOR",
+  "cases": [
+    {
+      "id": "select-get_run",
+      "input": "Use the get_run operation of ASEL_EXECUTOR with {}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "get_run",
+            "args": {}
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

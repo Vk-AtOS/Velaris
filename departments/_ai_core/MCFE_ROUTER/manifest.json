@@ -5,5 +5,21 @@
   "description": "MCFE_ROUTER: which department handles a subject domain.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:MCFERouterAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "MCFE_ROUTER: which department handles a subject domain.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/MCFE_ROUTER.json",
+    "wave": "KAN-43",
+    "status": "deterministic_tool",
+    "tools": {
+      "route": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

@@ -5,5 +5,27 @@
   "description": "RCI_STREAM: durable, append-only event streams with offsets.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:RCI_STREAMAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "RCI_STREAM: durable, append-only event streams with offsets.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/RCI_STREAM.json",
+    "wave": "KAN-43",
+    "status": "deterministic_tool",
+    "tools": {
+      "publish": {
+        "kind": "act"
+      },
+      "read": {
+        "kind": "act"
+      },
+      "topics": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }
