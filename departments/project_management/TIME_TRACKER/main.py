@@ -18,6 +18,7 @@ logger.addHandler(handler)
 
 _WORK_HOURS_PER_DAY = 8.0
 _BILLABLE_TARGET_WEEKLY = 40.0  # hours
+_MAX_DAY_HOURS = 24.0
 
 
 def _db() -> sqlite3.Connection:
@@ -93,6 +94,9 @@ class TimeTracker:
     def _stop_and_log(self, conn, employee_id: str, row, billable: bool = True) -> int:
         started_at = datetime.fromisoformat(row["started_at"])
         hours = round((datetime.now() - started_at).total_seconds() / 3600, 2)
+        if hours > _MAX_DAY_HOURS:        # a timer left running overnight: same ceiling as a manual entry
+            logger.warning("Timer for %s ran %.1f h; logged as %s h", employee_id, hours, _MAX_DAY_HOURS)
+            hours = _MAX_DAY_HOURS
         cur = conn.execute(
             "INSERT INTO timelogs (employee_id, project_id, task_id, description, log_date, hours, billable, created_on) VALUES (?,?,?,?,?,?,?,?)",
             (employee_id, row["project_id"], row["task_id"], row["description"],
@@ -107,7 +111,7 @@ class TimeTracker:
             log_date: str = "", task_id: str = "", description: str = "",
             billable: bool = True) -> Dict[str, Any]:
         if isinstance(hours, bool) or not isinstance(hours, (int, float)) or not math.isfinite(hours) \
-                or hours <= 0 or hours > 24:
+                or hours <= 0 or hours > _MAX_DAY_HOURS:
             return {"error": "hours must be between 0 and 24"}
         log_date = log_date or date.today().isoformat()
         conn = _db()

@@ -13,9 +13,8 @@ class TacticianAgent:
         self.config = config or {}
         self.version = self.config.get("version", "0.1.0")
         # seed deterministic randomness for tests if provided
-        seed = self.config.get("seed")
-        if seed is not None:
-            random.seed(seed)
+        # Own generator: seeding must never reseed the process-wide `random` other code relies on.
+        self._rng = random.Random(self.config.get("seed"))
 
     def health_check(self) -> Dict[str, Any]:
         status = {"agent": "TACTICIAN", "status": "ok", "version": self.version}
@@ -27,13 +26,14 @@ class TacticianAgent:
         Simulate a plan multiple times and return success rate and statistics.
         Plan expects keys: 'base_success' (0..1) and optional 'modifiers' (list of floats added).
         """
+        trials = min(max(int(trials), 0), 1_000_000)      # bounded work per call
         base = float(plan.get("base_success", 0.5))
         modifiers = plan.get("modifiers", []) or []
         effective = base + sum(float(m) for m in modifiers)
         effective = max(0.0, min(1.0, effective))
         successes = 0
         for _ in range(trials):
-            if random.random() < effective:
+            if self._rng.random() < effective:
                 successes += 1
         rate = successes / trials if trials > 0 else 0.0
         result = {"trials": trials, "successes": successes, "success_rate": rate, "effective": effective}

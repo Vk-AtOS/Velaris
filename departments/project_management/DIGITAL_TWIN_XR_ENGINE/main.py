@@ -1,5 +1,6 @@
 # ================================================================================
 
+import copy
 from typing import Dict, Any
 
 
@@ -18,18 +19,18 @@ class DigitalTwinXREngine:
         key = name.lower()
         if key in self.twins:
             return False
-        self.twins[key] = data
+        self.twins[key] = copy.deepcopy(data)       # never keep the caller's own dict
         return True
 
     def update_twin(self, name: str, data: Dict[str, Any]) -> bool:
         key = name.lower()
         if key not in self.twins:
             return False
-        self.twins[key].update(data)
+        self.twins[key].update(copy.deepcopy(data))
         return True
 
     def get_twin(self, name: str) -> Dict[str, Any]:
-        return self.twins.get(name.lower(), {})
+        return copy.deepcopy(self.twins.get(name.lower(), {}))    # a copy: callers cannot edit the twin in place
 
     def diff(self, a: str, b: str) -> Dict[str, Any]:
         """
@@ -52,7 +53,7 @@ class DigitalTwinXREngine:
         s = source.lower()
         if t not in self.twins or s not in self.twins:
             return False
-        self.twins[t].update(self.twins[s])
+        self.twins[t].update(copy.deepcopy(self.twins[s]))
         return True
 
 # ================================================================================
