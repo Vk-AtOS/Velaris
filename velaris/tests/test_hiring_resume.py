@@ -193,3 +193,14 @@ def test_four_fifths_audit_with_hand_computed_rates(env):
         assert res.bias_audit(records=[{"group": "A", "furthest_stage": "nope"}], stages=["applied", "screening"])["status"] == "invalid_input"
     with as_(who("interviewer")):
         assert res.bias_audit(records=recs, stages=["applied", "screening"])["status"] == "denied"
+
+
+def test_a_hostile_line_cannot_stall_the_parser():
+    """KAN-64 review: '\\s*\\+?\\s*' was quadratic on a digit followed by thousands of spaces (20,000 took 5 s)."""
+    import time
+    from velaris.agentkit import hiring_resume as r
+    t = time.time()
+    r.parse("acme", "Skills\n" + "1" + " " * 20_000 + "\nPython 5 years\n")
+    assert time.time() - t < 1.0
+    out = r.parse("acme", "Skills\nPython 5 years\n")
+    assert out["skills"] and out["skills"][0]["mentions"][0]["years"] == 5.0
