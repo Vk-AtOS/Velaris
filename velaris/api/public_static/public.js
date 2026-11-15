@@ -44,7 +44,28 @@
     form.querySelectorAll(".field-error").forEach((p) => { p.hidden = true; p.textContent = ""; });
     form.querySelectorAll("[aria-invalid]").forEach((i) => i.removeAttribute("aria-invalid"));
   }
-  function confirmDialog(text) { return window.confirm(text); }
+  // A modal <dialog> instead of the browser's native prompt: the browser traps focus inside it, keeps the page inert behind it and closes it on
+  // Escape (treated as "go back"); it is named by its heading and described by its text, "go back" has focus first (the safe answer),
+  // and focus returns to the button that opened it. Resolves true only for the explicit "yes" button.
+  function confirmDialog(title, text, yes) {
+    return new Promise((resolve) => {
+      const opener = document.activeElement;
+      const no = el("button", { type: "button", class: "secondary" }, "Go back"), ok = el("button", { type: "button" }, yes);
+      const d = el("dialog", { "aria-labelledby": "dlg-title", "aria-describedby": "dlg-text" },
+        el("h2", { id: "dlg-title" }, title), el("p", { id: "dlg-text" }, text), el("div", { class: "actions" }, no, ok));
+      const done = (v) => { d.close(); d.remove(); if (opener && opener.focus) opener.focus(); resolve(v); };
+      no.addEventListener("click", () => done(false));
+      ok.addEventListener("click", () => done(true));
+      d.addEventListener("cancel", (ev) => { ev.preventDefault(); done(false); });
+      d.addEventListener("keydown", (ev) => {                       // Tab wraps between the two buttons: focus never reaches the page or the browser bar
+        if (ev.key !== "Tab") return;
+        const first = no, last = ok;
+        if (ev.shiftKey && document.activeElement === first) { ev.preventDefault(); last.focus(); }
+        else if (!ev.shiftKey && document.activeElement === last) { ev.preventDefault(); first.focus(); }
+      });
+      document.body.append(d); d.showModal(); no.focus();
+    });
+  }
 
   // ---- careers: apply -------------------------------------------------------------------------------------------------
   function solve(ch) {
@@ -132,7 +153,7 @@
   function withdraw() {
     const btn = el("button", { type: "button" }, "Withdraw my application and consent");
     btn.addEventListener("click", async () => {
-      if (!confirmDialog("Withdraw your application and your consent? A recruiter will process this.")) return;
+      if (!(await confirmDialog("Withdraw your application?", "This withdraws your application and your consent. A recruiter will process it.", "Yes, withdraw"))) return;
       btn.disabled = true;
       try { await api("POST", "/careers/withdraw/" + ident, {}); show(el("h1", {}, "Withdrawal requested"), el("p", { role: "status" }, "We have recorded your request. A recruiter will process it.")); }
       catch (e) { if (e.status === 404) return notFound(); btn.disabled = false; fail(e); }
@@ -148,16 +169,17 @@
     const set = el("fieldset", {}, el("legend", {}, "Choose a time (" + r.duration_min + " minutes, India Standard Time)"));
     r.slots.forEach((s, i) => set.append(el("label", { class: "slot", for: "s" + i }, el("input", { type: "radio", name: "start", id: "s" + i, value: String(r.starts[i]), required: true }), s)));
     const pick = el("button", { type: "submit" }, "Confirm this time"), cancel = el("button", { type: "button", class: "secondary" }, "Cancel my booking");
-    const form = el("form", {}, set, pick, cancel, alertBox, live);
+    const cal = el("a", { href: "/schedule/" + ident + "/calendar.ics", download: "interview.ics", hidden: true }, "Add to my calendar (.ics)");
+    const form = el("form", {}, set, pick, cancel, alertBox, live, cal);
     form.addEventListener("submit", async (ev) => {
       ev.preventDefault();
       const c = form.querySelector("input:checked"); if (!c) { fail({ message: "Choose a time first." }); return; }
       pick.disabled = true;
-      try { const o = await api("POST", "/schedule/" + ident + "/pick", { start: Number(c.value) }); say("Booked for " + o.confirmed_for + ". You can come back to this link to move or cancel."); }
+      try { const o = await api("POST", "/schedule/" + ident + "/pick", { start: Number(c.value) }); say("Booked for " + o.confirmed_for + ". You can come back to this link to move or cancel."); cal.hidden = false; }
       catch (e) { if (e.status === 404) return notFound(); fail(e); } finally { pick.disabled = false; }
     });
     cancel.addEventListener("click", async () => {
-      if (!confirmDialog("Cancel your booking?")) return;
+      if (!(await confirmDialog("Cancel your booking?", "The time you chose will be released. You can pick another time from this link.", "Yes, cancel booking"))) return;
       try { await api("POST", "/schedule/" + ident + "/cancel", {}); say("Your booking is cancelled."); } catch (e) { fail(e); }
     });
     show(el("h1", {}, r.title), form);
@@ -181,6 +203,7 @@
       const consent = el("input", { type: "checkbox", id: "agree" }), name = el("input", { id: "typed", autocomplete: "name" });
       const sendOtp = el("button", { type: "button", class: "secondary" }, "Send me a code"), verify = el("button", { type: "button" }, "Verify code");
       const doSign = el("button", { type: "button" }, "Sign"), decline = el("button", { type: "button", class: "secondary" }, "Decline to sign");
+      let consented = false;
       const run = (btn, fn) => async () => { btn.disabled = true; try { await fn(); } catch (e) { bad(e); } finally { btn.disabled = false; } };
       if (d.otp_required) out.append(el("h2", {}, "Step 1: verify it is you"), sendOtp, field("code", "One-time code", code, "(6 digits)"), verify);
       out.append(el("h2", {}, d.otp_required ? "Step 2: consent to sign electronically" : "Step 1: consent to sign electronically"), el("div", { class: "notice" }, d.consent_text),
@@ -190,15 +213,17 @@
       verify.addEventListener("click", run(verify, async () => { await step("otp/verify", { code: code.value.trim() }); say("Code verified."); }));
       doSign.addEventListener("click", run(doSign, async () => {
         if (!consent.checked) throw { message: "Please agree to electronic signing first." };
-        await step("consent", { consent_text_version: d.consent_text_version });
+        if (!consented) { await step("consent", { consent_text_version: d.consent_text_version }); consented = true; }   // a retry after a wrong name must not repeat it
         await step("sign", { typed_name: name.value });
         show(el("h1", {}, "Signed"), el("p", { role: "status" }, "Thank you. Your signature was recorded."));
       }));
-      decline.addEventListener("click", run(decline, async () => {
-        if (!confirmDialog("Decline to sign? This closes the whole request for everyone.")) return;
+      const doDecline = run(decline, async () => {
         await step("decline", {});
         show(el("h1", {}, "Declined"), el("p", { role: "status" }, "You declined. The request is closed."));
-      }));
+      });
+      decline.addEventListener("click", async () => {     // ask BEFORE disabling the button: a disabled opener cannot take focus back
+        if (await confirmDialog("Decline to sign?", "This closes the whole request for everyone.", "Yes, decline")) await doDecline();
+      });
       show(out);
     }
     show(el("h1", {}, "Sign a document"), el("p", {}, "Confirm your e-mail address to open the document."), form);
@@ -224,7 +249,7 @@
     document.addEventListener("visibilitychange", () => { if (on) ev("visibility", { state: document.visibilityState }); });
     addEventListener("pagehide", () => { if (on) fetch("/interview/" + ident + "/events", { method: "POST", keepalive: true, credentials: "omit", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "leave" }) }).catch(() => null); });
     withdraw.addEventListener("click", async () => {
-      if (!confirmDialog("Withdraw your consent and leave this interview?")) return;
+      if (!(await confirmDialog("Leave the interview?", "This withdraws your consent and recording stops.", "Yes, withdraw and leave"))) return;
       try { on = false; await api("POST", "/interview/" + ident + "/withdraw", {}); show(el("h1", {}, "Consent withdrawn"), el("p", { role: "status" }, "Your consent is withdrawn and recording has stopped.")); } catch (e) { bad404(e); }
     });
     const bad404 = (e) => (e.status === 404 ? notFound() : fail(e));
