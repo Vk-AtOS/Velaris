@@ -91,8 +91,9 @@ python3.11 deploy/backup/velaris_backup.py restore --archive /var/backups/velari
 **Backup order.** SQLite files are copied with the online backup API; every other file is copied and accepted only if it did not
 change while it was read. For all stores to agree with each other, do one of: (a) stop both services for the few seconds the
 snapshot takes (`systemctl stop velaris-public velaris-api`, back up, start), the simplest and strictly consistent; or (b) pass
-`--lock-file` pointing at the cross-process lock the stores take for writing (the file locks the storage-hardening work adds,
-decision D4) so writers wait during the snapshot. Without either, each file is consistent but two stores may differ by a few
+`--lock-stores`: the snapshot holds the cross-process write lock of every store (every `*.lock` file under `VELARIS_DATA`, taken
+all-or-nothing with retries, so it cannot deadlock) and writers wait the few seconds the copy takes; `--lock-file FILE` adds one
+extra lock of your own. Without either, each file is consistent but two stores may differ by a few
 seconds of writes. Restore verifies the `.sha256` sidecar and every manifest hash, refuses unsafe archive members, and moves an
 existing target aside (`<target>.pre-restore-<epoch>`) only with `--force`. Stop the services before restoring.
 
