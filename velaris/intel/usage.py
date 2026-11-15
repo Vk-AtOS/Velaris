@@ -228,3 +228,19 @@ def summary(by: str = "org", *, month: Optional[str] = None, org: Optional[str] 
         g["estimated_calls"] += bool(r["estimate"])
     return sorted(groups.values(), key=lambda g: g["key"])
 
+
+
+def daily(days: int = 7, *, org: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Per-day totals for the last `days` days (UTC, today included), oldest first, empty days as zeros.
+    Reads this month's and last month's log, so it works across a month boundary."""
+    days = max(1, min(days, 31))
+    now = time.time()
+    keys = [time.strftime("%Y-%m-%d", time.gmtime(now - 86400 * i)) for i in range(days - 1, -1, -1)]
+    out = {k: {"day": k, "calls": 0, "errors": 0, "tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0,
+               "unpriced_calls": 0} for k in keys}
+    for month in sorted({k[:7].replace("-", "") for k in keys}):
+        for g in summary("day", month=month, org=org):
+            if g["key"] in out:
+                out[g["key"]].update({k: g[k] for k in ("calls", "errors", "tokens_in", "tokens_out", "cost_usd",
+                                                         "unpriced_calls")})
+    return list(out.values())

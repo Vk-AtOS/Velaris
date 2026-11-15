@@ -218,7 +218,8 @@ def test_only_the_gateway_talks_to_model_hosts():
     root = Path(llm.__file__).parent
     for f in root.glob("*.py"):
         src = f.read_text()
-        if f.name in ("llm.py", "openai_compat.py", "web_fetch.py", "catalogue.py", "web.py", "web_markdown.py"):
+        if f.name in ("llm.py", "openai_compat.py", "web_fetch.py", "catalogue.py", "web.py", "web_markdown.py",
+                      "corrections.py", "corrections_eval.py"):       # these two talk to Prime, not to a model host
             continue
         assert not re.search(r"\bhttpx\.(post|get|Client|request|stream)\b", src), f"{f.name} makes HTTP calls"
     tree = ast.parse((root / "llm.py").read_text())

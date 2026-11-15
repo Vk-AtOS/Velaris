@@ -35,6 +35,7 @@ from fastapi.responses import JSONResponse
 
 from velaris.api.allowlist import ACT, READ, catalog, prepare, rule_for, tool_params
 from velaris.api.auth import AuthError, Verifier, load_public_key
+from velaris.api import providers_api
 from velaris.api.background import interval, lifespan
 from velaris.api.observability import CountingLLM, Metrics, install as install_observability
 from velaris.chat.api import chat_router
@@ -384,6 +385,7 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
     app.state.metrics, app.state.gauges = metrics, gauges
     mount_control(app, authed=authed, record=record, in_thread=in_thread, api_error=ApiError, llm=llm,
                   gate=settings.gate, flow_path=settings.flow_db)       # control layer: /control/... (velaris/control)
+    providers_api.mount(app, authed=authed, record=record, in_thread=in_thread, api_error=ApiError)   # /providers (KAN-18)
     mail = mount_mail(app, settings, authed, record, in_thread)    # company email: /mail/... (velaris/mail)
     app.router.lifespan_context = lifespan([       # scheduled work, see velaris.api.background
         ("mail-outbox", interval("VELARIS_MAIL_WORKER_S", 30.0), mail.outbound.process_due),
