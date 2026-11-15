@@ -55,7 +55,7 @@ from fnmatch import fnmatchcase
 from typing import Any, Dict, FrozenSet, Iterator, Optional, Tuple
 
 from velaris.core.exceptions import VelarisError
-from velaris.intel import trace
+from velaris.intel import policy, trace
 
 # Sensitive data category -> roles that may read records that are not the caller's own.
 READ_OTHERS: Dict[str, FrozenSet[str]] = {
@@ -116,10 +116,11 @@ def acting_as(caller: Optional[Caller]) -> Iterator[Optional[Caller]]:
     """
     if caller is not None and not isinstance(caller, Caller):
         raise TypeError("acting_as() takes a Caller or None")
-    token = _current.set(caller)
+    token, scope = _current.set(caller), policy.new_scope()
     try:
         yield caller
     finally:
+        policy.end_scope(scope)
         _current.reset(token)
 
 
@@ -182,6 +183,7 @@ def authorize_read(category: str, subject_id: Optional[Any], *, agent: str,
         "roles": sorted(who.roles) if known else [], "reason": str(reason)[:200]})
     if allowed is not True:              # anything but an explicit True from decide() is a denial
         raise AccessDenied(str(reason)[:200])
+    policy.force_restricted()            # pay, bank, identity, health and candidate data never reach a model below restricted
     return who                           # type: ignore[return-value]  (decide() allowed it, so it is a Caller)
 
 
