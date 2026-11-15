@@ -40,8 +40,11 @@ class EAC_COREAgent:
 
     def history(self, subject: str, limit: int = 50) -> Dict[str, Any]:
         """Past assessments of one subject, oldest first."""
+        if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1 or ident(subject) is None:
+            return invalid("subject must be a non-empty string and limit a positive integer", assessments=[])
         found = self.audit.find(event="assessment", actor=NAME, limit=10_000)
-        if found["status"] != "ok" or not isinstance(limit, int) or limit < 1:
-            return invalid("limit must be a positive integer", assessments=[])
+        if found["status"] != "ok":
+            return invalid("the audit trail could not be read", assessments=[])
+        subject = subject.strip()                       # assess() stores the stripped subject
         mine = [{"ts": e["ts"], **e["payload"]} for e in found["events"] if e["payload"].get("subject") == subject]
         return {"status": "ok", "assessments": mine[-limit:]}

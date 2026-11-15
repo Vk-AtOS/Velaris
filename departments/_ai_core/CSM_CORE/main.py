@@ -15,6 +15,7 @@ from velaris.agents.CSM_POLICY.main import CSMPolicyAgent
 from velaris.agents.CSM_REASONER.main import CSMReasonerAgent
 
 NAME = "CSM_CORE"
+MAX_GOALS = 1000
 
 
 class CSMCoreAgent:
@@ -37,8 +38,20 @@ class CSMCoreAgent:
             compiled = CSMPolicyAgent().generate_policy(policy)
             if compiled["status"] != "ok":
                 return fail("invalid_input", f"policy: {compiled['reason']}")
+        if owner is not None and (ident(owner) is None or ident(owner) == ident(goal)):
+            return fail("invalid_input", "owner must be a non-empty name different from the goal")   # before anything is stored
         record = {"target": target, "total": total, "start": start, "policy": compiled, "reviews": []}
-        self._state.update(lambda data: data["goals"].update({goal: record}))
+
+        def put(data):
+            if goal not in data["goals"] and len(data["goals"]) >= MAX_GOALS:
+                return False
+            old = data["goals"].get(goal)
+            if old:
+                record["reviews"] = old["reviews"]        # setting a goal again keeps its review history
+            data["goals"][goal] = record
+            return True
+        if not self._state.update(put):
+            return fail("full", f"{MAX_GOALS} goals are registered; remove one first")
         if owner is not None:
             linked = self.linker.link(goal, owner, "owned_by")
             if not linked["linked"]:

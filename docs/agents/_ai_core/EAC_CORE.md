@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/_ai_core/EAC_CORE/main.py` (48 lines)
+- **Source:** `departments/_ai_core/EAC_CORE/main.py` (51 lines)
 
 ## Purpose
 
@@ -35,4 +35,4 @@ without its audit entry. history(subject) reads past assessments back.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_b_eac.py`, `velaris/tests/test_layer29_eac.py`
+- **tests:** `velaris/tests/test_aicore_b_eac.py`, `velaris/tests/test_layer29_eac.py`, `velaris/tests/test_r3_csm_crk_eac.py`

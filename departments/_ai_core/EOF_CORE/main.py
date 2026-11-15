@@ -79,6 +79,14 @@ class EOF_COREAgent:
                         "violations": {i: v["violations"] or v["errors"] or v.get("reason") for i, v in bad.items()}}
 
         plan_id = new_id("plan")
+        for i in ordered["order"]:                    # all or nothing: every hand-off is checked before the first is queued
+            s = by_id[i]
+            probe = self.gateway.route(s["target"], {"plan_id": plan_id, "step": i, "task": s["task"],
+                                                     "depends_on": s["depends_on"], "payload": s.get("payload", {})},
+                                       via=self, dry_run=True)
+            if probe.get("status") != "ok":
+                return {**out, "result": "failed", "status": probe["status"], "plan_id": plan_id,
+                        "order": ordered["order"], "failed_step": i, "reason": probe.get("reason", "")}
         for i in ordered["order"]:
             s = by_id[i]
             payload = {"plan_id": plan_id, "step": i, "task": s["task"], "depends_on": s["depends_on"],
