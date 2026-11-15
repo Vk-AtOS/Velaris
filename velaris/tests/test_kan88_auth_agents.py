@@ -100,7 +100,19 @@ def test_recovery_expiry_and_lockout(monkeypatch):
 def test_pin_is_salted_persisted_and_locks_out():
     P = mod("PIN_UNLOCK_LAYER").PINUnlockLayer
     p = P()
-    assert p.register_pin("a", "1234") and not p.register_pin("a", "9999") and not p.register_pin("b", "12")
+    assert not p.register_pin("a", "1234")                     # no caller: a user name cannot be claimed anonymously
+    with acting_as(MEMBER):
+        assert not p.register_pin("a", "1234")                 # bob cannot claim a's name
+    with acting_as(Caller("a", "kf", frozenset())):
+        assert p.register_pin("a", "1234") and not p.register_pin("a", "9999") and not p.register_pin("b", "12")
+    with acting_as(MEMBER):
+        p.lock("a")                                            # nor relock it
+        assert p.unlock("a", "1234") and not p.is_locked("a")
+    p.lock("a")                                                # no caller: refused, stays unlocked
+    assert not p.is_locked("a")
+    with acting_as(ADMIN):
+        p.lock("a")                                            # a security admin may
+    assert p.is_locked("a")
     raw = (agent_dir("PIN_UNLOCK_LAYER") / "pins.json").read_text()
     assert "1234" not in raw and "sha256" not in raw and json.loads(raw)["pins"]["a"].startswith("scrypt$")
     assert P().is_locked("a")                                  # a second worker sees the same state
@@ -108,9 +120,11 @@ def test_pin_is_salted_persisted_and_locks_out():
         assert not p.unlock("a", "0000")
     assert not P().unlock("a", "1234") and P().is_locked("a")  # locked out, right PIN refused
     q = P()
-    q.register_pin("c", "4321")
+    with acting_as(ADMIN):
+        assert q.register_pin("c", "4321")
     assert q.unlock("c", "4321") and not q.is_locked("c")
-    q.lock("c")
+    with acting_as(ADMIN):
+        q.lock("c")
     assert q.is_locked("c") and not q.unlock("nobody", "4321")
 
 

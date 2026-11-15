@@ -3,14 +3,16 @@
 """Deep audit engine: pins a checksum baseline per name, detects drift from it, and keeps a hash-chained audit log.
 
 checksum(data) is the SHA-256 of the sorted-key JSON form. audit(name, data) records the checksum and who audited: the
-first audit of a name pins its baseline (any caller, or none), and auditing the name again moves the baseline and so
-needs a security admin (check_caller; the refusal dict is returned otherwise). It returns the log entry {name, checksum,
+first audit of a name pins its baseline and needs an authenticated caller (nobody pins one anonymously), and auditing
+the name again moves the baseline and so needs a security admin (check_caller; the refusal dict is returned otherwise). It returns the log entry {name, checksum,
 by, prev, hash}, or {"status": "invalid", ...} for an empty name or more than 5000 names. detect_drift(name, new_data)
 is True when the checksum differs from the baseline, and also for a name never audited. verify_log() re-walks the chain
 and checks that each baseline equals its newest log entry; False means the file was altered.
-State: <VELARIS_DATA>/agents/DEEP_AUDIT_ENGINE/audit_log.json (owner-only, atomic, locked) and audit.key. The log keeps
-the newest 2000 entries; the dropped prefix is replaced by a checkpoint signed with the key (HMAC-SHA256). The key sits
-beside the log, so verify_log() catches damage and edits made without the key, not an attacker who can read both files.
+State: <VELARIS_DATA>/agents/DEEP_AUDIT_ENGINE/audit_log.json (owner-only, atomic, locked) . The log keeps the newest 2000
+entries; the dropped prefix is replaced by a checkpoint signed (HMAC-SHA256) with a key derived from the vault master
+key, which lives outside VELARIS_DATA, so someone who can read or write the data directory cannot forge a checkpoint.
+A checkpoint signed by an older release with <dir>/audit.key still verifies (that file is read, never created) and is
+re-signed with the vault key at the next trim. A missing vault key fails closed (VaultKeyError).
 Failure: data that cannot be written as JSON raises TypeError.
 """
 import base64
@@ -20,8 +22,9 @@ import json
 from typing import Any, Dict, Optional
 
 from velaris.agentkit.state import JsonState
-from velaris.core.access import SECURITY_ADMINS, check_caller, current_caller
-from velaris.intel.paths import agent_dir, load_or_create_key
+from velaris.core.access import SECURITY_ADMINS, check_caller
+from velaris.core import vault
+from velaris.intel.paths import agent_dir, read_private
 
 NAME = "DEEP_AUDIT_ENGINE"
 MAX_ENTRIES = 2000      # the log keeps the newest; the dropped prefix is summarised by a signed checkpoint
@@ -41,7 +44,8 @@ class DeepAuditEngine:
     def __init__(self):
         self.AUDIT_LOG = str(agent_dir(NAME) / "audit_log.json")
         self._state = JsonState(NAME, path=self.AUDIT_LOG)
-        self._key = load_or_create_key(agent_dir(NAME) / "audit.key", 32)
+        self._legacy_key_path = agent_dir(NAME) / "audit.key"
+        self._key = vault.derive_key("DEEP_AUDIT_ENGINE:checkpoint")
 
     @property
     def log(self):
@@ -54,8 +58,17 @@ class DeepAuditEngine:
     def _link(prev: str, name: str, checksum: str, by: Optional[str]) -> str:
         return hashlib.sha256(json.dumps([prev, name, checksum, by]).encode()).hexdigest()
 
-    def _sign(self, head: str) -> str:
-        return base64.b64encode(hmac.new(self._key, head.encode(), hashlib.sha256).digest()).decode()
+    def _sign(self, head: str, key: Optional[bytes] = None) -> str:
+        return base64.b64encode(hmac.new(key or self._key, head.encode(), hashlib.sha256).digest()).decode()
+
+    def _checkpoint_ok(self, cp: Dict[str, Any]) -> bool:
+        if hmac.compare_digest(self._sign(cp["hash"]), cp["sig"]):
+            return True
+        try:                                           # written by an older release: its key file, read only
+            legacy = read_private(self._legacy_key_path)
+        except OSError:
+            return False
+        return hmac.compare_digest(self._sign(cp["hash"], legacy), cp["sig"])
 
     def audit(self, name: str, data: Any) -> Dict[str, Any]:
         """Record `data` for `name`. The first audit of a name pins its baseline; moving an existing baseline needs a
@@ -68,10 +81,11 @@ class DeepAuditEngine:
             if refused:
                 return refused
         else:
-            caller = current_caller()
-            who = caller
+            who, refused = check_caller(NAME, "first audit", {"name": name[:128]})
+            if refused:
+                return refused
 
-        by = who.id if who is not None else None
+        by = who.id
 
         def add(d):
             baselines = d.setdefault("baselines", {})
@@ -99,7 +113,7 @@ class DeepAuditEngine:
         try:
             expect = ""
             if cp:
-                if not hmac.compare_digest(self._sign(cp["hash"]), cp["sig"]):
+                if not self._checkpoint_ok(cp):
                     return False
                 expect = cp["hash"]
             for e in log:

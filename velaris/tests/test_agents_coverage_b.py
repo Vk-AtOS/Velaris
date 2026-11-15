@@ -171,14 +171,16 @@ def test_OWNER_VERIFICATION_partial_verify_fails_closed():
 
 # ── PIN_UNLOCK_LAYER ─────────────────────────────────────────────────────────
 def test_PIN_UNLOCK_LAYER_registers_locked_unlocks_with_right_pin_and_relocks():
+    from velaris.core.access import Caller, acting_as
     p = make("PIN_UNLOCK_LAYER", "PINUnlockLayer")
-    assert p.register_pin("bob", "12") is False and p.register_pin("bob", "abcd") is False   # 4-12 digits only
-    assert p.register_pin("asha", "4821") is True
-    assert p.register_pin("asha", "0000") is False         # cannot overwrite
-    assert p.is_locked("asha") is True
-    assert p.unlock("asha", "0000") is False and p.is_locked("asha") is True
-    assert p.unlock("asha", "4821") is True and p.is_locked("asha") is False
-    p.lock("asha")
+    with acting_as(Caller("asha", "kf", frozenset())):
+        assert p.register_pin("bob", "12") is False and p.register_pin("bob", "abcd") is False   # 4-12 digits only
+        assert p.register_pin("asha", "4821") is True
+        assert p.register_pin("asha", "0000") is False         # cannot overwrite
+        assert p.is_locked("asha") is True
+        assert p.unlock("asha", "0000") is False and p.is_locked("asha") is True
+        assert p.unlock("asha", "4821") is True and p.is_locked("asha") is False
+        p.lock("asha")
     assert p.is_locked("asha") is True
     assert make("PIN_UNLOCK_LAYER", "PINUnlockLayer").is_locked("asha") is True    # state is on disk, not in the object
     stored = json.loads((agent_dir("PIN_UNLOCK_LAYER") / "pins.json").read_text())["pins"]
@@ -193,7 +195,10 @@ def test_PIN_UNLOCK_LAYER_unknown_user_cannot_unlock_and_reads_as_locked():
     p.lock("ghost")                                        # no-op, no crash
     folder = agent_dir("PIN_UNLOCK_LAYER")                 # unknown names leave no lock state and no throttle record
     assert all("ghost" not in f.read_text() for f in folder.glob("*.json"))
-    assert p.register_pin("ghost", "1234") is True and p.unlock("ghost", "1234") is True   # and were not locked out
+    from velaris.core.access import Caller, acting_as
+    with acting_as(Caller("ghost", "kf", frozenset())):
+        assert p.register_pin("ghost", "1234") is True
+    assert p.unlock("ghost", "1234") is True               # and were not locked out
 
 
 # ── SUCCESSOR_KEY_MODULE ─────────────────────────────────────────────────────

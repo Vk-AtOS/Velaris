@@ -3,8 +3,9 @@ ZohoProjectsConnector.get_projects() lists active projects. get_tasks_by_owner(p
 lists a user's tasks in a project. get_timelogs(project_id, owner_id, from_date, to_date) returns that
 user's task time logs (dates MM-dd-yyyy). get_task_summary(project_id, owner_id) computes total,
 completed (status "Closed"), overdue (not closed and end date in the past), late_closed (closed
-after its end date), completion_rate, and on_time_rate (closed tasks that were not closed late, as a
-percentage of closed tasks). health_check() returns status "ok" or "unconfigured" from the Zoho
+after its end date), closed_unknown (closed tasks Zoho gave no completed_time_long or end date for: counted
+neither as on time nor as late), completion_rate, and on_time_rate (closed tasks with known timing that were not closed
+late, as a percentage of those; None when no closed task has known timing). health_check() returns status "ok" or "unconfigured" from the Zoho
 connector's credentials; it does not call Zoho. All HTTP goes through velaris.agents.ZOHO_CONNECTOR.ZohoConnector.get, using the portal id
 from config["portal_id"] or the ZOHO_PORTAL_ID environment variable.
 State: keeps none; credentials live in the Zoho connector. Failure: errors from the connector
@@ -82,11 +83,14 @@ class ZohoProjectsConnector:
             and t.get("completed_time_long") and t.get("end_date_long")
             and t["completed_time_long"] > t["end_date_long"]
         )
+        closed = [t for t in tasks if t.get("status", {}).get("name") == "Closed"]
+        known = sum(1 for t in closed if t.get("completed_time_long") and t.get("end_date_long"))
         return {
+            "closed_unknown": len(closed) - known,
             "total_tasks": total,
             "completed": completed,
             "completion_rate": round(completed / total * 100, 1) if total else 0,
             "overdue": overdue,
             "late_closed": late_closed,
-            "on_time_rate": round((completed - late_closed) / completed * 100, 1) if completed else 0
+            "on_time_rate": round((known - late_closed) / known * 100, 1) if known else None
         }
