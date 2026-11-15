@@ -34,6 +34,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 
+from velaris.api.atlassian_api import mount_atlassian
 from velaris.api.allowlist import ACT, READ, catalog, prepare, rule_for, tool_params
 from velaris.api.auth import AuthError, Verifier, load_public_key
 from velaris.api.background import interval, lifespan
@@ -401,6 +402,7 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
     mount_control(app, authed=authed, record=record, in_thread=in_thread, api_error=ApiError, llm=llm,
                   gate=settings.gate, flow_path=settings.flow_db)       # control layer: /control/... (velaris/control)
     mail = mount_mail(app, settings, authed, record, in_thread)    # company email: /mail/... (velaris/mail)
+    mount_atlassian(app, authed, record, in_thread)                # per-user Atlassian OAuth: /integrations/atlassian/...
     app.router.lifespan_context = lifespan([       # scheduled work, see velaris.api.background
         ("mail-outbox", interval("VELARIS_MAIL_WORKER_S", 30.0), mail.outbound.process_due),
         ("chat-sweep", interval("VELARIS_CHAT_SWEEP_S", 3600.0), partial(chat_service.sweep, settings.org))])
