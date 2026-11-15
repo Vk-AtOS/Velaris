@@ -101,3 +101,45 @@ def test_chat_database_of_an_older_release_is_sealed_and_reindexed_once(tmp_path
     c.close()
     svc = service(store=Store(str(path)))
     assert b"rhinoceros" not in path.read_bytes() and svc.search(ALICE, "rhinoceros")[0]["body"] == "legacy rhinoceros text"
+
+
+def test_mail_text_attachments_and_search_index_are_sealed_but_search_and_threading_work():
+    from velaris.mail.mime import parse_message
+    from velaris.tests.mail_helpers import ALICE, make_world, raw_mail
+    store, _, _, _, _, boxes = make_world()
+    mb = boxes["alice"]
+    put = lambda **kw: store.deliver(mb["id"], parse_message(raw_mail(**kw), fallback_ts=store.clock()), received=store.clock())
+    a = put(mid="a@x", subject="Salary revision for Asha", body="the zebra budget is confidential", frm="boss@ext.org")
+    put(mid="b@x", subject="Re: Salary revision for Asha", extra="In-Reply-To: <a@x>\r\n")
+    store._conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+    raw = store.path.read_bytes()
+    for word in (b"Salary", b"zebra", b"confidential", b"boss@ext.org", b"salary"):
+        assert word not in raw
+    assert [m["subject"] for m in store.list_messages(ALICE, mb["id"], q="zebra")["messages"]] == ["Salary revision for Asha"]
+    assert store.list_messages(ALICE, mb["id"], q="conf")["total"] == 1          # prefix of 4 letters
+    assert store.row(mb["id"], a)["thread_id"] == store.row(mb["id"], put(mid="c@x", subject="RE: salary revision for asha"))["thread_id"]
+    store.fts = False                                                             # the no-FTS fallback decrypts and filters
+    assert store.list_messages(ALICE, mb["id"], q="zebra")["total"] == 1
+
+
+def test_mail_database_of_an_older_release_is_sealed_and_reindexed_once(tmp_path):
+    import sqlite3
+    from velaris.mail import db as maildb
+    path = tmp_path / "old_mail.db"
+    c = sqlite3.connect(path)
+    c.executescript(maildb.SCHEMA)
+    c.execute("INSERT INTO mailbox VALUES('m1','acme','a@acme.com','alice','user',1000000,'','{}',0,1)")
+    c.execute("INSERT INTO folder VALUES('f1','m1','acme','Inbox','inbox')")
+    c.execute("INSERT INTO thread VALUES('t1','m1','acme','legacy giraffe subject',1)")
+    c.execute("INSERT INTO message(id, org, mailbox_id, folder_id, thread_id, message_id, subject, received_ts, size, body_text, source) "
+              "VALUES('x1','acme','m1','f1','t1','a@x','legacy giraffe subject',1,10,'legacy giraffe body','inbound')")
+    c.execute("CREATE VIRTUAL TABLE msg_fts USING fts5(subject, body, people)")
+    c.execute("INSERT INTO msg_fts(rowid, subject, body, people) VALUES(1,'legacy giraffe subject','legacy giraffe body','')")
+    c.commit()
+    c.close()
+    store = maildb.Database(str(path))
+    assert b"giraffe" not in path.read_bytes()
+    assert store.one("SELECT subject FROM message WHERE id='x1'")["subject"] == "legacy giraffe subject"
+    from velaris.core import fieldseal
+    t = " ".join('"' + x + '"' for x in fieldseal.blind_query(["giraffe"], "mail"))
+    assert store.one("SELECT rowid FROM msg_fts WHERE msg_fts MATCH ?", (t,)) is not None

@@ -19,7 +19,8 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 from velaris.core.access import Caller, org_denied
 from velaris.mail.admin import AdminMixin
 from velaris.mail.common import Clock, MailError, audit, uid
-from velaris.mail.db import Database, dumps, loads
+from velaris.core import fieldseal
+from velaris.mail.db import SEAL, Database, dumps, loads
 from velaris.mail.mime import Attachment, Parsed, domain_of, is_reply_subject, normalise_subject, valid_address
 
 STD_FOLDERS = (("Inbox", "inbox"), ("Sent", "sent"), ("Drafts", "drafts"), ("Trash", "trash"), ("Spam", "spam"),
@@ -167,11 +168,11 @@ class MailStore(AdminMixin, Database):
         norm = normalise_subject(p.subject)
         if norm and is_reply_subject(p.subject):
             r = c.execute("SELECT id FROM thread WHERE mailbox_id=? AND subject_norm=? AND last_ts>? ORDER BY last_ts DESC LIMIT 1",
-                          (mb["id"], norm, now - 30 * 86400)).fetchone()
+                          (mb["id"], fieldseal.blind_value(norm, SEAL), now - 30 * 86400)).fetchone()
             if r:
                 return r["id"]
         tid = uid()
-        c.execute("INSERT INTO thread(id, mailbox_id, org, subject_norm, last_ts) VALUES (?,?,?,?,?)", (tid, mb["id"], mb["org"], norm, now))
+        c.execute("INSERT INTO thread(id, mailbox_id, org, subject_norm, last_ts) VALUES (?,?,?,?,?)", (tid, mb["id"], mb["org"], fieldseal.blind_value(norm, SEAL) if norm else "", now))
         return tid
 
     def _fts(self, c: Any, rowid: int, p: Parsed, bcc: Sequence[str] = ()) -> None:
@@ -179,7 +180,8 @@ class MailStore(AdminMixin, Database):
             c.execute("DELETE FROM msg_fts WHERE rowid=?", (rowid,))
             people = " ".join([p.from_addr, p.from_name, *p.to, *p.cc, *bcc])
             c.execute("INSERT INTO msg_fts(rowid, subject, body, people) VALUES (?,?,?,?)",
-                      (rowid, p.subject, p.body_for_reading[:100_000], people))
+                      (rowid, fieldseal.blind_tokens(p.subject, SEAL, True), fieldseal.blind_tokens(p.body_for_reading[:100_000], SEAL, True),
+                       fieldseal.blind_tokens(people, SEAL, True)))
 
     def _attachments(self, c: Any, pk: str, org: str, atts: Iterable[Attachment]) -> None:
         for a in atts:
@@ -188,10 +190,11 @@ class MailStore(AdminMixin, Database):
                       "VALUES (?,?,?,?,?,?,?,?)", (pk, a.sha256, a.name, a.content_type, a.size, a.content_id, int(a.inline), org))
 
     def _row_values(self, p: Parsed) -> Dict[str, Any]:
-        return {"message_id": p.message_id, "in_reply_to": p.in_reply_to, "refs": dumps(p.references), "from_addr": p.from_addr,
-                "from_name": p.from_name, "to_addrs": dumps(p.to), "cc_addrs": dumps(p.cc), "subject": p.subject,
+        s = lambda v: fieldseal.seal(v, SEAL)
+        return {"message_id": p.message_id, "in_reply_to": p.in_reply_to, "refs": dumps(p.references), "from_addr": s(p.from_addr),
+                "from_name": s(p.from_name), "to_addrs": s(dumps(p.to)), "cc_addrs": s(dumps(p.cc)), "subject": s(p.subject),
                 "date_ts": p.date_ts, "size": max(p.size, len(p.text) + len(p.html) + sum(a.size for a in p.attachments)),
-                "snippet": p.snippet, "body_text": p.text, "body_html": p.html, "headers": dumps(p.headers),
+                "snippet": s(p.snippet), "body_text": s(p.text), "body_html": s(p.html), "headers": s(dumps(p.headers)),
                 "defects": dumps(p.defects[:20]), "blocked_images": p.blocked_images}
 
     def deliver(self, mailbox_id: str, p: Parsed, *, folder_role: str = "inbox", folder_name: str = "", source: str = "inbound",
@@ -216,7 +219,7 @@ class MailStore(AdminMixin, Database):
                 fid = c.execute("SELECT id FROM folder WHERE mailbox_id=? AND role=?", (mailbox_id, folder_role)).fetchone()["id"]
             pk = uid()
             vals.update(id=pk, org=mb["org"], mailbox_id=mailbox_id, folder_id=fid, thread_id=self._thread_for(c, mb, p, now),
-                        bcc_addrs=dumps(list(bcc)), received_ts=now, seen=int(seen or draft), draft=int(draft), source=source,
+                        bcc_addrs=fieldseal.seal(dumps(list(bcc)), SEAL), received_ts=now, seen=int(seen or draft), draft=int(draft), source=source,
                         origin=origin, auth_results=auth_results[:2000], spam_score=spam_score, spam_report=dumps(spam_report or []),
                         sent_by=sent_by)
             cur = c.execute(f"INSERT INTO message({','.join(vals)}) VALUES ({','.join('?' * len(vals))})", tuple(vals.values()))
@@ -248,7 +251,7 @@ class MailStore(AdminMixin, Database):
                 raise MailError("not_found", "no such draft", 404)
             vals = self._row_values(p)
             vals.pop("message_id")
-            vals["bcc_addrs"] = dumps(list(bcc))
+            vals["bcc_addrs"] = fieldseal.seal(dumps(list(bcc)), SEAL)
             old = [a["sha256"] for a in c.execute("SELECT sha256 FROM attachment WHERE message_pk=?", (draft_id,))]
             used = self.used_bytes(mailbox_id) - r["size"] + vals["size"]
             if used > c.execute("SELECT quota_bytes FROM mailbox WHERE id=?", (mailbox_id,)).fetchone()[0]:
@@ -312,20 +315,31 @@ class MailStore(AdminMixin, Database):
             tokens = re.findall(r"\w+", q)[:8]
             if not tokens:
                 raise MailError("bad_request", "the search has no words")
-            if self.fts:
+            if self.fts:                        # the index holds HMAC tokens: whole words only, nothing readable in the file
                 where.append("m.rowid IN (SELECT rowid FROM msg_fts WHERE msg_fts MATCH ?)")
-                args.append(" ".join('"' + t + '"*' for t in tokens))
+                args.append(" ".join('"' + t + '"' for t in fieldseal.blind_query(tokens, SEAL)))
             else:
-                for t in tokens:
-                    where.append("(m.subject LIKE ? ESCAPE '\\' OR m.body_text LIKE ? ESCAPE '\\' OR m.from_addr LIKE ? ESCAPE '\\' "
-                                 "OR m.to_addrs LIKE ? ESCAPE '\\')")
-                    args += [self._like(t)] * 4
+                return self._scan_search(where, args, tokens, limit, offset)
         cond = " AND ".join(where)
         total = self.one(f"SELECT COUNT(*) AS n FROM message m WHERE {cond}", tuple(args))["n"]
         rows = self.q(f"SELECT m.*, (SELECT COUNT(*) FROM attachment a WHERE a.message_pk=m.id AND a.inline=0) AS natt FROM message m "
                       f"WHERE {cond} ORDER BY m.received_ts DESC, m.rowid DESC LIMIT ? OFFSET ?", (*args, limit, offset))
         labels = self._labels([r["id"] for r in rows])
         return {"total": total, "offset": offset, "messages": [self._summary(r, labels[r["id"]], r["natt"]) for r in rows]}
+
+    SCAN_LIMIT = 2000
+
+    def _scan_search(self, where: List[str], args: List[Any], tokens: List[str], limit: int, offset: int) -> Dict[str, Any]:
+        """Search without FTS5: the newest SCAN_LIMIT messages that pass the other filters are decrypted and matched here
+        (sealed columns cannot be searched in SQL). Every word must occur as a substring of subject, text or people."""
+        rows = self.q(f"SELECT m.*, (SELECT COUNT(*) FROM attachment a WHERE a.message_pk=m.id AND a.inline=0) AS natt FROM message m "
+                      f"WHERE {' AND '.join(where)} ORDER BY m.received_ts DESC, m.rowid DESC LIMIT {self.SCAN_LIMIT}", tuple(args))
+        want = [t.lower() for t in tokens]
+        hits = [r for r in rows if all(t in " ".join([r["subject"], r["body_text"], r["from_addr"], r["from_name"], r["to_addrs"]]).lower()
+                                       for t in want)]
+        page = hits[offset:offset + limit]
+        labels = self._labels([r["id"] for r in page])
+        return {"total": len(hits), "offset": offset, "messages": [self._summary(r, labels[r["id"]], r["natt"]) for r in page]}
 
     def _full(self, r: Any) -> Dict[str, Any]:
         atts = [dict(a) for a in self.q("SELECT sha256, name, content_type, size, content_id, inline FROM attachment WHERE message_pk=?", (r["id"],))]

@@ -10,14 +10,18 @@ import hashlib
 import json
 import sqlite3
 
+from velaris.core import fieldseal
 from velaris.core.sqlite_util import connect as connect_db
 import threading
 from pathlib import Path
 from typing import Any, Iterator, List, Optional
 
+from velaris.core import vault
 from velaris.intel.paths import data_dir, open_private, private_dir, read_private, write_private
 from velaris.mail.common import MailError
 
+SEAL = "mail"       # purpose of the column-level encryption (velaris.core.fieldseal)
+SEALED = ("subject", "snippet", "body_text", "body_html", "headers", "from_addr", "from_name", "to_addrs", "cc_addrs", "bcc_addrs")
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS mailbox(
   id TEXT PRIMARY KEY, org TEXT NOT NULL, address TEXT NOT NULL UNIQUE, owner_id TEXT NOT NULL,
@@ -89,15 +93,42 @@ class Database:
         open_private(self.path, "a").close()                      # created 0600 before sqlite touches it
         self._lock = threading.RLock()
         self._conn = connect_db(str(self.path), check_same_thread=False)
-        self._conn.row_factory = sqlite3.Row
+        self._conn.row_factory = fieldseal.row_class(SEAL, SEALED)
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA foreign_keys=ON")
+        self._conn.execute("PRAGMA secure_delete=ON")             # purged and edited text must not linger in freed pages
         self._conn.executescript(SCHEMA)
         self.fts = True
         try:
             self._conn.execute("CREATE VIRTUAL TABLE IF NOT EXISTS msg_fts USING fts5(subject, body, people)")
         except sqlite3.OperationalError:
-            self.fts = False                                      # no FTS5 in this sqlite: LIKE search
+            self.fts = False                                      # no FTS5 in this sqlite: bounded scan search
+        self._seal_at_rest()
+
+    def _seal_at_rest(self) -> None:
+        """Seal message text written before sealing existed and rebuild the search index from blind tokens (once)."""
+        if self._conn.execute("SELECT 1 FROM org_settings WHERE org='__sealed_v1__'").fetchone():
+            return
+        fieldseal.seal_existing(self._conn, "message", list(SEALED), SEAL, key="id")
+        raw = self._conn.cursor()
+        raw.row_factory = None
+        for tid, norm in raw.execute("SELECT id, subject_norm FROM thread WHERE subject_norm NOT LIKE 'bn1:%'").fetchall():
+            self._conn.execute("UPDATE thread SET subject_norm=? WHERE id=?", (fieldseal.blind_value(norm, SEAL), tid))
+        if self.fts:
+            self._conn.execute("DROP TABLE IF EXISTS msg_fts")
+            self._conn.execute("CREATE VIRTUAL TABLE msg_fts USING fts5(subject, body, people)")
+            for r in self._conn.execute("SELECT rowid AS rid, subject, body_text, body_html, from_addr, from_name, to_addrs, cc_addrs, "
+                                        "bcc_addrs FROM message").fetchall():
+                people = " ".join([r["from_addr"], r["from_name"], *loads(r["to_addrs"], []), *loads(r["cc_addrs"], []),
+                                   *loads(r["bcc_addrs"], [])])
+                self._conn.execute("INSERT INTO msg_fts(rowid, subject, body, people) VALUES (?,?,?,?)",
+                                   (r["rid"], fieldseal.blind_tokens(r["subject"], SEAL, True),
+                                    fieldseal.blind_tokens((r["body_text"] or r["body_html"])[:100_000], SEAL, True),
+                                    fieldseal.blind_tokens(people, SEAL, True)))
+        self._conn.execute("INSERT INTO org_settings(org, data) VALUES ('__sealed_v1__', '{}')")
+        self._conn.commit()
+        self._conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        self._conn.execute("VACUUM")                              # plaintext pages and the old index must not stay in the file
 
     @contextlib.contextmanager
     def tx(self) -> Iterator[sqlite3.Connection]:
@@ -126,13 +157,14 @@ class Database:
         if hashlib.sha256(data).hexdigest() != sha:
             raise MailError("bad_hash", "the content does not match its hash")
         try:
-            write_private(self._blob_path(sha), data, exclusive=True)
+            write_private(self._blob_path(sha), vault.seal_bytes(data, "mail:blob"), exclusive=True)
         except FileExistsError:
             pass                                                   # same content already stored
 
     def get_blob(self, sha: str) -> bytes:
         try:
             data = read_private(self._blob_path(sha))
+            data = vault.open_bytes(data, "mail:blob") if vault.is_sealed(data) else data      # older blobs are plaintext
         except FileNotFoundError:
             raise MailError("not_found", "no such attachment", 404) from None
         if hashlib.sha256(data).hexdigest() != sha:

@@ -62,15 +62,28 @@ def row_class(purpose: str, cols: Iterable[str]) -> type:
     return SealedRow
 
 
-def blind_tokens(text: str, purpose: str) -> str:
-    """Opaque tokens, one per distinct word (lower-cased), for an index that can be searched but not read."""
+PREFIXES = (3, 4, 6, 8)
+
+
+def blind_tokens(text: str, purpose: str, prefixes: bool = False) -> str:
+    """Opaque tokens, one per distinct word (lower-cased), for an index that can be searched but not read.
+
+    With `prefixes` a word also yields tokens for its first 3, 4, 6 and 8 letters, so a query word of exactly those
+    lengths (or a whole word) finds words that start with it ("piz" finds "pizza"); other lengths match whole words only."""
     key = vault.derive_key(f"blind:{purpose}")
     words = list(dict.fromkeys(w for w in _WORD.findall((text or "").lower()) if len(w) >= 2))[:MAX_TOKENS]
-    return " ".join(hmac.new(key, w.encode(), hashlib.sha256).hexdigest()[:16] for w in words)
+    pieces = [w for word in words for w in ([word] + ([word[:k] for k in PREFIXES if k < len(word)] if prefixes else []))]
+    return " ".join(dict.fromkeys(hmac.new(key, w.encode(), hashlib.sha256).hexdigest()[:16] for w in pieces))
+
+
+def blind_value(text: str, purpose: str) -> str:
+    """One opaque, deterministic token for a whole value, usable for equality lookups (e.g. a normalised subject)."""
+    return "bn1:" + hmac.new(vault.derive_key(f"blind:{purpose}"), (text or "").encode(), hashlib.sha256).hexdigest()[:32]
 
 
 def blind_query(terms: List[str], purpose: str) -> List[str]:
-    return [t for t in blind_tokens(" ".join(terms), purpose).split()]
+    """Tokens to MATCH for the query words (each one a whole word, or a prefix of a length indexed with `prefixes`)."""
+    return blind_tokens(" ".join(terms), purpose).split()
 
 
 def seal_existing(conn: sqlite3.Connection, table: str, cols: List[str], purpose: str, key: str = "rowid",
