@@ -43,7 +43,8 @@ from velaris.control.api import mount as mount_control
 from velaris.api.trace_check import verify_incremental
 from velaris.core.access import GOVERNANCE_ADMINS, SECURITY_ADMINS, AccessDenied, Caller, deployment_org
 from velaris.core.prime import PrimeGate, gate_from_env, install_read_authoriser
-from velaris.intel import trace
+from velaris.intel import catalogue, trace
+from velaris.intel import health as model_health
 from velaris.intel.flow import Flow, FlowError, Tool
 from velaris.intel.llm import LLM
 from velaris.mail.api import mount_mail
@@ -386,5 +387,7 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
     mail = mount_mail(app, settings, authed, record, in_thread)    # company email: /mail/... (velaris/mail)
     app.router.lifespan_context = lifespan([       # scheduled work, see velaris.api.background
         ("mail-outbox", interval("VELARIS_MAIL_WORKER_S", 30.0), mail.outbound.process_due),
-        ("chat-sweep", interval("VELARIS_CHAT_SWEEP_S", 3600.0), partial(chat_service.sweep, settings.org))])
+        ("chat-sweep", interval("VELARIS_CHAT_SWEEP_S", 3600.0), partial(chat_service.sweep, settings.org)),
+        ("provider-health", interval("VELARIS_PROVIDER_HEALTH_S", 900.0), model_health.sweep),
+        ("catalogue-refresh", interval("VELARIS_CATALOGUE_REFRESH_S", 21600.0), catalogue.refresh_all)])
     return app
