@@ -7,10 +7,17 @@ not summing to about 1 (0.99 to 1.01) or outside 0..1, missing return, volatilit
 -1..1, volatility outside 0..2, correlation outside -1..1. simulate(input) returns {"status": "failed", "errors": [...]} when
 validation fails or the correlation matrix gives negative variance; otherwise {"status": "ok", portfolio_id, expected_return,
 volatility, sharpe_ratio, risk_tier} using a fixed 2 percent risk-free rate and std-dev cut-offs 0.1, 0.25, 0.5 for low/medium/high/extreme.
-A correlation row lacking a column for another asset raises KeyError. Keeps no state.
+The correlation matrix must be complete for the held assets (a missing cell is an error, not a KeyError), symmetric
+(corr[a][b] equals corr[b][a] within 1e-6) with 1 on the diagonal; every weight, return, volatility and correlation must be a
+finite number (NaN, infinity, booleans and text are errors). Keeps no state.
 """
 from dataclasses import dataclass
+import math
 from typing import Dict, List, Any
+
+
+def _num(x: Any) -> bool:
+    return isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x)
 
 @dataclass
 class PortfolioInput:
@@ -29,7 +36,16 @@ class PortfolioSimEngine:
 
     def validate(self, p: PortfolioInput) -> List[str]:
         e=[]
-        if not p.portfolio_id or len(p.portfolio_id)>64:
+        if not all(isinstance(m, dict) for m in (p.assets, p.expected_returns, p.volatilities, p.correlations)):
+            return ["assets, expected_returns, volatilities and correlations must be objects"]
+        bad = [f"{name} {k} is not a finite number" for name, m in (("weight", p.assets), ("expected return", p.expected_returns),
+               ("volatility", p.volatilities)) for k, v in m.items() if not _num(v)]
+        bad += [f"correlation {a}-{b} is not a finite number" for a, row in p.correlations.items()
+                if isinstance(row, dict) for b, c in row.items() if not _num(c)]
+        bad += [f"correlation row {a} is not an object" for a, row in p.correlations.items() if not isinstance(row, dict)]
+        if bad:
+            return bad
+        if not isinstance(p.portfolio_id, str) or not p.portfolio_id or len(p.portfolio_id)>64:
             e.append("portfolio_id invalid")
         if len(p.assets)==0 or len(p.assets)>self.MAX_ASSETS:
             e.append("invalid number of assets")
@@ -55,6 +71,16 @@ class PortfolioSimEngine:
             for b,c in row.items():
                 if c<-1 or c>1:
                     e.append(f"invalid correlation {a}-{b}")
+        held = [a for a in p.assets if a in p.correlations]
+        for a in held:
+            if abs(p.correlations[a].get(a, 0) - 1) > 1e-6:
+                e.append(f"correlation {a}-{a} must be 1")
+            for b in held:
+                if b not in p.correlations[a]:
+                    e.append(f"missing correlation {a}-{b}")
+                elif b in p.correlations and a in p.correlations[b] and abs(p.correlations[a][b] - p.correlations[b][a]) > 1e-6:
+                    if a < b:
+                        e.append(f"correlation {a}-{b} is not symmetric")
         return e
 
     def simulate(self, p: PortfolioInput) -> Dict[str,Any]:
