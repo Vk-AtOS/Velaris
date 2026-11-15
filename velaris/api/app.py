@@ -89,7 +89,9 @@ def _error(status: int, code: str, message: str) -> JSONResponse:
 
 
 def _jsonable(value: Any) -> Any:
-    return json.loads(json.dumps(value, default=str))
+    """`value` as plain JSON data. JSON has no infinity or NaN (TREASURIX returns inf for "no burn"), and the
+    response encoder refuses them (a 500), so every non-finite number becomes null here, for every agent."""
+    return json.loads(json.dumps(value, default=str), parse_constant=lambda _name: None)
 
 
 def _who(caller: Caller) -> Dict[str, Any]:
