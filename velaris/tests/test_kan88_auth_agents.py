@@ -1,6 +1,7 @@
 """KAN-88: recovery, PIN, owner and identity agents are random, hashed, single-use, throttled and role-gated."""
 import json
 import time
+from concurrent.futures import ThreadPoolExecutor
 from importlib import import_module
 
 import pytest
@@ -33,14 +34,27 @@ def test_secure_primitives():
 
 def test_throttle_survives_new_instances_and_expires():
     t = secure.Throttle("T", max_attempts=2, lock_seconds=0.2)
-    t.fail("u"), t.fail("u")
-    assert secure.Throttle("T").locked("u")
+    assert t.begin("u") and t.begin("u")
+    assert not secure.Throttle("T").begin("u")               # locked, also from another instance
     time.sleep(0.25)
-    assert not t.locked("u")
+    assert t.begin("u")
+    t.clear("u")
+    assert t.begin("u")
+
+
+def test_throttle_reservation_is_atomic_under_parallel_guesses():
+    t = secure.Throttle("T2", max_attempts=3, lock_seconds=60)
+    with ThreadPoolExecutor(12) as ex:
+        allowed = list(ex.map(lambda _: t.begin("u"), range(12)))
+    assert sum(allowed) == 3                                 # not 12: check and count are one step
 
 
 # ---- MFA_RECOVERY_WORKFLOW ----------------------------------------------------
-def test_recovery_needs_admin_and_a_verified_code():
+BOB = Caller("bob", "kf", frozenset())
+EVE = Caller("eve", "kf", frozenset())
+
+
+def test_recovery_needs_admin_and_the_verifier_gets_the_token():
     m = mod("MFA_RECOVERY_WORKFLOW").MFARecoveryWorkflow()
     with acting_as(MEMBER):
         assert m.issue_recovery_code("bob") is None            # a member cannot mint codes
@@ -48,16 +62,20 @@ def test_recovery_needs_admin_and_a_verified_code():
     with acting_as(ADMIN):
         code = m.issue_recovery_code("bob")
     assert len(code) == 8 and code.isdigit()
-    assert m.issue_reset_token("bob") is None                  # no verified code yet: no token
-    assert m.verify_recovery_code("bob", code) is True
-    assert m.verify_recovery_code("bob", code) is False        # consumed
-    tok = m.issue_reset_token("bob")
-    assert tok and m.issue_reset_token("bob") is None          # the verification buys one token
-    assert not m.reset_credentials("bob", "wrong", "h")
-    assert not m.reset_credentials("bob", tok, "")             # new_hash is required
-    assert m.reset_credentials("bob", tok, "newhash") and m.credential_hash("bob") == "newhash"
-    assert not m.reset_credentials("bob", tok, "again")        # single use
-    assert not m.reset_credentials("eve", tok, "x")            # tied to the user
+    assert not hasattr(m, "issue_reset_token")                 # no separate step another caller could redeem
+    with acting_as(EVE):
+        assert m.verify_recovery_code("bob", code) is None     # a stranger cannot consume or probe bob's code
+    assert m.verify_recovery_code("bob", code) is None         # unauthenticated either
+    with acting_as(BOB):
+        tok = m.verify_recovery_code("bob", code)              # bob is the verifier and receives the token
+        assert tok and m.verify_recovery_code("bob", code) is None       # consumed
+    with acting_as(EVE):
+        assert not m.reset_credentials("bob", tok, "evil")     # holding the token is not enough for eve
+    with acting_as(BOB):
+        assert not m.reset_credentials("bob", "wrong", "h")
+        assert not m.reset_credentials("bob", tok, "")         # new_hash is required
+        assert m.reset_credentials("bob", tok, "newhash") and m.credential_hash("bob") == "newhash"
+        assert not m.reset_credentials("bob", tok, "again")    # single use
 
 
 def test_recovery_expiry_and_lockout(monkeypatch):
@@ -67,13 +85,15 @@ def test_recovery_expiry_and_lockout(monkeypatch):
         code = m.issue_recovery_code("bob")
     real = time.time()
     monkeypatch.setattr(M, "_now", lambda: real + M.CODE_TTL + 1)
-    assert m.verify_recovery_code("bob", code) is False        # expired
+    with acting_as(BOB):
+        assert m.verify_recovery_code("bob", code) is None     # expired
     monkeypatch.undo()
     with acting_as(ADMIN):
         code = m.issue_recovery_code("al")
-    for _ in range(5):
-        assert not m.verify_recovery_code("al", "00000000" if code != "00000000" else "11111111")
-    assert m.verify_recovery_code("al", code) is False         # locked even for the right code
+    with acting_as(Caller("al", "kf", frozenset())):
+        for _ in range(5):
+            assert not m.verify_recovery_code("al", "00000000" if code != "00000000" else "11111111")
+        assert m.verify_recovery_code("al", code) is None      # locked even for the right code
 
 
 # ---- PIN_UNLOCK_LAYER ---------------------------------------------------------
@@ -132,8 +152,14 @@ def test_identity_lockout_and_unknown_user_costs_the_same(monkeypatch):
     real = I.hashlib.pbkdf2_hmac
     monkeypatch.setattr(I.hashlib, "pbkdf2_hmac", lambda *a, **k: calls.append(1) or real(*a, **k))
     assert not idf.validate_identity("ghost", "x")
-    assert calls, "an unknown username must still be hashed"
+    assert len(calls) == 1, "an unknown username must still be hashed"
     for _ in range(5):
         assert not idf.validate_identity("al", "wrong")
+    calls.clear()
     assert not idf.validate_identity("al", "pw-good")          # locked
+    assert len(calls) == 1, "the locked path must do the same hashing work as every other path"
+    for _ in range(8):                                         # unknown names are throttled as one bucket too
+        assert not idf.validate_identity("ghost", "x")
     assert not idf.validate_identity(None, "x")
+    stored = json.loads((agent_dir("IDENTITY_FRAMEWORK") / "throttle.json").read_text())
+    assert sorted(k for k in stored if k != "schema_version") == ["\x00unknown", "al"]   # no per-ghost state

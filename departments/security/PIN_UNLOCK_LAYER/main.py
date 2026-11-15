@@ -36,12 +36,12 @@ class PINUnlockLayer:
         return bool(self._state.update(put))
 
     def unlock(self, user: str, pin: str) -> bool:
-        if not isinstance(user, str) or self._throttle.locked(user):
+        if not isinstance(user, str):
             return False
         stored = (self._state.load().get("pins") or {}).get(user)
-        if not verify_secret(pin, stored):                 # costs the same for an unknown user
-            if stored:
-                self._throttle.fail(user)
+        # Only registered users are counted (unknown names must not grow the state); the hash is always computed.
+        allowed = self._throttle.begin(user) if stored else True
+        if not verify_secret(pin, stored) or not allowed:
             return False
         self._throttle.clear(user)
         self._state.update(lambda d: d.setdefault("locked", {}).__setitem__(user, False))

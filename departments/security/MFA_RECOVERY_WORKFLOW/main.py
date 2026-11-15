@@ -28,7 +28,7 @@ class MFARecoveryWorkflow:
     """
     Velaris MFA Recovery Workflow
     - A security admin issues a one-time recovery code (random, hashed, expires, 5 wrong tries lock the user)
-    - A correct code is consumed and lets the SAME user ask for one reset token
+    - A correct code is consumed and returns one reset token to the verifier (the user or a security admin)
     - The token is single use and is consumed by reset_credentials, which records the new credential hash
     State lives in VELARIS_DATA, so it is shared by workers and survives a restart.
     """
@@ -49,43 +49,37 @@ class MFARecoveryWorkflow:
 
         def put(d):
             d.setdefault("codes", {})[user] = entry
-            d.get("verified", {}).pop(user, None)
             d.get("tokens", {}).pop(user, None)
         self._state.update(put)
         return code
 
-    def verify_recovery_code(self, user: str, code: str) -> bool:
-        """True once per issued code. A wrong guess counts toward the lockout; a used or expired code is dead."""
-        if not isinstance(user, str) or not isinstance(code, str) or self._throttle.locked(user):
-            return False
+    def verify_recovery_code(self, user: str, code: str) -> Optional[str]:
+        """The reset token (once) for a correct, unexpired, unused code; None otherwise.
+
+        Only `user` themselves or a security admin may try (so a stranger cannot lock a user out by guessing), and
+        the token is handed to that verifier in the same atomic step that consumes the code: there is no
+        separate "verified" flag another caller could redeem. A wrong guess counts toward the lockout.
+        """
+        if not isinstance(user, str) or not isinstance(code, str):
+            return None
+        _, refused = check_caller(NAME, "verify_recovery_code", {"user": user[:128]}, roles=SECURITY_ADMINS, also=user)
+        if refused or not self._throttle.begin(user):        # reserved BEFORE checking: parallel guesses all count
+            return None
         entry = (self._state.load().get("codes") or {}).get(user)
-        ok = verify_secret(code, entry["h"] if entry else None) and entry["exp"] > _now()
-        if not ok:
-            if entry:
-                self._throttle.fail(user)
-            return False
+        if not (verify_secret(code, entry["h"] if entry else None) and entry["exp"] > _now()):
+            return None
+        token = secrets.token_urlsafe(24)
 
         def consume(d):
             if d.get("codes", {}).get(user) != entry:        # another worker used it first
-                return False
-            del d["codes"][user]
-            d.setdefault("verified", {})[user] = _now() + TOKEN_TTL
-            return True
-        if not self._state.update(consume):
-            return False
-        self._throttle.clear(user)
-        return True
-
-    def issue_reset_token(self, user: str) -> Optional[str]:
-        """A reset token, only for a user whose recovery code was just verified; None otherwise."""
-        token = secrets.token_urlsafe(24)
-
-        def put(d):
-            if d.get("verified", {}).pop(user, 0) <= _now():
                 return None
+            del d["codes"][user]
             d.setdefault("tokens", {})[user] = {"h": _digest(token), "exp": _now() + TOKEN_TTL}
             return token
-        return self._state.update(put) if isinstance(user, str) else None
+        got = self._state.update(consume)
+        if got:
+            self._throttle.clear(user)
+        return got
 
     def _token_ok(self, rec, token) -> bool:
         return bool(rec) and isinstance(token, str) and rec["exp"] > _now() and hmac.compare_digest(rec["h"], _digest(token))
@@ -96,6 +90,9 @@ class MFARecoveryWorkflow:
     def reset_credentials(self, user: str, token: str, new_hash: str) -> bool:
         """Consume the token and record `new_hash` (a hash made by the caller, never a password) as the user's credential."""
         if not isinstance(user, str) or not isinstance(new_hash, str) or not 0 < len(new_hash) <= MAX_HASH:
+            return False
+        _, refused = check_caller(NAME, "reset_credentials", {"user": user[:128]}, roles=SECURITY_ADMINS, also=user)
+        if refused:
             return False
 
         def go(d):

@@ -75,14 +75,14 @@ class IdentityFramework:
         if not isinstance(username, str) or not isinstance(password, str):
             return False
         known = username in self.db
-        if known and self._throttle.locked(username):
-            return False
-        # An unknown user costs the same hashing time as a wrong password: timing does not reveal valid names.
+        # Every path does the same work: one throttle reservation (unknown names share one bucket so state stays
+        # bounded) and one password hash, so neither timing nor a lockout reveals which usernames exist.
+        allowed = self._throttle.begin(username if known else "\0unknown")
         ok = self._verify_password(password, self.db[username]["password"] if known else self._DUMMY)
-        if known:
-            self._throttle.clear(username) if ok else self._throttle.fail(username)
-        return ok and known
-
+        if ok and known and allowed:
+            self._throttle.clear(username)
+            return True
+        return False
     def update_meta(self, username: str, meta: Dict) -> bool:
         if username not in self.db:
             return False

@@ -40,11 +40,12 @@ class OwnerVerification:
 
     def _matches(self, presented: dict) -> bool:
         templates = self.owner_templates
-        if not templates or self._throttle.locked("owner"):
+        if not templates or not self._throttle.begin("owner"):
             return False
         results = [verify_secret(v, templates.get(k)) for k, v in presented.items()]   # no early exit: constant work
         ok = bool(results) and all(results)
-        self._throttle.clear("owner") if ok else self._throttle.fail("owner")
+        if ok:
+            self._throttle.clear("owner")
         return ok
 
     def verify(self, fingerprint: str, face: str, voice: str) -> bool:
