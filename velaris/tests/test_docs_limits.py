@@ -149,3 +149,11 @@ def test_store_refuses_a_bomb_and_keeps_nothing(tmp_path, monkeypatch):
     with pytest.raises(DocTooLarge):
         store.ingest("bomb.docx", docx("x" * 20_000), scope="acme")
     assert store.documents("acme") == []
+
+
+def test_unreadable_pdf_is_refused_never_read_as_text(monkeypatch):
+    """Without pypdf (or with a scan) the PDF converter fails; the raw %PDF bytes must not fall through to the text converter."""
+    monkeypatch.setitem(__import__("sys").modules, "pypdf", None)     # `import pypdf` raises ImportError
+    with pytest.raises(DocError, match="pypdf") as e:
+        convert("cv.pdf", b"%PDF-1.4\nBT (Skills: Python) Tj ET\n")
+    assert "text:" not in str(e.value)
