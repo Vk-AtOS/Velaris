@@ -4,7 +4,6 @@ Phase 4B — Core Intelligence Agent #7
 Validates anomaly detection, symbol ratio, extreme numeric ranges, and integrity score.
 """
 
-from velaris.core_agents.sentinel import sentinel
 from velaris.agents.agents.router import router
 from velaris.memory.mesh import mesh
 

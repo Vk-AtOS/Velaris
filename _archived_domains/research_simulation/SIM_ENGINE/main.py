@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Any, List, Callable
+from typing import Dict, Any, List
 from velaris.agents.NEURAL_MESH.main import NeuralMesh
 logger = logging.getLogger('SIM_ENGINE')
 logger.setLevel(logging.DEBUG)

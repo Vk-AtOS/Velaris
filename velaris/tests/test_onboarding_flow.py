@@ -4,7 +4,7 @@ import json
 import os
 from pathlib import Path
 
-from velaris.tests.onboarding_helpers import HR1, HR2, MGR, ORG, OTHER_ORG_HR, PAYROLL, Clock, FakeOffers, FakePolicyAcks, person
+from velaris.tests.onboarding_helpers import HR1, MGR, ORG, OTHER_ORG_HR, PAYROLL, Clock, FakeOffers, FakePolicyAcks, person
 from velaris.agents.ONBOARDING_FLOW.main import OnboardingFlow
 import pytest
 from velaris.core.access import AccessDenied, Caller, acting_as
@@ -456,7 +456,7 @@ def test_documents_are_sealed_hashed_and_dated():
 
 def test_reminders_are_drafted_for_hr_only():
     o, clock = make()
-    cid = start(o)
+    start(o)
     clock.advance(days=20)
     with acting_as(HR1):
         r = o.reminders_due(2)

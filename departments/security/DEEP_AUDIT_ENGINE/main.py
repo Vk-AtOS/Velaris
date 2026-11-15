@@ -4,7 +4,7 @@ import logging
 import os
 import json
 import hashlib
-from typing import Dict, List, Any
+from typing import Dict, Any
 
 from velaris.intel.paths import agent_dir
 

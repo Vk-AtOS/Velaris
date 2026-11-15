@@ -1,4 +1,4 @@
-import os, sys, json
+import os, sys
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, ROOT)
 from velaris.agents.REGISTRY.main import AgentRegistry

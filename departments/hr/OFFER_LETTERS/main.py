@@ -212,7 +212,7 @@ class OfferLetters:
                 ctc = annual_ctc if annual_ctc is not None else o["comp"]["annual_ctc"]
                 o["comp"] = self._engine_breakdown(ctc, structure or o["comp"]["structure"], t["join_date"][:7], t["local_body"])
             except ValueError as e:
-                raise Refused(invalid(str(e)))
+                raise Refused(invalid(str(e))) from e
             o["terms"] = t
             o["history"].append(snap)
             # whoever changes the terms is an author of this version: they may not approve it (four-eyes)

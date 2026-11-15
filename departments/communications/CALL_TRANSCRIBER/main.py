@@ -3,7 +3,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 
 import logging
 import json
-import subprocess
 from typing import Dict, Any, Optional
 
 from velaris.intel.paths import agent_dir

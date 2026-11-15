@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, Any
+from typing import Dict, Any
 
 logger = logging.getLogger("OVERWATCH")
 logger.setLevel(logging.DEBUG)

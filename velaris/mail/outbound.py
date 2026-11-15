@@ -27,7 +27,6 @@ import argparse
 import logging
 import threading
 import time
-from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Sequence
 
 from velaris.core.access import Caller
@@ -37,7 +36,7 @@ from velaris.mail import dkim
 from velaris.mail.common import Clock, MailError, RelayError, audit, uid
 from velaris.mail.db import dumps, loads
 from velaris.mail.connector import relay_from_env
-from velaris.mail.drafts import ACTIVE, EXTRA_HEADERS, active_submission, payload_hash
+from velaris.mail.drafts import EXTRA_HEADERS, active_submission, payload_hash
 from velaris.mail.mime import Attachment, Parsed, build_message, domain_of, parse_message
 from velaris.mail.store import MailStore
 

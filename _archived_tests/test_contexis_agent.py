@@ -4,7 +4,6 @@ Phase 4B — Core Intelligence Agents (Agent #2)
 Validates: merge, get, expand operations.
 """
 
-from velaris.core_agents.contexis import contexis
 from velaris.agents.agents.router import router
 from velaris.memory.mesh import mesh
 

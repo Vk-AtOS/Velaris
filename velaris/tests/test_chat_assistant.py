@@ -479,7 +479,6 @@ def test_prompt_injection_author_cannot_approve_and_requester_can_reject():
 def test_pre_migration_pending_proposals_cannot_execute(tmp_path):
     import sqlite3
     from velaris.chat.store import Store
-    from velaris.chat.service import ChatService
     path = tmp_path / "old.db"
     old = sqlite3.connect(path)
     old.executescript("""CREATE TABLE ai_proposals(run_id TEXT PRIMARY KEY, org TEXT NOT NULL, channel_id INTEGER NOT NULL,
@@ -524,8 +523,8 @@ def test_erasure_keeps_reactions_and_files_that_belong_to_held_evidence():
     free = s.create_channel(ALICE, "public", "free", ["bob"])["id"]
     up = s.upload(BOB, "a.txt", "text/plain", b"evidence file")["hash"]
     gone = s.upload(BOB, "b.txt", "text/plain", b"scratch file")["hash"]
-    m = s.post(BOB, cid, "see attached", attachments=[up])
-    f = s.post(BOB, free, "scratch", attachments=[gone])
+    s.post(BOB, cid, "see attached", attachments=[up])
+    s.post(BOB, free, "scratch", attachments=[gone])
     held_msg = s.post(ALICE, cid, "alice says")
     free_msg = s.post(ALICE, free, "alice free")
     s.react(BOB, held_msg["id"], "ok")

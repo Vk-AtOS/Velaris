@@ -1,7 +1,6 @@
 """KAN-107: accept_submission keeps the upload and the submission when the resume cannot be read, and a retry does not duplicate the candidate."""
 import os
 
-from velaris.agentkit import hiring_common as hc
 from velaris.agentkit.hiring_testkit import as_
 from velaris.agents.SCREENING_FORMS import main as forms_mod
 from velaris.intel.paths import agent_dir

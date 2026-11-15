@@ -4,12 +4,10 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 import logging
 import math
 import sqlite3
-import json
 from datetime import date, timedelta
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from velaris.intel.paths import agent_file
 
-from velaris.intel.paths import agent_dir
 
 logger = logging.getLogger("SPRINT_PLANNER")
 logger.setLevel(logging.DEBUG)

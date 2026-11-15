@@ -70,7 +70,6 @@ def _extract_due_hint(text: str) -> Optional[str]:
     for keyword in _DAY_MAP:
         if keyword in lower:
             if _DAY_MAP[keyword] is not None:
-                from datetime import timedelta
                 due = date.today() + datetime.timedelta(days=_DAY_MAP[keyword])
                 return due.isoformat()
             return keyword

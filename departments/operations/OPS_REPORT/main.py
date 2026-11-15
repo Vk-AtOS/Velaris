@@ -6,7 +6,7 @@ Ported from VKatOS ops_report. Daily operations report with categories, blockers
 import logging
 import sqlite3
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Optional
 from velaris.intel.paths import agent_file
 
 from velaris.intel.paths import agent_dir

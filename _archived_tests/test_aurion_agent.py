@@ -4,7 +4,6 @@ Phase 4B — Core Intelligence Agents
 Validates context updates, retrieval, and analysis.
 """
 
-from velaris.core_agents.aurion import aurion
 from velaris.agents.agents.router import router
 from velaris.memory.mesh import mesh
 

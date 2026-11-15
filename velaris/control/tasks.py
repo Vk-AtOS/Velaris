@@ -19,7 +19,7 @@ To add a task, write those functions and call register(Task(...)); see velaris/c
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional
 
 from velaris.control.checkpoint import Journal

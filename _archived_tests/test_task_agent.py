@@ -18,7 +18,7 @@ def run_test():
     mesh.store = {}
 
     # Instantiate agent
-    agent = TaskAgent()
+    TaskAgent()
 
     # Subscribe to output channel
     router.subscribe("task_agent_out", task_callback)

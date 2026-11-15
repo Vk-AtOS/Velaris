@@ -7,7 +7,7 @@ import asyncio
 import logging
 import sqlite3
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
 
 import httpx
 from velaris.intel.paths import agent_file
@@ -46,7 +46,7 @@ class WhatsAppBriefingSystem:
             (f"{today}%",),
         ).fetchall()
         lines = [
-            f"*Knackforge Daily Briefing*",
+            "*Knackforge Daily Briefing*",
             f"*{datetime.now().strftime('%d %b %Y')}*",
             "",
         ]

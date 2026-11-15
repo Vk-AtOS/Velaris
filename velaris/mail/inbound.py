@@ -20,7 +20,7 @@ import argparse
 import asyncio
 import logging
 import sqlite3
-from typing import Any, Callable, Optional, Tuple
+from typing import Any, Optional, Tuple
 
 from velaris.core.access import deployment_org
 from velaris.mail import dkim, rules, spam

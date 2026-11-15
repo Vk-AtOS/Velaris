@@ -1,6 +1,5 @@
 import logging
 from typing import List, Dict, Any
-import math
 
 logger = logging.getLogger("VIRALYTICA")
 logger.setLevel(logging.DEBUG)

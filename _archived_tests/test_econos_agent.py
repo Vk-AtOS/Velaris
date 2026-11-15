@@ -4,7 +4,6 @@ Phase 4B — Core Intelligence Agent #6
 Validates numeric extraction, trend detection, and economic scoring.
 """
 
-from velaris.core_agents.econos import econos
 from velaris.agents.agents.router import router
 from velaris.memory.mesh import mesh
 

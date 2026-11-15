@@ -5,10 +5,9 @@ import logging
 import math
 import sqlite3
 from datetime import datetime, date
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from velaris.intel.paths import agent_file
 
-from velaris.intel.paths import agent_dir
 
 logger = logging.getLogger("TIME_TRACKER")
 logger.setLevel(logging.DEBUG)

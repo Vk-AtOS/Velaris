@@ -19,8 +19,8 @@ def run_test():
     mesh.store = {}
 
     # Create agents
-    orch = OrchestratorAgent()
-    task = TaskAgent()
+    OrchestratorAgent()
+    TaskAgent()
 
     # Subscribe to orchestrator output
     router.subscribe("orchestrator_out", orchestrator_callback)

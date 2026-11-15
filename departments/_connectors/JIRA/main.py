@@ -23,7 +23,7 @@ written; the first call against a real site should be checked against the live r
 """
 import logging
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from velaris.agents.JIRA.atlassian import (AtlassianClient, AtlassianError, in_scope, refuse_unless_approved, scope_query,
                                            screen)

@@ -1,5 +1,4 @@
 """KAN-107: INTERVIEW_RECORD retention_until is enforced (reads refused, no new events, purge erases)."""
-import pytest
 
 from velaris.agentkit import hiring_record as hr
 from velaris.agentkit import hiring_record_gateway as gw

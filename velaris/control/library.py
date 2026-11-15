@@ -16,7 +16,7 @@ from typing import Any, Dict, List
 from urllib.parse import urlsplit
 
 from velaris.control.checkpoint import Journal
-from velaris.control.core import Action, Element, Surface, sha
+from velaris.control.core import Surface, sha
 from velaris.control.policy import ActionSpec
 from velaris.control.tasks import Check, Task, register
 

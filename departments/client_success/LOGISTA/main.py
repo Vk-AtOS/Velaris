@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 logger = logging.getLogger("LOGISTA")
 logger.setLevel(logging.DEBUG)

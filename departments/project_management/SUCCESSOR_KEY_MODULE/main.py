@@ -1,7 +1,7 @@
 # ================================================================================
 
 import hashlib
-from typing import Dict, Optional
+from typing import Optional
 
 
 class SuccessorKeyModule:

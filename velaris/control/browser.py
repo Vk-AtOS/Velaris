@@ -18,13 +18,12 @@ only does GET, so a real form POST is refused there (a driver with a vetted POST
 """
 from __future__ import annotations
 
-import re
 import socket
-from typing import Any, Callable, Dict, FrozenSet, List, Optional, Protocol, Sequence, Tuple
-from urllib.parse import urljoin, urlsplit
+from typing import Any, Callable, Dict, List, Optional, Protocol, Sequence, Tuple
+from urllib.parse import urlsplit
 
 from velaris.control.checkpoint import Journal, UndoConflict
-from velaris.control.core import (IRREVERSIBLE, READ, UNDOABLE, Action, ActResult, ControlError, Element,
+from velaris.control.core import (IRREVERSIBLE, READ, UNDOABLE, Action, ActResult, Element,
                                   Observation, Refused, Surface)
 from velaris.intel import trace
 from velaris.intel.web_fetch import FetchError, check_public

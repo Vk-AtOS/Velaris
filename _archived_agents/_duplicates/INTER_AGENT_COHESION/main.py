@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 from velaris.agents.MEMORY_FABRIC.main import MemoryFabric
 logger = logging.getLogger('INTER_AGENT_COHESION')
 logger.setLevel(logging.DEBUG)

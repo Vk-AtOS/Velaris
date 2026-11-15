@@ -1,6 +1,5 @@
 # ================================================================================
 
-import json
 from typing import Dict, Any, Optional
 
 class ConnectorLayer:

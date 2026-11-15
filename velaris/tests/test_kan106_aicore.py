@@ -1,7 +1,6 @@
 """KAN-106 (_ai_core agents): crashes and wrong results found by the verification pass."""
 from importlib import import_module
 
-import pytest
 
 from velaris.core.access import Caller, acting_as
 

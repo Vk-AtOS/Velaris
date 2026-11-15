@@ -202,7 +202,7 @@ class OnboardingFlow:
             info = view.ack_evidence(c["org"], c["subject_id"], t["policy"])
         except Exception as e:                  # a view outside this agent: any failure means "cannot confirm"
             logger.warning("policy ack check failed for case %s: %s", c["id"], e)
-            raise Refused(fail("not_configured", "policy acknowledgements could not be checked"))
+            raise Refused(fail("not_configured", "policy acknowledgements could not be checked")) from e
         cur = (info or {}).get("current_version")
         if cur is None:
             raise Refused(fail("no_current_policy", "this policy has no current published version"))

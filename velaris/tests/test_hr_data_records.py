@@ -43,7 +43,6 @@ def test_erase_subject_reaches_offers_and_esign_and_reports_what_was_erased_and_
     assert any("ofr-declined" in x for x in res["erased"]) and any("sig-voided" in x for x in res["erased"])
     held = {h["what"] for h in res["held"]}
     assert {"offer:ofr-accepted", "esign:sig-sealed"} <= held
-    from velaris.core.access import Caller
     stored = offers.store.state.load()["records"]["offers"]
     assert stored["acme:ofr-declined"]["candidate"]["email"] == "erased" and stored["acme:ofr-accepted"]["candidate"]["email"] == "asha@example.in"
     assert stored["acme:ofr-other"]["candidate"]["email"] == "someone@else.in"            # someone else's offer is untouched
@@ -69,7 +68,6 @@ def test_export_masks_contact_details():
     from velaris.tests.test_onboarding_records import hire, make
     er, *_ = make()
     emp = hire(er)
-    from velaris.tests.onboarding_helpers import person
     with acting_as(HR1):
         out = er.export_subject(emp)["export"]["employee"]
     assert out["email"] == "a***@example.in" and out["phone"].endswith("0000") and "asha@example.in" not in str(out)

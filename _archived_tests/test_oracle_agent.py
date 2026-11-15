@@ -4,7 +4,6 @@ Phase 4B — Core Intelligence Agent #5
 Validates oracle inference: polarity, confidence, structural score.
 """
 
-from velaris.core_agents.oracle import oracle
 from velaris.agents.agents.router import router
 from velaris.memory.mesh import mesh
 

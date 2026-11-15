@@ -170,7 +170,7 @@ class ControlService:
         return out
 
     def report(self, caller: Caller, run_id: str) -> Dict[str, Any]:
-        row = self._row(caller, run_id)
+        self._row(caller, run_id)
         flow = self._runs[run_id].flow if run_id in self._runs else Flow([], llm=self.llm, path=self.flow_path)
         return R.build(self.store, run_id, caller.org, flow)
 
@@ -197,7 +197,7 @@ class ControlService:
             raise ControlError("not_waiting", "the run is not waiting for a decision on that step") from None
 
     def undo(self, caller: Caller, run_id: str) -> Dict[str, Any]:
-        row = self._row(caller, run_id)
+        self._row(caller, run_id)
         run = self._runs.get(run_id)
         if run is None:                                               # a browser session may be gone: files/terminal rebuild
             try:

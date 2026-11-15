@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any
 from velaris.agents.QUANTUM_BRIDGE.main import QuantumBridge
 logger = logging.getLogger('QUANTUM_MESH')
 logger.setLevel(logging.DEBUG)

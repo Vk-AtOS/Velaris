@@ -171,7 +171,6 @@ class Assistant:
 
     def _prompt(self, caller: Caller, ch: Any, row: Any, assistant: str, request: str) -> tuple:
         """The prompt, and the ids of everyone who wrote a message in the context window (withheld ones too)."""
-        svc = self.svc
         rows, authors = self._closure(ch, row["topic"], row["id"])
         lines = []
         for r in rows:

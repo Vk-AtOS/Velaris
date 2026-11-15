@@ -73,7 +73,7 @@ def test_unknown_skills_are_reported_never_guessed_and_the_alias_flow_is_reviewe
     p2 = parse(res, c, cid)["parsed"]
     assert "Terraform" in [s["label"] for s in p2["skills"]] and p2["unknown_skill_phrases"] == ["Ansible"]
     with as_(c["rec"]):
-        again = res.propose_alias(surface="Ansible", new_skill="Ansible")["proposal"]
+        res.propose_alias(surface="Ansible", new_skill="Ansible")["proposal"]
     with as_(who("hr_admin", id="proposer")):
         again2 = res.propose_alias(surface="Ansible Tower", new_skill="Ansible Tower")["proposal"]
         assert res.review_alias(proposal_id=again2["id"], approve=True, no_esco_match=True)["status"] == "denied"  # nobody reviews their own proposal

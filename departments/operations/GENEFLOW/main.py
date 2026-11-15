@@ -1,5 +1,4 @@
 import logging
-import json
 
 logger = logging.getLogger("GENEFLOW")
 logger.setLevel(logging.DEBUG)

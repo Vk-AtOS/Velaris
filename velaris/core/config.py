@@ -4,7 +4,6 @@ Phase 1 — Core Initialization
 Provides project-root resolution and base configuration registry.
 """
 
-import os
 from pathlib import Path
 
 # Dynamically resolve project root relative to this file,

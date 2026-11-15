@@ -7,7 +7,6 @@ import math
 import sqlite3
 from datetime import date
 from typing import Dict, Any, List, Optional
-from velaris.intel.paths import agent_file
 
 from velaris.agentkit import onboarding_retention as retention
 from velaris.agentkit.onboarding_common import dsr_gate, HR_ADMINS, gate_change, gate_read

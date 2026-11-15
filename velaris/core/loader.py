@@ -13,7 +13,7 @@ def safe_import(module_path):
         log(f"Importing module: {module_path}")
         return importlib.import_module(module_path)
     except Exception as e:
-        raise ModuleLoadError(f"Failed to import module '{module_path}': {e}")
+        raise ModuleLoadError(f"Failed to import module '{module_path}': {e}") from e
 
 def initialize_core():
     log("Velaris Core Initialization complete.")
