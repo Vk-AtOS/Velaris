@@ -101,6 +101,7 @@ class Store:
             except sqlite3.OperationalError:
                 self.fts = False
         self._seal_at_rest()
+        self._seal_file_names()
         for suffix in ("-wal", "-shm"):
             side = Path(str(self.path) + suffix)
             if side.exists():
@@ -121,6 +122,13 @@ class Store:
         self.db.execute("INSERT OR REPLACE INTO settings VALUES('', 'sealed_v1', '1')")
         self.db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
         self.db.execute("VACUUM")                       # the plaintext pages (rows, old index) must not stay in the file
+
+    def _seal_file_names(self) -> None:
+        """Seal file names stored before sealing existed (once). Blobs are sealed when first downloaded in the migration window."""
+        if self.one("SELECT 1 FROM settings WHERE org='' AND key='sealed_files_v1'"):
+            return
+        fieldseal.seal_existing(self.db, "files", ["name"], "chat:file-name", key="rowid")
+        self.db.execute("INSERT OR REPLACE INTO settings VALUES('', 'sealed_files_v1', '1')")
 
     def _migrate(self) -> None:
         """Idempotent, in place. Proposals made before the two-key rule have no requester confirmation and no

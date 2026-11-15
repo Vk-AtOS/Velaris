@@ -19,6 +19,7 @@ from typing import Any, Dict, List, Optional
 
 from velaris.chat.core import ChatCore
 from velaris.chat.errors import ChatError
+from velaris.chat.files import file_name
 from velaris.chat.policy import CHAT_ADMIN
 from velaris.chat.store import SEAL
 from velaris.core import fieldseal
@@ -110,7 +111,7 @@ class ComplianceMixin(ChatCore):
                    "SELECT message_id, emoji FROM reactions WHERE user_id=?", (user_id,))],
                "drafts": [dict(r) for r in self.store.all(
                    "SELECT channel_id, topic, body, updated FROM drafts WHERE user_id=?", (user_id,))],
-               "files": [dict(r) for r in self.store.all(
+               "files": [{**dict(r), "name": file_name(r["name"])} for r in self.store.all(
                    "SELECT hash, name, size, ctype, created_at FROM files WHERE uploader=?", (user_id,))],
                "exported_at": self.clock()}
         self._audit("user.export", caller.id, caller.org, subject=user_id, messages=len(msgs),

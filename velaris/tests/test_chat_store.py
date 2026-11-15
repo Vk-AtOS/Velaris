@@ -11,6 +11,7 @@ from velaris.chat import files as chat_files
 from velaris.chat.errors import ChatError
 from velaris.chat.policy import Limits, TokenBucket
 from velaris.chat.store import Store
+from velaris.core import vault
 from velaris.intel import trace
 
 DAY = 86400.0
@@ -467,3 +468,27 @@ def test_unfurl_is_off_unless_allow_listed(room):
     assert out[0]["title"] == "Example page"
     assert len(out) == 1 and not any("127.0.0.1" in c for c in calls)         # an internal address never passes the fetch gate
     assert code(s.unfurl, CARA, m["id"]) == "forbidden"
+
+
+def test_file_blob_and_name_are_sealed_and_bound_to_their_hash(room):
+    """KAN-167: no plaintext bytes or file name at rest; a blob copied over another's path is never served."""
+    s, cid = room
+    a = b"\x89PNG\r\n\x1a\n" + b"A" * 50
+    b = b"\x89PNG\r\n\x1a\n" + b"B" * 50
+    ua, ub = s.upload(ALICE, "secret-salary.png", None, a), s.upload(ALICE, "other.png", None, b)
+    assert b"AAAA" not in s._blob(ua["hash"]).read_bytes() and vault.is_sealed(s._blob(ua["hash"]).read_bytes())
+    assert "secret-salary" not in s.store.path.read_bytes().decode("latin-1")
+    assert s.download(ALICE, ua["hash"])[0]["name"] == "secret-salary.png" and s.download(ALICE, ua["hash"])[1] == a
+    s._blob(ub["hash"]).write_bytes(s._blob(ua["hash"]).read_bytes())            # substitution
+    with pytest.raises(vault.VaultError):
+        s.download(ALICE, ub["hash"])
+    assert s.export_user(ADMIN, "alice")["files"][0]["name"] in ("secret-salary.png", "other.png")
+
+
+def test_plaintext_blob_is_refused_outside_the_migration_window(room):
+    s, cid = room
+    png = b"\x89PNG\r\n\x1a\n" + b"C" * 50
+    up = s.upload(ALICE, "c.png", None, png)
+    s._blob(up["hash"]).write_bytes(png)                                          # a planted plaintext blob
+    with pytest.raises(vault.PlaintextRefused):
+        s.download(ALICE, up["hash"])
