@@ -1,6 +1,5 @@
 """Round 3 (KAN-93): EPISODIC_MEMORY does not hold its lock across the model, LONGTERM_MEMORY checks caller and scope,
 BUSINESS_DNA does not lose a concurrent set."""
-import json
 import multiprocessing as mp
 import os
 import threading
