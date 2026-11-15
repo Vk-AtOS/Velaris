@@ -87,3 +87,70 @@ def test_rebaseline_adopts_a_pre_existing_trace_only_when_intact():
     trace._head_paths()[0].unlink()
     with pytest.raises(trace.TraceHeadError):
         trace.rebaseline()
+
+
+def _rewrite_entry(idx):
+    """Edit entry `idx` and re-chain everything after it, so the chain itself is valid again (needs no key)."""
+    p = trace._path()
+    es = [json.loads(line) for line in p.read_text().splitlines()]
+    prev = es[idx - 1]["hash"] if idx else trace.GENESIS
+    es[idx]["payload"] = {"forged": True}
+    for e in es[idx:]:
+        e["prev"] = prev
+        e["hash"] = trace._hash(prev, e["ts"], e["actor"], e["action"], e["payload"])
+        prev = e["hash"]
+    p.write_text("".join(json.dumps(e, sort_keys=True) + "\n" for e in es))
+    return es
+
+
+def test_resign_after_truncation_is_refused_and_never_lowers_the_anchor(tmp_path, monkeypatch):
+    monkeypatch.setenv("VELARIS_TRACE_ANCHOR_FILE", str(tmp_path / "anchor.json"))
+    _fill(4)
+    _truncate_last(2)
+    trace._head_paths()[0].unlink()                       # local head lost; the outside anchor still says 4
+    with pytest.raises(trace.TraceHeadError):
+        trace.rebaseline()
+    assert trace._read_head(trace._head_paths()[1])[0] == 4
+    assert trace.verify()["ok"] is False
+
+
+def test_incremental_check_catches_a_rewrite_behind_the_checkpoint_when_it_keeps_the_end_hash_consistent():
+    """The head is compared with the hash AT its own position, not with whatever hash ended the walk."""
+    _fill(4)
+    assert verify_incremental(max_entries=2)["complete"] is False
+    es = _rewrite_entry(3)                                # last entry rewritten: valid chain, different hash at position 4
+    r = verify_incremental()
+    assert r["ok"] is False and es[3]["hash"] != trace._read_head(trace._head_paths()[0])[1]
+
+
+def test_rewrite_at_the_head_position_behind_the_end_of_the_file_is_caught():
+    _fill(3)
+    assert verify_incremental()["ok"]                     # checkpoint covers 3
+    _fill(1)
+    head = trace._head_paths()[0]
+    h4 = head.read_bytes()                                # signed head at position 4
+    _fill(1)
+    head.write_bytes(h4)                                  # file is ahead of the head (crash window): allowed
+    assert verify_incremental()["ok"]
+    _rewrite_entry(3)                                     # entry 4 rewritten and entry 5 re-chained: valid chain, other hashes
+    assert verify_incremental()["ok"] is False
+    assert trace.verify()["ok"] is False
+
+
+def test_append_during_resign_waits_for_the_lock_and_is_not_lost(monkeypatch):
+    import threading
+    import time
+    _fill(3)
+    real, started = trace._walk, threading.Event()
+
+    def slow_walk(want):
+        started.set()
+        time.sleep(0.3)                                   # an append arrives while the chain is being walked
+        return real(want)
+    monkeypatch.setattr(trace, "_walk", slow_walk)
+    t = threading.Thread(target=lambda: (started.wait(), trace.append("a", "late", {})))
+    t.start()
+    assert trace.rebaseline()["entries"] == 3             # count and hash are from one walk, taken with appends held off
+    t.join()
+    monkeypatch.setattr(trace, "_walk", real)
+    assert trace.verify() == {"ok": True, "entries": 4, "broken_at": None, "reason": ""}

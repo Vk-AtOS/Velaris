@@ -173,14 +173,19 @@ def _next_count(path: Path, prev: str) -> int:
 
 
 def rebaseline() -> Dict[str, Any]:
-    """Operator action: walk the whole chain and, only if it is intact, sign a new head (first install or upgrade)."""
-    v = verify(check_head=False)
-    if not v["ok"]:
-        raise TraceHeadError(f"trace is not intact ({v['reason']} at entry {v['broken_at']}); not re-signing it")
-    last = _last_hash(_path())
+    """Operator action: under the append lock, walk the whole chain and, only if it is intact and fits every VALID
+    existing head, sign a new head (first install, or after a lost/forged head). A valid head that the chain no longer
+    fits (entries removed or rewritten) refuses: the signed count is never lowered, so a truncated trace cannot be
+    re-blessed. Count and last hash come from the same walk, taken while no append can run."""
     with _lock, open_private(_path().with_suffix(".lock"), "a") as lk:
         fcntl.flock(lk.fileno(), fcntl.LOCK_EX)
-        _write_heads(v["entries"], last)
+        valid = [h for _, h in heads() if h]
+        v, last, at = _walk({h[0] for h in valid})
+        if not v["ok"]:
+            raise TraceHeadError(f"trace is not intact ({v['reason']} at entry {v['broken_at']}); not re-signing it")
+        if (bad := head_problem(v["entries"], at)) and valid:
+            raise TraceHeadError(f"not re-signing: {bad}")
+        _write_heads(max([v["entries"]] + [h[0] for h in valid]), last)
     return v
 
 
@@ -212,31 +217,35 @@ def _lines() -> Iterator[tuple]:
             yield raw, e if isinstance(e, dict) else None
 
 
+def _walk(want: set) -> tuple:
+    """(result, hash of the last entry, {position: hash} for the positions in `want`) in one pass over the file."""
+    prev, n, at = GENESIS, 0, {}
+    for n, (_, e) in enumerate(_lines(), start=1):
+        if e is None:
+            return {"ok": False, "entries": n, "broken_at": n, "reason": "malformed line"}, prev, at
+        try:
+            if e.get("prev") != prev:
+                return {"ok": False, "entries": n, "broken_at": n, "reason": "previous-hash mismatch"}, prev, at
+            if e.get("hash") != _hash(prev, e["ts"], e["actor"], e["action"], e["payload"]):
+                return {"ok": False, "entries": n, "broken_at": n, "reason": "entry was altered"}, prev, at
+        except (KeyError, TypeError):
+            return {"ok": False, "entries": n, "broken_at": n, "reason": "malformed entry"}, prev, at
+        prev = e["hash"]
+        if n in want:
+            at[n] = prev
+    return {"ok": True, "entries": n, "broken_at": None, "reason": ""}, prev, at
+
+
 def verify(check_head: bool = True) -> Dict[str, Any]:
     """Walk the chain. Returns {"ok", "entries", "broken_at", "reason"}. Never raises on bad data."""
-    prev, n, at = GENESIS, 0, {}
     try:
         want = {h[0] for _, h in heads() if h} if check_head else set()
     except vault.VaultKeyError:
         want = set()                                 # head_problem reports the missing key
-    for n, (_, e) in enumerate(_lines(), start=1):
-        if e is None:
-            return {"ok": False, "entries": n, "broken_at": n, "reason": "malformed line"}
-        try:
-            if e.get("prev") != prev:
-                return {"ok": False, "entries": n, "broken_at": n, "reason": "previous-hash mismatch"}
-            if e.get("hash") != _hash(prev, e["ts"], e["actor"], e["action"], e["payload"]):
-                return {"ok": False, "entries": n, "broken_at": n, "reason": "entry was altered"}
-        except (KeyError, TypeError):
-            return {"ok": False, "entries": n, "broken_at": n, "reason": "malformed entry"}
-        prev = e["hash"]
-        if n in want:
-            at[n] = prev
-    if check_head:
-        bad = head_problem(n, at)
-        if bad:
-            return {"ok": False, "entries": n, "broken_at": None, "reason": bad}
-    return {"ok": True, "entries": n, "broken_at": None, "reason": ""}
+    v, _, at = _walk(want)
+    if v["ok"] and check_head and (bad := head_problem(v["entries"], at)):
+        return {"ok": False, "entries": v["entries"], "broken_at": None, "reason": bad}
+    return v
 
 
 def head_problem(total: int, hash_at: Dict[int, str]) -> str:
@@ -251,6 +260,6 @@ def head_problem(total: int, hash_at: Dict[int, str]) -> str:
                 return f"{hp.name}: signed head missing or forged"
         elif total < head[0]:
             return f"trace shortened: {total} entries, signed head says {head[0]}"
-        elif head[0] and hash_at.get(head[0], head[1]) != head[1]:
-            return "entry at the signed head position was altered"
+        elif head[0] and hash_at.get(head[0]) != head[1]:           # a position nobody hashed does not pass
+            return "entry at the signed head position was altered or not checked"
     return ""
