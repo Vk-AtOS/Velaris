@@ -1,0 +1,7 @@
+{
+  "name": "DEEP_AUDIT_ENGINE",
+  "version": "0.1.0",
+  "domain": "security",
+  "description": "Deep audit engine: pins a checksum baseline per name, detects drift from it, and keeps a hash-chained audit log.",
+  "entrypoint": "main.py:DeepAuditEngine"
+}

@@ -1,0 +1,7 @@
+{
+  "name": "DOMAIN_REFINER",
+  "version": "0.1.0",
+  "domain": "sales",
+  "description": "DOMAIN_REFINER: clean up free-text vertical labels against a canonical list.",
+  "entrypoint": "main.py:DOMAIN_REFINERAgent"
+}

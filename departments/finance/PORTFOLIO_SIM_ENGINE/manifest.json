@@ -1,0 +1,7 @@
+{
+  "name": "PORTFOLIO_SIM_ENGINE",
+  "version": "0.1.0",
+  "domain": "finance",
+  "description": "Portfolio simulation engine: computes expected return, volatility, Sharpe ratio and risk tier for a weighted portfolio.",
+  "entrypoint": "main.py:PortfolioSimEngine"
+}

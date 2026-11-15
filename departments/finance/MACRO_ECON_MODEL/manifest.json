@@ -1,0 +1,7 @@
+{
+  "name": "MACRO_ECON_MODEL",
+  "version": "0.1.0",
+  "domain": "finance",
+  "description": "MACRO_ECON_MODEL: standard derived indicators from macro figures the caller supplies.",
+  "entrypoint": "main.py:MacroEconModel"
+}

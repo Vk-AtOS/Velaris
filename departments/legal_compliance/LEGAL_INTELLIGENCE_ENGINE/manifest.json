@@ -1,0 +1,7 @@
+{
+  "name": "LEGAL_INTELLIGENCE_ENGINE",
+  "version": "0.1.0",
+  "domain": "legal_compliance",
+  "description": "Legal intelligence engine: an in-memory store of legal rule texts with exact lookup and keyword search.",
+  "entrypoint": "main.py:LegalIntelligenceEngine"
+}

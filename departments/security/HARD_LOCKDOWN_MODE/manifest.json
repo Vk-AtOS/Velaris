@@ -1,0 +1,7 @@
+{
+  "name": "HARD_LOCKDOWN_MODE",
+  "version": "0.1.0",
+  "domain": "security",
+  "description": "Hard lockdown mode: a persisted switch that denies every action except a small whitelist.",
+  "entrypoint": "main.py:HardLockdownMode"
+}

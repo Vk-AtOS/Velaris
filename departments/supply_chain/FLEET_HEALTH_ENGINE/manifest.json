@@ -1,0 +1,7 @@
+{
+  "name": "FLEET_HEALTH_ENGINE",
+  "version": "0.1.0",
+  "domain": "supply_chain",
+  "description": "FLEET_HEALTH_ENGINE: a vehicle's condition from its usage, wear and service records.",
+  "entrypoint": "main.py:FleetHealthEngine"
+}

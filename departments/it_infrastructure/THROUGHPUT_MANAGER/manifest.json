@@ -1,0 +1,7 @@
+{
+  "name": "THROUGHPUT_MANAGER",
+  "version": "0.1.0",
+  "domain": "it_infrastructure",
+  "description": "THROUGHPUT_MANAGER: token-bucket rate limits.",
+  "entrypoint": "main.py:THROUGHPUT_MANAGERAgent"
+}

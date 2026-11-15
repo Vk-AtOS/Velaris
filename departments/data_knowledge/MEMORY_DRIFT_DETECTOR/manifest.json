@@ -1,0 +1,7 @@
+{
+  "name": "MEMORY_DRIFT_DETECTOR",
+  "version": "0.1.0",
+  "domain": "data_knowledge",
+  "description": "Memory drift detector: measures how far new data has moved from a stored baseline, per label.",
+  "entrypoint": "main.py:MemoryDriftDetector"
+}

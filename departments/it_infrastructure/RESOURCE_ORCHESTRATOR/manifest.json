@@ -1,0 +1,7 @@
+{
+  "name": "RESOURCE_ORCHESTRATOR",
+  "version": "0.1.0",
+  "domain": "it_infrastructure",
+  "description": "RESOURCE_ORCHESTRATOR: named resource pools with hard capacity.",
+  "entrypoint": "main.py:RESOURCE_ORCHESTRATORAgent"
+}

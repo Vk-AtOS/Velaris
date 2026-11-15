@@ -1,0 +1,7 @@
+{
+  "name": "DOMAIN_ADVISOR",
+  "version": "0.1.0",
+  "domain": "sales",
+  "description": "DOMAIN_ADVISOR: rule-based observations about each sales vertical, from deal records.",
+  "entrypoint": "main.py:DOMAIN_ADVISORAgent"
+}

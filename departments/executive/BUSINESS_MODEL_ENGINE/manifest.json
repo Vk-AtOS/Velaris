@@ -1,0 +1,7 @@
+{
+  "name": "BUSINESS_MODEL_ENGINE",
+  "version": "0.1.0",
+  "domain": "executive",
+  "description": "BUSINESS_MODEL_ENGINE: revenue-model analysis of the revenue streams the caller supplies.",
+  "entrypoint": "main.py:BUSINESS_MODEL_ENGINEAgent"
+}

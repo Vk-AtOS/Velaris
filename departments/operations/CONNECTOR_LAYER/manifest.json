@@ -1,0 +1,7 @@
+{
+  "name": "CONNECTOR_LAYER",
+  "version": "0.1.0",
+  "domain": "operations",
+  "description": "Connector layer: an in-memory registry of connector configs with a simulated request.",
+  "entrypoint": "main.py:ConnectorLayer"
+}

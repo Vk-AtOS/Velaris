@@ -1,0 +1,7 @@
+{
+  "name": "VELOCITY_LOOP",
+  "version": "0.1.0",
+  "domain": "operations",
+  "description": "VELOCITY_LOOP: where one piece of work lost its time.",
+  "entrypoint": "main.py:VelocityLoop"
+}

@@ -1,0 +1,7 @@
+{
+  "name": "RESOURCE_OPTIMIZER",
+  "version": "0.1.0",
+  "domain": "it_infrastructure",
+  "description": "RESOURCE_OPTIMIZER: how many parallel workers this machine can take right now.",
+  "entrypoint": "main.py:ResourceOptimizer"
+}

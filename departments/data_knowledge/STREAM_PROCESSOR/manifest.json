@@ -1,0 +1,7 @@
+{
+  "name": "STREAM_PROCESSOR",
+  "version": "0.1.0",
+  "domain": "data_knowledge",
+  "description": "STREAM_PROCESSOR: tumbling-window aggregation over event streams.",
+  "entrypoint": "main.py:STREAM_PROCESSORAgent"
+}

@@ -1,0 +1,7 @@
+{
+  "name": "LOCAL_ROUTER",
+  "version": "0.1.0",
+  "domain": "it_infrastructure",
+  "description": "LOCAL_ROUTER: should this task run on this machine or be handed to the cloud?",
+  "entrypoint": "main.py:LocalRouter"
+}

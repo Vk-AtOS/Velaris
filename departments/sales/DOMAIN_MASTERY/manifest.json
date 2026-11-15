@@ -1,0 +1,7 @@
+{
+  "name": "DOMAIN_MASTERY",
+  "version": "0.1.0",
+  "domain": "sales",
+  "description": "DOMAIN_MASTERY: how the company actually performs in each sales vertical.",
+  "entrypoint": "main.py:DOMAIN_MASTERYAgent"
+}

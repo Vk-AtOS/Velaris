@@ -1,0 +1,7 @@
+{
+  "name": "INVENTORY_DECISION_ENGINE",
+  "version": "0.1.0",
+  "domain": "supply_chain",
+  "description": "INVENTORY_DECISION_ENGINE: reorder point, safety stock and order quantity for one item.",
+  "entrypoint": "main.py:InventoryDecisionEngine"
+}

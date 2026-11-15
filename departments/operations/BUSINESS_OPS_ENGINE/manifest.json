@@ -1,0 +1,7 @@
+{
+  "name": "BUSINESS_OPS_ENGINE",
+  "version": "0.1.0",
+  "domain": "operations",
+  "description": "Business ops engine: a minimal in-memory task list and KPI table.",
+  "entrypoint": "main.py:BusinessOpsEngine"
+}

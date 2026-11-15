@@ -1,0 +1,7 @@
+{
+  "name": "EXECUTION_SANDBOX",
+  "version": "0.1.0",
+  "domain": "project_management",
+  "description": "Execution sandbox: evaluates a tiny arithmetic language (not Python) and logs every run.",
+  "entrypoint": "main.py:ExecutionSandbox"
+}

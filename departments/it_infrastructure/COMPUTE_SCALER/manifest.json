@@ -1,0 +1,7 @@
+{
+  "name": "COMPUTE_SCALER",
+  "version": "0.1.0",
+  "domain": "it_infrastructure",
+  "description": "COMPUTE_SCALER: decides how many replicas a workload group should have.",
+  "entrypoint": "main.py:COMPUTE_SCALERAgent"
+}

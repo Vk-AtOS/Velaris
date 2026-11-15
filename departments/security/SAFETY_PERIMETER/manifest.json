@@ -1,0 +1,7 @@
+{
+  "name": "SAFETY_PERIMETER",
+  "version": "0.1.0",
+  "domain": "security",
+  "description": "Safety perimeter: a jurisdiction allow-list and a call-name deny-list, both failing closed.",
+  "entrypoint": "main.py:SafetyPerimeter"
+}

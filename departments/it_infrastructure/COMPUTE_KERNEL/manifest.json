@@ -1,0 +1,7 @@
+{
+  "name": "COMPUTE_KERNEL",
+  "version": "0.1.0",
+  "domain": "it_infrastructure",
+  "description": "COMPUTE_KERNEL: admission queue for compute jobs.",
+  "entrypoint": "main.py:COMPUTE_KERNELAgent"
+}

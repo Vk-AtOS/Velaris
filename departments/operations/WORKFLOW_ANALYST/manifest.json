@@ -1,0 +1,7 @@
+{
+  "name": "WORKFLOW_ANALYST",
+  "version": "0.1.0",
+  "domain": "operations",
+  "description": "Workflow analyst agent: understand a company's existing automation and how work really flows.",
+  "entrypoint": "main.py:WorkflowAnalyst"
+}

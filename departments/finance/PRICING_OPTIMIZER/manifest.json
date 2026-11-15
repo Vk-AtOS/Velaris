@@ -1,0 +1,7 @@
+{
+  "name": "PRICING_OPTIMIZER",
+  "version": "0.1.0",
+  "domain": "finance",
+  "description": "PRICING_OPTIMIZER: the dictionary-in, dictionary-out front for PRICING_OPTIMIZER_ENGINE.",
+  "entrypoint": "main.py:PRICING_OPTIMIZERAgent"
+}

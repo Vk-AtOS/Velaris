@@ -1,0 +1,7 @@
+{
+  "name": "VMRK",
+  "version": "0.1.0",
+  "domain": "marketing",
+  "description": "VMRK: signs and verifies messages with an HMAC-SHA256 key.",
+  "entrypoint": "main.py:VMRK"
+}

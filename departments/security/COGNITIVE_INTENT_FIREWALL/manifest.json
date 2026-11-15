@@ -1,0 +1,7 @@
+{
+  "name": "COGNITIVE_INTENT_FIREWALL",
+  "version": "0.1.0",
+  "domain": "security",
+  "description": "Cognitive intent firewall: keyword classification of text, plus a prompt-injection scan of untrusted content.",
+  "entrypoint": "main.py:CognitiveIntentFirewall"
+}

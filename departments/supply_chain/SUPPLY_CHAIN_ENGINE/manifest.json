@@ -1,0 +1,7 @@
+{
+  "name": "SUPPLY_CHAIN_ENGINE",
+  "version": "0.1.0",
+  "domain": "supply_chain",
+  "description": "SUPPLY_CHAIN_ENGINE: a replenishment plan by simulating a reorder-point policy.",
+  "entrypoint": "main.py:SupplyChainEngine"
+}

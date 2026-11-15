@@ -1,0 +1,7 @@
+{
+  "name": "EACPE_PROTOCOL",
+  "version": "0.1.0",
+  "domain": "legal_compliance",
+  "description": "EACPE_PROTOCOL: did a case follow its required procedure?",
+  "entrypoint": "main.py:EACPE_PROTOCOLAgent"
+}

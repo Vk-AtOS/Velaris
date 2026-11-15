@@ -1,0 +1,7 @@
+{
+  "name": "SYSTEM_TELEMETRY",
+  "version": "0.1.0",
+  "domain": "it_infrastructure",
+  "description": "SYSTEM_TELEMETRY: host metrics for the machine Velaris runs on.",
+  "entrypoint": "main.py:SYSTEM_TELEMETRYAgent"
+}

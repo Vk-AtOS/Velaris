@@ -1,0 +1,7 @@
+{
+  "name": "FAILPATH_CONTROL_ENGINE",
+  "version": "0.1.0",
+  "domain": "project_management",
+  "description": "Failpath control engine: maps failure codes to handler names and records each routed failure.",
+  "entrypoint": "main.py:FailpathControlEngine"
+}

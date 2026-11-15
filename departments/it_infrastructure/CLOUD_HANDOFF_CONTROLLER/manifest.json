@@ -1,0 +1,7 @@
+{
+  "name": "CLOUD_HANDOFF_CONTROLLER",
+  "version": "0.1.0",
+  "domain": "it_infrastructure",
+  "description": "CLOUD_HANDOFF_CONTROLLER: a durable outbox for work that has to leave this machine.",
+  "entrypoint": "main.py:CloudHandoffController"
+}

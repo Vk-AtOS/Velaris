@@ -1,0 +1,7 @@
+{
+  "name": "MACHINE_LIFECYCLE_ENGINE",
+  "version": "0.1.0",
+  "domain": "supply_chain",
+  "description": "MACHINE_LIFECYCLE_ENGINE: where a machine is in its life, from usage and maintenance records.",
+  "entrypoint": "main.py:MachineLifecycleEngine"
+}

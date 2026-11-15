@@ -1,0 +1,7 @@
+{
+  "name": "SUCCESSOR_KEY_MODULE",
+  "version": "0.1.0",
+  "domain": "project_management",
+  "description": "Successor key module: stores one successor key as a salted hash and verifies a presented key against it.",
+  "entrypoint": "main.py:SuccessorKeyModule"
+}

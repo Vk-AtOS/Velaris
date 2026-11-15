@@ -1,0 +1,7 @@
+{
+  "name": "IT_INFRA_ENGINE",
+  "version": "0.1.0",
+  "domain": "it_infrastructure",
+  "description": "IT_INFRA_ENGINE: validate an infrastructure request, plan it, and judge reported VM health.",
+  "entrypoint": "main.py:ITInfraEngine"
+}

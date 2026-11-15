@@ -1,0 +1,7 @@
+{
+  "name": "DOMAIN_SCOUT",
+  "version": "0.1.0",
+  "domain": "sales",
+  "description": "DOMAIN_SCOUT: find public sources about a sales vertical the company is considering.",
+  "entrypoint": "main.py:DOMAIN_SCOUTAgent"
+}

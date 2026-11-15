@@ -1,0 +1,7 @@
+{
+  "name": "SOFT_LOCKDOWN_MODE",
+  "version": "0.1.0",
+  "domain": "security",
+  "description": "Soft lockdown mode: a persistent on/off switch that blocks a fixed list of high-risk actions while on.",
+  "entrypoint": "main.py:SoftLockdownMode"
+}

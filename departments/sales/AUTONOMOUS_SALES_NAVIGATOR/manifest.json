@@ -1,0 +1,7 @@
+{
+  "name": "AUTONOMOUS_SALES_NAVIGATOR",
+  "version": "0.1.0",
+  "domain": "sales",
+  "description": "Autonomous sales navigator: weighted lead scoring (fixed formula, no learning).",
+  "entrypoint": "main.py:AutonomousSalesNavigator"
+}

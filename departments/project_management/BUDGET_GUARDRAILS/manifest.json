@@ -1,0 +1,7 @@
+{
+  "name": "BUDGET_GUARDRAILS",
+  "version": "0.1.0",
+  "domain": "project_management",
+  "description": "Budget guardrails: per-category spending limits in rupees, exact to the paisa, that block overruns.",
+  "entrypoint": "main.py:BudgetGuardrails"
+}

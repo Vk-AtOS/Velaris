@@ -1,0 +1,7 @@
+{
+  "name": "SIGNED_AUDIT_CHAIN",
+  "version": "0.1.0",
+  "domain": "security",
+  "description": "Signed audit chain: tamper-evident append-only log of events, linked by hashes and signed with HMAC.",
+  "entrypoint": "main.py:SignedAuditChain"
+}

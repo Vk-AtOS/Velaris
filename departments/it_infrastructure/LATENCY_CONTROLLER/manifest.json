@@ -1,0 +1,7 @@
+{
+  "name": "LATENCY_CONTROLLER",
+  "version": "0.1.0",
+  "domain": "it_infrastructure",
+  "description": "LATENCY_CONTROLLER: keep an operation inside its latency objective.",
+  "entrypoint": "main.py:LATENCY_CONTROLLERAgent"
+}

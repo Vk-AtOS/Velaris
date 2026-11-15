@@ -1,0 +1,7 @@
+{
+  "name": "CLAIMS_ASSESSMENT_ENGINE",
+  "version": "0.1.0",
+  "domain": "finance",
+  "description": "CLAIMS_ASSESSMENT_ENGINE: explicit rule evaluation of an insurance claim.",
+  "entrypoint": "main.py:ClaimsAssessmentEngine"
+}

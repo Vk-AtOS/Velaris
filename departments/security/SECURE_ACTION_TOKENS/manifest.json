@@ -1,0 +1,7 @@
+{
+  "name": "SECURE_ACTION_TOKENS",
+  "version": "0.1.0",
+  "domain": "security",
+  "description": "Secure action tokens: short-lived, single-use HMAC-SHA256 tokens that authorise one named action.",
+  "entrypoint": "main.py:SecureActionTokens"
+}

@@ -1,0 +1,7 @@
+{
+  "name": "NIRVANA",
+  "version": "0.1.0",
+  "domain": "operations",
+  "description": "Alias agent NIRVANA: fronts SELF_CORRECTION_ENGINE, SANITY_VERIFIER, FAILOVER_ROUTER. See velaris.agentkit.alias.",
+  "entrypoint": "main.py:NIRVANAAgent"
+}

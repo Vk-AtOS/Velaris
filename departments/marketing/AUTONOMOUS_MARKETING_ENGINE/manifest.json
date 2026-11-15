@@ -1,0 +1,7 @@
+{
+  "name": "AUTONOMOUS_MARKETING_ENGINE",
+  "version": "0.1.0",
+  "domain": "marketing",
+  "description": "Autonomous marketing engine: templated campaign plans and an audience score from measured numbers (no model, no sending).",
+  "entrypoint": "main.py:AutonomousMarketingEngine"
+}

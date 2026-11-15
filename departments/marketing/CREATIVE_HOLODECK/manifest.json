@@ -1,0 +1,7 @@
+{
+  "name": "CREATIVE_HOLODECK",
+  "version": "0.1.0",
+  "domain": "marketing",
+  "description": "Creative holodeck: composes a one-sentence scene description from four fixed word lists (rule-based, not generative).",
+  "entrypoint": "main.py:CreativeHolodeck"
+}

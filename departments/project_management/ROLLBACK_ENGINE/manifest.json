@@ -1,0 +1,7 @@
+{
+  "name": "ROLLBACK_ENGINE",
+  "version": "0.1.0",
+  "domain": "project_management",
+  "description": "Rollback engine: saves named state snapshots to disk and returns them on rollback.",
+  "entrypoint": "main.py:RollbackEngine"
+}

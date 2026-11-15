@@ -1,0 +1,7 @@
+{
+  "name": "ECONOMIC_INTELLIGENCE_MESH",
+  "version": "0.1.0",
+  "domain": "finance",
+  "description": "Economic intelligence mesh: a heuristic trend rating over a list of indicator values.",
+  "entrypoint": "main.py:EconomicIntelligenceMesh"
+}
