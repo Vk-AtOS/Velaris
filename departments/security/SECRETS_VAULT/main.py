@@ -7,7 +7,10 @@ import hashlib
 import re
 from typing import Optional, List
 
+from velaris.core import vault
 from velaris.intel.paths import agent_dir, load_or_create_key, private_dir, read_private, write_private
+
+PURPOSE = "secrets_vault"      # AES-256-GCM under the master key kept OUTSIDE VELARIS_DATA (velaris.core.vault)
 
 class SecretsVault:
     def __init__(self):
@@ -16,7 +19,7 @@ class SecretsVault:
         self.KEY_PATH = os.path.join(self.AGENT_DIR, "vault.key")
         self.DATA_DIR = os.path.join(self.AGENT_DIR, "data")
         private_dir(self.DATA_DIR)
-        # Key, secrets and signatures are owner-only from the moment they exist.
+        # Legacy key: only used to read secrets written before they were encrypted (base64 + HMAC); never for new ones.
         self.key = load_or_create_key(self.KEY_PATH, 64)
 
     @staticmethod
@@ -37,23 +40,31 @@ class SecretsVault:
         return base64.b64encode(mac).decode()
 
     def set_secret(self, name: str, secret: str) -> None:
-        data = secret.encode()
-        b64 = base64.b64encode(data)
-        write_private(self._data_path(name), b64)
-        write_private(self._sig_path(name), self._compute_hmac(b64))
+        """Encrypt and store. Without the master key (VELARIS_VAULT_KEY[_FILE]) this raises VaultKeyError: fail closed."""
+        # Name is validated by _data_path, which runs before anything is written; seal fails closed without a key.
+        blob = vault.seal_bytes(secret.encode(), f"{PURPOSE}:{self._checked(name)}")
+        write_private(self._data_path(name), blob)
+        sp = self._sig_path(name)
+        if os.path.exists(sp):
+            os.remove(sp)                    # a replaced legacy secret leaves no stale signature behind
 
     def get_secret(self, name: str) -> Optional[str]:
         data_path = self._data_path(name)
-        sig_path = self._sig_path(name)
-        if not os.path.exists(data_path) or not os.path.exists(sig_path):
+        if not os.path.exists(data_path):
             return None
-        b64 = read_private(data_path)
+        blob = read_private(data_path)
+        if vault.is_sealed(blob):
+            return vault.open_bytes(blob, f"{PURPOSE}:{name}").decode()    # VaultError (a ValueError) on tamper
+        # Legacy file (base64 + HMAC): verify it once, then re-seal it so it is never stored unencrypted again.
+        sig_path = self._sig_path(name)
+        if not os.path.exists(sig_path):
+            return None
         sig = read_private(sig_path).decode().strip()
-        expected = self._compute_hmac(b64)
-        if not hmac.compare_digest(expected, sig):
+        if not hmac.compare_digest(self._compute_hmac(blob), sig):
             raise ValueError("Integrity check failed")
-        raw = base64.b64decode(b64)
-        return raw.decode()
+        value = base64.b64decode(blob).decode()
+        self.set_secret(name, value)
+        return value
 
     def list_secrets(self) -> List[str]:
         files = os.listdir(self.DATA_DIR)
