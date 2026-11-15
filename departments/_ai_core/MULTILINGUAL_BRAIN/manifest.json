@@ -1,0 +1,9 @@
+{
+  "name": "MULTILINGUAL_BRAIN",
+  "display_name": "Multilingual Brain",
+  "version": "0.1.0",
+  "description": "Public methods: register_language, translate, languages",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:MultilingualBrain",
+  "health_check": "health_check"
+}

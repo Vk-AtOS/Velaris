@@ -1,0 +1,9 @@
+{
+  "name": "CSM_CORE",
+  "display_name": "Csm Core",
+  "version": "0.1.0",
+  "description": "CSM core: a register of numeric goals, reviewed with the other CSM agents.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:CSMCoreAgent",
+  "health_check": "health_check"
+}

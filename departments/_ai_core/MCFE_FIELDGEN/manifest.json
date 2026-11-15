@@ -1,0 +1,9 @@
+{
+  "name": "MCFE_FIELDGEN",
+  "display_name": "Mcfe Fieldgen",
+  "version": "0.1.0",
+  "description": "MCFE_FIELDGEN: the fields a record of a given domain needs, and their values found in a text.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:MCFEFieldGenAgent",
+  "health_check": "health_check"
+}

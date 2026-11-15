@@ -1,0 +1,9 @@
+{
+  "name": "ADAPTIVE_ACTION_ENGINE",
+  "display_name": "Adaptive Action Engine",
+  "version": "0.1.0",
+  "description": "Adaptive action engine: tries the action that has worked best for this kind of situation.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:ADAPTIVE_ACTION_ENGINEAgent",
+  "health_check": "health_check"
+}

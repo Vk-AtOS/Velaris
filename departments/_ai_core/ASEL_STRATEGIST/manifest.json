@@ -1,0 +1,9 @@
+{
+  "name": "ASEL_STRATEGIST",
+  "display_name": "Asel Strategist",
+  "version": "0.1.0",
+  "description": "ASEL strategist: picks one option from several by weighted multi-criteria scoring.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:ASEL_STRATEGISTAgent",
+  "health_check": "health_check"
+}

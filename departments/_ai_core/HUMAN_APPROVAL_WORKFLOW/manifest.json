@@ -1,0 +1,9 @@
+{
+  "name": "HUMAN_APPROVAL_WORKFLOW",
+  "display_name": "Human Approval Workflow",
+  "version": "0.1.0",
+  "description": "HUMAN_APPROVAL_WORKFLOW: an in-memory approval request book.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:HumanApproval",
+  "health_check": "health_check"
+}

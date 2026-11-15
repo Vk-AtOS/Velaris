@@ -1,0 +1,9 @@
+{
+  "name": "VHOE_ANALYTICS",
+  "display_name": "Vhoe Analytics",
+  "version": "0.1.0",
+  "description": "VHOE_ANALYTICS: how the work actually went, from completed-work records.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:VHOE_ANALYTICSAgent",
+  "health_check": "health_check"
+}

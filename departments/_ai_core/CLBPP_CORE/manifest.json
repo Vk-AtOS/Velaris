@@ -1,0 +1,9 @@
+{
+  "name": "CLBPP_CORE",
+  "display_name": "Clbpp Core",
+  "version": "0.1.0",
+  "description": "CLBPP core: the workload ledger for a pool of workers (people, queues or agents).",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:CLBPP_COREAgent",
+  "health_check": "health_check"
+}

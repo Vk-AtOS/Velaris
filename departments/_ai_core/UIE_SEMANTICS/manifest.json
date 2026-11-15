@@ -1,0 +1,9 @@
+{
+  "name": "UIE_SEMANTICS",
+  "display_name": "Uie Semantics",
+  "version": "0.1.0",
+  "description": "UIE_SEMANTICS: turns a message into a structured request frame.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:UIESemanticsAgent",
+  "health_check": "health_check"
+}

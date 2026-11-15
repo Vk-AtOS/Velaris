@@ -1,0 +1,9 @@
+{
+  "name": "CRK_VALIDATOR",
+  "display_name": "Crk Validator",
+  "version": "0.1.0",
+  "description": "CRK validator: checks every step of an argument against fixed rules and names the first that fails.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:CRK_VALIDATORAgent",
+  "health_check": "health_check"
+}

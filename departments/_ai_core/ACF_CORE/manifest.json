@@ -1,0 +1,9 @@
+{
+  "name": "ACF_CORE",
+  "display_name": "Acf Core",
+  "version": "0.1.0",
+  "description": "ACF core: the intake pipeline that chains the other three ACF agents.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:ACFCoreAgent",
+  "health_check": "health_check"
+}

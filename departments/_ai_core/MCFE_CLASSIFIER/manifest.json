@@ -1,0 +1,9 @@
+{
+  "name": "MCFE_CLASSIFIER",
+  "display_name": "Mcfe Classifier",
+  "version": "0.1.0",
+  "description": "MCFE_CLASSIFIER: which subject domain is a piece of text about?",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:MCFEClassifierAgent",
+  "health_check": "health_check"
+}

@@ -1,0 +1,9 @@
+{
+  "name": "COHERENCE_SYNC_CORE",
+  "display_name": "Coherence Sync Core",
+  "version": "0.1.0",
+  "description": "Coherence sync core: detects when copies of the same state have drifted apart, and says how to fix each.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:COHERENCE_SYNC_COREAgent",
+  "health_check": "health_check"
+}

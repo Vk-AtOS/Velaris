@@ -1,0 +1,9 @@
+{
+  "name": "LONG_RUN_STABILITY_SIMULATOR",
+  "display_name": "Long Run Stability Simulator",
+  "version": "0.1.0",
+  "description": "Public methods: simulate, batch_simulate, summary",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:LongRunStabilitySimulator",
+  "health_check": "health_check"
+}

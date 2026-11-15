@@ -1,0 +1,9 @@
+{
+  "name": "MODEL_COUNCIL",
+  "display_name": "Model Council",
+  "version": "0.1.0",
+  "description": "Model council agent: several models answer, review each other blind, one answer comes back.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:ModelCouncil",
+  "health_check": "health_check"
+}

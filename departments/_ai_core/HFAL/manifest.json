@@ -1,0 +1,9 @@
+{
+  "name": "HFAL",
+  "display_name": "Hfal",
+  "version": "0.1.0",
+  "description": "Public methods: create_session, validate, destroy_session",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:HFAL",
+  "health_check": "health_check"
+}

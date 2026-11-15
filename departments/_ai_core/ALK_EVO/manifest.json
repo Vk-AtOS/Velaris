@@ -1,0 +1,9 @@
+{
+  "name": "ALK_EVO",
+  "display_name": "Alk Evo",
+  "version": "0.1.0",
+  "description": "ALK evo: champion/challenger selection between named versions of a configuration.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:ALK_EVOAgent",
+  "health_check": "health_check"
+}

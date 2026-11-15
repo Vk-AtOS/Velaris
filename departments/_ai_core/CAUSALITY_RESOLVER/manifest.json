@@ -1,0 +1,9 @@
+{
+  "name": "CAUSALITY_RESOLVER",
+  "display_name": "Causality Resolver",
+  "version": "0.1.0",
+  "description": "Causality resolver: merges observed cause-to-effect paths into one graph and ranks root causes.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:CausalityResolver",
+  "health_check": "health_check"
+}

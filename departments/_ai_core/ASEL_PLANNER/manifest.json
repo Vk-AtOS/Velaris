@@ -1,0 +1,9 @@
+{
+  "name": "ASEL_PLANNER",
+  "display_name": "Asel Planner",
+  "version": "0.1.0",
+  "description": "ASEL planner: schedules a set of dependent tasks (critical path method).",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:ASEL_PLANNERAgent",
+  "health_check": "health_check"
+}

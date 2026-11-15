@@ -1,0 +1,9 @@
+{
+  "name": "CRK_CONTEXT",
+  "display_name": "Crk Context",
+  "version": "0.1.0",
+  "description": "CRK context: turns raw facts into a screened fact set that rules can safely run on.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:CRK_CONTEXTAgent",
+  "health_check": "health_check"
+}

@@ -1,0 +1,9 @@
+{
+  "name": "CSG_STATEALIGN",
+  "display_name": "Csg Statealign",
+  "version": "0.1.0",
+  "description": "CSG state align: compares the state something should have with the state it has, and produces the fix.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:CSG_STATEALIGNAgent",
+  "health_check": "health_check"
+}

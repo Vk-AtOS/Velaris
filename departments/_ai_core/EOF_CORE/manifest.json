@@ -1,0 +1,9 @@
+{
+  "name": "EOF_CORE",
+  "display_name": "Eof Core",
+  "version": "0.1.0",
+  "description": "EOF_CORE: turns a plan into ordered, policy-checked hand-offs.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:EOF_COREAgent",
+  "health_check": "health_check"
+}

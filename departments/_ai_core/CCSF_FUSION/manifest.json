@@ -1,0 +1,9 @@
+{
+  "name": "CCSF_FUSION",
+  "display_name": "Ccsf Fusion",
+  "version": "0.1.0",
+  "description": "CCSF fusion: merges snapshots of one entity reported by any number of systems.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:CCSF_FUSIONAgent",
+  "health_check": "health_check"
+}

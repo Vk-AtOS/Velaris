@@ -1,0 +1,9 @@
+{
+  "name": "ACF_CONTEXT",
+  "display_name": "Acf Context",
+  "version": "0.1.0",
+  "description": "ACF context: wraps a raw input in a screened envelope before anything acts on it.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:ACFContextAgent",
+  "health_check": "health_check"
+}

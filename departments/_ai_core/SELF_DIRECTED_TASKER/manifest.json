@@ -1,0 +1,9 @@
+{
+  "name": "SELF_DIRECTED_TASKER",
+  "display_name": "Self Directed Tasker",
+  "version": "0.1.0",
+  "description": "SELF_DIRECTED_TASKER: works through an ordered task list, releasing tasks as their dependencies finish.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:SelfDirectedTasker",
+  "health_check": "health_check"
+}

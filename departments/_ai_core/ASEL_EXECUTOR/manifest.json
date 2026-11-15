@@ -1,0 +1,9 @@
+{
+  "name": "ASEL_EXECUTOR",
+  "display_name": "Asel Executor",
+  "version": "0.1.0",
+  "description": "ASEL executor: runs the steps of a plan in dependency order through caller-supplied handlers.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:ASEL_EXECUTORAgent",
+  "health_check": "health_check"
+}

@@ -1,0 +1,9 @@
+{
+  "name": "NEURAL_CONSTRAINT_FIELD",
+  "display_name": "Neural Constraint Field",
+  "version": "0.1.0",
+  "description": "NEURAL_CONSTRAINT_FIELD: evaluates declared constraints over a proposed action.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:NeuralConstraintField",
+  "health_check": "health_check"
+}

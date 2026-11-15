@@ -1,0 +1,9 @@
+{
+  "name": "VHOE_ROUTER",
+  "display_name": "Vhoe Router",
+  "version": "0.1.0",
+  "description": "VHOE_ROUTER: assigns one piece of work to the person or agent best placed to take it.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:VHOE_ROUTERAgent",
+  "health_check": "health_check"
+}

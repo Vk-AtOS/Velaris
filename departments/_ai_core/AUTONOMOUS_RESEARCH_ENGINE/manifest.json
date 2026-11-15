@@ -1,0 +1,9 @@
+{
+  "name": "AUTONOMOUS_RESEARCH_ENGINE",
+  "display_name": "Autonomous Research Engine",
+  "version": "0.1.0",
+  "description": "Public methods: register_source, add_document, query, research, summarize",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:AutonomousResearchEngine",
+  "health_check": "health_check"
+}

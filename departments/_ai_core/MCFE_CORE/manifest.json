@@ -1,0 +1,9 @@
+{
+  "name": "MCFE_CORE",
+  "display_name": "Mcfe Core",
+  "version": "0.1.0",
+  "description": "MCFE_CORE: one pass over an incoming text: domain, fields, department.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:MCFECoreAgent",
+  "health_check": "health_check"
+}

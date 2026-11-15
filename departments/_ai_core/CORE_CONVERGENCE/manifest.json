@@ -1,0 +1,9 @@
+{
+  "name": "CORE_CONVERGENCE",
+  "display_name": "Core Convergence",
+  "version": "0.1.0",
+  "description": "Alias agent CORE_CONVERGENCE: fronts EOF_CORE, EOF_GATEWAY, EOF_POLICY, ENGINE. See velaris.agentkit.alias.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:CORE_CONVERGENCEAgent",
+  "health_check": "health_check"
+}

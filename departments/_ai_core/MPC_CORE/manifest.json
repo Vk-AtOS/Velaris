@@ -1,0 +1,9 @@
+{
+  "name": "MPC_CORE",
+  "display_name": "Mpc Core",
+  "version": "0.1.0",
+  "description": "MPC_CORE: clean every source's record (MPC_PREPROC), then merge them (MPC_FUSION).",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:MPC_COREAgent",
+  "health_check": "health_check"
+}

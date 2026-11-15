@@ -1,0 +1,9 @@
+{
+  "name": "DECISION_GRAPH_ENGINE",
+  "display_name": "Decision Graph Engine",
+  "version": "0.1.0",
+  "description": "Decision graph engine: turns a plan into a dependency graph and checks it can be followed.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:DecisionGraphEngine",
+  "health_check": "health_check"
+}

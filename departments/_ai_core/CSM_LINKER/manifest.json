@@ -1,0 +1,9 @@
+{
+  "name": "CSM_LINKER",
+  "display_name": "Csm Linker",
+  "version": "0.1.0",
+  "description": "CSM linker: a register of named relationships between things (goals, policies, owners, accounts).",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:CSMLinkerAgent",
+  "health_check": "health_check"
+}

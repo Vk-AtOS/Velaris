@@ -1,0 +1,9 @@
+{
+  "name": "VHOE_CORE",
+  "display_name": "Vhoe Core",
+  "version": "0.1.0",
+  "description": "VHOE_CORE: one planning pass over the work queue.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:VHOE_COREAgent",
+  "health_check": "health_check"
+}

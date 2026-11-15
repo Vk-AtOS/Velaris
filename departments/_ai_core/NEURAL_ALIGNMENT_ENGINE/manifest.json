@@ -1,0 +1,9 @@
+{
+  "name": "NEURAL_ALIGNMENT_ENGINE",
+  "display_name": "Neural Alignment Engine",
+  "version": "0.1.0",
+  "description": "NEURAL_ALIGNMENT_ENGINE: does a proposed piece of work serve a declared company objective?",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:NeuralAlignmentEngine",
+  "health_check": "health_check"
+}

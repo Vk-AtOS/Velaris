@@ -1,0 +1,9 @@
+{
+  "name": "CRK_REASONER",
+  "display_name": "Crk Reasoner",
+  "version": "0.1.0",
+  "description": "CRK reasoner: forward-chaining rule inference over a set of facts.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:CRK_REASONERAgent",
+  "health_check": "health_check"
+}

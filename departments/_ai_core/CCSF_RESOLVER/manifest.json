@@ -1,0 +1,9 @@
+{
+  "name": "CCSF_RESOLVER",
+  "display_name": "Ccsf Resolver",
+  "version": "0.1.0",
+  "description": "CCSF resolver: settles conflicting field values by a declared strategy per field.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:CCSF_RESOLVERAgent",
+  "health_check": "health_check"
+}

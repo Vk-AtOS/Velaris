@@ -1,0 +1,9 @@
+{
+  "name": "ADVANCED_SEARCH_ENGINE",
+  "display_name": "Advanced Search Engine",
+  "version": "0.1.0",
+  "description": "Public methods: register_dataset, add_record, search, datasets_list, web_search, read_page",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:AdvancedSearchEngine",
+  "health_check": "health_check"
+}

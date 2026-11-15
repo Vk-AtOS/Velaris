@@ -1,0 +1,9 @@
+{
+  "name": "COGNITIVE_LOAD_BALANCER",
+  "display_name": "Cognitive Load Balancer",
+  "version": "0.1.0",
+  "description": "Public methods: health_check, choose",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:LoadBalancer",
+  "health_check": "health_check"
+}

@@ -1,0 +1,9 @@
+{
+  "name": "EAC_AUDIT",
+  "display_name": "Eac Audit",
+  "version": "0.1.0",
+  "description": "EAC_AUDIT: the compliance family's view of the audit trail.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:EAC_AUDITAgent",
+  "health_check": "health_check"
+}

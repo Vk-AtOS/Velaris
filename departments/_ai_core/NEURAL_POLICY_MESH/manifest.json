@@ -1,0 +1,9 @@
+{
+  "name": "NEURAL_POLICY_MESH",
+  "display_name": "Neural Policy Mesh",
+  "version": "0.1.0",
+  "description": "NEURAL_POLICY_MESH: every registered policy must agree before an intent goes ahead.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:NeuralPolicyMesh",
+  "health_check": "health_check"
+}
