@@ -5,5 +5,66 @@
   "description": "Candidate intake forms as data (fields, validation, consent notice with version and retention), a stdlib proof-of-work challenge against spam, upload limits with file-type sniffing, hashed expiring candidate tokens for status and withdrawal pages, and the staff side: accept or discard pending submissions into ATS_CORE. The public intake logic is plain functions for a gateway; candidates are not Callers and nothing public is in the identity-authenticated API.",
   "entrypoint": "main.py:ScreeningForms",
   "hitl_required": true,
-  "tags": ["hiring", "forms", "intake", "consent", "dpdp"]
+  "tags": [
+    "hiring",
+    "forms",
+    "intake",
+    "consent",
+    "dpdp"
+  ],
+  "harness": {
+    "schema": 1,
+    "purpose": "SCREENING_FORMS: intake forms and the staff side of candidate intake.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/hr/SCREENING_FORMS.json",
+    "wave": "KAN-37",
+    "status": "deterministic_tool",
+    "tools": {
+      "accept_submission": {
+        "kind": "act"
+      },
+      "create_form": {
+        "kind": "act"
+      },
+      "discard_submission": {
+        "kind": "act"
+      },
+      "get_form": {
+        "kind": "read"
+      },
+      "get_submission": {
+        "kind": "read"
+      },
+      "issue_candidate_token": {
+        "kind": "act"
+      },
+      "list_forms": {
+        "kind": "read"
+      },
+      "pending_submissions": {
+        "kind": "read"
+      },
+      "process_withdrawal": {
+        "kind": "act"
+      },
+      "public_routes": {
+        "kind": "read"
+      },
+      "publish_form": {
+        "kind": "act"
+      },
+      "sweep_submissions": {
+        "kind": "act"
+      },
+      "unpublish_form": {
+        "kind": "act"
+      },
+      "withdrawal_requests": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

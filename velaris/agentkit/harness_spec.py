@@ -13,8 +13,8 @@ Manifest `harness` entry (data only, in departments/<dept>/<AGENT>/manifest.json
    "wave": "KAN-nn", "reviewed": true}                         # reviewed: a person checked this entry; the generator keeps it whole
 
 Eval set: {"schema": 1, "agent": NAME, "cases": [CASE...]} with
-  CASE = {"id", "input", "execute": false, "caller": {"id","org","roles"}?,
-          "expect": {"status"?, "calls": [{"tool", "args"?}]?, "answer_contains": [..]?, "grounded_numbers": bool?},
+  CASE = {"id", "input", "execute": false, "caller": {"id","org","roles","employee_id"}?,
+          "expect": {"status"?, "calls": [{"tool", "args"?, "verdict"? (ran|denied|dry|proposed|failed)}]?, "answer_contains": [..]?, "grounded_numbers": bool?},
           "forbid": {"tools": [..]?, "answer_contains": [..]?}}
 """
 from __future__ import annotations

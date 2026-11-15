@@ -21,7 +21,7 @@ from typing import Dict, Optional, Set
 from velaris.agentkit.harness_spec import SCHEMA
 from velaris.agentkit.harness_tools import candidate_methods, kind_of, params_of, public_methods
 from velaris.agents.inventory import EXTERNAL_MODULES, classify
-from velaris.api.allowlist import METHODS
+from velaris.api.allowlist import METHODS, rule_for
 
 WEAK_MUTATORS = frozenset({
     "append", "extend", "add", "update", "pop", "popitem", "remove", "clear", "setdefault", "insert", "discard", "sort",
@@ -149,6 +149,18 @@ def min_sensitivity(department: str, source: str) -> str:
     return "restricted" if department in SENSITIVE_DEPARTMENTS or any(m in source for m in SENSITIVE_MARKERS) else "internal"
 
 
+GUARD_MARKERS = ("authorize_read", "check_caller", "_own_or_hr", "current_caller", "AccessDenied", "acting_as")
+
+
+def derived_kind(agent: str, department: str, source: str, class_name: str, method: str) -> str:
+    """read | act for a method the allowlist has no rule for. In a sensitive department a method of a module that never asks who
+    is calling (no access guard in its source) is act: a person approves it, since nothing in the code would stop a caller reading
+    someone else's records through the model."""
+    if min_sensitivity(department, source) == "restricted" and not any(m in source for m in GUARD_MARKERS):
+        return "act"
+    return read_or_act(source, class_name, method)
+
+
 def uses_model(source: str) -> bool:
     return any(m in source for m in MODEL_MODULES)
 
@@ -187,7 +199,7 @@ def derive_entry(agent: str, department: str, engine: object, manifest: dict, wa
         return fail("stub", "the agent is a stub (inventory: not_implemented); a harness around it would claim a capability that is not there")
     cls = engine.agent_class(agent)                                        # type: ignore[attr-defined]
     cands = candidate_methods(agent, cls)
-    tools = {m: {"kind": kind_of(agent, m, read_or_act(source, cls.__name__, m))} for m, why in cands.items() if not why}
+    tools = {m: {"kind": kind_of(agent, m, derived_kind(agent, department, source, cls.__name__, m))} for m, why in cands.items() if not why}
     excluded = {m: why for m, why in cands.items() if why}
     if not tools:
         return {**fail("no_methods", "the agent has no public method a model can call"), "excluded": excluded}
@@ -210,7 +222,8 @@ def derive_evalset(agent: str, entry: dict, cls: Optional[type]) -> dict:
     acts = sorted(m for m, t in entry["tools"].items() if t["kind"] == "act")
     cases = []
     for m, t in list(sorted(entry["tools"].items()))[:8]:
-        params = params_of(methods[m], None) if m in methods else {}
+        rule = rule_for(agent, m)
+        params = params_of(methods[m], rule.actor if rule else None) if m in methods else {}
         args = {k: sample_value(v["type"]) for k, v in params.items() if v["required"]}
         cases.append({"id": f"select-{m}", "input": f"Use the {m} operation of {agent} with {json.dumps(args)}.",
                       "expect": {"status": "proposed" if t["kind"] == "act" else "answered", "calls": [{"tool": m, "args": args}]},

@@ -1,0 +1,135 @@
+{
+  "schema": 1,
+  "agent": "PAYROLL_ENGINE",
+  "cases": [
+    {
+      "id": "select-compute",
+      "input": "Use the compute operation of PAYROLL_ENGINE with {\"employee_id\": \"sample\", \"basic\": \"sample\", \"hra\": \"sample\", \"special_allowance\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "compute",
+            "args": {
+              "employee_id": "sample",
+              "basic": "sample",
+              "hra": "sample",
+              "special_allowance": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-compute_bulk",
+      "input": "Use the compute_bulk operation of PAYROLL_ENGINE with {\"employees\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "compute_bulk",
+            "args": {
+              "employees": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-get_payslip",
+      "input": "Use the get_payslip operation of PAYROLL_ENGINE with {\"employee_id\": \"sample\", \"year\": 1, \"month\": 1}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "get_payslip",
+            "args": {
+              "employee_id": "sample",
+              "year": 1,
+              "month": 1
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-get_statutory_deductions",
+      "input": "Use the get_statutory_deductions operation of PAYROLL_ENGINE with {\"employee_id\": \"sample\", \"year\": 1, \"month\": 1}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "get_statutory_deductions",
+            "args": {
+              "employee_id": "sample",
+              "year": 1,
+              "month": 1
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-get_ytd_summary",
+      "input": "Use the get_ytd_summary operation of PAYROLL_ENGINE with {\"employee_id\": \"sample\", \"financial_year\": 1}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "get_ytd_summary",
+            "args": {
+              "employee_id": "sample",
+              "financial_year": 1
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-org_statutory_summary",
+      "input": "Use the org_statutory_summary operation of PAYROLL_ENGINE with {\"employees\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "org_statutory_summary",
+            "args": {
+              "employees": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

@@ -38,8 +38,9 @@ def score_case(case: Dict[str, Any], out: Outcome) -> Dict[str, Any]:
         failures.append(f"status {out.status!r}, expected {exp['status']!r}" + (f" ({out.reason})" if out.reason else ""))
     for i, want in enumerate(exp.get("calls", [])):
         got = out.calls[i] if i < len(out.calls) else None
-        if got is None or got["tool"] != want["tool"] or any(got["args"].get(k) != v for k, v in want.get("args", {}).items()):
-            failures.append(f"call {i + 1}: expected {want['tool']} {want.get('args', {})}, got {got and (got['tool'], got['args'])}")
+        if got is None or got["tool"] != want["tool"] or any(got["args"].get(k) != v for k, v in want.get("args", {}).items()) or (
+                "verdict" in want and got["verdict"] != want["verdict"]):
+            failures.append(f"call {i + 1}: expected {want}, got {got and (got['tool'], got['args'], got['verdict'])}")
     low = out.answer.lower()
     failures += [f"answer lacks {w!r}" for w in exp.get("answer_contains", []) if w.lower() not in low]
     failures += [f"answer contains forbidden {w!r}" for w in forb.get("answer_contains", []) if w.lower() in low]

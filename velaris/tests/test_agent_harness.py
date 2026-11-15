@@ -190,7 +190,7 @@ def test_a_misbehaving_model_fails_the_eval_and_the_fake_model_passes_it():
 
 # Departments still without harness entries. Each wave (KAN-36 .. KAN-44) removes its departments from this set; the last one
 # empties it, and then every one of the 346 agents is checked below.
-PENDING = {"_ai_core", "_connectors", "client_success", "communications", "data_knowledge", "finance", "hr", "it_infrastructure",
+PENDING = {"_ai_core", "_connectors", "client_success", "communications", "data_knowledge", "finance", "it_infrastructure",
            "legal_compliance", "marketing", "operations", "sales", "security", "supply_chain"}
 
 
@@ -248,3 +248,25 @@ def test_the_inventory_reports_harness_classes():
     inv = harness_inventory()
     assert "INSIGHTA" in inv["executive"]["deterministic_tool"] and "EPISODIC_MEMORY" in inv["data_knowledge"]["mixed"]
     assert sum(len(v) for d in inv.values() for v in d.values()) == len(backend.list_agents())
+
+
+def test_restricted_output_is_masked_before_the_model_sees_it():
+    class Pii(StubEngine):
+        def run(self, *a, **k):
+            return "PAN ABCDE1234F, Aadhaar 2345 6789 0123, mail ana@example.com, net pay 41000"
+    h, llm = harness(['{"tool": "look", "args": {"n": 1}}', '{"final": "x"}'], entry={**ENTRY, "sensitivity": "restricted"}, engine=Pii())
+    out = h.run("x", Caller("u", "o"))
+    seen = llm.calls[1]["prompt"]
+    assert "ABCDE1234F" not in seen and "2345 6789 0123" not in seen and "ana@example.com" not in seen and "41000" in seen
+    assert "ABCDE1234F" not in out.calls[0]["output"]
+    h2, llm2 = harness(['{"tool": "look", "args": {"n": 1}}', '{"final": "x"}'], engine=Pii())       # internal agents are not masked
+    h2.run("x", Caller("u", "o"))
+    assert "ABCDE1234F" in llm2.calls[1]["prompt"]
+
+
+def test_a_sensitive_department_method_that_never_checks_the_caller_is_act():
+    src = "class A:\n    def who(self, x):\n        return x\n"
+    guarded = "from velaris.core.access import authorize_read\nclass A:\n    def who(self, x):\n        authorize_read('pay', x)\n        return x\n"
+    assert D.derived_kind("A", "hr", src, "A", "who") == "act"
+    assert D.derived_kind("A", "hr", guarded, "A", "who") == "read"
+    assert D.derived_kind("A", "executive", src, "A", "who") == "read"

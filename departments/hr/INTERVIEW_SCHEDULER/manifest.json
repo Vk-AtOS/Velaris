@@ -5,5 +5,71 @@
   "description": "Interview scheduling: slot proposals from interviewer availability (Asia/Kolkata working hours, buffers, daily maximum, time off, panel intersection, no double booking), RFC 5545/5546 iCalendar invitations built with the stdlib (METHOD:REQUEST/CANCEL, stable UID, SEQUENCE incremented on reschedule), invitation e-mails as drafts that a person approves (nothing is sent), candidate self-schedule tokens (hashed, expiring), a reminders list, and no-show handling that never rejects anyone.",
   "entrypoint": "main.py:InterviewScheduler",
   "hitl_required": true,
-  "tags": ["hiring", "interview", "calendar", "ical"]
+  "tags": [
+    "hiring",
+    "interview",
+    "calendar",
+    "ical"
+  ],
+  "harness": {
+    "schema": 1,
+    "purpose": "INTERVIEW_SCHEDULER: who can interview when, bookings, invitations as drafts, self-scheduling, reminders, no-shows.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/hr/INTERVIEW_SCHEDULER.json",
+    "wave": "KAN-37",
+    "status": "deterministic_tool",
+    "tools": {
+      "approve_draft": {
+        "kind": "act"
+      },
+      "book_interview": {
+        "kind": "act"
+      },
+      "cancel_interview": {
+        "kind": "act"
+      },
+      "complete_interview": {
+        "kind": "act"
+      },
+      "hand_off_to_mail": {
+        "kind": "act"
+      },
+      "issue_schedule_token": {
+        "kind": "act"
+      },
+      "list_bookings": {
+        "kind": "read"
+      },
+      "list_drafts": {
+        "kind": "read"
+      },
+      "list_interviewers": {
+        "kind": "read"
+      },
+      "mark_no_show": {
+        "kind": "act"
+      },
+      "mark_reminder_sent": {
+        "kind": "act"
+      },
+      "propose_slots": {
+        "kind": "read"
+      },
+      "reminders": {
+        "kind": "read"
+      },
+      "render_invitation": {
+        "kind": "read"
+      },
+      "reschedule_interview": {
+        "kind": "act"
+      },
+      "set_availability": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

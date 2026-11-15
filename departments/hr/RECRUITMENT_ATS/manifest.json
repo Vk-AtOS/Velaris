@@ -4,5 +4,33 @@
   "domain": "hr",
   "entrypoint": "main.py:RecruitmentATSAgent",
   "description": "Velaris BOS agent for Knackforge Ported from VKatOS recruitment_tracker.",
-  "hitl_required": false
+  "hitl_required": false,
+  "harness": {
+    "schema": 1,
+    "purpose": "RECRUITMENT_ATS — Velaris BOS agent for Knackforge Ported from VKatOS recruitment_tracker.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/hr/RECRUITMENT_ATS.json",
+    "wave": "KAN-37",
+    "status": "deterministic_tool",
+    "tools": {
+      "add_candidate": {
+        "kind": "act"
+      },
+      "advance_stage": {
+        "kind": "act"
+      },
+      "export_csv": {
+        "kind": "act"
+      },
+      "get_stale": {
+        "kind": "act"
+      },
+      "report": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

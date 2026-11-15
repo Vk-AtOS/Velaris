@@ -1,0 +1,57 @@
+{
+  "schema": 1,
+  "agent": "ATTENDANCE_MONITOR",
+  "cases": [
+    {
+      "id": "select-check_today",
+      "input": "Use the check_today operation of ATTENDANCE_MONITOR with {\"employee_ids\": []}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "check_today",
+            "args": {
+              "employee_ids": []
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-flag_absence_streaks",
+      "input": "Use the flag_absence_streaks operation of ATTENDANCE_MONITOR with {\"employee_ids\": [], \"from_date\": \"sample\", \"to_date\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "flag_absence_streaks",
+            "args": {
+              "employee_ids": [],
+              "from_date": "sample",
+              "to_date": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

@@ -10,5 +10,40 @@
     "hr",
     "attendance",
     "absence"
-  ]
+  ],
+  "harness": {
+    "schema": 1,
+    "purpose": "Leave management: leave requests, approval and balances for employees, with access control.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/hr/LEAVE_MANAGEMENT.json",
+    "wave": "KAN-37",
+    "status": "deterministic_tool",
+    "tools": {
+      "apply": {
+        "kind": "act"
+      },
+      "approve": {
+        "kind": "act"
+      },
+      "employee_history": {
+        "kind": "read"
+      },
+      "get_balance": {
+        "kind": "read"
+      },
+      "pending_approvals": {
+        "kind": "read"
+      },
+      "reject": {
+        "kind": "act"
+      }
+    },
+    "excluded": {
+      "dsr_erase": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "dsr_export": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "seed_balances": "not in the HTTP allowlist (velaris/api/allowlist.py)"
+    },
+    "reviewed": true
+  }
 }

@@ -4,5 +4,27 @@
   "domain": "hr",
   "entrypoint": "main.py:EmployeeMetricsEngine",
   "description": "Aggregates Zoho People + Zoho Payroll + Zoho Projects data into a unified per-employee metrics profile.",
-  "hitl_required": true
+  "hitl_required": true,
+  "harness": {
+    "schema": 1,
+    "purpose": "Employee metrics engine: aggregates Zoho People, Payroll and Projects data into a per-employee profile, a ranked team scorecard and an org heatmap.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/hr/EMPLOYEE_METRICS_ENGINE.json",
+    "wave": "KAN-37",
+    "status": "deterministic_tool",
+    "tools": {
+      "get_employee_profile": {
+        "kind": "read"
+      },
+      "get_org_heatmap": {
+        "kind": "read"
+      },
+      "get_team_scorecard": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

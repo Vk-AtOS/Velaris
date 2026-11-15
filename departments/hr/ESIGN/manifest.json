@@ -5,5 +5,64 @@
   "description": "Click-to-accept signing requests with e-mail-token identity checks, optional OTP, consent/intent evidence, hash-chain seal with an appended evidence page and a verifier. Platform-certificate PDF signing is a hook that reports not_configured. Click-accept evidence is NOT an IT Act s.3A signature; needs a lawyer.",
   "entrypoint": "main.py:Esign",
   "hitl_required": true,
-  "tags": ["esign", "hr", "evidence", "contracts", "pdf"]
+  "tags": [
+    "esign",
+    "hr",
+    "evidence",
+    "contracts",
+    "pdf"
+  ],
+  "harness": {
+    "schema": 1,
+    "purpose": "ESIGN: signing requests with a ceremony, evidence per signer, a hash-chain seal and a verifier.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/hr/ESIGN.json",
+    "wave": "KAN-37",
+    "status": "deterministic_tool",
+    "tools": {
+      "create_request": {
+        "kind": "act"
+      },
+      "get_request": {
+        "kind": "read"
+      },
+      "get_sealed_document": {
+        "kind": "read"
+      },
+      "list_requests": {
+        "kind": "read"
+      },
+      "process_due": {
+        "kind": "act"
+      },
+      "seal_request": {
+        "kind": "act"
+      },
+      "send_reminders": {
+        "kind": "act"
+      },
+      "send_request": {
+        "kind": "act"
+      },
+      "verify": {
+        "kind": "read"
+      },
+      "void_request": {
+        "kind": "act"
+      }
+    },
+    "excluded": {
+      "decline_signing": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "dsr_erase": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "dsr_export": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "give_consent": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "open_signing": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "request_info": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "request_otp": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "sign_document": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "verify_otp": "not in the HTTP allowlist (velaris/api/allowlist.py)"
+    },
+    "reviewed": true
+  }
 }

@@ -4,5 +4,24 @@
   "domain": "hr",
   "entrypoint": "main.py:AttendanceMonitorAgent",
   "description": "Real-time attendance monitoring.",
-  "hitl_required": false
+  "hitl_required": false,
+  "harness": {
+    "schema": 1,
+    "purpose": "Attendance monitor: reports who is present, late or absent from Zoho People attendance records.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/hr/ATTENDANCE_MONITOR.json",
+    "wave": "KAN-37",
+    "status": "deterministic_tool",
+    "tools": {
+      "check_today": {
+        "kind": "read"
+      },
+      "flag_absence_streaks": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

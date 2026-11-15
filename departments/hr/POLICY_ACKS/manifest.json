@@ -5,5 +5,51 @@
   "description": "Versioned policy documents, per-employee acknowledgement evidence (hash of the exact text shown), drafted reminders and a compliance report. Audience is resolved from the employee master.",
   "entrypoint": "main.py:PolicyAcks",
   "hitl_required": false,
-  "tags": ["policy", "hr", "compliance", "acknowledgement"]
+  "tags": [
+    "policy",
+    "hr",
+    "compliance",
+    "acknowledgement"
+  ],
+  "harness": {
+    "schema": 1,
+    "purpose": "POLICY_ACKS: policy documents with versions, per-employee acknowledgement evidence, reminders and a compliance report.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/hr/POLICY_ACKS.json",
+    "wave": "KAN-37",
+    "status": "deterministic_tool",
+    "tools": {
+      "acknowledge": {
+        "kind": "act"
+      },
+      "compliance_report": {
+        "kind": "read"
+      },
+      "get_policy": {
+        "kind": "read"
+      },
+      "list_policies": {
+        "kind": "read"
+      },
+      "pending_for_employee": {
+        "kind": "read"
+      },
+      "publish_policy": {
+        "kind": "act"
+      },
+      "reminders_due": {
+        "kind": "read"
+      },
+      "retire_policy": {
+        "kind": "act"
+      }
+    },
+    "excluded": {
+      "ack_evidence": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "dsr_erase": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "dsr_export": "not in the HTTP allowlist (velaris/api/allowlist.py)"
+    },
+    "reviewed": true
+  }
 }

@@ -9,7 +9,8 @@ The model only PROPOSES a step as JSON; code disposes (the rule of epic KAN-4):
   * the model call goes through velaris.intel.router with the agent's sensitivity; restricted data never reaches a
     provider that may not see it, and the budget/kill switch of the gateway apply
   * everything is traced (velaris.intel.trace); arguments of a restricted agent are traced as keys and a digest only
-  * tool output is untrusted data: scanned and fenced (velaris.intel.guard) before the model sees it
+  * tool output is untrusted data: scanned and fenced (velaris.intel.guard) before the model sees it; for a restricted agent
+    personal identifiers in it are masked first (guard.redact)
 
   outcome = Harness.for_agent("TREASURIX", llm=llm, models=["anthropic:claude-sonnet-4-6"]).run("Runway for 90000 at 15000/month?", caller)
 """
@@ -215,6 +216,8 @@ class Harness:
                 except Exception as e:  # a tool failure is information for the model, not a crash of the run
                     text, call["verdict"] = f"NOT DONE: {type(e).__name__}: {str(e)[:200]}", "failed"
             text = text[:MAX_OUTPUT_CHARS]
+            if level == "restricted":       # identifiers (PAN, Aadhaar, bank, phone, email, card) are masked before the model sees them
+                text = guard.redact(text)[0]
             if guard.scan(text, source=f"harness.{self.agent}.{spec.method}").blocked:
                 text = "[the tool's output was withheld because it read like instructions, not data]"
             call["output"] = text[:300]

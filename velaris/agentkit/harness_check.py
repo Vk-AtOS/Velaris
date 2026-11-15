@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any, List
 
-from velaris.agentkit.harness_derive import RANK, min_sensitivity, read_or_act, source_of, unreachable_reason
+from velaris.agentkit.harness_derive import RANK, derived_kind, min_sensitivity, source_of, unreachable_reason
 from velaris.agentkit.harness_spec import eval_path, load_json, manifest_path, validate_entry, validate_evalset
 from velaris.agentkit.harness_tools import candidate_methods, public_methods
 from velaris.agents.inventory import classify
@@ -48,8 +48,8 @@ def check_agent(agent: str, department: str, engine: Any) -> List[str]:
             rule = rule_for(agent, m)
             if rule and rule.kind != meta["kind"]:
                 problems.append(f"{agent}.{m}: kind {meta['kind']} but the allowlist says {rule.kind}")
-            elif not rule and meta["kind"] == "read" and read_or_act(source, cls.__name__, m) != "read":
-                problems.append(f"{agent}.{m}: declared read, but the code can change state or reach outside")
+            elif not rule and meta["kind"] == "read" and derived_kind(agent, department, source, cls.__name__, m) != "read":
+                problems.append(f"{agent}.{m}: declared read, but the code can change state, reach outside, or never checks who is asking")
         loose = sorted(set(public_methods(cls)) - set(tools) - set(entry.get("excluded", {})))
         if loose:
             problems.append(f"{agent}: public methods neither exposed nor excluded with a reason: {loose[:5]}")

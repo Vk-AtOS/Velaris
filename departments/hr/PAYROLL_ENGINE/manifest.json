@@ -5,5 +5,43 @@
   "description": "India statutory payroll computation (EPF/ESI/PT/TDS). Local computation + Zoho Payroll connector for live data.",
   "entrypoint": "main.py:PayrollEngine",
   "hitl_required": true,
-  "tags": ["payroll", "statutory", "epf", "esi", "tds", "hr"]
+  "tags": [
+    "payroll",
+    "statutory",
+    "epf",
+    "esi",
+    "tds",
+    "hr"
+  ],
+  "harness": {
+    "schema": 1,
+    "purpose": "PAYROLL_ENGINE: India statutory payroll computation (Tamil Nadu scope), Decimal arithmetic, every figure dated and sourced.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/hr/PAYROLL_ENGINE.json",
+    "wave": "KAN-37",
+    "status": "deterministic_tool",
+    "tools": {
+      "compute": {
+        "kind": "read"
+      },
+      "compute_bulk": {
+        "kind": "read"
+      },
+      "get_payslip": {
+        "kind": "read"
+      },
+      "get_statutory_deductions": {
+        "kind": "read"
+      },
+      "get_ytd_summary": {
+        "kind": "read"
+      },
+      "org_statutory_summary": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }
