@@ -76,14 +76,17 @@ class Settings:
 
     @classmethod
     def from_env(cls) -> "Settings":
-        """VELARIS_API_SECRET, VELARIS_IDENTITY_PUBLIC_KEY (PEM path), VELARIS_ORG; Prime: see velaris.core.prime."""
+        """VELARIS_API_SECRET, VELARIS_IDENTITY_PUBLIC_KEY (PEM path) or VELARIS_IDENTITY_PUBLIC_KEY_PEM (the PEM itself, for
+        platforms that inject environment variables, not files), VELARIS_ORG; Prime: see velaris.core.prime."""
         secret = os.environ.get("VELARIS_API_SECRET", "").encode()
         key_path = os.environ.get("VELARIS_IDENTITY_PUBLIC_KEY", "")
+        key_pem = os.environ.get("VELARIS_IDENTITY_PUBLIC_KEY_PEM", "").encode()
         org = deployment_org()
-        if not secret or not key_path or not org:
+        if not secret or not (key_path or key_pem) or not org:
             raise ValueError("VELARIS_API_SECRET, VELARIS_IDENTITY_PUBLIC_KEY and VELARIS_ORG must be set")
         install_read_authoriser()
-        return cls(secret=secret, identity_key=load_public_key(Path(key_path).read_bytes()), gate=gate_from_env(), org=org)
+        pem = Path(key_path).read_bytes() if key_path else key_pem
+        return cls(secret=secret, identity_key=load_public_key(pem), gate=gate_from_env(), org=org)
 
 
 def _error(status: int, code: str, message: str) -> JSONResponse:

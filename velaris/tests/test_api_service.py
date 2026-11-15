@@ -247,3 +247,18 @@ def test_deployment_serves_one_organisation(tmp_path, monkeypatch):
     monkeypatch.delenv("VELARIS_ORG", raising=False)
     with pytest.raises(ValueError, match="VELARIS_ORG"):
         Settings.from_env()
+
+
+def test_identity_public_key_can_come_from_the_environment_as_pem(monkeypatch, tmp_path):
+    """Container platforms inject env, not files: VELARIS_IDENTITY_PUBLIC_KEY_PEM holds the key itself (KAN-112)."""
+    from cryptography.hazmat.primitives import serialization
+    pem = KEY.public_key().public_bytes(serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo)
+    monkeypatch.setenv("VELARIS_API_SECRET", "s" * 32)
+    monkeypatch.setenv("VELARIS_ORG", "acme")
+    monkeypatch.delenv("VELARIS_IDENTITY_PUBLIC_KEY", raising=False)
+    monkeypatch.setenv("VELARIS_IDENTITY_PUBLIC_KEY_PEM", pem.decode())
+    s = Settings.from_env()
+    assert s.identity_key.public_bytes_raw() == KEY.public_key().public_bytes_raw()
+    monkeypatch.delenv("VELARIS_IDENTITY_PUBLIC_KEY_PEM")
+    with pytest.raises(ValueError, match="VELARIS_IDENTITY_PUBLIC_KEY"):
+        Settings.from_env()                                                   # neither: refuses to start
