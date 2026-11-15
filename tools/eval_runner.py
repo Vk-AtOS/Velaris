@@ -27,7 +27,8 @@ from velaris.intel.llm import LLM  # noqa: E402
 SCORES = ROOT / "evals" / "scores"
 
 
-def run_all(model, departments=None, agents=None, threshold=0.9):
+def run_all(model, departments=None, agents=None, threshold=0.9, llm=None):
+    """Scores per agent. `llm` (tests) replaces the real gateway when a model name is given."""
     rows = {}
     for agent in sorted(backend.list_agents()):
         dept = backend.router.departments[agent]
@@ -36,7 +37,7 @@ def run_all(model, departments=None, agents=None, threshold=0.9):
         if not eval_path(dept, agent).exists():
             rows[agent] = {"department": dept, "error": "no eval set"}
             continue
-        h = Harness.for_agent(agent, backend, llm=LLM() if model else None, models=[model] if model else None)
+        h = Harness.for_agent(agent, backend, llm=(llm or LLM()) if model else None, models=[model] if model else None)
         res = run_evalset(h, load_json(eval_path(dept, agent)), model=model)
         rows[agent] = {"department": dept, "status": h.entry["status"], "cases": res["cases"], "passed": res["passed"],
                        "rate": res["rate"], "ready": bool(model and h.entry["status"] != "not_harnessed" and res["rate"] >= threshold),
