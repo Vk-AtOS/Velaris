@@ -33,4 +33,4 @@ TypeError; nothing is caught.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_aicore_a_ops.py`, `velaris/tests/test_kan93_agents.py`, `velaris/tests/test_oracle.py`
+- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_aicore_a_ops.py`, `velaris/tests/test_eval_runner.py`, `velaris/tests/test_kan93_agents.py`, `velaris/tests/test_oracle.py`

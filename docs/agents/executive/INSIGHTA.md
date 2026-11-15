@@ -33,4 +33,4 @@ Keeps no state. Non-numeric items raise TypeError.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_insighta.py`
+- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_eval_runner.py`, `velaris/tests/test_insighta.py`
