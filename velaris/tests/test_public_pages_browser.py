@@ -74,8 +74,8 @@ def test_apply_then_status_then_withdraw_in_a_browser(base, world, page, tmp_pat
     page.get_by_role("heading", name="Your application").wait_for()
     assert page.get_by_role("button").count() == 0                              # a status link cannot withdraw
     page.goto(f"{base}/withdraw/{wtoken}")
-    page.once("dialog", lambda d: d.accept())
     page.get_by_role("button", name="Withdraw").click()
+    page.get_by_role("dialog", name="Withdraw your application?").get_by_role("button", name="Yes, withdraw").click()
     page.get_by_role("heading", name="Withdrawal requested").wait_for()
     page.goto(f"{base}/status/{'q' * 40}")                                       # the browser logs the API's 404 itself
     page.get_by_text("not valid or has expired").wait_for()
@@ -87,8 +87,8 @@ def test_schedule_page_picks_and_cancels(base, world, page):
     page.get_by_role("radio").first.check()
     page.get_by_role("button", name="Confirm this time").click()
     page.get_by_text("Booked for").wait_for()
-    page.once("dialog", lambda d: d.accept())
     page.get_by_role("button", name="Cancel my booking").click()
+    page.get_by_role("dialog", name="Cancel your booking?").get_by_role("button", name="Yes, cancel booking").click()
     page.get_by_text("Your booking is cancelled").wait_for()
     assert not page.problems, page.problems
 
@@ -97,7 +97,7 @@ def test_interview_page_consents_streams_and_withdraws(base, world, page):
     page.goto(f"{base}/interview/{world['itok']}")
     page.get_by_role("button", name="Agree and join").click()
     page.get_by_text("You have joined").wait_for()
-    page.once("dialog", lambda d: d.accept())
     page.get_by_role("button", name="Withdraw consent").click()
+    page.get_by_role("dialog", name="Leave the interview?").get_by_role("button", name="Yes, withdraw and leave").click()
     page.get_by_role("heading", name="Consent withdrawn").wait_for()
     assert not page.problems, page.problems
