@@ -53,4 +53,4 @@ Slots, bookings, iCalendar invitations (as drafts), self-schedule tokens, remind
 
 - **other agents:** none found
 - **platform modules:** `velaris/agentkit/hiring_common.py`, `velaris/agentkit/hiring_sched.py`, `velaris/agentkit/hr_wiring.py`, `velaris/api/allowlist.py`
-- **tests:** `velaris/tests/test_api_public.py`, `velaris/tests/test_hiring_api.py`, `velaris/tests/test_hiring_scheduler.py`, `velaris/tests/test_hr_data_scheduler.py`
+- **tests:** `velaris/tests/test_api_public.py`, `velaris/tests/test_autonomy.py`, `velaris/tests/test_hiring_api.py`, `velaris/tests/test_hiring_scheduler.py`, `velaris/tests/test_hr_data_scheduler.py`

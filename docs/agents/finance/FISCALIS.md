@@ -34,5 +34,5 @@ Failure: a non-numeric amount raises ValueError or TypeError; nothing else is va
 ## Called by
 
 - **other agents:** none found
-- **platform modules:** `velaris/api/allowlist.py`
+- **platform modules:** `velaris/api/allowlist.py`, `velaris/intel/tools.py`
 - **tests:** `velaris/tests/test_aicore_a_ops.py`, `velaris/tests/test_fiscalis.py`

@@ -42,5 +42,5 @@ Velaris Advanced Search Engine (Offline)
 ## Called by
 
 - **other agents:** none found
-- **platform modules:** `velaris/api/allowlist.py`
-- **tests:** `velaris/tests/test_agents_coverage_b.py`
+- **platform modules:** `velaris/api/allowlist.py`, `velaris/intel/tools.py`
+- **tests:** `velaris/tests/test_agents_coverage_b.py`, `velaris/tests/test_intel_tools.py`
