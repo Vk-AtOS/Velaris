@@ -68,7 +68,8 @@ def test_leave_org_and_self_approval_by_employee_id(tmp_path, monkeypatch):
     other = Caller(id="u2", org="acme", roles=frozenset({"hr_admin"}), employee_id="E2")
     with acting_as(manager):
         leave.seed_balances("E1", 2026)
-        a, b = (leave.apply("E1", "casual", "2026-11-16", "2026-11-17")["id"] for _ in range(2))
+        a = leave.apply("E1", "casual", "2026-11-16", "2026-11-17")["id"]
+        b = leave.apply("E1", "casual", "2026-11-18", "2026-11-19")["id"]
         # the request names E1 (employee id), the reviewer is u1 (user id): still the same person
         assert leave.approve(a, "u1")["error"] == "self_approval_not_allowed"
         assert leave.reject(a, "u1")["error"] == "self_approval_not_allowed"

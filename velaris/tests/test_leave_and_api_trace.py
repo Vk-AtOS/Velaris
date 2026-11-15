@@ -25,7 +25,12 @@ def test_leave_needs_balance_and_cannot_be_over_or_self_approved(tmp_path, monke
         leave.seed_balances("e1", 2026)
     with acting_as(emp):
         # Two 7-day requests against 12 days: each passes apply(), only one may be approved.
-        first, second = (leave.apply("e1", "casual", "2026-11-16", "2026-11-24")["id"] for _ in range(2))
+        first = leave.apply("e1", "casual", "2026-11-16", "2026-11-24")["id"]
+        second = leave.apply("e1", "casual", "2026-11-30", "2026-12-08")["id"]
+        clash = leave.apply("e1", "casual", "2026-11-24", "2026-11-25")                  # touches the first request's last day
+        assert clash["error"] == "overlapping_leave" and clash["existing_id"] == first
+        assert leave.apply("e1", "casual", "2026-11-25", "2026-11-26")["status"] == "pending"    # the day after is free
+        assert leave.apply("e1", "casual", "2026-1-5", "2026-01-06")["error"] == "invalid_date"
     with acting_as(Caller("e1", "acme", frozenset({"hr_admin"}))):
         assert leave.approve(first, "e1")["error"] == "self_approval_not_allowed"
     with acting_as(hr):
