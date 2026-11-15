@@ -142,6 +142,19 @@ class ControlService:
             raise LookupError("no such run")
         return row
 
+    def _owner(self, caller: Caller, row: Dict[str, Any]) -> Caller:
+        """The run's owner as it must act after a restart: the roles recorded when the run started (flow meta), capped by
+        the owner's current roles when the owner is the one asking. No record means no roles (agent calls fail closed)."""
+        roles: frozenset = frozenset()
+        employee_id = None
+        events = Flow([], llm=self.llm, path=self.flow_path).history(row["flow_run_id"]) if row["flow_run_id"] else []
+        meta = (events[0].get("meta") or {}).get("caller") if events else None
+        if isinstance(meta, dict) and meta.get("id") == row["owner"] and meta.get("org") == row["org"]:
+            roles, employee_id = frozenset(meta.get("roles") or ()), meta.get("employee_id")
+        if caller.id == row["owner"]:
+            roles &= caller.roles
+        return Caller(id=row["owner"], org=row["org"], roles=roles, employee_id=employee_id)
+
     def _run(self, caller: Caller, run_id: str) -> ControlRun:
         row = self._row(caller, run_id)
         run = self._runs.get(run_id)
@@ -149,7 +162,7 @@ class ControlService:
             task = tasks.get(row["task"])
             if task.surface == "browser":
                 raise ControlError("session_lost", "this run's browser session ended; it can only be reported and undone")
-            owner = Caller(id=row["owner"], org=row["org"])
+            owner = self._owner(caller, row)
             run = self._build(task, row["params"], owner, run_id, expected=row["expected"])
             run.flow_run_id, run.active_s = row["flow_run_id"], float(row["active_s"])
             self._runs[run_id] = run
