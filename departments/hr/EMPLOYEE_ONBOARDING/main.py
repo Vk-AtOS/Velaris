@@ -12,7 +12,7 @@ Raises AccessDenied when refused.
 import logging
 import sqlite3
 
-from velaris.core.sqlite_util import connect as connect_db
+from velaris.core.sealed_sqlite import connect_sealed
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 from velaris.intel.paths import agent_file
@@ -39,7 +39,7 @@ EMPLOYEE_CHECKLIST = [
 
 class _EmployeeDB:
     def __init__(self, db_path: str = ""):
-        self.db = connect_db(db_path or str(agent_dir("EMPLOYEE_ONBOARDING") / "employee_onboarding.db"))
+        self.db = connect_sealed(db_path or str(agent_dir("EMPLOYEE_ONBOARDING") / "employee_onboarding.db"), "hr:EMPLOYEE_ONBOARDING")
         self._init_db()
 
     def _init_db(self):

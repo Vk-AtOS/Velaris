@@ -6,7 +6,7 @@ import logging
 import math
 import sqlite3
 
-from velaris.core.sqlite_util import connect as connect_db
+from velaris.core.sealed_sqlite import connect_sealed
 from datetime import date
 from typing import Dict, Any, List, Optional
 from velaris.intel.paths import agent_file
@@ -27,7 +27,7 @@ MANAGERS = frozenset({"manager", "hiring_manager"}) | HR_ADMINS
 
 
 def _db() -> sqlite3.Connection:
-    conn = connect_db(str(agent_dir("PERFORMANCE_REVIEW_ENGINE") / "reviews.db"))
+    conn = connect_sealed(str(agent_dir("PERFORMANCE_REVIEW_ENGINE") / "reviews.db"), "hr:PERFORMANCE_REVIEW_ENGINE")
     conn.row_factory = sqlite3.Row
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS okrs (

@@ -1,15 +1,14 @@
 """KAN-68: legacy rows without an organisation get VELARIS_ORG; dry run first, idempotent, refuses without VELARIS_ORG."""
-import sqlite3
-
 import pytest
 
 from velaris.agentkit.state import JsonState
 from velaris.core import backfill_org as b
+from velaris.core.sealed_sqlite import connect_sealed
 from velaris.intel.paths import agent_file
 
 
 def _leave_db(rows):
-    c = sqlite3.connect(agent_file("LEAVE_MANAGEMENT", "leaves.db"))
+    c = connect_sealed(agent_file("LEAVE_MANAGEMENT", "leaves.db"), "hr:LEAVE_MANAGEMENT")
     c.execute("CREATE TABLE leave_requests(id INTEGER PRIMARY KEY, employee_id TEXT, org TEXT)")
     c.executemany("INSERT INTO leave_requests(employee_id, org) VALUES (?,?)", rows)
     c.commit()
@@ -17,7 +16,7 @@ def _leave_db(rows):
 
 
 def _orgs():
-    c = sqlite3.connect(agent_file("LEAVE_MANAGEMENT", "leaves.db"))
+    c = connect_sealed(agent_file("LEAVE_MANAGEMENT", "leaves.db"), "hr:LEAVE_MANAGEMENT")
     return [r[0] for r in c.execute("SELECT org FROM leave_requests ORDER BY id")]
 
 

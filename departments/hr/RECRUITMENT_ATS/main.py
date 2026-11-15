@@ -14,7 +14,7 @@ import io
 import logging
 import sqlite3
 
-from velaris.core.sqlite_util import connect as connect_db
+from velaris.core.sealed_sqlite import connect_sealed
 from datetime import datetime, timedelta
 from typing import Dict, Any, List
 from velaris.intel.paths import agent_file
@@ -33,7 +33,7 @@ STAGES = [
 
 class RecruitmentTracker:
     def __init__(self, db_path: str = ""):
-        self.db = connect_db(db_path or str(agent_dir("RECRUITMENT_ATS") / "recruitment.db"))
+        self.db = connect_sealed(db_path or str(agent_dir("RECRUITMENT_ATS") / "recruitment.db"), "hr:RECRUITMENT_ATS")
         self._init_db()
 
     def _init_db(self):

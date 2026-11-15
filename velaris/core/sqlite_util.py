@@ -20,12 +20,17 @@ class SchemaTooNew(RuntimeError):
     """The database was written by a newer release; refusing to open it with older code."""
 
 
-def connect(path, version: int = 1, migrations: Optional[Dict[int, Callable[[sqlite3.Connection], None]]] = None,
-            **kw) -> sqlite3.Connection:
-    p = Path(path)
+def adopt_if_agent_file(p: Path) -> None:
+    """If `p` is <VELARIS_DATA>/agents/<AGENT>/<file>, adopt that agent's legacy file first (see paths.adopt_legacy)."""
     agents = data_dir() / "agents"
     if agents in p.parents and len(p.relative_to(agents).parts) == 2:
         adopt_legacy(p.relative_to(agents).parts[0], p)
+
+
+def connect(path, version: int = 1, migrations: Optional[Dict[int, Callable[[sqlite3.Connection], None]]] = None,
+            **kw) -> sqlite3.Connection:
+    p = Path(path)
+    adopt_if_agent_file(p)
     conn = sqlite3.connect(str(path), **kw)
     stored = conn.execute("PRAGMA user_version").fetchone()[0]
     if stored > version:

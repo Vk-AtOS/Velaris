@@ -4,7 +4,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 import logging
 import sqlite3
 
-from velaris.core.sqlite_util import connect as connect_db
+from velaris.core.sealed_sqlite import connect_sealed
 from datetime import date, timedelta
 from typing import Dict, Any, List, Optional
 
@@ -24,7 +24,7 @@ _DB = ""          # tests may point this elsewhere; empty means <VELARIS_DATA>/a
 
 
 def _db() -> sqlite3.Connection:
-    conn = connect_db(_DB or str(agent_dir("LEAVE_MANAGEMENT") / "leaves.db"))
+    conn = connect_sealed(_DB or str(agent_dir("LEAVE_MANAGEMENT") / "leaves.db"), "hr:LEAVE_MANAGEMENT")
     conn.row_factory = sqlite3.Row
     conn.execute("""
         CREATE TABLE IF NOT EXISTS leave_requests (

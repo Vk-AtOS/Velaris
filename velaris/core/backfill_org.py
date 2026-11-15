@@ -11,13 +11,13 @@ from __future__ import annotations
 
 import argparse
 import json
-import sqlite3
 import sys
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 from velaris.agentkit.state import JsonState, peek_dir
 from velaris.core.access import deployment_org
+from velaris.core.sealed_sqlite import connect_sealed
 
 SQLITE_TABLES = [("LEAVE_MANAGEMENT", "leaves.db", "leave_requests"), ("RECRUITMENT_ATS", "recruitment.db", "candidates"),
                  ("EMPLOYEE_ONBOARDING", "employee_onboarding.db", "employees"),
@@ -33,7 +33,7 @@ def _sqlite(agent: str, filename: str, table: str, org: str, apply: bool) -> Opt
     path = peek_dir(agent) / filename
     if not path.exists():
         return None
-    conn = sqlite3.connect(str(path), timeout=30)
+    conn = connect_sealed(path, f"hr:{agent}")      # the HR stores are sealed at rest
     try:
         if "org" not in {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}:
             return None                                   # table (or the column) was never created: nothing to fill
