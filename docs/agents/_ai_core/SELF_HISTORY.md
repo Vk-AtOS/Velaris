@@ -1,7 +1,7 @@
 # SELF_HISTORY
 
 - **Department:** `_ai_core`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/_ai_core/SELF_HISTORY/main.py` (41 lines)
 
 ## Purpose

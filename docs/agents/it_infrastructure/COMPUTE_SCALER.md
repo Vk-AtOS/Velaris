@@ -1,7 +1,7 @@
 # COMPUTE_SCALER
 
 - **Department:** `it_infrastructure`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/it_infrastructure/COMPUTE_SCALER/main.py` (79 lines)
 
 ## Purpose

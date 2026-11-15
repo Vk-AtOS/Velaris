@@ -1,7 +1,7 @@
 # ATS_CORE
 
 - **Department:** `hr`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/hr/ATS_CORE/main.py` (447 lines)
 
 ## Purpose

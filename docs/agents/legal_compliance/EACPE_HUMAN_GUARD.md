@@ -1,7 +1,7 @@
 # EACPE_HUMAN_GUARD
 
 - **Department:** `legal_compliance`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/legal_compliance/EACPE_HUMAN_GUARD/main.py` (184 lines)
 
 ## Purpose

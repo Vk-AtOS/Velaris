@@ -1,7 +1,7 @@
 # LOCAL_REGISTRY_CACHE
 
 - **Department:** `it_infrastructure`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/it_infrastructure/LOCAL_REGISTRY_CACHE/main.py` (59 lines)
 
 ## Purpose

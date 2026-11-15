@@ -1,7 +1,7 @@
 # CYBER_RISK_ENGINE
 
 - **Department:** `security`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/security/CYBER_RISK_ENGINE/main.py` (128 lines)
 
 ## Purpose

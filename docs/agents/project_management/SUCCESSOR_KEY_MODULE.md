@@ -1,7 +1,7 @@
 # SUCCESSOR_KEY_MODULE
 
 - **Department:** `project_management`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/project_management/SUCCESSOR_KEY_MODULE/main.py` (75 lines)
 
 ## Purpose

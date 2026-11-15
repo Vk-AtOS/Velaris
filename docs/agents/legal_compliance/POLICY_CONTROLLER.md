@@ -1,7 +1,7 @@
 # POLICY_CONTROLLER
 
 - **Department:** `legal_compliance`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/legal_compliance/POLICY_CONTROLLER/main.py` (129 lines)
 
 ## Purpose

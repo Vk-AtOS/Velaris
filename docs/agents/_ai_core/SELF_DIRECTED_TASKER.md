@@ -1,7 +1,7 @@
 # SELF_DIRECTED_TASKER
 
 - **Department:** `_ai_core`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/_ai_core/SELF_DIRECTED_TASKER/main.py` (111 lines)
 
 ## Purpose

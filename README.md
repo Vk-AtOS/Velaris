@@ -29,12 +29,12 @@ Every number below can be reproduced with the command next to it. Nothing here i
 
 | | real | rule-based | not implemented | total |
 |---|---|---|---|---|
-| all departments | 85 | 249 | 12 | 346 |
+| all departments | 159 | 175 | 12 | 346 |
 
 "real" means the agent delegates to `velaris.intel` or has logic and touches something outside the process (files, a database, the network,
 the OS); "rule-based" means it has logic that stays in memory; "not implemented" means it says so, or has no logic beyond
 `__init__` and `health_check`. The rules are in the docstring of `velaris/agents/inventory.py`; they are a heuristic and cannot tell
-correct logic from wrong. About a quarter of the agents are real. The per-department
+correct logic from wrong. About half of the agents are real (state kept through `velaris.agentkit.state` counts as touching the outside). The per-department
 counts are in the same command's output and in `docs/agents/INDEX.md`.
 
 ## Departments (agents per department, from `--inventory`)

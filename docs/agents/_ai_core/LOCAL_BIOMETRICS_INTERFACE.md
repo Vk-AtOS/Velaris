@@ -1,7 +1,7 @@
 # LOCAL_BIOMETRICS_INTERFACE
 
 - **Department:** `_ai_core`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/_ai_core/LOCAL_BIOMETRICS_INTERFACE/main.py` (93 lines)
 
 ## Purpose

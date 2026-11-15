@@ -1,7 +1,7 @@
 # EPISODIC_MEMORY
 
 - **Department:** `data_knowledge`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/data_knowledge/EPISODIC_MEMORY/main.py` (77 lines)
 
 ## Purpose

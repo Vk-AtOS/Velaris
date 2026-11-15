@@ -1,7 +1,7 @@
 # SELF_IDENTITY
 
 - **Department:** `_ai_core`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/_ai_core/SELF_IDENTITY/main.py` (52 lines)
 
 ## Purpose

@@ -1,7 +1,7 @@
 # NEURAL_POLICY_MESH
 
 - **Department:** `_ai_core`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/_ai_core/NEURAL_POLICY_MESH/main.py` (99 lines)
 
 ## Purpose

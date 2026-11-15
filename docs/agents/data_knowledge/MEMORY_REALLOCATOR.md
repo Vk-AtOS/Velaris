@@ -1,7 +1,7 @@
 # MEMORY_REALLOCATOR
 
 - **Department:** `data_knowledge`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/data_knowledge/MEMORY_REALLOCATOR/main.py` (80 lines)
 
 ## Purpose

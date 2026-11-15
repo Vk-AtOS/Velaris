@@ -28,3 +28,12 @@ def test_readme_names_only_paths_that_exist():
     for path in re.findall(r"`((?:departments|velaris|deploy|docs|tools)/[A-Za-z0-9_./-]*)`", README):
         clean = path.split("<")[0].rstrip("/")
         assert (ROOT / clean).exists(), f"README names {path}, which does not exist"
+
+
+def test_inventory_counts_state_kept_through_jsonstate_as_real():
+    """KAN-63: an agent whose state lives in files under VELARIS_DATA (JsonState, directly or through an agentkit helper)
+    is `real`, not `rule_based`. Before, only open()/sqlite3-style calls counted."""
+    direct = "from velaris.agentkit.state import JsonState\nclass A:\n    def f(self, x):\n        return x + 1 if x else 0\n"
+    helper = "from velaris.agentkit.hiring_common import Store\nclass A:\n    def f(self, x):\n        return x + 1 if x else 0\n"
+    plain = "class A:\n    def f(self, x):\n        return x + 1 if x else 0\n"
+    assert classify(direct) == "real" and classify(helper) == "real" and classify(plain) == "rule_based"

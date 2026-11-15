@@ -1,7 +1,7 @@
 # ASEL_EXECUTOR
 
 - **Department:** `_ai_core`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/_ai_core/ASEL_EXECUTOR/main.py` (98 lines)
 
 ## Purpose

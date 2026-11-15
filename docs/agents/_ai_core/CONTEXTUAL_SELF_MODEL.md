@@ -1,7 +1,7 @@
 # CONTEXTUAL_SELF_MODEL
 
 - **Department:** `_ai_core`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/_ai_core/CONTEXTUAL_SELF_MODEL/main.py` (64 lines)
 
 ## Purpose

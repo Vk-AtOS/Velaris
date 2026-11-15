@@ -1,7 +1,7 @@
 # INTERVIEW_SCHEDULER
 
 - **Department:** `hr`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/hr/INTERVIEW_SCHEDULER/main.py` (283 lines)
 
 ## Purpose

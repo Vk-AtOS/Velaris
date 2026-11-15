@@ -1,7 +1,7 @@
 # HARD_LOCKDOWN_MODE
 
 - **Department:** `security`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/security/HARD_LOCKDOWN_MODE/main.py` (77 lines)
 
 ## Purpose

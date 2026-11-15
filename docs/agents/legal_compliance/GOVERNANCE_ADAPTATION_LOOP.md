@@ -1,7 +1,7 @@
 # GOVERNANCE_ADAPTATION_LOOP
 
 - **Department:** `legal_compliance`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/legal_compliance/GOVERNANCE_ADAPTATION_LOOP/main.py` (123 lines)
 
 ## Purpose

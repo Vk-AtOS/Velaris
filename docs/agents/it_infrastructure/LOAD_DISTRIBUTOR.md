@@ -1,7 +1,7 @@
 # LOAD_DISTRIBUTOR
 
 - **Department:** `it_infrastructure`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/it_infrastructure/LOAD_DISTRIBUTOR/main.py` (94 lines)
 
 ## Purpose

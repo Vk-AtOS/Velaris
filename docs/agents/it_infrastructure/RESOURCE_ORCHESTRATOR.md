@@ -1,7 +1,7 @@
 # RESOURCE_ORCHESTRATOR
 
 - **Department:** `it_infrastructure`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/it_infrastructure/RESOURCE_ORCHESTRATOR/main.py` (90 lines)
 
 ## Purpose
