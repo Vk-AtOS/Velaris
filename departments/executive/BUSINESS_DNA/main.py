@@ -9,7 +9,8 @@ run(payload):
   {"action": "set", "profile": {...}}   validate, merge over the stored profile, save
   {"action": "get"}                     the stored profile, its version and missing fields
 
-State: <VELARIS_DATA>/agents/BUSINESS_DNA/profile.json (owner-only).
+State: <VELARIS_DATA>/agents/BUSINESS_DNA/profile.json (owner-only; a set is one locked read-merge-write, so two
+workers setting different fields both survive).
 """
 import logging
 import time
@@ -65,16 +66,17 @@ class BusinessDnaAgent:
         if not isinstance(payload, dict):
             return kit.failed(["payload must be an object"])
         action = payload.get("action", "set" if "profile" in payload else "get")
-        data = self._state.load()
         if action == "get":
-            return self._view(data)
+            return self._view(self._state.load())
         if action != "set":
             return kit.failed([f"unknown action {action!r}; use 'set' or 'get'"])
         errors = _profile_errors(payload.get("profile"))
         if errors:
             return kit.failed(errors)
-        data["profile"].update(payload["profile"])
-        data["version"] += 1
-        data["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-        self._state.save(data)
-        return self._view(data)
+
+        def merge(data):                 # load, merge and save under ONE cross-process lock: two workers never lose a set
+            data["profile"].update(payload["profile"])
+            data["version"] += 1
+            data["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            return self._view(data)
+        return self._state.update(merge)

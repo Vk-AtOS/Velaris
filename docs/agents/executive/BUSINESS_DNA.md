@@ -2,7 +2,7 @@
 
 - **Department:** `executive`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/executive/BUSINESS_DNA/main.py` (81 lines)
+- **Source:** `departments/executive/BUSINESS_DNA/main.py` (83 lines)
 
 ## Purpose
 
@@ -17,7 +17,8 @@ run(payload):
   {"action": "set", "profile": {...}}   validate, merge over the stored profile, save
   {"action": "get"}                     the stored profile, its version and missing fields
 
-State: <VELARIS_DATA>/agents/BUSINESS_DNA/profile.json (owner-only).
+State: <VELARIS_DATA>/agents/BUSINESS_DNA/profile.json (owner-only; a set is one locked read-merge-write, so two
+workers setting different fields both survive).
 
 ## Class `BusinessDnaAgent`
 
@@ -37,4 +38,4 @@ State: <VELARIS_DATA>/agents/BUSINESS_DNA/profile.json (owner-only).
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_dept_executive_stubs.py`
+- **tests:** `velaris/tests/test_dept_executive_stubs.py`, `velaris/tests/test_r3_memory_dna.py`
