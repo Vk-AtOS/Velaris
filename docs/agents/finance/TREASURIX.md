@@ -33,5 +33,5 @@ liabilities are 0. Plain formulas, no forecasting. Keeps no state beyond the sta
 ## Called by
 
 - **other agents:** none found
-- **platform modules:** `velaris/api/allowlist.py`, `velaris/api/app.py`
-- **tests:** `velaris/tests/test_treasurix.py`
+- **platform modules:** `velaris/agentkit/harness.py`, `velaris/api/allowlist.py`, `velaris/api/app.py`
+- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_treasurix.py`

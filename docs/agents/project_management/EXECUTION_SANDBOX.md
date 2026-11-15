@@ -54,4 +54,4 @@ Velaris Execution Sandbox: a tiny ARITHMETIC language, not Python.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_agents_coverage_a.py`, `velaris/tests/test_kan94_pm_agents.py`
+- **tests:** `velaris/tests/test_agents_coverage_a.py`, `velaris/tests/test_engine.py`, `velaris/tests/test_kan94_pm_agents.py`

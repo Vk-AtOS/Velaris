@@ -16,6 +16,7 @@ ponytail: static heuristic, cannot tell correct logic from wrong logic; replace
 with a declared per-agent status once agents share a base class.
 """
 import ast
+import json
 import logging
 from functools import lru_cache
 from pathlib import Path
@@ -121,3 +122,34 @@ def format_inventory() -> str:
     lines = [f"{'department':<22}{'real':>6}{'rule-based':>12}{'not-implemented':>17}{'total':>7}"]
     lines += [f"{d:<22}{a:>6}{b:>12}{c:>17}{a + b + c:>7}" for d, a, b, c in rows]
     return "\n".join(lines)
+
+
+HARNESS_CLASSES = ("deterministic_tool", "model_driven", "mixed", "not_harnessed", "none")
+
+
+def harness_inventory():
+    """{department: {harness class: [agent names]}} read from each manifest's `harness` entry (KAN-35).
+    "none" is an agent whose manifest has no entry yet. This is the entry's status, not an eval result: whether a real
+    model passed the agent's eval set is in evals/scores (tools/eval_runner.py)."""
+    result = {}
+    for dept in department_dirs():
+        counts = {c: [] for c in HARNESS_CLASSES}
+        for agent in sorted(dept.iterdir()):
+            if not (agent / "main.py").exists():
+                continue
+            try:
+                manifest = agent / "manifest.json"
+                status = json.loads(manifest.read_text(encoding="utf-8")).get("harness", {}).get("status", "none") if manifest.exists() else "none"
+            except (OSError, ValueError, AttributeError) as e:
+                logger.warning("manifest of %s unreadable, counted as no harness: %s", agent.name, e)
+                status = "none"
+            counts[status if status in HARNESS_CLASSES else "none"].append(agent.name)
+        result[dept.name] = counts
+    return result
+
+
+def format_harness() -> str:
+    rows = [(d, *(len(c[s]) for s in HARNESS_CLASSES)) for d, c in harness_inventory().items()]
+    rows.append(("TOTAL", *(sum(r[i] for r in rows) for i in range(1, len(HARNESS_CLASSES) + 1))))
+    lines = [f"{'department':<22}" + "".join(f"{s:>20}" for s in HARNESS_CLASSES)]
+    return "\n".join(lines + [f"{r[0]:<22}" + "".join(f"{n:>20}" for n in r[1:]) for r in rows])

@@ -1,0 +1,102 @@
+{
+  "schema": 1,
+  "agent": "INSIGHTA",
+  "cases": [
+    {
+      "id": "select-behavioral_shift",
+      "input": "Use the behavioral_shift operation of INSIGHTA with {\"before\": [], \"after\": []}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "behavioral_shift",
+            "args": {
+              "before": [],
+              "after": []
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-consistency_score",
+      "input": "Use the consistency_score operation of INSIGHTA with {\"values\": []}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "consistency_score",
+            "args": {
+              "values": []
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-detect_trend",
+      "input": "Use the detect_trend operation of INSIGHTA with {\"series\": []}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "detect_trend",
+            "args": {
+              "series": []
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "hand-trend",
+      "input": "What is the trend of the series [10, 20, 30, 40]?",
+      "execute": true,
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "detect_trend",
+            "args": {
+              "series": [
+                10,
+                20,
+                30,
+                40
+              ]
+            }
+          }
+        ],
+        "answer_contains": [
+          "10"
+        ],
+        "grounded_numbers": true
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

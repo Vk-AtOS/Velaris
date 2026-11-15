@@ -5,5 +5,21 @@
   "description": "A cited research brief on a strategic question.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:StrategicIntelAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "STRATEGIC_INTEL: a cited research brief on a strategic question.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/executive/STRATEGIC_INTEL.json",
+    "wave": "KAN-35",
+    "status": "model_driven",
+    "tools": {
+      "run": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

@@ -34,4 +34,4 @@ says so), not_configured (no language model), failed (bad input).
 
 - **other agents:** `SAGE`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_dept_executive_stubs.py`
+- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_dept_executive_stubs.py`
