@@ -95,3 +95,13 @@ def test_performance_reviews_are_gated_org_scoped_and_validated():
             e.get_calibration_report("Q1")
     with acting_as(emp):
         assert e.get_360_summary("E7", "Q1")["self_score"] == 4.0
+
+
+def test_legacy_hr_agents_are_deprecated_and_not_served_over_http():
+    """KAN-96: RECRUITMENT_ATS and EMPLOYEE_ONBOARDING are retired in favour of ATS_CORE and ONBOARDING_FLOW."""
+    from velaris.api import allowlist
+    from velaris.agents.RECRUITMENT_ATS.main import RecruitmentATSAgent
+    from velaris.agents.EMPLOYEE_ONBOARDING.main import EmployeeOnboardingAgent
+    assert RecruitmentATSAgent().health_check()["replaced_by"] == "ATS_CORE"
+    assert EmployeeOnboardingAgent().health_check()["replaced_by"] == "ONBOARDING_FLOW"
+    assert "RECRUITMENT_ATS" not in allowlist.METHODS and "EMPLOYEE_ONBOARDING" not in allowlist.METHODS

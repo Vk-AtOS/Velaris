@@ -3,8 +3,10 @@
 RECRUITMENT_ATS — Velaris BOS agent for Knackforge
 Ported from VKatOS recruitment_tracker. Full 8-stage ATS pipeline.
 
-LEGACY: ATS_CORE is the product with consent, retention and erasure; this older tracker has none of those. Until it is merged into
-ATS_CORE or retired (owner decision), every method needs an authenticated Caller (velaris.core.access): changes need the recruiter or
+DEPRECATED (retired from use, code kept so existing databases stay readable): ATS_CORE is the product with consent, retention and
+erasure; this older tracker has none of those, and its rows cannot be imported into ATS_CORE because ATS_CORE needs a recorded consent
+per candidate and consent must not be invented. It is not served over HTTP (not in velaris.api.allowlist). Its rows leave through
+the data-subject export/erase of the legacy HR stores. Every method needs an authenticated Caller (velaris.core.access): changes need the recruiter or
 hr_admin role, reads and the CSV export go through authorize_read("candidate") (traced). Every row carries the organisation and
 every query filters on it, the acting person is recorded in stage_history, a stage must be one of STAGES and move one step forward
 or back, and the database and export live under VELARIS_DATA, never in the working directory. Raises AccessDenied when refused.
@@ -137,7 +139,8 @@ class RecruitmentATSAgent:
         logger.info("RECRUITMENT_ATS agent initialised")
 
     def health_check(self) -> Dict[str, Any]:
-        return {"agent": "RECRUITMENT_ATS", "status": "ok", "stages": STAGES, "legacy": "use ATS_CORE for consent, retention and erasure"}
+        return {"agent": "RECRUITMENT_ATS", "status": "ok", "stages": STAGES, "deprecated": True, "replaced_by": "ATS_CORE",
+                "legacy": "use ATS_CORE for consent, retention and erasure"}
 
     def add_candidate(
         self, name: str, role: str, client: str, email: str = "", phone: str = ""

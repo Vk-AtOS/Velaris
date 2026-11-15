@@ -3,7 +3,7 @@
 EMPLOYEE_ONBOARDING — Velaris BOS agent for Knackforge
 Ported from VKatOS client_onboarding, adapted for employees (IT setup, HR docs, 30/60/90 day plan).
 
-LEGACY: ONBOARDING_FLOW is the product with roles, sealed identifiers, retention and erasure. Until this older agent is merged into it or
+DEPRECATED (not served over HTTP, kept so existing databases stay readable; use ONBOARDING_FLOW). LEGACY: ONBOARDING_FLOW is the product with roles, sealed identifiers, retention and erasure. Until this older agent is merged into it or
 retired (owner decision) every method needs an authenticated Caller (velaris.core.access): changes need the hr_admin role, reads go
 through authorize_read("identity") (traced). Rows carry the organisation and every query filters on it; the database lives under
 VELARIS_DATA, never in the working directory. A missing employee_id means "all of this organisation's", and 0 is not "all".
@@ -141,6 +141,7 @@ class EmployeeOnboardingAgent:
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": "EMPLOYEE_ONBOARDING", "status": "ok", "checklist_steps": len(EMPLOYEE_CHECKLIST),
+                "deprecated": True, "replaced_by": "ONBOARDING_FLOW",
                 "legacy": "use ONBOARDING_FLOW for roles, retention and erasure"}
 
     def onboard_employee(self, name: str, email: str, department: str, role: str) -> int:
