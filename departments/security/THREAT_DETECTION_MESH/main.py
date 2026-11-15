@@ -29,15 +29,15 @@ class ThreatDetectionMesh:
 
     def score_event(self, event: Dict[str, Any]) -> int:
         """
-        Score event severity by matching keys/values against signatures.
+        Score event severity: 10 per field of every signature that matches in full.
         Higher score = more suspicious.
         """
         score = 0
         for sig in self.signatures:
             pat = sig["pattern"]
-            for k, v in pat.items():
-                if k in event and event[k] == v:
-                    score += 10
+            # A signature counts only when EVERY field of it matches; a partial match is not evidence.
+            if isinstance(pat, dict) and pat and all(k in event and event[k] == v for k, v in pat.items()):
+                score += 10 * len(pat)
         return score
 
     def detect(self, event: Dict[str, Any]) -> Dict[str, Any]:

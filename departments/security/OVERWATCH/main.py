@@ -37,9 +37,12 @@ class OverwatchAgent:
         drift_items = []
 
         for m, base_value in baseline.items():
-            new_value = new_metrics.get(m, base_value)
+            new_value = new_metrics.get(m)
+            if not isinstance(new_value, (int, float)) or isinstance(new_value, bool):
+                drift_items.append((m, base_value, new_value))      # a metric that vanished or is not a number IS drift
+                continue
             diff = abs(new_value - base_value)
-            if diff > tolerance:
+            if not diff <= tolerance:                               # also true for NaN
                 drift_items.append((m, base_value, new_value))
 
         drift_detected = len(drift_items) > 0
@@ -52,6 +55,7 @@ class OverwatchAgent:
             return {}
 
         baseline = self.baselines[key]
-        summary = {m: new_metrics.get(m, baseline[m]) - baseline[m] for m in baseline}
+        summary = {m: (new_metrics[m] - baseline[m]) if isinstance(new_metrics.get(m), (int, float)) else None
+                   for m in baseline}                               # None: the metric is missing from the new data
         logger.debug("Change summary: %s", summary)
         return summary
