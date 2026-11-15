@@ -24,22 +24,22 @@ class MEMORY_FABRICAgent:
     def read_bucket(self, bucket: str):
         return self._buckets.get(bucket, {})
 
-# ---- appended stub (repair) ----
+# ---- MemoryFabric: the store other agents use (get_store / put / get / query with optional TTL) ----
 
 
 class MemoryFabric:
     """
-    Minimal MemoryFabric compatibility shim (repair).
-    Provides a simple API expected by other agents:
+    The in-process key/value store with optional expiry that other agents use. It is the only implementation (there is no other
+    "real" MemoryFabric): it lives in this process's memory and is lost on restart; durable data belongs in JsonState.
+    Provides the API other agents expect:
       - health_check()
       - get_store(name) -> dict-like object
       - put(namespace, key, value, ttl=None) / get(namespace, key) / query(namespace, prefix=None)
-    This stub will be used only if the real MemoryFabric export is missing.
     """
     def __init__(self):
         self._stores = {}
         self._expires = {}   # (namespace, key) -> monotonic deadline
-        logger.debug("MemoryFabric (shim) initialized")
+        logger.debug("MemoryFabric initialized")
 
     def health_check(self):
         return { "agent": "MEMORY_FABRIC", "status": "ok", "version": "0.1.0" }
