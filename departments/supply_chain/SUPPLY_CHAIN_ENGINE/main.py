@@ -72,6 +72,8 @@ class SupplyChainEngine:
         err = self.validate(sc)
         if opening_stock is not None and kit.number(opening_stock, 0, self.MAX_FORECAST) is None:
             err.append("opening_stock invalid")
+        elif opening_stock is not None and not err and opening_stock > sc.max_capacity:
+            err.append("opening_stock is above max_capacity")
         if err:
             return kit.failed(err)
         lead, cap = int(sc.lead_time_days), sc.max_capacity
@@ -94,6 +96,7 @@ class SupplyChainEngine:
                 orders.append({"period": t, "quantity": ordered, "arrives": t + lead})
                 if lead == 0:      # arrives now, usable from the next period
                     on_hand += arrivals.pop(t)
+                    received += ordered      # and counted as received in this period, not lost from the report
             short_total += short
             stock_days += on_hand
             schedule.append({"period": t, "demand": demand, "received": received, "short": short,

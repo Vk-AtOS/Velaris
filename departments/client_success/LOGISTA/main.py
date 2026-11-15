@@ -1,5 +1,6 @@
 import logging
-from typing import Dict, Any, List
+import math
+from typing import Dict, Any, List, Optional
 
 logger = logging.getLogger("LOGISTA")
 
@@ -19,6 +20,10 @@ class LogistaAgent:
         Returns allocation dict: key -> allocated units.
         """
         logger.debug("Allocating: resources=%s demand=%s", resources, demand)
+        for name, table in (("resources", resources), ("demand", demand)):
+            if not isinstance(table, dict) or any(not isinstance(v, (int, float)) or isinstance(v, bool) or not math.isfinite(v)
+                                                  or v < 0 for v in table.values()):
+                raise ValueError(f"{name} must map names to finite numbers, zero or more")
         allocation = {}
         for k, d in demand.items():
             available = resources.get(k, 0)
@@ -26,7 +31,7 @@ class LogistaAgent:
         logger.debug("Allocation result: %s", allocation)
         return allocation
 
-    def choose_route(self, routes: Dict[str, float]) -> str:
+    def choose_route(self, routes: Dict[str, float]) -> Optional[str]:
         """
         Pick the cheapest route.
         routes: {route_name: cost}
@@ -34,6 +39,10 @@ class LogistaAgent:
         if not routes:
             logger.debug("No routes available.")
             return None
-        best = min(routes, key=lambda r: routes[r])
+        usable = {r: c for r, c in routes.items() if isinstance(c, (int, float)) and not isinstance(c, bool) and math.isfinite(c)}
+        if not usable:
+            logger.debug("No route has a usable cost.")      # NaN or text costs gave an arbitrary winner
+            return None
+        best = min(usable, key=lambda r: usable[r])
         logger.debug("Selected route=%s cost=%s", best, routes[best])
         return best
