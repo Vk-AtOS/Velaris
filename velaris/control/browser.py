@@ -21,6 +21,7 @@ back from the task's `readback_url` (a JSON list of {field: value}) through the 
 """
 from __future__ import annotations
 
+import logging
 import socket
 from typing import Any, Callable, Dict, List, Optional, Protocol, Sequence, Tuple
 from urllib.parse import urlsplit
@@ -31,6 +32,7 @@ from velaris.control.core import (IRREVERSIBLE, READ, UNDOABLE, Action, ActResul
 from velaris.intel import trace
 from velaris.intel.web_fetch import FetchError, check_public
 
+logger = logging.getLogger("velaris.control.browser")
 FIELD_ROLES = ("textbox", "combobox", "checkbox", "radio")
 _RESOLVER = Callable[[str], list]
 
@@ -208,6 +210,18 @@ class PlaywrightDriver:
         return self._page.url
 
     def snapshot(self) -> Tuple[List[Dict[str, Any]], str]:
+        # A click that submits a form returns before the navigation commits, so the page may be replaced while (or just
+        # before) the script runs. Wait for the load, and if the old document was torn down under the script, read the new one.
+        for attempt in (1, 2):
+            self._page.wait_for_load_state("load", timeout=30000)
+            try:
+                els, text = self._page.evaluate(_COLLECT)
+                return els, text
+            except Exception as e:
+                if "context was destroyed" not in str(e):
+                    raise
+                logger.warning("browser snapshot raced a navigation; reading the new page (attempt %d)", attempt)
+        self._page.wait_for_load_state("load", timeout=30000)
         els, text = self._page.evaluate(_COLLECT)
         return els, text
 
