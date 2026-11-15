@@ -27,6 +27,7 @@ from typing import Any, Dict, Optional
 
 from velaris.agentkit.state import JsonState
 from velaris.core import vault
+from velaris.intel import trace
 from velaris.intel.paths import data_dir
 
 GENESIS = "0" * 64
@@ -105,6 +106,11 @@ def verify_incremental(max_entries: int = MAX_ENTRIES, full: bool = False, now: 
                             "broken_at": covered + done + 1, "reason": "entry was altered or out of order", "complete": True}
                 prev, offset, done = e["hash"], offset + len(raw), done + 1
         complete = offset >= size
+        if complete:
+            bad = trace.head_problem(covered + done, {covered + done: prev})
+            if bad:
+                return {"ok": False, "entries": covered + done, "verified_now": done, "covered_by_checkpoint": covered,
+                        "broken_at": None, "reason": bad, "complete": True}
         if complete and pass_at > full_at:
             full_at = pass_at                            # the from-genesis pass finished: restart the 24 h clock
         cp.save({"offset": offset, "prev": prev, "entries": covered + done, "mac": _prefix_mac(path, offset) if offset else "",

@@ -3,11 +3,21 @@
 Each line is one JSON entry holding the hash of the previous entry, so an
 edited, removed or reordered entry is detected by verify(). One file per
 process-wide chain; appends are serialised with a lock and fsynced.
+
+Removing entries from the END leaves a valid chain, so every append also writes a signed head
+(entry count + hash of the newest entry, HMAC with a key derived from the vault master key, which lives outside
+VELARIS_DATA) to trace.head, and to VELARIS_TRACE_ANCHOR_FILE when set (put that on another disk or host: then even
+someone who can roll back the whole data directory cannot shorten the trace unseen). verify() fails when the file
+holds fewer entries than the head, or the entry at the head position is not the head hash. A trace with entries but
+no valid head refuses appends (TraceHeadError) until an operator runs `python3.11 -m velaris.intel trace-rebaseline`
+(it re-verifies the whole chain first). The head is written after the entry, so after a crash the file may be ahead of
+the head by the entries since; that is accepted when the chain continues from the head hash.
 """
 from __future__ import annotations
 
 import fcntl
 import hashlib
+import hmac
 import json
 import os
 import threading
@@ -15,7 +25,8 @@ import time
 from pathlib import Path
 from typing import Any, Dict, Iterator, Optional
 
-from velaris.intel.paths import data_dir, open_private
+from velaris.core import vault
+from velaris.intel.paths import data_dir, open_private, read_private, write_private
 
 GENESIS = "0" * 64
 _lock = threading.Lock()
@@ -41,6 +52,52 @@ def _bound(payload: Dict[str, Any]) -> Dict[str, Any]:
         return payload
     return {"truncated": True, "bytes": len(raw), "sha256": hashlib.sha256(raw).hexdigest(),
             "keys": sorted(str(k) for k in payload)[:20]}
+
+
+class TraceHeadError(RuntimeError):
+    """The signed head is missing, forged or does not fit the trace: appends stop (fail closed)."""
+
+
+def _sign(count: int, last: str) -> str:
+    return hmac.new(vault.derive_key("trace-head"), f"{count}|{last}".encode(), hashlib.sha256).hexdigest()
+
+
+def _head_paths() -> list:
+    anchor = os.environ.get("VELARIS_TRACE_ANCHOR_FILE", "").strip()
+    return [data_dir() / "trace.head"] + ([Path(anchor)] if anchor else [])
+
+
+def _read_head(p: Path) -> Optional[tuple]:
+    """(count, hash) from a signed head file, or None when absent, unreadable or forged."""
+    try:
+        d = json.loads(read_private(p))
+        count, last = int(d["count"]), str(d["hash"])
+        return (count, last) if hmac.compare_digest(_sign(count, last), str(d["mac"])) else None
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+
+def heads() -> list:
+    """[(path, head or None)] for the local head and the anchor (if configured)."""
+    return [(p, _read_head(p)) for p in _head_paths()]
+
+
+def _write_heads(count: int, last: str) -> None:
+    body = json.dumps({"count": count, "hash": last, "mac": _sign(count, last)})
+    for p in _head_paths():
+        write_private(p, body)
+
+
+def _count_to(path: Path, head: tuple) -> int:
+    """Total entries in the file, checking the entry at the head position is the head hash (else TraceHeadError)."""
+    n, found = 0, head[0] == 0
+    for _, e in _lines():
+        n += 1
+        if n == head[0]:
+            found = isinstance(e, dict) and e.get("hash") == head[1]
+    if n < head[0] or not found:
+        raise TraceHeadError("the trace is shorter than, or differs from, its signed head: entries were removed or altered")
+    return n
 
 
 def _tail_lines(f) -> Iterator[bytes]:
@@ -86,6 +143,7 @@ def append(actor: str, action: str, payload: Optional[Dict[str, Any]] = None) ->
         fcntl.flock(lk.fileno(), fcntl.LOCK_EX)
         try:
             prev = _last_hash(path)
+            count = _next_count(path, prev)
             ts = time.time()
             entry = {"ts": ts, "actor": actor, "action": action, "payload": payload,
                      "prev": prev, "hash": _hash(prev, ts, actor, action, payload)}
@@ -95,9 +153,35 @@ def append(actor: str, action: str, payload: Optional[Dict[str, Any]] = None) ->
                 f.write(json.dumps(entry, sort_keys=True) + "\n")
                 f.flush()
                 os.fsync(f.fileno())
+            _write_heads(count, entry["hash"])
         finally:
             fcntl.flock(lk.fileno(), fcntl.LOCK_UN)
     return entry
+
+
+def _next_count(path: Path, prev: str) -> int:
+    """Entry number the next append gets, after checking the file still fits every signed head."""
+    exists = path.exists() and path.stat().st_size > 0
+    counts = []
+    for hp, head in heads():
+        if head is None:
+            if exists or hp.exists():
+                raise TraceHeadError(f"{hp.name}: signed head missing or forged for a non-empty trace; verify and run trace-rebaseline")
+            continue
+        counts.append(head[0] + 1 if head[1] == prev else _count_to(path, head) + 1)
+    return max(counts) if counts else 1
+
+
+def rebaseline() -> Dict[str, Any]:
+    """Operator action: walk the whole chain and, only if it is intact, sign a new head (first install or upgrade)."""
+    v = verify(check_head=False)
+    if not v["ok"]:
+        raise TraceHeadError(f"trace is not intact ({v['reason']} at entry {v['broken_at']}); not re-signing it")
+    last = _last_hash(_path())
+    with _lock, open_private(_path().with_suffix(".lock"), "a") as lk:
+        fcntl.flock(lk.fileno(), fcntl.LOCK_EX)
+        _write_heads(v["entries"], last)
+    return v
 
 
 def _ends_without_newline(path: Path) -> bool:
@@ -128,9 +212,13 @@ def _lines() -> Iterator[tuple]:
             yield raw, e if isinstance(e, dict) else None
 
 
-def verify() -> Dict[str, Any]:
+def verify(check_head: bool = True) -> Dict[str, Any]:
     """Walk the chain. Returns {"ok", "entries", "broken_at", "reason"}. Never raises on bad data."""
-    prev, n = GENESIS, 0
+    prev, n, at = GENESIS, 0, {}
+    try:
+        want = {h[0] for _, h in heads() if h} if check_head else set()
+    except vault.VaultKeyError:
+        want = set()                                 # head_problem reports the missing key
     for n, (_, e) in enumerate(_lines(), start=1):
         if e is None:
             return {"ok": False, "entries": n, "broken_at": n, "reason": "malformed line"}
@@ -142,4 +230,27 @@ def verify() -> Dict[str, Any]:
         except (KeyError, TypeError):
             return {"ok": False, "entries": n, "broken_at": n, "reason": "malformed entry"}
         prev = e["hash"]
+        if n in want:
+            at[n] = prev
+    if check_head:
+        bad = head_problem(n, at)
+        if bad:
+            return {"ok": False, "entries": n, "broken_at": None, "reason": bad}
     return {"ok": True, "entries": n, "broken_at": None, "reason": ""}
+
+
+def head_problem(total: int, hash_at: Dict[int, str]) -> str:
+    """Why the signed head(s) do not fit a trace of `total` well-formed entries (hash_at maps position -> hash), or ""."""
+    try:
+        hs = heads()
+    except vault.VaultKeyError:
+        return "no vault key: the signed trace head cannot be checked"
+    for hp, head in hs:
+        if head is None:
+            if total or hp.exists():
+                return f"{hp.name}: signed head missing or forged"
+        elif total < head[0]:
+            return f"trace shortened: {total} entries, signed head says {head[0]}"
+        elif head[0] and hash_at.get(head[0], head[1]) != head[1]:
+            return "entry at the signed head position was altered"
+    return ""

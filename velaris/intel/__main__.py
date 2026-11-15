@@ -10,6 +10,7 @@
   ask SCOPE "question"                answer from that library, with citations
   workflow FILE.json                  analyse an n8n workflow export
   trace                               verify the hash-chained log
+  trace-rebaseline                    re-sign the trace head after verifying the whole chain (install/upgrade)
 """
 from __future__ import annotations
 
@@ -35,6 +36,7 @@ def main(argv=None) -> int:
         s.add_argument("text")
     sub.add_parser("workflow").add_argument("file")
     sub.add_parser("trace")
+    sub.add_parser("trace-rebaseline")
     a = p.parse_args(argv)
 
     # imported here so `--help` works even when a module's dependency is missing
@@ -66,6 +68,8 @@ def main(argv=None) -> int:
         wf = workflow.load(Path(a.file).read_text(encoding="utf-8"))
         out = {"analysis": workflow.analyse(wf), "plan": workflow.to_plan(wf),
                "permissions_to_approve": workflow.required_permissions(wf)}
+    elif a.cmd == "trace-rebaseline":
+        out = trace.rebaseline()
     else:
         out = trace.verify()
     print(json.dumps(out, indent=2, ensure_ascii=False, default=str))
