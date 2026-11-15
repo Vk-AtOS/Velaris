@@ -9,8 +9,11 @@ Bounds, all in code (these mirror AetherOS Prime's hard maxima, aether_os/prime/
   * the money limit is at most MAX_AMOUNT (5,000,000);
   * only DELEGABLE classes can be delegated: never irreversible, external message, personal-data export, access
     change, deployment or legal filing, whatever the principal writes;
-  * only a person who could approve that class themselves (their roles, as recorded when the delegation was made,
-    meet autonomy.approver_roles) is covered; a person's own request is never approved by their delegation;
+  * only a person who could approve that class themselves is covered, and that is checked at the moment of use against
+    their CURRENT roles (velaris.orchestration.identity): the roles recorded when the delegation was made are only an
+    upper bound (effective = recorded AND current). A principal who is inactive, or who lost a role the delegation
+    relies on, auto-revokes it; one whose identity cannot be verified covers nothing. A person's own request is never
+    approved by their delegation;
   * the principal makes their own delegation; the principal or a governance admin revokes it, at any time, and a
     revoked or expired delegation is refused at the moment of use.
 
@@ -29,7 +32,7 @@ from velaris.agents import department_dirs
 from velaris.core.access import GOVERNANCE_ADMINS, Caller, has_role
 from velaris.intel import trace
 from velaris.intel.paths import agent_dir
-from velaris.orchestration import autonomy
+from velaris.orchestration import autonomy, identity
 
 MAX_DAYS = 90
 MAX_AMOUNT = 5_000_000.0
@@ -114,13 +117,44 @@ def active(org: str, now: float) -> List[Dict[str, Any]]:
             if i["org"] == org and not i["revoked_at"] and i["start"] <= now < i["end"]]
 
 
-def _covers(i: Dict[str, Any], department: str, cls: str, args: Dict[str, Any]) -> Optional[str]:
-    """None when the delegation covers this call, else the reason it does not."""
+def _authority(i: Dict[str, Any]) -> set:
+    """The recorded roles this delegation relies on: the ones that let the principal approve any of its classes."""
+    return set(i["roles"]) & {r for c in i["classes"] for r in autonomy.approver_roles(c)}
+
+
+def _auto_revoke(i: Dict[str, Any], why: str, now: float) -> None:
+    def go(d: Dict[str, Any]) -> bool:
+        item = d["items"].get(i["id"])
+        if not item or item["revoked_at"]:
+            return False
+        item["revoked_at"], item["revoked_by"] = now, f"system:{why}"
+        return True
+    if _store().update(go):
+        _log({"event": "auto_revoked", "delegation": i["id"], "principal": i["principal"], "org": i["org"], "why": why}, now)
+
+
+def _current_roles(i: Dict[str, Any], now: float) -> Tuple[Optional[set], str]:
+    """(effective roles, "") or (None, why not). Effective = recorded AND current; inactive or demoted auto-revokes."""
+    try:
+        who = identity.current(i["org"], i["principal"])
+    except identity.IdentityUnavailable:
+        return None, "principal_identity_unverified"
+    if who is None:
+        _auto_revoke(i, "principal_inactive", now)
+        return None, "principal_inactive"
+    if not _authority(i) <= who.roles:
+        _auto_revoke(i, "principal_roles_changed", now)
+        return None, "principal_roles_changed"
+    return set(i["roles"]) & who.roles, ""
+
+
+def _covers(i: Dict[str, Any], department: str, cls: str, args: Dict[str, Any], roles: set) -> Optional[str]:
+    """None when the delegation covers this call, else the reason it does not. `roles`: the principal's effective roles."""
     if department not in i["departments"]:
         return "department_not_covered"
     if cls not in DELEGABLE or cls not in i["classes"]:
         return "class_not_delegable" if cls not in DELEGABLE else "class_not_covered"
-    if not set(i["roles"]) & set(autonomy.approver_roles(cls)):
+    if not roles & set(autonomy.approver_roles(cls)):
         return "principal_could_not_approve_this_themselves"
     if cls == "money_under_limit":
         amount = next((args.get(p) for p in autonomy._MONEY_PARAMS if p in args), None)
@@ -139,7 +173,11 @@ def consider(*, org: str, owner: str, department: str, tool: str, cls: str, args
     mine = [i for i in active(org, now) if department in i["departments"] and i["principal"] != owner]
     reasons: List[Tuple[Dict[str, Any], str]] = []
     for i in mine:
-        why = _covers(i, department, cls, args)
+        roles, gone = _current_roles(i, now)
+        if roles is None:
+            reasons.append((i, gone))
+            continue
+        why = _covers(i, department, cls, args, roles)
         if why is None and may_decide:
             _log({"event": "decided", "delegation": i["id"], "principal": i["principal"], "org": org, "run_id": run_id,
                   "call_hash": call_hash, "tool": tool, "class": cls, "department": department}, now)

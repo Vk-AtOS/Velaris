@@ -8,9 +8,9 @@ from velaris.core.access import AccessDenied, Caller
 from velaris.intel import tools, trace
 from velaris.intel.flow import FlowError
 from velaris.intel.llm import FakeLLM
-from velaris.orchestration import autonomy, departments
+from velaris.orchestration import autonomy, departments, identity
 from velaris.orchestration.base import DepartmentOrchestrator, Limits, escalations
-from velaris.tests.orch_helpers import BOSS, FINAL, STAFF, DemoAgent, call, install
+from velaris.tests.orch_helpers import BOSS, DIRECTORY, FINAL, STAFF, DemoAgent, call, install
 
 
 @pytest.fixture
@@ -137,3 +137,82 @@ def test_the_sixteen_departments_are_exactly_the_department_folders_and_each_smo
         assert (r.status, r.output) == ("done", "done"), name
     assert with_tools >= 5 and any(not o.tool_specs() for o in built.values())
     tools.clear()
+
+
+HRM = Caller("m", "acme", frozenset({"hr_admin"}))
+
+
+def waiting_run(engine, tmp_path, who=HRM, tool="DEMO.restricted_note"):
+    DIRECTORY[(who.org, who.id)] = who
+    o = orch(engine, tmp_path, script(call(tool, text="hi"), FINAL))
+    r = o.run("file it", who)
+    assert r.status == "waiting_approval", r
+    return o, r
+
+
+def events(tmp_path, run_id):
+    from velaris.intel.flow import Flow
+    return Flow([], path=str(tmp_path / "flow.db")).history(run_id)
+
+
+def test_another_user_cannot_move_somebody_elses_run(engine, tmp_path):
+    o, r = waiting_run(engine, tmp_path)
+    n = len(events(tmp_path, r.run_id))
+    for who in (Caller("u2", "acme", frozenset({"employee"})), Caller("u2", "other", frozenset({"flow_approver"}))):
+        with pytest.raises((AccessDenied, FlowError)):
+            o.resume(r.run_id, who)
+    assert len(events(tmp_path, r.run_id)) == n and DemoAgent.calls == []
+
+
+def test_an_owner_demoted_between_start_and_resume_loses_the_tool(engine, tmp_path):
+    o, r = waiting_run(engine, tmp_path)
+    demoted = Caller("m", "acme", frozenset({"employee"}))
+    DIRECTORY[("acme", "m")] = demoted
+    out = o.decide(r.run_id, r.pending["call_hash"], approve=True, caller=BOSS)            # the owner is employee NOW
+    assert DemoAgent.calls == [] and out.status == "done"                                    # "tool no longer available", then the model ends
+    assert any("no longer available" in e.get("output", "") for e in events(tmp_path, r.run_id))
+
+
+def test_an_owner_who_resumes_with_fewer_roles_cannot_run_the_approved_step(engine, tmp_path):
+    o, r = waiting_run(engine, tmp_path)
+    DIRECTORY[("acme", "m")] = HRM
+    # approved by a person, then the owner (now without the role) is the one who moves it on
+    from velaris.intel.flow import Flow
+    Flow([], path=str(tmp_path / "flow.db"))._append(r.run_id, events(tmp_path, r.run_id), "decision",
+                                                      {"approve": True, "by": "boss", "note": "", "call_hash": r.pending["call_hash"]})
+    out = o.resume(r.run_id, Caller("m", "acme", frozenset({"employee"})))
+    assert DemoAgent.calls == [] and any("no longer available" in e.get("output", "") for e in events(tmp_path, r.run_id))
+    assert out.status in ("done", "stopped", "waiting_approval")
+
+
+def test_a_deactivated_owner_cannot_be_moved_by_anyone_else_and_nothing_advances(engine, tmp_path):
+    o, r = waiting_run(engine, tmp_path)
+    n = len(events(tmp_path, r.run_id))
+    del DIRECTORY[("acme", "m")]
+    with pytest.raises(AccessDenied):
+        o.decide(r.run_id, r.pending["call_hash"], approve=True, caller=BOSS)
+    with pytest.raises(AccessDenied):
+        o.resume(r.run_id, BOSS)
+    assert len(events(tmp_path, r.run_id)) == n and DemoAgent.calls == []
+
+
+def test_without_an_identity_resolver_only_the_owner_can_move_a_run(engine, tmp_path, monkeypatch):
+    o, r = waiting_run(engine, tmp_path)
+    monkeypatch.setattr(identity, "_resolver", None)
+    with pytest.raises(AccessDenied):
+        o.decide(r.run_id, r.pending["call_hash"], approve=True, caller=BOSS)
+    assert o.resume(r.run_id, HRM).status == "waiting_approval"
+
+
+def test_checks_come_before_the_run_is_touched(engine, tmp_path):
+    o, r = waiting_run(engine, tmp_path)
+    h, n = r.pending["call_hash"], len(events(tmp_path, r.run_id))
+    own = Caller("m", "acme", frozenset({"hr_admin", "flow_approver", "governance_admin"}))
+    with pytest.raises(AccessDenied):
+        o.decide(r.run_id, h, approve=True, caller=own)                                      # self approval
+    with pytest.raises(AccessDenied):
+        o.decide(r.run_id, h, approve=True, caller=Caller("z", "acme", frozenset({"flow_approver"})))      # unclassified needs an admin
+    with pytest.raises(FlowError):
+        o.decide(r.run_id, "0" * 64, approve=True, caller=BOSS)                              # not the waiting step
+    assert len(events(tmp_path, r.run_id)) == n and DemoAgent.calls == []
+    assert o.decide(r.run_id, h, approve=True, caller=BOSS).status == "done" and DemoAgent.calls == [("restricted_note", "hi")]

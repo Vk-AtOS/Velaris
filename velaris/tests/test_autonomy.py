@@ -148,8 +148,35 @@ def test_unknown_tool_needs_approval_and_aae_policy_agrees_with_the_table():
     assert aae.decide({"type": "something_new"})["decision"] == "deny"
 
 
-def test_legal_filing_is_recognised_by_its_words_not_by_any_file():
-    assert au.classify(spec("X.file_gst_return")) == "legal_filing"
-    assert au.classify(spec("X.efile_tds")) == "legal_filing"
-    assert au.classify(spec("X.file_note")) == "unclassified"
-    assert au.classify(spec("X.update_profile")) == "unclassified"
+FILINGS = ["file_itr", "file_roc", "file_pf", "file_esi", "file_annual_return", "file_gst_return", "efile_tds", "mca_annual_filing",
+           "submit_challan", "pay_challan", "lodge_complaint", "submit_gstr1", "generate_form16", "upload_form26as", "file_anything_new",
+           "submit_to_authority", "update_epf_return", "esi_contribution_file"]
+NOT_FILINGS = ["file_note", "update_profile", "tweak", "create_thing", "add_note"]
+
+
+@pytest.mark.parametrize("method", FILINGS)
+def test_unfamiliar_filing_names_land_in_the_strict_class(method):
+    s = spec(f"X.{method}")
+    assert au.classify(s) in ("legal_filing", "money_over_limit"), method           # never a looser class
+    assert au.mode_of(au.classify(s)) == "approval" and "governance_admin" in au.approver_roles(au.classify(s))
+    assert "flow_approver" not in au.approver_roles(au.classify(s))
+
+
+@pytest.mark.parametrize("method", NOT_FILINGS)
+def test_ordinary_unfamiliar_acts_are_unclassified_and_need_an_admin_to_approve(method, monkeypatch):
+    monkeypatch.setattr(au, "NOT_FILINGS", au.NOT_FILINGS | {"X.file_note"})
+    s = spec(f"X.{method}")
+    assert au.classify(s) == "unclassified" and au.mode_of("unclassified") == "approval"
+    assert au.approver_roles("unclassified") == ("governance_admin",)
+
+
+def test_a_read_is_never_made_stricter_by_a_filing_or_access_word_in_its_name():
+    assert au.classify(spec("X.get_tds_summary", effects="none")) == "read"
+    assert au.classify(spec("X.list_roles", effects="none")) == "read"
+    assert au.classify(spec("X.export_roles", effects="none")) == "personal_data_export"
+
+
+def test_every_registered_act_method_that_looks_like_a_filing_is_either_a_filing_or_a_reviewed_exception():
+    for t in tools.list():
+        if t.kind == "act" and any(x.startswith(("file", "submit", "lodge")) for x in t.method.split("_")):
+            assert au.classify(t) == "legal_filing" or t.name in au.NOT_FILINGS, t.name

@@ -22,6 +22,7 @@ rules ({"type": <class>} actions), so the two never disagree.
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any, Dict, List, Optional, Tuple
 
 from velaris.agentkit.state import JsonState
@@ -45,7 +46,7 @@ ADMIN = ("governance_admin",)
 APPROVER_ROLES: Dict[str, Tuple[str, ...]] = {          # who may approve a call of this class (local decisions)
     "money_under_limit": ("payroll_admin",) + ADMIN, "money_over_limit": ("payroll_admin",) + ADMIN,
     "personal_data_export": ("hr_admin",) + ADMIN, "access_change": ("security_admin",) + ADMIN,
-    "deployment": ("infra_admin",) + ADMIN, "legal_filing": ADMIN, "irreversible": ("hr_admin", "flow_approver") + ADMIN}
+    "deployment": ("infra_admin",) + ADMIN, "legal_filing": ADMIN, "unclassified": ADMIN, "irreversible": ("hr_admin", "flow_approver") + ADMIN}
 DEFAULT_APPROVERS = ("flow_approver",) + ADMIN
 MAX_MONEY_LIMIT = 5_000_000.0           # the AetherOS Prime hard ceiling (aether_os/prime/authz.py)
 
@@ -56,9 +57,15 @@ _WORDS = {
     "irreversible": ("delete", "erase", "purge", "void", "finalis", "finaliz", "seal", "discard"),
     "access_change": ("grant", "revoke", "role", "permission", "token", "availability"),
     "deployment": ("deploy", "rollout", "release"),
-    "legal_filing": ("filing", "efil"),
+    "legal_filing": ("file", "filing", "efil", "submit", "lodge", "itr", "roc", "mca", "challan", "gstr", "tds", "tcs",
+                     "epf", "esi", "pf", "return"),
     "personal_data_export": ("export",),
 }
+# Reviewed: act methods whose name looks like a filing but are not one. Everything else that looks like one is a
+# legal filing: an unfamiliar name must land in the STRICTER class, so the exceptions are listed, not the filings.
+NOT_FILINGS = frozenset({"OFFER_LETTERS.submit_for_approval", "ONBOARDING_FLOW.submit_identifier",
+                         "ONBOARDING_FLOW.submit_form", "INTERVIEW_KIT.submit_scorecard"})
+_FORM_NUMBER = re.compile(r"^form\d+")             # form16, form26as
 _MONEY_WORDS = ("pay", "transfer", "refund", "disburse", "invoice")     # matched as the start of a word of the method name
 _MONEY_PARAMS = ("amount", "amount_inr", "payment")
 
@@ -92,11 +99,13 @@ def classify(spec: tools.ToolSpec, args: Optional[Dict[str, Any]] = None, *, lim
     for cls, words in _WORDS.items():
         if has(words):
             found.append(cls)
-    if "file" in tokens and has(("return", "gst", "tds", "tax")) and "legal_filing" not in found:
-        found.append("legal_filing")                                              # file_gst_return, but not file_note
+    if any(_FORM_NUMBER.match(t) for t in tokens) and "legal_filing" not in found:
+        found.append("legal_filing")
+    if name in NOT_FILINGS:
+        found = [c for c in found if c != "legal_filing"]
     if spec.side_effects == "none":
         found.append("personal_data_read" if spec.sensitivity == "restricted" else "read")
-        found = [c for c in found if c != "irreversible"]       # a read named "..._seal_..." deletes nothing
+        found = [c for c in found if c in ("personal_data_export", "read", "personal_data_read")]   # a read named "..._seal_..." deletes nothing
     else:
         if spec.side_effects == "external":
             found.append("external_message")

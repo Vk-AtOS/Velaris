@@ -5,9 +5,9 @@ from velaris.core.access import Caller, acting_as
 from velaris.intel import tools, trace
 from velaris.intel.flow import Flow
 from velaris.intel.llm import FakeLLM
-from velaris.orchestration import absence, autonomy
+from velaris.orchestration import absence, autonomy, identity
 from velaris.orchestration.base import DepartmentOrchestrator
-from velaris.tests.orch_helpers import FINAL, DemoAgent, call, install
+from velaris.tests.orch_helpers import DIRECTORY, FINAL, DemoAgent, call, install
 
 DAY = 86400.0
 CFO = Caller("cfo", "acme", frozenset({"payroll_admin"}))
@@ -20,6 +20,7 @@ NOW = [1_000_000.0]
 def engine(monkeypatch):
     NOW[0] = 1_000_000.0
     e = install(monkeypatch, "finance")
+    DIRECTORY.update({(c.org, c.id): c for c in (CFO, CLERK, OWNER)})
     with acting_as(OWNER):
         autonomy.set_money_limit(1000)
     yield e
@@ -98,6 +99,7 @@ def test_another_department_or_organisation_is_not_covered(engine, tmp_path):
 
 
 def test_a_principal_who_could_not_approve_it_themselves_covers_nothing(engine, tmp_path):
+    DIRECTORY[("acme", "x")] = Caller("x", "acme", frozenset())
     absence.grant(CLERK, classes=["money_under_limit"], departments=["finance"], start=NOW[0] - 10, end=NOW[0] + DAY,
                   max_amount=500, clock=lambda: NOW[0])
     assert orch(engine, tmp_path, pay(300), FINAL).run("p", Caller("x", "acme", frozenset())).status == "waiting_approval"
@@ -150,3 +152,45 @@ def test_an_escalated_run_in_a_covered_department_is_in_the_briefing(engine, tmp
     r = o.run("loop", CLERK)
     assert r.status == "stopped"
     assert [e["run_id"] for e in absence.briefing(CFO)["escalated"]] == [r.run_id]
+
+
+def ledger(event):
+    return [e["payload"] for e in trace.entries() if e["actor"] == "absence" and e["action"] == event]
+
+
+def test_a_principal_demoted_after_delegating_covers_nothing_and_the_delegation_is_revoked(engine, tmp_path):
+    d = grant()
+    DIRECTORY[("acme", "cfo")] = Caller("cfo", "acme", frozenset({"employee"}))            # demoted
+    r = orch(engine, tmp_path, pay(300), FINAL).run("p", CLERK)
+    assert r.status == "waiting_approval" and DemoAgent.calls == []
+    assert absence.get(d["id"])["revoked_by"] == "system:principal_roles_changed" and ledger("auto_revoked")
+    DIRECTORY[("acme", "cfo")] = CFO                                                         # promoted again: still revoked
+    assert orch(engine, tmp_path, pay(300), FINAL).run("p", CLERK).status == "waiting_approval"
+
+
+def test_a_deactivated_principal_covers_nothing_and_the_delegation_is_revoked(engine, tmp_path):
+    d = grant()
+    del DIRECTORY[("acme", "cfo")]
+    assert orch(engine, tmp_path, pay(300), FINAL).run("p", CLERK).status == "waiting_approval"
+    assert absence.get(d["id"])["revoked_by"] == "system:principal_inactive" and DemoAgent.calls == []
+
+
+def test_a_principal_whose_identity_cannot_be_verified_covers_nothing_but_keeps_the_delegation(engine, tmp_path, monkeypatch):
+    d = grant()
+    monkeypatch.setattr(identity, "_resolver", None)
+    assert orch(engine, tmp_path, pay(300), FINAL).run("p", CLERK).status == "waiting_approval"
+    assert absence.briefing(CFO)["queued"][0]["why"] == "principal_identity_unverified" and not absence.get(d["id"])["revoked_at"]
+    monkeypatch.setattr(identity, "_resolver", lambda org, uid: (_ for _ in ()).throw(RuntimeError("down")))
+    assert orch(engine, tmp_path, pay(300), FINAL).run("p", CLERK).status == "waiting_approval"
+
+
+def test_a_class_above_the_principals_current_authority_is_not_covered(engine, tmp_path):
+    grant(classes=["money_under_limit", "unclassified"])           # unclassified needs governance_admin; the CFO has payroll_admin
+    r = orch(engine, tmp_path, call("DEMO.file_note", text="x"), FINAL).run("p", CLERK)
+    assert r.status == "waiting_approval" and absence.briefing(CFO)["queued"][0]["why"] == "principal_could_not_approve_this_themselves"
+
+
+def test_a_delegation_past_its_time_limit_is_dead_whatever_the_principal_holds(engine, tmp_path):
+    grant(end=NOW[0] + 100)
+    NOW[0] += 101
+    assert orch(engine, tmp_path, pay(300), FINAL).run("p", CLERK).status == "waiting_approval" and DemoAgent.calls == []
