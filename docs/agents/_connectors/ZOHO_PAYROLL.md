@@ -2,13 +2,14 @@
 
 - **Department:** `_connectors`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/_connectors/ZOHO_PAYROLL/main.py` (102 lines)
+- **Source:** `departments/_connectors/ZOHO_PAYROLL/main.py` (103 lines)
 
 ## Purpose
 
 Zoho Payroll connector: reads one employee's payslip, YTD summary, statutory deductions and cost to company from the Zoho Payroll (India) API.
 
-ZohoPayrollConnector(config): health_check() returns a static ok status;
+ZohoPayrollConnector(config): health_check() returns status "ok" or "unconfigured"
+from the Zoho connector's credentials (no network call);
 get_payslip(employee_id, year, month), get_ytd_summary(employee_id, financial_year),
 get_statutory_deductions(employee_id, year, month) (EPF, ESI, TDS, PT lines of the payslip)
 and get_cost_to_company(employee_id, year, month) all take a keyword caller=. Requests go

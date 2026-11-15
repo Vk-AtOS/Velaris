@@ -10,11 +10,12 @@ Model registry canary: tracks model versions and their canary rollout percentage
 
 Models are keyed "name:version" with {active, canary, checksum}. register_model(name, version,
 checksum) adds an inactive entry (False if it exists); activate/deactivate(name, version) set
-the flag and reset canary to 0; set_canary(name, version, percent) accepts 0..100; get_model
-returns the entry or None. Every mutator returns False for an unknown model (or a percent out
-of range) instead of raising. Nothing here routes traffic or verifies the checksum.
-State: <VELARIS_DATA>/agents/MODEL_REGISTRY_CANARY/registry.json (created on first use); an
-unreadable file is logged as a warning and treated as empty.
+the flag and reset canary to 0; set_canary(name, version, percent) accepts a whole number 0..100 (a bool, float or text is refused); get_model
+returns the entry or None. Every mutator returns False for an unknown model (or a refused
+percent) instead of raising. Nothing here routes traffic or verifies the checksum.
+State: <VELARIS_DATA>/agents/MODEL_REGISTRY_CANARY/registry.json (owner-only, atomic, locked
+across workers, created on the first write); a file that cannot be parsed is set aside as
+registry.json.corrupt-<time> and the registry starts empty.
 
 ## Class `ModelRegistryCanary`
 

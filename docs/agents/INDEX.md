@@ -74,18 +74,18 @@
 | [EOF_POLICY](_ai_core/EOF_POLICY.md) | rule_based | EOF_POLICY: checks one record (a plan step, an action) against one declared policy. |
 | [FSCL](_ai_core/FSCL.md) | not_implemented | Alias agent FSCL: fronts SOUL_VELARIS, PRIME, ENGINE. See velaris.agentkit.alias. |
 | [GCK](_ai_core/GCK.md) | not_implemented | Alias agent GCK: fronts GLOBAL_STATE_MAP. See velaris.agentkit.alias. |
-| [HFAL](_ai_core/HFAL.md) | real |  |
+| [HFAL](_ai_core/HFAL.md) | real | HFAL (Human-Friendly Auth Layer): issues PIN-backed session tokens that expire, and validates them. |
 | [HUMAN_APPROVAL_WORKFLOW](_ai_core/HUMAN_APPROVAL_WORKFLOW.md) | rule_based | HUMAN_APPROVAL_WORKFLOW: an in-memory approval request book. |
 | [HYPERSTATE_SYNTHESIZER](_ai_core/HYPERSTATE_SYNTHESIZER.md) | rule_based | HYPERSTATE_SYNTHESIZER: merges several partial state snapshots into one, reporting conflicts. |
 | [HYPER_REASONER](_ai_core/HYPER_REASONER.md) | rule_based | HYPER_REASONER: structural validation of a decision graph before anything is planned from it. |
 | [INTENT_SYNTHESIZER](_ai_core/INTENT_SYNTHESIZER.md) | real | INTENT_SYNTHESIZER: turns a loosely worded idea into a structured intent that can be planned. |
 | [INTER_AGENT_COHESION](_ai_core/INTER_AGENT_COHESION.md) | rule_based | INTER_AGENT_COHESION: a shared board where agents leave facts for each other without overwriting each other. |
-| [LOCAL_BIOMETRICS_INTERFACE](_ai_core/LOCAL_BIOMETRICS_INTERFACE.md) | rule_based |  |
+| [LOCAL_BIOMETRICS_INTERFACE](_ai_core/LOCAL_BIOMETRICS_INTERFACE.md) | rule_based | Local biometrics interface: enrols and verifies per-user biometric templates by exact string match. |
 | [LOCAL_EMBEDDING_ENGINE](_ai_core/LOCAL_EMBEDDING_ENGINE.md) | real | LOCAL_EMBEDDING_ENGINE: text to vectors without sending anything off the machine, and similarity search. |
 | [LONG_RUN_STABILITY_SIMULATOR](_ai_core/LONG_RUN_STABILITY_SIMULATOR.md) | rule_based | Long-run stability simulator: turns a series of performance values into a heuristic stability score. |
 | [LYRA](_ai_core/LYRA.md) | rule_based | LYRA: output personality engine that applies a fixed style preset to text. |
 | [LYRA_VOICE_ENGINE](_ai_core/LYRA_VOICE_ENGINE.md) | real | Lyra voice engine: turns a spoken or typed command into a keyword-routed, simulated request and speaks the result. |
-| [MCD](_ai_core/MCD.md) | rule_based |  |
+| [MCD](_ai_core/MCD.md) | rule_based | MCD (Master Control Dashboard): a fixed route table and a one-line HTML page template. |
 | [MCFE_CLASSIFIER](_ai_core/MCFE_CLASSIFIER.md) | real | MCFE_CLASSIFIER: which subject domain is a piece of text about? |
 | [MCFE_CORE](_ai_core/MCFE_CORE.md) | real | MCFE_CORE: one pass over an incoming text: domain, fields, department. |
 | [MCFE_FIELDGEN](_ai_core/MCFE_FIELDGEN.md) | rule_based | MCFE_FIELDGEN: the fields a record of a given domain needs, and their values found in a text. |
@@ -119,7 +119,7 @@
 | [SELF_CONSISTENCY](_ai_core/SELF_CONSISTENCY.md) | real | SELF_CONSISTENCY: ask the same question N times and measure how far the answers agree. |
 | [SELF_CORRECTION_ENGINE](_ai_core/SELF_CORRECTION_ENGINE.md) | rule_based | SELF_CORRECTION_ENGINE: repairs a record against a declared schema and says what it changed. |
 | [SELF_DIRECTED_TASKER](_ai_core/SELF_DIRECTED_TASKER.md) | rule_based | SELF_DIRECTED_TASKER: works through an ordered task list, releasing tasks as their dependencies finish. |
-| [SELF_HISTORY](_ai_core/SELF_HISTORY.md) | rule_based | Self history: a minimal in-memory event log for the system's own activity. |
+| [SELF_HISTORY](_ai_core/SELF_HISTORY.md) | rule_based | Self history: a small persisted event log for the system's own activity. |
 | [SELF_IDENTITY](_ai_core/SELF_IDENTITY.md) | rule_based | SELF_IDENTITY: who this Velaris installation is, as a recorded, versioned fact sheet. |
 | [SOUL_CORE_EXT](_ai_core/SOUL_CORE_EXT.md) | rule_based | SOUL_CORE_EXT: versioned operating settings for this Velaris instance. |
 | [SOUL_VELARIS](_ai_core/SOUL_VELARIS.md) | rule_based | SOUL_VELARIS: the company's charter for its agents, and the check of an action against it. |
@@ -161,7 +161,7 @@
 
 | Agent | Status | Purpose |
 |---|---|---|
-| [ACTION_ITEM_EXTRACTOR](communications/ACTION_ITEM_EXTRACTOR.md) | real |  |
+| [ACTION_ITEM_EXTRACTOR](communications/ACTION_ITEM_EXTRACTOR.md) | real | Action item extractor: finds action items in meeting text with fixed regex patterns and stores them (no LLM). |
 | [CALL_RECORDER](communications/CALL_RECORDER.md) | real | Call recorder: records microphone audio to local WAV files by running ffmpeg. |
 | [CALL_TRANSCRIBER](communications/CALL_TRANSCRIBER.md) | real | Call transcriber: local speech-to-text of audio files with OpenAI Whisper or faster-whisper. |
 | [MEETING_SUMMARIZER](communications/MEETING_SUMMARIZER.md) | real | Meeting summarizer: builds a rule-based summary, decisions and action items from a transcript and stores them. |
@@ -213,13 +213,13 @@
 | [ECONOMIC_INTELLIGENCE_MESH](finance/ECONOMIC_INTELLIGENCE_MESH.md) | rule_based | Economic intelligence mesh: a heuristic trend rating over a list of indicator values. |
 | [ECONOVA](finance/ECONOVA.md) | rule_based | Econova: elasticity-based market sensitivity, demand projection and macro index (simple arithmetic). |
 | [ECON_INTEL_CORE](finance/ECON_INTEL_CORE.md) | rule_based | ECON_INTEL_CORE: a sourced register of economic indicators, plus cited research. |
-| [FINANCIAL_AI_ENGINE](finance/FINANCIAL_AI_ENGINE.md) | rule_based |  |
+| [FINANCIAL_AI_ENGINE](finance/FINANCIAL_AI_ENGINE.md) | rule_based | Financial AI engine: growth, a straight-line forecast and a threshold health label (plain arithmetic, no model). |
 | [FISCALIS](finance/FISCALIS.md) | rule_based | Fiscalis: budget bookkeeping and basic expense arithmetic. |
 | [FORECASTA](finance/FORECASTA.md) | rule_based | Forecasta: simple numeric forecasts (fixed-rate growth, average slope, rolling mean). |
 | [FORMULA](finance/FORMULA.md) | rule_based | Formula: builds a framework dict, scores pattern variety and shallow-merges templates (trivial helpers). |
 | [GST_ENGINE](finance/GST_ENGINE.md) | rule_based | GST_ENGINE: GST on outward supplies of services by an IT services company registered in Tamil Nadu. |
 | [INSURANCE_POLICY_ENGINE](finance/INSURANCE_POLICY_ENGINE.md) | rule_based | INSURANCE_POLICY_ENGINE: underwriting clauses and premium from a supplied rate table. |
-| [LEDGERON](finance/LEDGERON.md) | rule_based | Ledgeron: a small in-memory ledger of transactions per account. |
+| [LEDGERON](finance/LEDGERON.md) | rule_based | Ledgeron: a small in-memory ledger of transactions per account, exact to the paisa. |
 | [MACRO_ECON_MODEL](finance/MACRO_ECON_MODEL.md) | rule_based | MACRO_ECON_MODEL: standard derived indicators from macro figures the caller supplies. |
 | [METRIX](finance/METRIX.md) | rule_based | Metrix: weighted KPI and performance scoring of metric dicts. |
 | [NEURAL_ECONOMY](finance/NEURAL_ECONOMY.md) | rule_based | NEURAL_ECONOMY: unit economics calculator. There is no neural network here. |
@@ -278,14 +278,14 @@
 | [MULTI_TENANCY_GRID](it_infrastructure/MULTI_TENANCY_GRID.md) | rule_based | MULTI_TENANCY_GRID: tenants, their quotas, and usage that cannot exceed them. |
 | [NETWORK_OPTIMIZER](it_infrastructure/NETWORK_OPTIMIZER.md) | rule_based | NETWORK_OPTIMIZER: best path through a declared network. |
 | [OFFLINE_EXECUTION_ENGINE](it_infrastructure/OFFLINE_EXECUTION_ENGINE.md) | rule_based | OFFLINE_EXECUTION_ENGINE: a durable, replay-safe journal of local command runs. |
-| [OFFLINE_REGISTRY](it_infrastructure/OFFLINE_REGISTRY.md) | real |  |
-| [OFFLINE_RUNTIME_PACKAGER](it_infrastructure/OFFLINE_RUNTIME_PACKAGER.md) | real |  |
+| [OFFLINE_REGISTRY](it_infrastructure/OFFLINE_REGISTRY.md) | real | Offline registry: a small key/value store in one local JSON file, usable without any network. |
+| [OFFLINE_RUNTIME_PACKAGER](it_infrastructure/OFFLINE_RUNTIME_PACKAGER.md) | real | Offline runtime packager: bundles a Velaris source folder into a tar archive for offline installs, leaving secrets out. |
 | [OFFLINE_SANDBOX](it_infrastructure/OFFLINE_SANDBOX.md) | real | OFFLINE_SANDBOX: run a small allow-list of read-only commands, contained as a process. |
 | [PARALLEL_CORE](it_infrastructure/PARALLEL_CORE.md) | rule_based | PARALLEL_CORE: run one function over many inputs on a bounded thread pool. |
 | [RESOURCE_OPTIMIZER](it_infrastructure/RESOURCE_OPTIMIZER.md) | rule_based | RESOURCE_OPTIMIZER: how many parallel workers this machine can take right now. |
 | [RESOURCE_ORCHESTRATOR](it_infrastructure/RESOURCE_ORCHESTRATOR.md) | rule_based | RESOURCE_ORCHESTRATOR: named resource pools with hard capacity. |
 | [SYSTEM_TELEMETRY](it_infrastructure/SYSTEM_TELEMETRY.md) | rule_based | SYSTEM_TELEMETRY: host metrics for the machine Velaris runs on. |
-| [TELEMETRY_SPINE](it_infrastructure/TELEMETRY_SPINE.md) | real |  |
+| [TELEMETRY_SPINE](it_infrastructure/TELEMETRY_SPINE.md) | real | Telemetry spine: an append-only local log of typed events with a simple query and per-type counts. |
 | [THROUGHPUT_MANAGER](it_infrastructure/THROUGHPUT_MANAGER.md) | rule_based | THROUGHPUT_MANAGER: token-bucket rate limits. |
 
 ## legal_compliance (7)
@@ -306,12 +306,12 @@
 |---|---|---|
 | [ADAPTIVE_BRANDING](marketing/ADAPTIVE_BRANDING.md) | rule_based | ADAPTIVE_BRANDING: rewrite one brand message for a channel and audience, then check it. |
 | [ARTESIA](marketing/ARTESIA.md) | rule_based | Artesia: trivial style helpers (name fusion, weighted attribute sum, feature profile). |
-| [AUTONOMOUS_MARKETING_ENGINE](marketing/AUTONOMOUS_MARKETING_ENGINE.md) | rule_based |  |
+| [AUTONOMOUS_MARKETING_ENGINE](marketing/AUTONOMOUS_MARKETING_ENGINE.md) | rule_based | Autonomous marketing engine: templated campaign plans and an audience score from measured numbers (no model, no sending). |
 | [BRAND_NARRATIVE](marketing/BRAND_NARRATIVE.md) | rule_based | BRAND_NARRATIVE: a short company narrative written from supplied facts only. |
 | [BUSINESS_FUNNEL_DESIGNER](marketing/BUSINESS_FUNNEL_DESIGNER.md) | rule_based | Business funnel designer: multi-stage conversion funnels with drop-off analysis. |
 | [CREATIVA](marketing/CREATIVA.md) | rule_based | Creativa: template-based idea helpers for marketing (no generative model is used). |
 | [CREATIVE_ENGINE](marketing/CREATIVE_ENGINE.md) | real | CREATIVE_ENGINE: campaign ideas, variations and blends, drafted by a model. |
-| [CREATIVE_HOLODECK](marketing/CREATIVE_HOLODECK.md) | rule_based |  |
+| [CREATIVE_HOLODECK](marketing/CREATIVE_HOLODECK.md) | rule_based | Creative holodeck: composes a one-sentence scene description from four fixed word lists (rule-based, not generative). |
 | [CUSTOMER_BEHAVIOR_ENGINE](marketing/CUSTOMER_BEHAVIOR_ENGINE.md) | rule_based | CUSTOMER_BEHAVIOR_ENGINE: descriptive metrics and a rule-based segment for one customer account. |
 | [IMAGINA](marketing/IMAGINA.md) | rule_based | Imagina: template generator for ideation prompts (stub-level, no model). |
 | [VMRK](marketing/VMRK.md) | real | VMRK: signs and verifies messages with an HMAC-SHA256 key. |
@@ -325,13 +325,13 @@
 | [CODEX](operations/CODEX.md) | rule_based | Codex: detects changes in rule sets by hashing a canonical JSON form of each. |
 | [CONNECTOR_LAYER](operations/CONNECTOR_LAYER.md) | rule_based | Connector layer: an in-memory registry of connector configs with a simulated request. |
 | [CONVERGENCE_BRIDGE](operations/CONVERGENCE_BRIDGE.md) | not_implemented | Alias agent CONVERGENCE_BRIDGE: fronts ORCHESTRIX, COHERENCE_SYNC_CORE, REGISTRY. See velaris.agentkit.alias. |
-| [DYNAMICA](operations/DYNAMICA.md) | rule_based |  |
+| [DYNAMICA](operations/DYNAMICA.md) | rule_based | Dynamica: steps a value, or a dict of values, forward a fixed number of times. |
 | [FABRICA](operations/FABRICA.md) | rule_based | Fabrica: simple helpers for describing and combining content layers. |
 | [FLUXOR](operations/FLUXOR.md) | rule_based | Fluxor: load throughput, spike detection and a one-step load balancer (simple arithmetic). |
 | [GENEFLOW](operations/GENEFLOW.md) | rule_based | Geneflow: diffs two dicts and applies the diff as a migration. |
 | [HELIX](operations/HELIX.md) | rule_based | Helix: stores and verifies SHA-256 signatures of "genome" data. |
 | [HYPERSYNC](operations/HYPERSYNC.md) | not_implemented | Alias agent HYPERSYNC: fronts COHERENCE_SYNC_CORE, CSG_STATEALIGN. See velaris.agentkit.alias. |
-| [MULTI_TENANT_ENGINE](operations/MULTI_TENANT_ENGINE.md) | rule_based |  |
+| [MULTI_TENANT_ENGINE](operations/MULTI_TENANT_ENGINE.md) | rule_based | Multi-tenant engine: an in-memory key/value store partitioned by tenant id. |
 | [NIRVANA](operations/NIRVANA.md) | not_implemented | Alias agent NIRVANA: fronts SELF_CORRECTION_ENGINE, SANITY_VERIFIER, FAILOVER_ROUTER. See velaris.agentkit.alias. |
 | [OPERATUS](operations/OPERATUS.md) | rule_based | Operatus: runs a named workflow by calling the handler registered for each step in order. |
 | [OPS_REPORT](operations/OPS_REPORT.md) | real | OPS_REPORT — Velaris BOS agent for Knackforge |
@@ -341,7 +341,7 @@
 | [QUALITY_CONTROL_ENGINE](operations/QUALITY_CONTROL_ENGINE.md) | rule_based | QUALITY_CONTROL_ENGINE: a batch checked against a u-chart and explicit disposition rules. |
 | [SAGE](operations/SAGE.md) | not_implemented | Alias agent SAGE: fronts STRATEGOS, STRATEGIC_INTEL, CSM_CORE. See velaris.agentkit.alias. |
 | [SANDE](operations/SANDE.md) | not_implemented | Alias agent SANDE: fronts LOCAL_ACCELERATOR, LOCAL_AUTONOMY_CORE, LOCAL_REGISTRY_CACHE, LOCAL_ROUTER, LOCAL_MEMORY_STORE. See velaris.agentkit.alias. |
-| [SKILLPACK_LOADER](operations/SKILLPACK_LOADER.md) | real |  |
+| [SKILLPACK_LOADER](operations/SKILLPACK_LOADER.md) | real | Skillpack loader: stores named JSON skillpacks as files and reads them back; it executes nothing. |
 | [SLA_MONITOR](operations/SLA_MONITOR.md) | real | SLA_MONITOR — Velaris BOS agent for Knackforge |
 | [VELOCITY_LOOP](operations/VELOCITY_LOOP.md) | rule_based | VELOCITY_LOOP: where one piece of work lost its time. |
 | [WORKFLOW_ANALYST](operations/WORKFLOW_ANALYST.md) | real | Workflow analyst agent: understand a company's existing automation and how work really flows. |
@@ -351,17 +351,17 @@
 | Agent | Status | Purpose |
 |---|---|---|
 | [ACTION_SANDBOX](project_management/ACTION_SANDBOX.md) | rule_based | ACTION_SANDBOX: apply an action to a COPY of some state and report what would change. |
-| [BUDGET_GUARDRAILS](project_management/BUDGET_GUARDRAILS.md) | rule_based |  |
-| [DIGITAL_TWIN_XR_ENGINE](project_management/DIGITAL_TWIN_XR_ENGINE.md) | rule_based |  |
-| [DRY_RUN_SIMULATION](project_management/DRY_RUN_SIMULATION.md) | real |  |
-| [EXECUTION_SANDBOX](project_management/EXECUTION_SANDBOX.md) | rule_based | Execution sandbox: runs a code string with a restricted set of globals and logs every run. |
+| [BUDGET_GUARDRAILS](project_management/BUDGET_GUARDRAILS.md) | rule_based | Budget guardrails: per-category spending limits in rupees, exact to the paisa, that block overruns. |
+| [DIGITAL_TWIN_XR_ENGINE](project_management/DIGITAL_TWIN_XR_ENGINE.md) | rule_based | Digital twin / XR engine: named in-memory state dicts with update, diff and merge (no XR rendering, no device link). |
+| [DRY_RUN_SIMULATION](project_management/DRY_RUN_SIMULATION.md) | real | Dry-run simulation: records what an action would do instead of doing it; it performs no action in either mode. |
+| [EXECUTION_SANDBOX](project_management/EXECUTION_SANDBOX.md) | rule_based | Execution sandbox: evaluates a tiny arithmetic language (not Python) and logs every run. |
 | [FAILPATH_CONTROL_ENGINE](project_management/FAILPATH_CONTROL_ENGINE.md) | rule_based | Failpath control engine: maps failure codes to handler names and records each routed failure. |
 | [FEASIBILITY_ENGINE](project_management/FEASIBILITY_ENGINE.md) | rule_based | FEASIBILITY_ENGINE: a scored feasibility checklist where every criterion shows its evidence. |
 | [INITIATIVE_ENGINE](project_management/INITIATIVE_ENGINE.md) | rule_based | INITIATIVE_ENGINE: rank proposed initiatives by RICE and keep the register. |
 | [ROLLBACK_ENGINE](project_management/ROLLBACK_ENGINE.md) | real | Rollback engine: saves named state snapshots to disk and returns them on rollback. |
 | [SIMULON](project_management/SIMULON.md) | rule_based | Simulon: simple step-wise simulations (a stub). |
 | [SPRINT_PLANNER](project_management/SPRINT_PLANNER.md) | real | Sprint planner: creates sprints, holds their tasks and story points, and reports velocity. |
-| [SUCCESSOR_KEY_MODULE](project_management/SUCCESSOR_KEY_MODULE.md) | rule_based |  |
+| [SUCCESSOR_KEY_MODULE](project_management/SUCCESSOR_KEY_MODULE.md) | rule_based | Successor key module: stores one successor key as a salted hash and verifies a presented key against it. |
 | [TACTICIAN](project_management/TACTICIAN.md) | rule_based | Tactician: Monte Carlo estimate of a plan's success rate (heuristic, not a planner). |
 | [TIME_TRACKER](project_management/TIME_TRACKER.md) | real | Time tracker: billable hours and utilization per employee and project. |
 
@@ -391,23 +391,23 @@
 | [AGENT_CONTAINMENT_MODES](security/AGENT_CONTAINMENT_MODES.md) | rule_based | Agent containment modes: records a containment level per agent and says which actions that level allows. |
 | [ARGUS](security/ARGUS.md) | rule_based | Argus: tracks source heartbeats and version signatures to flag silent or changed components. |
 | [AUDITOR](security/AUDITOR.md) | rule_based | Auditor: checks a workflow against required steps and scans log lines for banned terms. |
-| [COGNITIVE_INTENT_FIREWALL](security/COGNITIVE_INTENT_FIREWALL.md) | real |  |
+| [COGNITIVE_INTENT_FIREWALL](security/COGNITIVE_INTENT_FIREWALL.md) | real | Cognitive intent firewall: keyword classification of text, plus a prompt-injection scan of untrusted content. |
 | [COMPLIANCE_GUARD](security/COMPLIANCE_GUARD.md) | rule_based | Compliance guard: checks an action dict against registered required-field and forbidden-field rules. |
 | [CUSTOS](security/CUSTOS.md) | rule_based | Custos: minimal in-memory role-based access check. |
 | [CYBER_RISK_ENGINE](security/CYBER_RISK_ENGINE.md) | rule_based | CYBER_RISK_ENGINE: a residual-risk score for a declared asset, by a stated formula. |
 | [DECISION_FIREWALL](security/DECISION_FIREWALL.md) | rule_based | DECISION_FIREWALL: a persistent block list of decision keys. |
-| [DEEP_AUDIT_ENGINE](security/DEEP_AUDIT_ENGINE.md) | real |  |
+| [DEEP_AUDIT_ENGINE](security/DEEP_AUDIT_ENGINE.md) | real | Deep audit engine: pins a checksum baseline per name, detects drift from it, and keeps a hash-chained audit log. |
 | [HARD_LOCKDOWN_MODE](security/HARD_LOCKDOWN_MODE.md) | rule_based | Hard lockdown mode: a persisted switch that denies every action except a small whitelist. |
 | [IDENTITY_FRAMEWORK](security/IDENTITY_FRAMEWORK.md) | real | Identity framework: stores user profiles with salted password hashes and checks passwords. |
-| [MFA_RECOVERY_WORKFLOW](security/MFA_RECOVERY_WORKFLOW.md) | rule_based |  |
+| [MFA_RECOVERY_WORKFLOW](security/MFA_RECOVERY_WORKFLOW.md) | rule_based | MFA recovery workflow: one-time recovery codes that yield a one-time reset token, used to record a new credential hash. |
 | [OVERSIGHT_MONITOR](security/OVERSIGHT_MONITOR.md) | rule_based | Oversight monitor: a minimal in-memory log of oversight entries (stub-level). |
 | [OVERWATCH](security/OVERWATCH.md) | rule_based | Overwatch: compares metric snapshots against a recorded baseline to flag drift. |
-| [OWNER_VERIFICATION](security/OWNER_VERIFICATION.md) | rule_based |  |
-| [PIN_UNLOCK_LAYER](security/PIN_UNLOCK_LAYER.md) | rule_based |  |
+| [OWNER_VERIFICATION](security/OWNER_VERIFICATION.md) | rule_based | Owner verification: checks the fingerprint, face and voice templates of the single owner by exact string match. |
+| [PIN_UNLOCK_LAYER](security/PIN_UNLOCK_LAYER.md) | rule_based | PIN unlock layer: per-user PINs with a locked/unlocked flag and a lockout after repeated wrong PINs. |
 | [PRAETOR](security/PRAETOR.md) | rule_based | Praetor: z-score anomaly detector for a series of numbers. |
-| [SAFETY_PERIMETER](security/SAFETY_PERIMETER.md) | rule_based |  |
+| [SAFETY_PERIMETER](security/SAFETY_PERIMETER.md) | rule_based | Safety perimeter: a jurisdiction allow-list and a call-name deny-list, both failing closed. |
 | [SANITY_VERIFIER](security/SANITY_VERIFIER.md) | real | SANITY_VERIFIER: last check on an agent's output, and a check of the runtime configuration. |
-| [SECRETS_VAULT](security/SECRETS_VAULT.md) | real | Secrets vault: stores named secrets as files with an HMAC integrity check. |
+| [SECRETS_VAULT](security/SECRETS_VAULT.md) | real | Secrets vault: stores named secrets as encrypted files. |
 | [SECURE_ACTION_TOKENS](security/SECURE_ACTION_TOKENS.md) | real | Secure action tokens: short-lived, single-use HMAC-SHA256 tokens that authorise one named action. |
 | [SELF_AUDIT](security/SELF_AUDIT.md) | real | SELF_AUDIT: Velaris inspecting its own installation. |
 | [SENTINELDNA](security/SENTINELDNA.md) | rule_based | Sentinel DNA: hash baselines to detect drift in data. |

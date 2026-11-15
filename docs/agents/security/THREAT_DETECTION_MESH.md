@@ -9,8 +9,8 @@
 Threat detection mesh: rule-based event scorer that counts matches against registered signatures; not machine learning.
 
 ThreatDetectionMesh: add_signature(name, pattern) registers a {key: value} pattern (False
-if the name exists); record_event(event) stores an event; score_event(event) adds 10 for
-every signature key whose value equals the event's value; detect(event) returns {event,
+if the name exists); record_event(event) stores an event; score_event(event) adds 10 per field of
+every signature whose fields ALL equal the event's values (a partial match adds nothing); detect(event) returns {event,
 score, level} with level HIGH (score >= 20), MEDIUM (>= 10) or LOW; summary() rates all
 recorded events.
 State: in memory only (self.signatures, self.events), lost on restart; events grow without

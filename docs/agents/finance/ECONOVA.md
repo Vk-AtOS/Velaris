@@ -10,7 +10,7 @@ Econova: elasticity-based market sensitivity, demand projection and macro index 
 
 EconovaAgent(config; "elasticity" default 1.0, "version"): health_check();
 market_sensitivity(price_change) = elasticity * price_change; demand_projection(base_demand,
-price_change) = base_demand * (1 - elasticity * price_change), which can go negative;
+price_change) = base_demand * (1 - elasticity * price_change), floored at 0;
 macro_index(metrics) = mean of the metric values.
 State: keeps no state beyond the configured elasticity.
 Failure: macro_index returns 0.0 for an empty dict; non-numeric inputs raise TypeError.

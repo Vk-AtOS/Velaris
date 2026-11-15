@@ -2,11 +2,18 @@
 
 - **Department:** `operations`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/operations/MULTI_TENANT_ENGINE/main.py` (48 lines)
+- **Source:** `departments/operations/MULTI_TENANT_ENGINE/main.py` (57 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Multi-tenant engine: an in-memory key/value store partitioned by tenant id.
+
+create_tenant(tenant_id) (False if it exists), delete_tenant(tenant_id) (False if unknown), set_value(tenant_id, key,
+value) (False for an unknown tenant), get_value(tenant_id, key) (None for an unknown tenant or key), list_tenants() and
+tenant_snapshot(tenant_id) (None if unknown). Values are deep-copied on the way in and on the way out, so callers never
+share objects with the store or with each other.
+State: a dict in memory only, per instance, lost on restart. Separation is by the tenant_id argument alone: there is no
+caller check, so any caller can read any tenant by naming it. Unknown tenants give False or None; nothing is raised.
 
 ## Class `MultiTenantEngine`
 

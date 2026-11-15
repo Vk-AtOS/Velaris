@@ -2,7 +2,7 @@
 
 - **Department:** `sales`
 - **Status (static inventory):** `real`
-- **Source:** `departments/sales/WHATSAPP_BRIEFING/main.py` (153 lines)
+- **Source:** `departments/sales/WHATSAPP_BRIEFING/main.py` (152 lines)
 
 ## Purpose
 

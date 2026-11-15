@@ -2,11 +2,21 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `real`
-- **Source:** `departments/_ai_core/HFAL/main.py` (77 lines)
+- **Source:** `departments/_ai_core/HFAL/main.py` (89 lines)
 
 ## Purpose
 
-_No module docstring yet._
+HFAL (Human-Friendly Auth Layer): issues PIN-backed session tokens that expire, and validates them.
+
+create_session(user, pin) returns a random URL-safe token (not derived from the user or the pin) and stores the user, a
+salted scrypt hash of the pin and an expiry 8 hours ahead; expired sessions are dropped on each create. An empty or
+non-text user or pin raises ValueError, as do more than 5000 open sessions. validate(token, pin) is True only for a live
+token with the matching pin; 5 wrong pins in a row lock that token for 15 minutes (the right pin is refused too), and an
+unknown or expired token costs the same hashing work and returns False. destroy_session(token) deletes it and returns
+True, or False if unknown.
+State: <VELARIS_DATA>/agents/HFAL/sessions.db (JSON, owner-only, atomic, locked across workers) and throttle.json for the
+lockout counters. A sessions file that cannot be parsed is set aside as sessions.db.corrupt-<time> and the agent starts
+with no sessions, so every validate() fails closed.
 
 ## Class `HFAL`
 

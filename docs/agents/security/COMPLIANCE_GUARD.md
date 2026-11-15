@@ -2,17 +2,20 @@
 
 - **Department:** `security`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/security/COMPLIANCE_GUARD/main.py` (75 lines)
+- **Source:** `departments/security/COMPLIANCE_GUARD/main.py` (78 lines)
 
 ## Purpose
 
 Compliance guard: checks an action dict against registered required-field and forbidden-field rules.
 
-add_rule(name, definition) returns False if the name exists; remove_rule(name) returns False if unknown; list_rules()
-returns the names. A rule definition may hold "requires" (fields the action must contain) and "forbidden" (fields it must
-not contain). evaluate(action) returns {"action", "violations": [...], "status": "OK" or "VIOLATION"}. With no rules
-registered everything is OK; only field presence is checked, never values. There is no caller check.
-State: in-memory rule dict only, lost on exit. A non-dict action or non-list requires/forbidden raises TypeError.
+add_rule(name, definition) and remove_rule(name) need a governance admin (check_caller, traced) and return False when
+refused; add_rule also returns False for a duplicate name, for more than 500 rules, and for a definition that is not a
+dict holding only "requires" and/or "forbidden", each a non-empty list of field names. list_rules() returns the names.
+evaluate(action) returns {"action", "violations": [...], "status"}: "OK" or "VIOLATION" against the rules, "NO_RULES"
+when none are registered (an empty rule set approves nothing), and "VIOLATION" for an action that is not a dict. Only
+field presence is checked, never values. Evaluating needs no caller.
+State: <VELARIS_DATA>/agents/COMPLIANCE_GUARD/rules.json, owner-only and shared by every worker. Bad input is refused
+with False or a status; nothing is raised.
 
 ## Class `ComplianceGuard`
 

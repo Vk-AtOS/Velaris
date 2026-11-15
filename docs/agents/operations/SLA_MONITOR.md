@@ -2,7 +2,7 @@
 
 - **Department:** `operations`
 - **Status (static inventory):** `real`
-- **Source:** `departments/operations/SLA_MONITOR/main.py` (133 lines)
+- **Source:** `departments/operations/SLA_MONITOR/main.py` (132 lines)
 
 ## Purpose
 

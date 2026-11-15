@@ -2,7 +2,7 @@
 
 - **Department:** `hr`
 - **Status (static inventory):** `real`
-- **Source:** `departments/hr/RECRUITMENT_ATS/main.py` (170 lines)
+- **Source:** `departments/hr/RECRUITMENT_ATS/main.py` (169 lines)
 
 ## Purpose
 

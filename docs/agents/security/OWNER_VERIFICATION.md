@@ -2,11 +2,20 @@
 
 - **Department:** `security`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/security/OWNER_VERIFICATION/main.py` (64 lines)
+- **Source:** `departments/security/OWNER_VERIFICATION/main.py` (75 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Owner verification: checks the fingerprint, face and voice templates of the single owner by exact string match.
+
+enroll(fingerprint, face, voice) stores a salted scrypt hash of each non-empty template and replaces any earlier owner:
+security admins only (check_caller, traced). verify(fingerprint, face, voice) is True only when all three match.
+partial_verify(**factors) takes two or more of finger, face and voice and is True only when all of them match; a single
+factor, or an unknown factor name, is False. With nobody enrolled everything is False. 5 failed verifications in a row
+lock verification for 15 minutes, the right templates included; a success or a new enrolment clears the count.
+owner_templates returns the stored hashes. This compares enrolled strings; it does no fuzzy biometric matching.
+State: <VELARIS_DATA>/agents/OWNER_VERIFICATION/owner.json (hashes only) and throttle.json, owner-only and shared by
+workers. Refusals are False returns; nothing is raised.
 
 ## Class `OwnerVerification`
 

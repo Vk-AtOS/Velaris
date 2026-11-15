@@ -2,20 +2,24 @@
 
 - **Department:** `communications`
 - **Status (static inventory):** `real`
-- **Source:** `departments/communications/CALL_TRANSCRIBER/main.py` (175 lines)
+- **Source:** `departments/communications/CALL_TRANSCRIBER/main.py` (179 lines)
 
 ## Purpose
 
 Call transcriber: local speech-to-text of audio files with OpenAI Whisper or faster-whisper.
 CallTranscriber.transcribe(filepath, language=None) returns {"filepath", "language", "text",
-"segments"[, "language_probability", "duration_sec"]} where segments carry start, end and text.
+"segments"[, "language_probability", "duration_sec"]} where segments carry start, end and text. It
+needs an authenticated caller (check_caller, traced) and reads only audio files (.wav, .mp3, .m4a, .flac,
+.ogg, .webm) under this agent's data folder, CALL_RECORDER's recordings folder or config["audio_roots"].
 transcribe_and_save(filepath, output_path=None, language=None) also writes the result as JSON
 (default <audio>_transcript.json) and adds "transcript_path"; the output must be a .json path, not a
 symlink, next to the audio file or under this agent's data folder (agent_dir). transcribe_to_text
-returns just the text (or the error string). health_check() reports whether the Whisper package imports
+returns just the text and raises RuntimeError on any error. health_check() reports whether the Whisper package imports
 (status "ok" or "degraded"). The model is loaded lazily on first use; no audio leaves the machine.
 State: no persistent state apart from the transcript files it is asked to write.
-Failure: a missing file returns {"error": "file_not_found: ..."}; any transcription error, including
+Failure: no caller returns {"error": "unauthenticated", ...}; a path that is not an audio file or lies
+outside those folders returns {"error": <reason>}; a missing file returns {"error": "file_not_found:
+<name>"}; any transcription error, including
 the Whisper package not being installed, returns {"error": ...} instead of raising; a rejected output
 path returns {"error": <reason>}.
 

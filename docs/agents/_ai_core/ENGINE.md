@@ -12,9 +12,9 @@ method with params as keyword arguments. pipeline(steps) runs a list of {"agent"
 steps in order and returns [{"step", "result"}]. run_with_balance is a plain passthrough to run (the
 load balancer is not consulted). health_check() reports the number of registered agents.
 State: keeps none of its own beyond the registry instance; parameters and results are never logged.
-Failure: an unknown agent propagates the registry's error, a missing method raises AttributeError, and
+Failure: an unknown agent propagates the registry's error, a missing, non-callable or private ("_"-prefixed) method raises AttributeError, and
 an exception from the agent or a malformed pipeline step (KeyError) propagates and stops the pipeline.
-Note: __post_init__ is never called by __init__, so self.lifecycle and self.clb are not created.
+Note: self.lifecycle and self.clb are created in __init__, but run() does not consult them.
 
 ## Class `VelarisEngine`
 

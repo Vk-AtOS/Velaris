@@ -2,17 +2,22 @@
 
 - **Department:** `project_management`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/project_management/EXECUTION_SANDBOX/main.py` (145 lines)
+- **Source:** `departments/project_management/EXECUTION_SANDBOX/main.py` (150 lines)
 
 ## Purpose
 
-Execution sandbox: runs a code string with a restricted set of globals and logs every run.
+Execution sandbox: evaluates a tiny arithmetic language (not Python) and logs every run.
 
-safe_exec(code) parses and exec()s the code with only abs, min, max, sum and range available and an empty __builtins__;
-the value of a variable named "_" afterwards is the result. It returns {"code", "status": "OK" or "ERROR", "result",
-"error"}; a syntax error or any exception is caught and returned as a traceback string rather than raised. get_last_result(),
-get_last_error() and get_log() read back. This restricts names only and is not a hardened security boundary: it has no
-time or memory limit and must not be given untrusted code. State: in memory only, lost on exit.
+safe_exec(code) parses the text and interprets it node by node; nothing is handed to exec or eval. Allowed: `name =
+expression` and bare expressions over numbers, lists and tuples of numbers, names assigned earlier in the same call,
++ - * / // %, comparisons, and/or/not, `a if c else b`, and abs, min, max, sum and range. Everything else (imports,
+attributes, strings, loops, comprehensions, lambdas, any other call) is refused. The result is the variable "_" if it
+was assigned, otherwise the value of the last statement. It returns {"code", "status": "OK" or "ERROR", "result",
+"error"}; a refusal, a syntax error or an arithmetic error comes back as "<Type>: message" and is never raised. Work is
+bounded without a timer: 2000 characters, 300 syntax nodes, lists and range up to 10,000 items, integers up to 1024
+bits. Variables do not persist between calls. get_last_result(), get_last_error() and get_log() (a copy) read back.
+State: in memory only (last result, last error and the newest 500 log entries), per instance, lost on exit. No caller
+check is made.
 
 ## Class `Refused`
 

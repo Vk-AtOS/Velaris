@@ -2,7 +2,7 @@
 
 - **Department:** `operations`
 - **Status (static inventory):** `real`
-- **Source:** `departments/operations/OPS_REPORT/main.py` (155 lines)
+- **Source:** `departments/operations/OPS_REPORT/main.py` (154 lines)
 
 ## Purpose
 

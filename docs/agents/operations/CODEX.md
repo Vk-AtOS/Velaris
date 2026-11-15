@@ -13,8 +13,8 @@ rules_hash(encoded) returns its SHA-256 hex; store_rules(key, rules_dict) record
 under key and returns it; rules_changed(key, new_rules_dict) is True when the new hash
 differs from the stored one.
 State: in memory only (self.rule_store, hashes not rules), lost on restart.
-Failure: rules_changed returns False for an unknown key (indistinguishable from
-unchanged); non-serialisable rules raise TypeError.
+Failure: rules_changed returns True for a key that was never stored (nothing says the
+rules are unchanged); non-serialisable rules raise TypeError.
 
 ## Class `CodexAgent`
 

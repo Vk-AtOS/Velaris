@@ -2,7 +2,7 @@
 
 - **Department:** `operations`
 - **Status (static inventory):** `real`
-- **Source:** `departments/operations/PIPELINE_MONITOR/main.py` (134 lines)
+- **Source:** `departments/operations/PIPELINE_MONITOR/main.py` (133 lines)
 
 ## Purpose
 

@@ -2,7 +2,7 @@
 
 - **Department:** `data_knowledge`
 - **Status (static inventory):** `real`
-- **Source:** `departments/data_knowledge/TEMPORAL_SNAPSHOTS/main.py` (76 lines)
+- **Source:** `departments/data_knowledge/TEMPORAL_SNAPSHOTS/main.py` (78 lines)
 
 ## Purpose
 
@@ -10,12 +10,14 @@ Temporal snapshots: stores labelled, timestamped copies of any JSON-serialisable
 
 TemporalSnapshots(): create_snapshot(label, data) appends {label, timestamp, data} and
 returns it (labels are not required to be unique); list_snapshots() returns labels;
-restore(label) returns the data of the first snapshot with that label; compare(a, b)
-returns {"a", "b", "equal"} using the last snapshot matching each label.
+restore(label) returns the data of the newest snapshot with that label; compare(a, b)
+returns {"a", "b", "found": {"a", "b"}, "equal"} using the newest snapshot of each label;
+"equal" is None when either label is unknown (nothing was compared).
 State: snapshots.json under velaris.intel.paths.agent_dir("TEMPORAL_SNAPSHOTS") (honours
-VELARIS_DATA), rewritten in full on every create; created as [] if missing.
-Failure: an unreadable or corrupt file is logged and treated as empty; restore returns
-None for an unknown label and compare gives None for it; non-serialisable data raises
+VELARIS_DATA), owner-only, written atomically and locked across workers; only the newest 500
+snapshots are kept.
+Failure: a file that cannot be parsed is set aside as snapshots.json.corrupt-<time> and the
+store starts empty; restore returns None for an unknown label; non-serialisable data raises
 TypeError on save.
 
 ## Class `TemporalSnapshots`

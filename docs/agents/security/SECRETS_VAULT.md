@@ -2,18 +2,22 @@
 
 - **Department:** `security`
 - **Status (static inventory):** `real`
-- **Source:** `departments/security/SECRETS_VAULT/main.py` (131 lines)
+- **Source:** `departments/security/SECRETS_VAULT/main.py` (135 lines)
 
 ## Purpose
 
-Secrets vault: stores named secrets as files with an HMAC integrity check.
+Secrets vault: stores named secrets as encrypted files.
 
-set_secret(name, secret) writes the base64 of the secret (encoded, not encrypted) and an HMAC-SHA256 signature made with
-a 64-byte key. get_secret(name) returns the text, None if the secret is absent, and raises ValueError("Integrity check
-failed") if the stored data no longer matches its signature. list_secrets() returns names; delete_secret(name) returns False
-if nothing was removed. A name must be 1-128 characters of letters, digits, "_", "-" or "."; anything else raises ValueError.
-There is no caller check here. State: <VELARIS_DATA>/agents/SECRETS_VAULT/ with vault.key and data/<name>.sec and .sig,
-all owner-only files; the key is created on first use.
+set_secret(name, secret) seals the secret with AES-256-GCM under the master key that is kept outside VELARIS_DATA
+(velaris.core.vault; VELARIS_VAULT_KEY or VELARIS_VAULT_KEY_FILE), bound to the secret's name; without the key it raises
+VaultKeyError and stores nothing. get_secret(name) returns the text, None if the secret is absent, and raises a
+ValueError (VaultError) if the file was altered or belongs to another name. list_secrets() returns names;
+delete_secret(name) returns False if nothing was removed. A name must be 1-128 characters of letters, digits, "_", "-"
+or "."; anything else raises ValueError. Files written before encryption (base64 plus an HMAC signature) are refused
+unless VELARIS_VAULT_ALLOW_LEGACY=1 and no migration has finished; migrate_legacy() verifies and re-seals them once and
+from then on unsealed files are refused for good. There is no caller check here.
+State: <VELARIS_DATA>/agents/SECRETS_VAULT/data/<name>.sec, owner-only. vault.key and .sig files exist only for legacy
+secrets, and the file legacy.migrated marks a finished migration.
 
 ## Class `SecretsVault`
 

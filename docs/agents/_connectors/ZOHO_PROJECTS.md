@@ -2,7 +2,7 @@
 
 - **Department:** `_connectors`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/_connectors/ZOHO_PROJECTS/main.py` (92 lines)
+- **Source:** `departments/_connectors/ZOHO_PROJECTS/main.py` (93 lines)
 
 ## Purpose
 
@@ -10,9 +10,10 @@ Zoho Projects connector: reads project delivery data from the Zoho Projects REST
 ZohoProjectsConnector.get_projects() lists active projects. get_tasks_by_owner(project_id, owner_id)
 lists a user's tasks in a project. get_timelogs(project_id, owner_id, from_date, to_date) returns that
 user's task time logs (dates MM-dd-yyyy). get_task_summary(project_id, owner_id) computes total,
-completed (status "Closed"), overdue (not closed and end date in the past), completion_rate and
-on_time_rate as percentages from those tasks. health_check() only returns status ok; it does not
-call Zoho. All HTTP goes through velaris.agents.ZOHO_CONNECTOR.ZohoConnector.get, using the portal id
+completed (status "Closed"), overdue (not closed and end date in the past), late_closed (closed
+after its end date), completion_rate, and on_time_rate (closed tasks that were not closed late, as a
+percentage of closed tasks). health_check() returns status "ok" or "unconfigured" from the Zoho
+connector's credentials; it does not call Zoho. All HTTP goes through velaris.agents.ZOHO_CONNECTOR.ZohoConnector.get, using the portal id
 from config["portal_id"] or the ZOHO_PORTAL_ID environment variable.
 State: keeps none; credentials live in the Zoho connector. Failure: errors from the connector
 propagate; a missing key in the response yields an empty list. The config argument is optional

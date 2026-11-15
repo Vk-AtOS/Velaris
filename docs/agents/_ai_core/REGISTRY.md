@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `real`
-- **Source:** `departments/_ai_core/REGISTRY/main.py` (116 lines)
+- **Source:** `departments/_ai_core/REGISTRY/main.py` (118 lines)
 
 ## Purpose
 
@@ -12,8 +12,10 @@ At construction it scans each department folder (or the single base_path folder)
 <AGENT>/manifest.json and indexes it by the manifest "name"; a manifest that is not valid JSON or has no "name" raises.
 list_agents() returns the sorted names. get_agent_class(name) imports velaris.agents.<name>.<module> from the manifest
 "entrypoint" ("main.py:ClassName") and returns the class; an unknown name or a missing or malformed entrypoint raises
-ValueError. create(name, config) instantiates it, passing config only if the constructor takes an argument.
-health_all() builds every agent and calls health_check(); a failure becomes {"status": "error", "error": ...} for that agent.
+ValueError. create(name, config) instantiates it, passing config only to a constructor whose first parameter is named "config";
+any other constructor is called with its own defaults, and one with required arguments raises ValueError.
+health_all() builds every agent and calls health_check(); an agent without one is reported as {"status":
+"no_health_check"}, and a failure becomes {"status": "error", "error": ...} for that agent.
 State: in-memory index only, rebuilt on every construction; nothing is written to disk.
 
 ## Class `AgentRegistry`

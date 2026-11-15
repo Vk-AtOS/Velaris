@@ -2,7 +2,7 @@
 
 - **Department:** `project_management`
 - **Status (static inventory):** `real`
-- **Source:** `departments/project_management/SPRINT_PLANNER/main.py` (193 lines)
+- **Source:** `departments/project_management/SPRINT_PLANNER/main.py` (192 lines)
 
 ## Purpose
 
@@ -14,7 +14,8 @@ title, assignee, story_points) rejects negative, non-finite or non-numeric point
 accepts todo, in_progress, review, done. get_sprint_board(id) groups tasks by status with total and completed points and a
 velocity percentage ({"error": "sprint_not_found"} if unknown). close_sprint(id) marks it completed and returns points done.
 project_velocity_trend(project) compares target and achieved for completed sprints. It does not sync with Zoho Projects.
-Unknown ids are not checked in add_task, update_task_status or close_sprint. No caller check is made.
+add_task and close_sprint return {"error": "sprint_not_found"} for an unknown sprint, and update_task_status returns
+{"error": "task_not_found"} for an unknown task. No caller check is made.
 State: sqlite at <VELARIS_DATA>/agents/SPRINT_PLANNER/sprints.db.
 
 ## Class `SprintPlanner`
