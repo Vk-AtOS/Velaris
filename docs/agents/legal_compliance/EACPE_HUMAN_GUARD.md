@@ -2,7 +2,7 @@
 
 - **Department:** `legal_compliance`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/legal_compliance/EACPE_HUMAN_GUARD/main.py` (173 lines)
+- **Source:** `departments/legal_compliance/EACPE_HUMAN_GUARD/main.py` (184 lines)
 
 ## Purpose
 
@@ -38,7 +38,7 @@ cannot be recorded does not count.
 - `exempt(action_class, by)` — Declare a class reversible: its actions need no approval. Governance admins only.
 - `request(action)` — Ask for approval of one action, as the current caller. Returns the request id the approver acts on.
 - `decide(request_id, approver, approve, now)` — The current caller approves or rejects a request. `approver`, if given, must be the caller.
-- `validate(action, now)` — May this exact action go ahead now? Consumes the approval it relies on.
+- `validate(action, now)` — May this exact action go ahead now? Consumes the approval it relies on (the requester, as the current caller, only).
 
 ## Depends on
 
@@ -56,4 +56,4 @@ cannot be recorded does not count.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_b_prime_vcas.py`, `velaris/tests/test_dept_legal_compliance_stubs.py`, `velaris/tests/test_layer32_eacpe.py`
+- **tests:** `velaris/tests/test_aicore_b_prime_vcas.py`, `velaris/tests/test_dept_legal_compliance_stubs.py`, `velaris/tests/test_kan104_unauthenticated_writes.py`, `velaris/tests/test_layer32_eacpe.py`

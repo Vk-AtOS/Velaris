@@ -2,7 +2,7 @@
 
 - **Department:** `operations`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/operations/GENEFLOW/main.py` (40 lines)
+- **Source:** `departments/operations/GENEFLOW/main.py` (47 lines)
 
 ## Purpose
 
@@ -27,4 +27,4 @@ _No module docstring yet._
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_geneflow.py`
+- **tests:** `velaris/tests/test_geneflow.py`, `velaris/tests/test_kan106_business_agents.py`

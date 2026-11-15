@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/_ai_core/ORCHESTRIX/main.py` (67 lines)
+- **Source:** `departments/_ai_core/ORCHESTRIX/main.py` (64 lines)
 
 ## Purpose
 
@@ -27,4 +27,4 @@ _No module docstring yet._
 
 - **other agents:** `CONVERGENCE_BRIDGE`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_b_eof.py`, `velaris/tests/test_dept_it_infrastructure_stubs_2.py`, `velaris/tests/test_layer31_eof.py`, `velaris/tests/test_loader_and_fail_closed.py`, `velaris/tests/test_orchestrix.py`
+- **tests:** `velaris/tests/test_aicore_b_eof.py`, `velaris/tests/test_dept_it_infrastructure_stubs_2.py`, `velaris/tests/test_kan106_intake_guards.py`, `velaris/tests/test_layer31_eof.py`, `velaris/tests/test_loader_and_fail_closed.py`, `velaris/tests/test_orchestrix.py`

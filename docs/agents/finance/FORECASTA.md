@@ -2,7 +2,7 @@
 
 - **Department:** `finance`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/finance/FORECASTA/main.py` (53 lines)
+- **Source:** `departments/finance/FORECASTA/main.py` (55 lines)
 
 ## Purpose
 
@@ -28,4 +28,4 @@ _No module docstring yet._
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_forecasta.py`
+- **tests:** `velaris/tests/test_forecasta.py`, `velaris/tests/test_kan106_business_agents.py`

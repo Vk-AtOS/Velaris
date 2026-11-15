@@ -2,7 +2,7 @@
 
 - **Department:** `hr`
 - **Status (static inventory):** `real`
-- **Source:** `departments/hr/OFFER_LETTERS/main.py` (458 lines)
+- **Source:** `departments/hr/OFFER_LETTERS/main.py` (503 lines)
 
 ## Purpose
 
@@ -46,6 +46,8 @@ Offer letters with a two-person approval chain. See the module docstring for the
 - `list_offers(status)` — Offers you drafted or must approve; HR administrators see all of the organisation's.
 - `get_offer(offer_id)` — The whole offer including compensation. Named approvers and the drafter may read it; anyone else needs pay access.
 - `render_offer(offer_id, fmt)` — The offer as "pdf" (base64 + sha256), "html" or "text". Same access rule as get_offer.
+- `dsr_export(org, subject_id, links)`
+- `dsr_erase(org, subject_id, on, links)` — Anonymise the subject's offers that never became a contract; hold the live or accepted ones as the registry says.
 
 ## Depends on
 
@@ -63,6 +65,6 @@ Offer letters with a two-person approval chain. See the module docstring for the
 
 ## Called by
 
-- **other agents:** `ATS_CORE`, `ESIGN`
-- **platform modules:** `velaris/agentkit/hr_wiring.py`, `velaris/agentkit/onboarding_adapters.py`, `velaris/agentkit/onboarding_common.py`, `velaris/api/allowlist.py`
-- **tests:** `velaris/tests/test_hr_wiring.py`, `velaris/tests/test_onboarding_offer.py`, `velaris/tests/test_onboarding_records.py`
+- **other agents:** `ATS_CORE`, `EMPLOYEE_RECORDS`, `ESIGN`
+- **platform modules:** `velaris/agentkit/hr_wiring.py`, `velaris/agentkit/onboarding_adapters.py`, `velaris/agentkit/onboarding_common.py`, `velaris/agentkit/onboarding_dsr.py`, `velaris/api/allowlist.py`
+- **tests:** `velaris/tests/test_hr_data_traces.py`, `velaris/tests/test_hr_wiring.py`, `velaris/tests/test_onboarding_offer.py`, `velaris/tests/test_onboarding_records.py`

@@ -36,4 +36,4 @@ State: <VELARIS_DATA>/agents/CONTEXTUAL_SELF_MODEL/state.json.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_a_ops.py`, `velaris/tests/test_layer3_selfidentity.py`
+- **tests:** `velaris/tests/test_aicore_a_ops.py`, `velaris/tests/test_alias_layers.py`, `velaris/tests/test_layer3_selfidentity.py`

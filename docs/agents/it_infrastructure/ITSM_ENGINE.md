@@ -54,5 +54,5 @@ must name that same caller.
 ## Called by
 
 - **other agents:** `LYRA_VOICE_ENGINE`
-- **platform modules:** `departments/_connectors/JIRA/atlassian.py`, `velaris/api/allowlist.py`
-- **tests:** `velaris/tests/test_deployment_org.py`, `velaris/tests/test_dept_it_infrastructure_stubs_2.py`
+- **platform modules:** `departments/_connectors/JIRA/atlassian.py`, `velaris/api/allowlist.py`, `velaris/core/backfill_org.py`
+- **tests:** `velaris/tests/test_deployment_org.py`, `velaris/tests/test_dept_it_infrastructure_stubs_2.py`, `velaris/tests/test_kan68_backfill_org.py`

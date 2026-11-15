@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `real`
-- **Source:** `departments/_ai_core/AAE_RUNTIME/main.py` (122 lines)
+- **Source:** `departments/_ai_core/AAE_RUNTIME/main.py` (157 lines)
 
 ## Purpose
 
@@ -31,6 +31,7 @@ State (journal by action id): <VELARIS_DATA>/agents/AAE_RUNTIME/state.json.
 - `health_check()`
 - `register(action_type, handler)`
 - `run(action, approved_by)`
+- `clear_stuck(action_id)` — Operator action (security or governance admin, traced): forget an action id left 'in_progress' by a crash.
 - `history(action_id)`
 
 ## Depends on
@@ -50,4 +51,4 @@ State (journal by action id): <VELARIS_DATA>/agents/AAE_RUNTIME/state.json.
 
 - **other agents:** `ADAPTIVE_ACTION_ENGINE`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_a_aae.py`, `velaris/tests/test_layer25_aae.py`
+- **tests:** `velaris/tests/test_aicore_a_aae.py`, `velaris/tests/test_kan104_operator_clear.py`, `velaris/tests/test_kan104_unauthenticated_writes.py`, `velaris/tests/test_layer25_aae.py`

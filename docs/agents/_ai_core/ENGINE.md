@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/_ai_core/ENGINE/main.py` (92 lines)
+- **Source:** `departments/_ai_core/ENGINE/main.py` (89 lines)
 
 ## Purpose
 
@@ -30,4 +30,4 @@ _No module docstring yet._
 
 - **other agents:** `CORE_CONVERGENCE`, `FSCL`, `PRIME`
 - **platform modules:** `velaris/backend/engine.py`
-- **tests:** `velaris/tests/test_engine.py`, `velaris/tests/test_system_integration.py`
+- **tests:** `velaris/tests/test_engine.py`, `velaris/tests/test_kan106_intake_guards.py`, `velaris/tests/test_system_integration.py`

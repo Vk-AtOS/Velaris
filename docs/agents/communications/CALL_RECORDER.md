@@ -2,7 +2,7 @@
 
 - **Department:** `communications`
 - **Status (static inventory):** `real`
-- **Source:** `departments/communications/CALL_RECORDER/main.py` (154 lines)
+- **Source:** `departments/communications/CALL_RECORDER/main.py` (155 lines)
 
 ## Purpose
 
@@ -24,7 +24,7 @@ No audio leaves the machine — fully local.
 
 ## Depends on
 
-- nothing from velaris.*
+- `velaris.intel.paths`
 
 ## State and configuration
 
@@ -34,4 +34,4 @@ No audio leaves the machine — fully local.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** none found
+- **tests:** `velaris/tests/test_no_state_in_source_tree.py`

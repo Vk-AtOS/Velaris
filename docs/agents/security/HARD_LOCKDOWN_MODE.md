@@ -2,7 +2,7 @@
 
 - **Department:** `security`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/security/HARD_LOCKDOWN_MODE/main.py` (48 lines)
+- **Source:** `departments/security/HARD_LOCKDOWN_MODE/main.py` (67 lines)
 
 ## Purpose
 
@@ -16,6 +16,7 @@ Velaris Hard Lockdown Mode
 - Overrides Soft Lockdown
 
 - `__init__()`
+- `enabled()`
 - `enable()`
 - `disable()`
 - `is_enabled()`
@@ -24,7 +25,8 @@ Velaris Hard Lockdown Mode
 
 ## Depends on
 
-- nothing from velaris.*
+- `velaris.agentkit.state`
+- `velaris.core.access`
 
 ## State and configuration
 
@@ -34,4 +36,4 @@ Velaris Hard Lockdown Mode
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** none found
+- **tests:** `velaris/tests/test_kan104_unauthenticated_writes.py`

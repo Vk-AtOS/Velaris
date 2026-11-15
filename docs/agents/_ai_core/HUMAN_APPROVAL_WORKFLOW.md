@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/_ai_core/HUMAN_APPROVAL_WORKFLOW/main.py` (65 lines)
+- **Source:** `departments/_ai_core/HUMAN_APPROVAL_WORKFLOW/main.py` (67 lines)
 
 ## Purpose
 
@@ -20,7 +20,7 @@ or when the caller would decide their own request.
 - `request_approval(requester, action, meta)`
 - `approve(req_id, approver)`
 - `reject(req_id, approver, reason)`
-- `status(req_id)`
+- `status(req_id)` — A copy of the request: editing it cannot change the stored status.
 
 ## Depends on
 
@@ -35,4 +35,4 @@ or when the caller would decide their own request.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_security_review_fixes.py`, `velaris/tests/test_security_review_round2.py`
+- **tests:** `velaris/tests/test_kan104_unauthenticated_writes.py`, `velaris/tests/test_security_review_fixes.py`, `velaris/tests/test_security_review_round2.py`

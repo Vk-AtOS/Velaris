@@ -2,7 +2,7 @@
 
 - **Department:** `project_management`
 - **Status (static inventory):** `real`
-- **Source:** `departments/project_management/ROLLBACK_ENGINE/main.py` (75 lines)
+- **Source:** `departments/project_management/ROLLBACK_ENGINE/main.py` (83 lines)
 
 ## Purpose
 
@@ -33,4 +33,4 @@ Velaris Rollback Engine
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_agent_paths.py`
+- **tests:** `velaris/tests/test_agent_paths.py`, `velaris/tests/test_kan104_unauthenticated_writes.py`

@@ -2,7 +2,7 @@
 
 - **Department:** `finance`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/finance/PORTFOLIO_SIM_ENGINE/main.py` (96 lines)
+- **Source:** `departments/finance/PORTFOLIO_SIM_ENGINE/main.py` (98 lines)
 
 ## Purpose
 
@@ -28,4 +28,4 @@ _No module docstring yet._
 
 - **other agents:** `LYRA_VOICE_ENGINE`
 - **platform modules:** none found
-- **tests:** none found
+- **tests:** `velaris/tests/test_kan106_business_agents.py`

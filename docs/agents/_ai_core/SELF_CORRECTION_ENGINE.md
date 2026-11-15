@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/_ai_core/SELF_CORRECTION_ENGINE/main.py` (106 lines)
+- **Source:** `departments/_ai_core/SELF_CORRECTION_ENGINE/main.py` (107 lines)
 
 ## Purpose
 
@@ -38,4 +38,4 @@ says so. Fields the schema does not mention are left alone.
 
 - **other agents:** `NIRVANA`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_b_neuralgov.py`, `velaris/tests/test_layer5_neuralgov.py`
+- **tests:** `velaris/tests/test_aicore_b_neuralgov.py`, `velaris/tests/test_kan106_aicore.py`, `velaris/tests/test_layer5_neuralgov.py`

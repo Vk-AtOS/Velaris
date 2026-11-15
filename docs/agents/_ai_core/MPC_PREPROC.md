@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `real`
-- **Source:** `departments/_ai_core/MPC_PREPROC/main.py` (92 lines)
+- **Source:** `departments/_ai_core/MPC_PREPROC/main.py` (94 lines)
 
 ## Purpose
 

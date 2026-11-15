@@ -2,7 +2,7 @@
 
 - **Department:** `operations`
 - **Status (static inventory):** `real`
-- **Source:** `departments/operations/SLA_MONITOR/main.py` (129 lines)
+- **Source:** `departments/operations/SLA_MONITOR/main.py` (133 lines)
 
 ## Purpose
 
@@ -31,7 +31,8 @@ Ported from VKatOS sla_monitor.
 
 ## Depends on
 
-- nothing from velaris.*
+- `velaris.core.sqlite_util`
+- `velaris.intel.paths`
 
 ## State and configuration
 
@@ -41,4 +42,4 @@ Ported from VKatOS sla_monitor.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** none found
+- **tests:** `velaris/tests/test_kan113_sqlite_versions.py`, `velaris/tests/test_no_state_in_source_tree.py`

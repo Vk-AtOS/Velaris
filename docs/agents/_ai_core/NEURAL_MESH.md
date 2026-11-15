@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/_ai_core/NEURAL_MESH/main.py` (37 lines)
+- **Source:** `departments/_ai_core/NEURAL_MESH/main.py` (51 lines)
 
 ## Purpose
 
@@ -15,8 +15,9 @@ Stores conversation context into MemoryFabric and routes messages using scores.
 
 - `__init__(config)`
 - `health_check()`
-- `route(from_agent, to_agent, payload, context_key)`
+- `route(from_agent, to_agent, payload, context_key)` — Queue `payload` in `to_agent`'s inbox. ok is True only when it was queued; "delivered" is always False
 - `broadcast(agents, payload, context_key)`
+- `receive(agent)` — Messages queued for `agent`, oldest first; they are removed from the inbox.
 
 ## Depends on
 
@@ -30,4 +31,4 @@ Stores conversation context into MemoryFabric and routes messages using scores.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_infra_agents.py`
+- **tests:** `velaris/tests/test_infra_agents.py`, `velaris/tests/test_kan106_aicore.py`

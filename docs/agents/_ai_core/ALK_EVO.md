@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/_ai_core/ALK_EVO/main.py` (94 lines)
+- **Source:** `departments/_ai_core/ALK_EVO/main.py` (96 lines)
 
 ## Purpose
 
@@ -40,4 +40,4 @@ State: <VELARIS_DATA>/agents/ALK_EVO/state.json.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_a_alk.py`, `velaris/tests/test_layer27_alk.py`
+- **tests:** `velaris/tests/test_aicore_a_alk.py`, `velaris/tests/test_kan106_aicore.py`, `velaris/tests/test_layer27_alk.py`
