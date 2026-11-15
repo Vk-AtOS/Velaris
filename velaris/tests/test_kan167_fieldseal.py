@@ -13,7 +13,7 @@ from velaris.intel.paths import data_dir
 def test_roundtrip_and_blind_token_helpers():
     s = fieldseal.seal("hello Asha", "x")
     assert s.startswith("vlv1:") and "Asha" not in s and fieldseal.unseal(s, "x") == "hello Asha"
-    assert fieldseal.seal(s, "x") == s and fieldseal.unseal("", "x") == "" and fieldseal.unseal(None, "x") is None
+    assert fieldseal.seal(s, "x") == s and fieldseal.unseal(fieldseal.seal("", "x"), "x") == "" and fieldseal.unseal(None, "x") is None
     with pytest.raises(vault.VaultError):
         fieldseal.unseal(s, "other-store")
     assert fieldseal.blind_tokens("Hello hello WORLD", "m") == fieldseal.blind_tokens("hello world", "m")
