@@ -1,3 +1,14 @@
+"""Chromos: detects schema changes by hashing a canonical JSON form of each schema.
+
+ChromosAgent(config): health_check(); normalize_schema(dict) returns JSON with sorted
+keys; schema_hash(normalized) returns its SHA-256 hex; store_schema(key, dict) records
+the hash under key and returns it; compare_schema(key, new_schema) returns True when the
+new hash differs from the stored one.
+State: in memory only (self.schemas, hashes not schemas), lost on restart.
+Failure: compare_schema returns False for an unknown key (indistinguishable from
+unchanged); a schema that json cannot serialise raises TypeError.
+"""
+
 import logging
 import json
 import hashlib

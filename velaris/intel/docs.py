@@ -326,6 +326,9 @@ def _ext(*exts: str) -> Callable[[str, bytes], bool]:
     return lambda name, data: name.lower().endswith(exts)
 
 
+BINARY_KINDS = ("pdf", "docx", "xlsx", "pptx")
+
+
 # Tried top to bottom; content is checked before the file name, because names lie.
 CONVERTERS: List[Tuple[str, Callable[[str, bytes], bool], Callable[[bytes], str]]] = [
     ("pdf", lambda name, data: data[:5] == b"%PDF-", _pdf),
@@ -360,10 +363,14 @@ def convert(name: str, data: bytes) -> Tuple[str, str]:
             if markdown.strip():
                 return markdown, kind
             failed.append(f"{kind}: no text in it")
+            if kind in BINARY_KINDS:
+                break
         except DocTooLarge as e:
             raise DocTooLarge(f"{name} refused: {e}") from e
         except Exception as e:  # a hostile or damaged file can fail anywhere in a parser; try the next one
             failed.append(f"{kind}: {type(e).__name__}: {str(e)[:80]}")
+            if kind in BINARY_KINDS:    # recognised binary file: its raw bytes must never be read as text
+                break
     raise DocError(f"could not read {name} ({'; '.join(failed)})")
 
 

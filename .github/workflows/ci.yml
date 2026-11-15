@@ -32,6 +32,7 @@ jobs:
       - run: pip install ruff==0.15.4
       # F (pyflakes: unused imports/variables, undefined names), E9 (syntax) and B904 (raise ... from) are clean (KAN-59) and block.
       - run: ruff check --select F,E9,B904 .
+      - run: pip install -r requirements.txt -c deploy/constraints.txt && python tools/check_structure.py   # KAN-174: size, broad excepts, unresolved imports, cycles
 
   audit:
     runs-on: ubuntu-latest
@@ -39,8 +40,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: {python-version: "3.11"}
+      # --disable-pip is only valid with --no-deps; constraints.txt is the full pinned closure, so nothing is missed.
       - run: pip install pip-audit
-      - run: pip-audit -r deploy/constraints.txt --strict --disable-pip
+      - run: pip-audit -r deploy/constraints.txt --no-deps --disable-pip --strict
 
   secrets:
     runs-on: ubuntu-latest

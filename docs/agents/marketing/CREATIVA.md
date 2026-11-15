@@ -2,11 +2,16 @@
 
 - **Department:** `marketing`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/marketing/CREATIVA/main.py` (49 lines)
+- **Source:** `departments/marketing/CREATIVA/main.py` (52 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Creativa: template-based idea helpers for marketing (no generative model is used).
+
+expand_concept(concept) returns three fixed variations ("<c> 2.0", "Advanced <c>", "<c> Reinvented"). novelty_score(keywords)
+returns the number of distinct keywords times the novelty_factor config value (default 1.2). idea_mix(a, b) returns "a + b".
+Config: novelty_factor, version. health_check() returns status ok. Pure string and arithmetic rules; keeps no state and does
+no input checking (a non-list keywords value raises TypeError).
 
 ## Class `CreativaAgent`
 

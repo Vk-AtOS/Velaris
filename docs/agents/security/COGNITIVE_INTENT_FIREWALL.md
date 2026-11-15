@@ -2,7 +2,7 @@
 
 - **Department:** `security`
 - **Status (static inventory):** `real`
-- **Source:** `departments/security/COGNITIVE_INTENT_FIREWALL/main.py` (54 lines)
+- **Source:** `departments/security/COGNITIVE_INTENT_FIREWALL/main.py` (64 lines)
 
 ## Purpose
 
@@ -32,4 +32,4 @@ Velaris Cognitive Intent Firewall
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** none found
+- **tests:** `velaris/tests/test_agents_coverage_c.py`, `velaris/tests/test_kan88_security_agents.py`

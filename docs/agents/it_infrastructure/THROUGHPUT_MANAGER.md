@@ -2,7 +2,7 @@
 
 - **Department:** `it_infrastructure`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/it_infrastructure/THROUGHPUT_MANAGER/main.py` (73 lines)
+- **Source:** `departments/it_infrastructure/THROUGHPUT_MANAGER/main.py` (79 lines)
 
 ## Purpose
 
@@ -22,7 +22,7 @@ assumed. Buckets and counters persist, so a restart does not hand out a fresh bu
 
 - `__init__(name)`
 - `health_check()`
-- `set_limit(key, rate_per_s, burst)`
+- `set_limit(key, rate_per_s, burst)` — Infra admins only: a limit is shared state, and whoever can raise it can lift it.
 - `acquire(key, tokens, now)`
 - `stats(key)`
 
@@ -31,6 +31,7 @@ assumed. Buckets and counters persist, so a restart does not hand out a fresh bu
 - `velaris.agentkit.checks`
 - `velaris.agentkit.results`
 - `velaris.agentkit.state`
+- `velaris.core.access`
 
 ## State and configuration
 
@@ -40,4 +41,4 @@ assumed. Buckets and counters persist, so a restart does not hand out a fresh bu
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_dept_it_infrastructure_stubs.py`, `velaris/tests/test_layer9_compute.py`
+- **tests:** `velaris/tests/test_dept_it_infrastructure_stubs.py`, `velaris/tests/test_kan90_infra.py`, `velaris/tests/test_layer9_compute.py`

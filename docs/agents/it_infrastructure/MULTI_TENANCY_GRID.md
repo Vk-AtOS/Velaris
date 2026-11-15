@@ -2,7 +2,7 @@
 
 - **Department:** `it_infrastructure`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/it_infrastructure/MULTI_TENANCY_GRID/main.py` (113 lines)
+- **Source:** `departments/it_infrastructure/MULTI_TENANCY_GRID/main.py` (130 lines)
 
 ## Purpose
 
@@ -34,6 +34,7 @@ run(payload) is the single-call form: {"op": "consume", "tenant": ..., ...}.
 - `velaris.agentkit.checks`
 - `velaris.agentkit.results`
 - `velaris.agentkit.state`
+- `velaris.core.access`
 
 ## State and configuration
 
@@ -43,4 +44,4 @@ run(payload) is the single-call form: {"op": "consume", "tenant": ..., ...}.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_dept_it_infrastructure_stubs_2.py`
+- **tests:** `velaris/tests/test_dept_it_infrastructure_stubs_2.py`, `velaris/tests/test_kan90_infra.py`

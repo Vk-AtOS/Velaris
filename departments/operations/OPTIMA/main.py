@@ -1,3 +1,10 @@
+"""Optima: weighted scoring of marketing efficiency metrics (fixed formulas, no optimisation).
+
+efficiency_score(ctr, cvr, roi) is the weighted sum using config["weights"] (default 0.3, 0.4,
+0.3; a custom weights dict missing a key raises KeyError); metric_normalize(metrics) divides
+each value by the maximum (all zeros if the maximum is 0, {} if empty); pivot_factor(before,
+after) is (after - before)/max(|before|, 1). Keeps no state.
+"""
 import logging
 from typing import Dict, Any
 

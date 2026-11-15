@@ -28,7 +28,7 @@ def imports(root: Path = ROOT):
     required, optional = {}, {}
     for path in sorted(root.rglob("*.py")):
         rel = path.relative_to(root)
-        if any(part.startswith(("_archived", ".")) for part in rel.parts):
+        if any(part.startswith(".") for part in rel.parts):
             continue
         tree = ast.parse(path.read_text(encoding="utf-8"))
         guarded = {id(x) for t in ast.walk(tree) if isinstance(t, ast.Try) and _catches_import_error(t)

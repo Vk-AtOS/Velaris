@@ -1,5 +1,14 @@
 # ================================================================================
 
+"""Secrets vault: stores named secrets as files with an HMAC integrity check.
+
+set_secret(name, secret) writes the base64 of the secret (encoded, not encrypted) and an HMAC-SHA256 signature made with
+a 64-byte key. get_secret(name) returns the text, None if the secret is absent, and raises ValueError("Integrity check
+failed") if the stored data no longer matches its signature. list_secrets() returns names; delete_secret(name) returns False
+if nothing was removed. A name must be 1-128 characters of letters, digits, "_", "-" or "."; anything else raises ValueError.
+There is no caller check here. State: <VELARIS_DATA>/agents/SECRETS_VAULT/ with vault.key and data/<name>.sec and .sig,
+all owner-only files; the key is created on first use.
+"""
 import os
 import base64
 import hmac

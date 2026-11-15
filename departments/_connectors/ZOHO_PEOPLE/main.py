@@ -1,3 +1,14 @@
+"""Zoho People connector: reads employee, attendance, leave and appraisal data from the Zoho People API.
+
+get_employees(page), get_attendance(employee_id, from_date, to_date) (MM-dd-yyyy),
+get_leave_summary(employee_id, year=None), get_performance(employee_id) and
+get_attendance_summary(...) call the API through ZOHO_CONNECTOR. Each takes an optional
+keyword caller and first calls velaris.core.access.authorize_read (identity category, or
+health for leave): the person's own record or an HR administrator may read, and an
+unauthorised caller gets the exception authorize_read raises before any API call.
+get_attendance_summary computes present/absent/late counts and average hours from the
+records. A response without a result returns an empty list or dict. Keeps no state.
+"""
 import datetime
 import logging
 from typing import Dict, Any, List, Optional

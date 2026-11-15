@@ -1,5 +1,14 @@
 # ================================================================================
 
+"""Agent containment modes: records a containment level per agent and says which actions that level allows.
+
+set_mode(agent, mode) accepts SANDBOX, ISOLATION or FULL_LOCK for a non-empty agent name; it returns False for an invalid
+mode or name, or when the caller is not a security administrator (the attempt is traced). set_metadata(agent, info) has the
+same caller rule. get_mode(agent) returns the mode or "UNSET"; get_metadata(agent) returns the stored dict or {}.
+allowed_actions(agent) returns ["read", "compute"] for SANDBOX, ["compute"] for ISOLATION and [] for FULL_LOCK or UNSET.
+It only reports the policy; it does not itself stop an agent from acting. State: in memory only (lost on exit, so modes
+must be set again after a restart); reads need no caller.
+"""
 from typing import Dict, Any
 
 from velaris.core.access import SECURITY_ADMINS, check_caller

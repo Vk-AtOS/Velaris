@@ -1,3 +1,9 @@
+"""Oversight monitor: a minimal in-memory log of oversight entries (stub-level).
+
+record(entry) appends any dict; last() returns the latest entry or {} when empty;
+health_check() reports status ok. It raises no alerts, validates nothing and has no size
+limit. State: a list in memory only, lost on restart.
+"""
 import logging
 from typing import Dict, Any, List
 logger = logging.getLogger("OVERSIGHT_MONITOR")

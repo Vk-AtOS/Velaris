@@ -2,11 +2,16 @@
 
 - **Department:** `executive`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/executive/PROBABILIS/main.py` (44 lines)
+- **Source:** `departments/executive/PROBABILIS/main.py` (47 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Probabilis: small random-sampling helpers (Bernoulli trials, Monte Carlo, mean).
+
+Config: trials (samples per call, default 10) and version. bernoulli(p) returns a list of 0/1 outcomes, one per trial
+(p at or below 0 gives all 0, at or above 1 all 1). monte_carlo(func) calls func() once per trial and returns the list;
+an exception in func propagates. distribution_mean(values) returns the average, or 0.0 for an empty list. Results use the
+global random module, unseeded, so they differ between runs. Keeps no state.
 
 ## Class `ProbabilisAgent`
 

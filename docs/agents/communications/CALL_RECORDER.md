@@ -2,11 +2,21 @@
 
 - **Department:** `communications`
 - **Status (static inventory):** `real`
-- **Source:** `departments/communications/CALL_RECORDER/main.py` (155 lines)
+- **Source:** `departments/communications/CALL_RECORDER/main.py` (181 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Call recorder: records microphone audio to local WAV files by running ffmpeg.
+
+start(call_id, participants=None, meeting_title="") launches ffmpeg (avfoundation on macOS,
+dshow on Windows, alsa elsewhere; 16 kHz mono) and returns the session info; stop(session_id)
+terminates it and returns filepath, size and duration (estimated from file size), or
+{"error": "session_not_found"}. get_session(session_id) returns the public session fields
+({} if unknown); list_recordings() lists the WAV files in the recordings directory;
+health_check() reports status "degraded" when ffmpeg cannot be run. No consent or caller
+check is made here, and a missing ffmpeg raises when start or health_check is called.
+State: sessions live in a module-level dict (lost on restart); audio goes to
+config["recordings_dir"], default under the agent's VELARIS_DATA directory.
 
 ## Class `CallRecorder`
 
@@ -17,13 +27,14 @@ No audio leaves the machine — fully local.
 
 - `__init__(config)`
 - `health_check()`
-- `start(call_id, participants, meeting_title)` — Start recording. Returns session info including file path.
+- `start(call_id, participants, meeting_title, consent)` — Start recording. Returns session info including file path.
 - `stop(session_id)` — Stop recording and return file path + duration info.
 - `list_recordings()` — List all WAV files in recordings dir with basic metadata.
 - `get_session(session_id)`
 
 ## Depends on
 
+- `velaris.core.access`
 - `velaris.intel.paths`
 
 ## State and configuration
@@ -32,6 +43,6 @@ No audio leaves the machine — fully local.
 
 ## Called by
 
-- **other agents:** none found
+- **other agents:** `CALL_TRANSCRIBER`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_no_state_in_source_tree.py`
+- **tests:** `velaris/tests/test_kan93_agents.py`, `velaris/tests/test_no_state_in_source_tree.py`

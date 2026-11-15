@@ -2,7 +2,7 @@
 
 - **Department:** `hr`
 - **Status (static inventory):** `real`
-- **Source:** `departments/hr/EMPLOYEE_ONBOARDING/main.py` (166 lines)
+- **Source:** `departments/hr/EMPLOYEE_ONBOARDING/main.py` (165 lines)
 
 ## Purpose
 

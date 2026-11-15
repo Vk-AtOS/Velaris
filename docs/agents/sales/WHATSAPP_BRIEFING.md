@@ -2,7 +2,7 @@
 
 - **Department:** `sales`
 - **Status (static inventory):** `real`
-- **Source:** `departments/sales/WHATSAPP_BRIEFING/main.py` (145 lines)
+- **Source:** `departments/sales/WHATSAPP_BRIEFING/main.py` (153 lines)
 
 ## Purpose
 
@@ -42,4 +42,4 @@ Ported from VKatOS whatsapp_briefing.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_no_state_in_source_tree.py`, `velaris/tests/test_requirements.py`
+- **tests:** `velaris/tests/test_kan94_sales_marketing.py`, `velaris/tests/test_no_state_in_source_tree.py`, `velaris/tests/test_requirements.py`

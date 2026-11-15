@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/_ai_core/ADAPTIVE_ACTION_ENGINE/main.py` (59 lines)
+- **Source:** `departments/_ai_core/ADAPTIVE_ACTION_ENGINE/main.py` (63 lines)
 
 ## Purpose
 

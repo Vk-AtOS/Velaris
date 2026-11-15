@@ -2,11 +2,16 @@
 
 - **Department:** `operations`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/operations/BUSINESS_OPS_ENGINE/main.py` (48 lines)
+- **Source:** `departments/operations/BUSINESS_OPS_ENGINE/main.py` (55 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Business ops engine: a minimal in-memory task list and KPI table.
+
+add_task(name, params) appends a PENDING task and returns it; complete_task(name) marks the first task with that name DONE
+and returns True, or False if none matches. list_tasks() returns a copy of the list. set_kpi(key, value) and get_kpi(key)
+store and read numbers (0.0 for an unknown key). summarize() returns total, completed, pending and the KPIs. It runs nothing
+and schedules nothing, so "orchestration" here is bookkeeping only. State: in memory, lost on exit; no validation.
 
 ## Class `BusinessOpsEngine`
 
@@ -35,4 +40,4 @@ Velaris Business Ops Engine
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** none found
+- **tests:** `velaris/tests/test_agents_coverage_b.py`

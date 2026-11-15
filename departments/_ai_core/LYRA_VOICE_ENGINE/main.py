@@ -1,5 +1,15 @@
 # ================================================================================
 
+"""Lyra voice engine: turns a spoken or typed command into a keyword-routed, simulated request and speaks the result.
+
+LyraVoiceConfig.mode picks the input: "mock" (fixed fake transcript), "cli" (typed text) or anything else (microphone
+via sounddevice, with whisper transcription when asr_backend is "whisper", else a typed fallback). Methods: listen()
+(audio bytes or None), transcribe(audio), speak(text) (pyttsx3 or print; False only for empty text),
+interpret_intent(text) (keyword match on infra/balance/status/simulate, otherwise "customer"; returns request_id, domain,
+payload), run_once(user_text) and run_loop(handler, stop_after). run_once only names the engine it would route to and
+returns a simulated {"status": "ok", ...}; it calls no other agent. A handler exception in run_loop becomes a failed reply.
+Keeps no state. Missing audio packages are logged and the affected step returns None or an empty string.
+"""
 from dataclasses import dataclass
 from typing import Dict, Any, Optional, Callable
 import hashlib
@@ -143,7 +153,7 @@ class LyraVoiceEngine:
         else:
             domain = "customer"
             payload = {"action":"greet"}
-        rid = f"lyra-{self._hash(text) % 100000:05d}"
+        rid = f"lyra-{self._hash(text or '') % 100000:05d}"
         return {"request_id": rid, "domain": domain, "payload": payload}
 
     def run_once(self, user_text: Optional[str]=None) -> Dict[str,Any]:

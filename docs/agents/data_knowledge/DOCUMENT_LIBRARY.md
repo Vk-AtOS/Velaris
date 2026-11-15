@@ -30,4 +30,4 @@ Thin wrapper over velaris.intel.docs, where the logic and its tests live.
 
 - **other agents:** `CONFLUENCE`
 - **platform modules:** `velaris/api/allowlist.py`
-- **tests:** none found
+- **tests:** `velaris/tests/test_agents_coverage_b.py`

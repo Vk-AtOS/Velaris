@@ -2,7 +2,7 @@
 
 - **Department:** `communications`
 - **Status (static inventory):** `real`
-- **Source:** `departments/communications/ACTION_ITEM_EXTRACTOR/main.py` (182 lines)
+- **Source:** `departments/communications/ACTION_ITEM_EXTRACTOR/main.py` (178 lines)
 
 ## Purpose
 
@@ -35,4 +35,4 @@ Creates tasks in local SQLite; ready to integrate with Zoho Projects or Jira.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_no_state_in_source_tree.py`
+- **tests:** `velaris/tests/test_agents_coverage_c.py`, `velaris/tests/test_kan93_agents.py`, `velaris/tests/test_no_state_in_source_tree.py`

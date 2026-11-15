@@ -1,3 +1,10 @@
+"""Imagina: template generator for ideation prompts (stub-level, no model).
+
+imagine(seed) returns config["depth"] (default 2) strings "<seed> - vision layer N";
+scenario(topic) returns a dict with fixed possibility and risk sentences; visual_map(nodes)
+returns the nodes and a chain of consecutive pairs as connections. Keeps no state; no input
+validation (a non-list nodes value raises).
+"""
 import logging
 from typing import List, Dict, Any
 

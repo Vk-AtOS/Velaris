@@ -38,6 +38,6 @@ State: <VELARIS_DATA>/agents/ALK_EVO/state.json.
 
 ## Called by
 
-- **other agents:** none found
+- **other agents:** `REGISTRY`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_a_alk.py`, `velaris/tests/test_kan106_aicore.py`, `velaris/tests/test_layer27_alk.py`
+- **tests:** `velaris/tests/test_aicore_a_alk.py`, `velaris/tests/test_kan106_aicore.py`, `velaris/tests/test_kan95_core.py`, `velaris/tests/test_layer27_alk.py`

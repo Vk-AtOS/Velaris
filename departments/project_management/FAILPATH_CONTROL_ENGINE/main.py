@@ -1,5 +1,16 @@
 # ================================================================================
 
+"""Failpath control engine: maps failure codes to handler names and records each routed failure.
+
+FailpathControlEngine: register_handler(code, action) stores a handler name (False if the
+code is already registered); get_handler(code) returns it or "UNHANDLED"; route_failure(
+code, context) appends {code, handler, context} to the history and returns it;
+list_handlers(); list_history(). It records the routing only and never calls a handler.
+State: in memory only (self.handlers, self.history), lost on restart; history grows
+without bound.
+Failure: an unregistered code is routed as "UNHANDLED" rather than raising.
+"""
+
 from typing import Dict, Any, List
 
 

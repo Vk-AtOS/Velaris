@@ -1,5 +1,13 @@
 # ================================================================================
 
+"""Autonomous sales navigator: weighted lead scoring (fixed formula, no learning).
+
+add_lead(name, budget, interest, fit) stores a lead; score_lead(lead) is int(0.4*budget +
+0.3*interest + 0.3*fit); predict_close_probability(lead) is score/100 capped at 1.0 (not a
+trained probability); suggest_strategy(lead) returns one of three fixed texts for score >80,
+>50 and lower; top_leads(n) returns the n best leads. State: leads list in memory only, lost
+on restart. A lead missing budget, interest or fit raises KeyError.
+"""
 from typing import Dict, Any, List
 
 from velaris.agentkit.checks import number

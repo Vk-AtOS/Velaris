@@ -1,9 +1,0 @@
-{
-  "name": "QUANTUM_BRIDGE",
-  "display_name": "Quantum Bridge",
-  "version": "0.1.0",
-  "description": "Stub adapter for quantum backends. Provides simulation-mode fallback.",
-  "owner": "Velaris Core",
-  "entrypoint": "main.py:QuantumBridge",
-  "health_check": "health_check"
-}

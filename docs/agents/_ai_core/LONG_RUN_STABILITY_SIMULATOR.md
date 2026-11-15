@@ -2,11 +2,19 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/_ai_core/LONG_RUN_STABILITY_SIMULATOR/main.py` (62 lines)
+- **Source:** `departments/_ai_core/LONG_RUN_STABILITY_SIMULATOR/main.py` (72 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Long-run stability simulator: turns a series of performance values into a heuristic stability score.
+
+simulate(series) returns {stability, variance, failure_prob}: variance is the population
+variance, drift is |last - first|, stability = max(0, 100 - (variance*10 + drift)) and
+failure_prob = min(1, (variance + drift)/100). An empty series gives stability 0 and
+failure_prob 1.0; a single value gives stability 100 and failure_prob 0.0 (neither is
+recorded). batch_simulate(batch) maps simulate over several series; summary() averages the
+recorded runs (zeros when there are none). This is a fixed formula, not a model of components.
+State: self.results in memory only, lost on restart. Non-numeric input raises.
 
 ## Class `LongRunStabilitySimulator`
 
@@ -32,4 +40,4 @@ Velaris Long-Run Stability Simulator
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** none found
+- **tests:** `velaris/tests/test_agents_coverage_b.py`

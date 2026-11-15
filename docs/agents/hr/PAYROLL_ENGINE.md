@@ -2,7 +2,7 @@
 
 - **Department:** `hr`
 - **Status (static inventory):** `not_implemented`
-- **Source:** `departments/hr/PAYROLL_ENGINE/main.py` (340 lines)
+- **Source:** `departments/hr/PAYROLL_ENGINE/main.py` (336 lines)
 
 ## Purpose
 

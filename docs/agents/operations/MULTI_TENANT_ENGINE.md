@@ -2,7 +2,7 @@
 
 - **Department:** `operations`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/operations/MULTI_TENANT_ENGINE/main.py` (47 lines)
+- **Source:** `departments/operations/MULTI_TENANT_ENGINE/main.py` (48 lines)
 
 ## Purpose
 
@@ -35,4 +35,4 @@ Velaris Multi-Tenant Engine
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** none found
+- **tests:** `velaris/tests/test_agents_coverage_a.py`, `velaris/tests/test_kan86_operations.py`

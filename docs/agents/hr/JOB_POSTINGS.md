@@ -2,7 +2,7 @@
 
 - **Department:** `hr`
 - **Status (static inventory):** `real`
-- **Source:** `departments/hr/JOB_POSTINGS/main.py` (297 lines)
+- **Source:** `departments/hr/JOB_POSTINGS/main.py` (311 lines)
 
 ## Purpose
 
@@ -58,5 +58,5 @@ Job publishing: markup, indexing notice, posting packs, approvals, tracked links
 ## Called by
 
 - **other agents:** `SCREENING_FORMS`
-- **platform modules:** `velaris/agentkit/hiring_common.py`, `velaris/agentkit/hiring_posting.py`, `velaris/agentkit/hiring_sched.py`, `velaris/api/allowlist.py`
-- **tests:** `velaris/tests/test_api_public.py`, `velaris/tests/test_hiring_api.py`, `velaris/tests/test_hiring_forms.py`, `velaris/tests/test_hiring_postings.py`, `velaris/tests/test_hiring_scheduler.py`
+- **platform modules:** `velaris/agentkit/hiring_common.py`, `velaris/agentkit/hiring_posting.py`, `velaris/agentkit/hiring_sched.py`, `velaris/api/allowlist.py`, `velaris/api/public.py`, `velaris/api/public_pages.py`
+- **tests:** `velaris/tests/test_api_public.py`, `velaris/tests/test_hiring_api.py`, `velaris/tests/test_hiring_forms.py`, `velaris/tests/test_hiring_postings.py`, `velaris/tests/test_hiring_scheduler.py`, `velaris/tests/test_public_pages.py`

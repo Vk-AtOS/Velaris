@@ -2,11 +2,15 @@
 
 - **Department:** `sales`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/sales/AMPLIFEX/main.py` (46 lines)
+- **Source:** `departments/sales/AMPLIFEX/main.py` (48 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Amplifex: simple reach and audience arithmetic for sales and marketing (no data sources, no model).
+
+amplify(base_reach) returns int(base_reach * boost_factor), with boost_factor from config (default 1.2). audience_growth(
+audience, rate) returns int(audience * (1 + rate)). signal_strength(interactions) returns the mean of the list, or 0.0 when
+it is empty. Config: boost_factor, version. Results are truncated toward zero. Keeps no state; non-numeric input raises TypeError.
 
 ## Class `AmplifexAgent`
 

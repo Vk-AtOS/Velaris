@@ -2,11 +2,17 @@
 
 - **Department:** `finance`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/finance/ECONOMIC_INTELLIGENCE_MESH/main.py` (45 lines)
+- **Source:** `departments/finance/ECONOMIC_INTELLIGENCE_MESH/main.py` (55 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Economic intelligence mesh: a heuristic trend rating over a list of indicator values.
+
+add_indicator(name, value) appends {"name", "value"} and returns it. trend_score() is the mean change between consecutive
+values in the order added (0.0 with fewer than two); names are not compared, so mixed indicators are treated as one series.
+classify_risk() maps the score: above 5 "OPPORTUNITY", above 0 "STABLE", otherwise "RISK" (including with too little data).
+summary() returns count, trend and risk. A fixed-threshold heuristic, not an economic model.
+State: in-memory list only, lost on exit. A non-numeric value raises TypeError when the trend is computed.
 
 ## Class `EconomicIntelligenceMesh`
 
@@ -33,4 +39,4 @@ Velaris Economic Intelligence Mesh
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** none found
+- **tests:** `velaris/tests/test_agents_coverage_b.py`, `velaris/tests/test_kan85_70_finance_supply.py`

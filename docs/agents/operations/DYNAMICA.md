@@ -2,7 +2,7 @@
 
 - **Department:** `operations`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/operations/DYNAMICA/main.py` (49 lines)
+- **Source:** `departments/operations/DYNAMICA/main.py` (46 lines)
 
 ## Purpose
 
@@ -28,4 +28,4 @@ _No module docstring yet._
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_dynamica.py`
+- **tests:** `velaris/tests/test_dynamica.py`, `velaris/tests/test_kan86_operations.py`

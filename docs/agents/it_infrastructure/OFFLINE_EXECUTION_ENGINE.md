@@ -2,7 +2,7 @@
 
 - **Department:** `it_infrastructure`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/it_infrastructure/OFFLINE_EXECUTION_ENGINE/main.py` (62 lines)
+- **Source:** `departments/it_infrastructure/OFFLINE_EXECUTION_ENGINE/main.py` (81 lines)
 
 ## Purpose
 
@@ -37,4 +37,4 @@ The containment is OFFLINE_SANDBOX's: process isolation, not a security sandbox.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_dept_it_infrastructure_stubs_2.py`, `velaris/tests/test_layer7_offline.py`
+- **tests:** `velaris/tests/test_dept_it_infrastructure_stubs_2.py`, `velaris/tests/test_kan90_infra.py`, `velaris/tests/test_layer7_offline.py`

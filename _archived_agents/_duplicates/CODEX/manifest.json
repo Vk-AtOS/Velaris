@@ -1,9 +1,0 @@
-{
-  "name": "CODEX",
-  "display_name": "Codex - DNA Interpretation & Rule Engine",
-  "version": "0.1.0",
-  "description": "Translates structural DNA into actionable rules, validates rule sets, and exposes decoding primitives.",
-  "owner": "Velaris Core",
-  "entrypoint": "main.py:CodexAgent",
-  "health_check": "health_check"
-}

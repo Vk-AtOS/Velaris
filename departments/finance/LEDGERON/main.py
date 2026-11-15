@@ -1,3 +1,11 @@
+"""Ledgeron: a small in-memory ledger of transactions per account.
+
+record_transaction(account, tx_id, amount, meta=None) appends an entry (no duplicate-id check;
+amount is coerced to float, so a non-numeric amount raises); get_balance(account) sums the
+amounts (0 for an unknown account); reconcile(account, expected_balance) returns
+{account, expected, actual, match}; find_transactions(account, tx_id) lists matching entries.
+State: a dict in memory only, lost on restart. No access check or double-entry bookkeeping.
+"""
 import logging
 from decimal import Decimal, InvalidOperation
 from typing import List, Dict, Any, Optional

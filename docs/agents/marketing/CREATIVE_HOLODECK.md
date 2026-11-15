@@ -31,4 +31,4 @@ Velaris Creative Holodeck
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** none found
+- **tests:** `velaris/tests/test_agents_coverage_a.py`

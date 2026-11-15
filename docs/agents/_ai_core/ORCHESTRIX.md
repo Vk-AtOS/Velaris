@@ -2,11 +2,18 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/_ai_core/ORCHESTRIX/main.py` (64 lines)
+- **Source:** `departments/_ai_core/ORCHESTRIX/main.py` (69 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Orchestrix: orders tasks by their dependencies and groups them into parallel batches.
+OrchestrixAgent.resolve_dependencies(tasks) takes {task: [dependencies]} and returns a topological
+order (depth-first); a cycle raises Exception("Circular dependency detected: <task>"). A dependency
+missing from the keys is included in the order as a task with no dependencies.
+parallel_groups(order, tasks) returns batches where each task sits one level after its deepest
+dependency, so every dependency is in an earlier batch. health_check() returns status ok and version.
+State: keeps no state between calls. Failure: bad input types raise the usual Python errors
+(TypeError, AttributeError); there is no other validation.
 
 ## Class `OrchestrixAgent`
 

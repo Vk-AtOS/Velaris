@@ -1,3 +1,11 @@
+"""Simulon: simple step-wise simulations (a stub).
+SimulonAgent.run_linear(start, step) returns config "steps" values (default 5) rising by step.
+run_dynamic(initial, func) returns the initial value followed by repeated applications of func,
+steps values in total. scenario(name) returns a descriptive dict with the name and duration.
+health_check() returns status ok and version.
+State: keeps none beyond config. Failure: exceptions from func propagate; with steps of 0 or less
+run_linear returns [] while run_dynamic still returns the initial value.
+"""
 import logging
 from typing import Dict, Any, List, Callable
 

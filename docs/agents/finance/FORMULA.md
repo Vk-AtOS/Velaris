@@ -2,11 +2,18 @@
 
 - **Department:** `finance`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/finance/FORMULA/main.py` (45 lines)
+- **Source:** `departments/finance/FORMULA/main.py` (51 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Formula: builds a framework dict, scores pattern variety and shallow-merges templates (trivial helpers).
+
+FormulaAgent(config; "weight" default 1.0): health_check(); build_framework(title,
+pillars) returns {"title", "pillars"}; pattern_score(elements) = number of unique
+elements * weight; merge_templates(t1, t2) returns {**t1, **t2}, t2 winning on conflicts.
+State: keeps no state beyond the configured weight.
+Failure: no validation; unhashable elements raise TypeError and non-dict templates raise
+TypeError.
 
 ## Class `FormulaAgent`
 

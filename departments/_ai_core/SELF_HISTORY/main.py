@@ -1,3 +1,9 @@
+"""Self history: a minimal in-memory event log for the system's own activity.
+
+record(event) appends any event dict; last() returns the most recent one, or {} when empty;
+health_check() reports status ok. It is close to a stub: no validation, no size limit, no
+persistence. State: a list in memory only, lost on restart.
+"""
 import logging
 from typing import Dict, Any
 

@@ -1,3 +1,13 @@
+"""Attracta: weighted appeal score, engagement ratio and mean sentiment (simple arithmetic).
+
+AttractaAgent(config; "emotional_weight" 0.5, "logical_weight" 0.5): health_check();
+appeal_score(emotional, logical) is the weighted sum; attraction_potential(impressions,
+engagement) = engagement / impressions; emotional_resonance(sentiments) is the mean.
+State: keeps no state beyond the configured weights.
+Failure: attraction_potential returns 0.0 when impressions <= 0 and emotional_resonance
+returns 0.0 for an empty list; non-numeric input raises TypeError.
+"""
+
 import logging
 from typing import Dict, Any, List
 

@@ -2,11 +2,24 @@
 
 - **Department:** `hr`
 - **Status (static inventory):** `real`
-- **Source:** `departments/hr/LEAVE_MANAGEMENT/main.py` (273 lines)
+- **Source:** `departments/hr/LEAVE_MANAGEMENT/main.py` (284 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Leave management: leave requests, approval and balances for employees, with access control.
+
+seed_balances(employee_id, year) (HR admins) creates default entitlements; get_balance(
+employee_id, year), pending_approvals() and employee_history(employee_id, year=None) read
+health-category data through authorize_read (own record or HR admin); apply(employee_id,
+leave_type, from_date, to_date, reason) files a request over weekday-only days; approve and
+reject(leave_id, reviewed_by) are HR-admin only, the reviewer must be the caller and may not
+review their own leave. dsr_export and dsr_erase(org, subject_id, ...) serve data-subject
+requests; erase is held (needs_review) while retention rules apply.
+Failure: apply and review return {"error": ...} dicts (invalid_leave_type, no_balance_record,
+insufficient_balance, unauthenticated, denied, access_denied, not_found, already_<status>,
+self_approval_not_allowed); gated reads and changes raise through the access layer.
+State: sqlite <VELARIS_DATA>/agents/LEAVE_MANAGEMENT/leaves.db (tables leave_requests,
+leave_balances), scoped by organisation.
 
 ## Class `LeaveManagement`
 

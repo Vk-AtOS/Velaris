@@ -2,7 +2,7 @@
 
 - **Department:** `project_management`
 - **Status (static inventory):** `real`
-- **Source:** `departments/project_management/DRY_RUN_SIMULATION/main.py` (89 lines)
+- **Source:** `departments/project_management/DRY_RUN_SIMULATION/main.py` (61 lines)
 
 ## Purpose
 
@@ -23,6 +23,7 @@ Dry-Run Simulation Mode
 
 ## Depends on
 
+- `velaris.agentkit.state`
 - `velaris.intel.paths`
 
 ## State and configuration
@@ -33,4 +34,4 @@ Dry-Run Simulation Mode
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_agent_paths.py`, `velaris/tests/test_kan106_business_agents.py`
+- **tests:** `velaris/tests/test_agent_paths.py`, `velaris/tests/test_kan106_business_agents.py`, `velaris/tests/test_kan94_pm_agents.py`

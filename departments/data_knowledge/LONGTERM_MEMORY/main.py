@@ -1,3 +1,12 @@
+"""Long-term memory: a persistent key-value store plus a scoped, time-aware fact memory.
+
+put(k, v) and get(k, default=None) use a JSON file (default <VELARIS_DATA>/agents/LONGTERM_MEMORY/
+longterm.json, written privately); an unreadable file is logged and treated as empty, and put
+raises if the value is not JSON-serialisable. remember(text, scope, source="") and
+recall(query, scope, k=5, at=None) delegate to velaris.intel.memory.MemoryStore, which keeps
+durable facts, lets corrections supersede old ones and answers as of a time. The fact store is
+opened lazily on first use. No access check is made here.
+"""
 from velaris.intel.memory import MemoryStore
 import logging, json, os
 from velaris.intel.paths import agent_file, write_private

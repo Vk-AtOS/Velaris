@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `real`
-- **Source:** `departments/_ai_core/VCAS_AUTOPILOT/main.py` (116 lines)
+- **Source:** `departments/_ai_core/VCAS_AUTOPILOT/main.py` (99 lines)
 
 ## Purpose
 
@@ -42,7 +42,6 @@ person to decide whether to run it again.
 - `velaris.agentkit.results`
 - `velaris.agentkit.state`
 - `velaris.agents.VCAS_SUPERVISOR.main`
-- `velaris.core.access`
 - `velaris.intel`
 
 ## State and configuration
@@ -53,4 +52,4 @@ person to decide whether to run it again.
 
 - **other agents:** `PRIME`, `VCAS_CORE`, `VCAS_ROUTER`, `VCAS_SUPERVISOR`
 - **platform modules:** `velaris/agentkit/aicore_b_authz.py`
-- **tests:** `velaris/tests/test_aicore_b_prime_vcas.py`, `velaris/tests/test_layer19_vcas.py`
+- **tests:** `velaris/tests/test_aicore_b_prime_vcas.py`, `velaris/tests/test_kan95_core.py`, `velaris/tests/test_layer19_vcas.py`

@@ -2,7 +2,7 @@
 
 - **Department:** `project_management`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/project_management/DIGITAL_TWIN_XR_ENGINE/main.py` (58 lines)
+- **Source:** `departments/project_management/DIGITAL_TWIN_XR_ENGINE/main.py` (59 lines)
 
 ## Purpose
 
@@ -34,4 +34,4 @@ Velaris Digital Twin / XR Engine (Offline Simulation)
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** none found
+- **tests:** `velaris/tests/test_agents_coverage_c.py`, `velaris/tests/test_kan94_pm_agents.py`

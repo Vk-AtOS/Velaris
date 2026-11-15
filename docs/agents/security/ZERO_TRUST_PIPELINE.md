@@ -2,7 +2,7 @@
 
 - **Department:** `security`
 - **Status (static inventory):** `real`
-- **Source:** `departments/security/ZERO_TRUST_PIPELINE/main.py` (195 lines)
+- **Source:** `departments/security/ZERO_TRUST_PIPELINE/main.py` (196 lines)
 
 ## Purpose
 
@@ -71,4 +71,4 @@ SecureActionTokens' format, signed with a key only this agent holds (domain sepa
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_dept_security_stubs.py`, `velaris/tests/test_governance_kernel.py`, `velaris/tests/test_loader_and_fail_closed.py`
+- **tests:** `velaris/tests/test_dept_security_stubs.py`, `velaris/tests/test_governance_kernel.py`, `velaris/tests/test_kan88_security_agents.py`, `velaris/tests/test_loader_and_fail_closed.py`

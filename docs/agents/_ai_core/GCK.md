@@ -23,4 +23,4 @@ Alias agent GCK: fronts GLOBAL_STATE_MAP. See velaris.agentkit.alias.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_alias_layers.py`
+- **tests:** `velaris/tests/test_alias_layers.py`, `velaris/tests/test_kan89_aicore.py`

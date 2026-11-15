@@ -1,5 +1,13 @@
 # ================================================================================
 
+"""Compliance guard: checks an action dict against registered required-field and forbidden-field rules.
+
+add_rule(name, definition) returns False if the name exists; remove_rule(name) returns False if unknown; list_rules()
+returns the names. A rule definition may hold "requires" (fields the action must contain) and "forbidden" (fields it must
+not contain). evaluate(action) returns {"action", "violations": [...], "status": "OK" or "VIOLATION"}. With no rules
+registered everything is OK; only field presence is checked, never values. There is no caller check.
+State: in-memory rule dict only, lost on exit. A non-dict action or non-list requires/forbidden raises TypeError.
+"""
 from typing import Dict, List
 
 from velaris.agentkit.state import JsonState

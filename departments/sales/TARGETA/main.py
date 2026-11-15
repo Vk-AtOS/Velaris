@@ -1,3 +1,10 @@
+"""Targeta: simple targeting metrics (formulas only).
+
+segmentation_score(segment_sizes) is the population variance of the sizes (0.0 if empty);
+match_score(profile, target) is the dot product over the target's keys, missing profile keys
+counting as 0; target_fit(match, noise=0.0) is match - noise. Keeps no state. Non-numeric
+values raise.
+"""
 import logging
 from typing import Dict, List, Any
 

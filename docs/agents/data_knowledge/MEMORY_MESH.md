@@ -2,7 +2,7 @@
 
 - **Department:** `data_knowledge`
 - **Status (static inventory):** `real`
-- **Source:** `departments/data_knowledge/MEMORY_MESH/main.py` (106 lines)
+- **Source:** `departments/data_knowledge/MEMORY_MESH/main.py` (113 lines)
 
 ## Purpose
 
@@ -41,8 +41,10 @@ Node registry shared by mesh-like memory components. Constructible with no argum
 
 - `velaris.agentkit`
 - `velaris.agentkit.checks`
+- `velaris.agentkit.infra_store`
 - `velaris.agentkit.results`
 - `velaris.agentkit.state`
+- `velaris.core.access`
 - `velaris.intel.memory`
 
 ## State and configuration

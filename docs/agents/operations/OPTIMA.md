@@ -2,11 +2,16 @@
 
 - **Department:** `operations`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/operations/OPTIMA/main.py` (57 lines)
+- **Source:** `departments/operations/OPTIMA/main.py` (62 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Optima: weighted scoring of marketing efficiency metrics (fixed formulas, no optimisation).
+
+efficiency_score(ctr, cvr, roi) is the weighted sum using config["weights"] (default 0.3, 0.4,
+0.3; a custom weights dict missing a key raises KeyError); metric_normalize(metrics) divides
+each value by the maximum (all zeros if the maximum is 0, {} if empty); pivot_factor(before,
+after) is (after - before)/max(|before|, 1). Keeps no state.
 
 ## Class `OptimaAgent`
 
@@ -28,4 +33,4 @@ _No module docstring yet._
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_kan106_business_agents.py`, `velaris/tests/test_optima.py`
+- **tests:** `velaris/tests/test_kan106_business_agents.py`, `velaris/tests/test_kan86_operations.py`, `velaris/tests/test_optima.py`

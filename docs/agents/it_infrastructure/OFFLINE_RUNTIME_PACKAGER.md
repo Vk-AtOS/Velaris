@@ -2,7 +2,7 @@
 
 - **Department:** `it_infrastructure`
 - **Status (static inventory):** `real`
-- **Source:** `departments/it_infrastructure/OFFLINE_RUNTIME_PACKAGER/main.py` (53 lines)
+- **Source:** `departments/it_infrastructure/OFFLINE_RUNTIME_PACKAGER/main.py` (75 lines)
 
 ## Purpose
 
@@ -21,6 +21,7 @@ Offline Runtime Packager
 
 ## Depends on
 
+- `velaris.agentkit.secure`
 - `velaris.intel.paths`
 
 ## State and configuration
@@ -31,4 +32,4 @@ Offline Runtime Packager
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_agent_paths.py`
+- **tests:** `velaris/tests/test_agent_paths.py`, `velaris/tests/test_kan90_infra.py`

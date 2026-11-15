@@ -2,7 +2,7 @@
 
 - **Department:** `finance`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/finance/FINANCIAL_AI_ENGINE/main.py` (45 lines)
+- **Source:** `departments/finance/FINANCIAL_AI_ENGINE/main.py` (46 lines)
 
 ## Purpose
 
@@ -15,7 +15,7 @@ Velaris Financial AI Engine
 - Forecasts trends (simple linear model)
 - Evaluates financial health scores
 
-- `compute_growth(previous, current)`
+- `compute_growth(previous, current)` — Percent growth, or None when it is undefined (previous is zero or negative): 0.0 would mean "no growth".
 - `forecast_linear(data)`
 - `financial_health(revenue, expenses, debt)`
 
@@ -31,4 +31,4 @@ Velaris Financial AI Engine
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** none found
+- **tests:** `velaris/tests/test_agents_coverage_c.py`, `velaris/tests/test_kan85_70_finance_supply.py`

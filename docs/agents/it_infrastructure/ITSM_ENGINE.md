@@ -2,7 +2,7 @@
 
 - **Department:** `it_infrastructure`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/it_infrastructure/ITSM_ENGINE/main.py` (218 lines)
+- **Source:** `departments/it_infrastructure/ITSM_ENGINE/main.py` (223 lines)
 
 ## Purpose
 
@@ -21,8 +21,10 @@ extends the due time. States and allowed moves are in TRANSITIONS.
 Every change is appended to the ticket's own history (who, when, from, to, note)
 and to the hash-chained trace, so the record of a ticket cannot be quietly rewritten.
 "Who" is the current caller (velaris.core.access): any authenticated person or service
-may open and move tickets, nobody can do it anonymously, and a legacy `by` argument
-must name that same caller.
+may open a ticket and nobody can do it anonymously; a legacy `by` argument must name that
+same caller. Moving a ticket needs the infra_admin role (or security_admin); the person who
+opened a ticket may also cancel it or reopen it once resolved, nothing else. Free text
+(notes, the configuration item) is stored with secrets and personal identifiers masked.
 
 ## Class `Ticket`
 
@@ -55,4 +57,4 @@ must name that same caller.
 
 - **other agents:** `LYRA_VOICE_ENGINE`
 - **platform modules:** `departments/_connectors/JIRA/atlassian.py`, `velaris/api/allowlist.py`, `velaris/core/backfill_org.py`
-- **tests:** `velaris/tests/test_deployment_org.py`, `velaris/tests/test_dept_it_infrastructure_stubs_2.py`, `velaris/tests/test_kan68_backfill_org.py`
+- **tests:** `velaris/tests/test_deployment_org.py`, `velaris/tests/test_dept_it_infrastructure_stubs_2.py`, `velaris/tests/test_kan68_backfill_org.py`, `velaris/tests/test_kan90_infra.py`

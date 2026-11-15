@@ -1,3 +1,16 @@
+"""Time tracker: billable hours and utilization per employee and project.
+TimeTracker.start_timer(employee_id, project_id, task_id, description) starts a timer, first
+stopping and logging any running one for that employee. stop_timer(employee_id, billable=True)
+logs the elapsed hours. log(employee_id, project_id, hours, log_date, task_id, description,
+billable) adds a manual entry. weekly_utilization(employee_id, week_start) returns total, billable
+and per-project hours and utilization against a billable target (config billable_target_weekly,
+default 40). team_utilization(employee_ids, week_start) maps that over employees.
+project_hours_summary(project_id, from_date, to_date) returns hours per contributor.
+State: sqlite database <VELARIS_DATA>/agents/TIME_TRACKER/timelog.db (tables timelogs and
+active_timers). Failure: stop_timer with no timer returns {"error": "no_active_timer"}; log rejects
+non-numeric, non-finite, zero, negative or over-24 hours with an error dict; other input is not
+validated, and there is no caller check. The Zoho integration is not implemented here.
+"""
 import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 

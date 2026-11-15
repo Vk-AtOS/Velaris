@@ -2,11 +2,18 @@
 
 - **Department:** `project_management`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/project_management/TACTICIAN/main.py` (59 lines)
+- **Source:** `departments/project_management/TACTICIAN/main.py` (64 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Tactician: Monte Carlo estimate of a plan's success rate (heuristic, not a planner).
+
+simulate_plan(plan, trials=100) takes base_success (default 0.5) and optional modifiers that
+are added and clamped to 0..1, runs trials random draws and returns {trials, successes,
+success_rate, effective}. recommend_adjustments(plan, target_rate=0.8) returns the current
+estimate and the additive modifier still needed (target - current, floored at 0). Results are
+random unless config["seed"] is set, which seeds the global random module. Keeps no state;
+non-numeric plan values raise.
 
 ## Class `TacticianAgent`
 
@@ -27,4 +34,4 @@ _No module docstring yet._
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_tactician.py`
+- **tests:** `velaris/tests/test_kan94_pm_agents.py`, `velaris/tests/test_tactician.py`

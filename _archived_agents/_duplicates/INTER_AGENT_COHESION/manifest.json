@@ -1,9 +1,0 @@
-{
-  "name": "INTER_AGENT_COHESION",
-  "display_name": "Inter-Agent Cohesion",
-  "version": "0.1.0",
-  "description": "High-level cohesion utilities built on top of Memory Fabric.",
-  "owner": "Velaris Core",
-  "entrypoint": "main.py:Cohesion",
-  "health_check": "health_check"
-}

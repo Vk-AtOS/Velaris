@@ -53,4 +53,4 @@ written; the first call against a real site should be checked against the live r
 
 - **other agents:** `CONFLUENCE`, `JOB_POSTINGS`
 - **platform modules:** `departments/_connectors/JIRA/atlassian.py`, `velaris/api/allowlist.py`
-- **tests:** `velaris/tests/test_atlassian_connectors.py`
+- **tests:** `velaris/tests/atlassian_kit.py`, `velaris/tests/test_atlassian_connectors.py`, `velaris/tests/test_atlassian_oauth.py`, `velaris/tests/test_atlassian_scope.py`

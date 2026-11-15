@@ -1,5 +1,14 @@
 # ================================================================================
 
+"""Rollback engine: saves named state snapshots to disk and returns them on rollback.
+
+create_snapshot(name, state) writes <name>.json and logs CREATE (overwrites an existing
+snapshot); load_snapshot(name) reads it; rollback(name) returns the snapshot state and logs
+ROLLBACK, it does not apply the state anywhere; get_log() returns the history list. Names must
+be 1-100 letters, digits, "_", "-" or "." starting with a letter or digit, else ValueError;
+a missing snapshot raises FileNotFoundError. State: snapshots/ and rollback.log (a JSON list)
+under <VELARIS_DATA>/agents/ROLLBACK_ENGINE; an unreadable log is reset with a warning.
+"""
 import json
 import os
 import re

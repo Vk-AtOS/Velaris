@@ -2,11 +2,16 @@
 
 - **Department:** `sales`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/sales/CONVERTA/main.py` (49 lines)
+- **Source:** `departments/sales/CONVERTA/main.py` (52 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Converta: funnel arithmetic for conversion rate, leakage and a combined optimisation score.
+
+conversion_rate(visits, conversions) is conversions / visits, 0.0 when visits is 0. funnel_leakage(stages) is
+(first - last) / first over a list of stage counts, 0.0 for an empty list or a zero first stage. optimization_score(rate,
+leakage) is rate * (1 - leakage), an illustrative formula rather than a fitted score. health_check() returns status ok.
+Keeps no state; no range checks, so rates above 1 or negative counts pass straight through, and non-numeric input raises TypeError.
 
 ## Class `ConvertaAgent`
 

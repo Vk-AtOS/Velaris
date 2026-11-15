@@ -1,0 +1,15 @@
+# Velaris secret-scan allowlist (KAN-203). Extends the default rules; each entry is a reviewed TEST FIXTURE, not a live secret.
+# Entries match the exact fixture text only, never a path: a path rule makes gitleaks skip the whole file, so a real key added
+# to the same file would pass unseen (checked: with a path rule a planted key in conftest.py was not reported).
+title = "velaris"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "conftest.py: fixed 32-byte vault master key used only by the test suite (decodes to the words 'test-vault-key'); the real key lives outside VELARIS_DATA"
+regexes = ['''dGVzdC12YXVsdC1rZXktMzItYnl0ZXMt[A-Za-z0-9+/=]*''']
+
+[[allowlists]]
+description = "test_intel_workflow.py: invented token-shaped strings (sk-live123..., xoxb-1234...) that the redaction test must find and hide; they are not issued by any service"
+regexes = ['''sk-live1234567890abcdefghijklmnop''', '''xoxb-123456789012-abcdefghijklmnop''']

@@ -2,11 +2,19 @@
 
 - **Department:** `operations`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/operations/FLUXOR/main.py` (61 lines)
+- **Source:** `departments/operations/FLUXOR/main.py` (68 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Fluxor: load throughput, spike detection and a one-step load balancer (simple arithmetic).
+
+FluxorAgent(config; "spike_threshold" default 1.5): health_check(); compute_throughput(loads)
+is the mean load; detect_spike(loads) is True when the last value exceeds the mean of the
+earlier ones times the threshold; balance_load(loads, target) moves each load 1 closer to
+target (it does not reach the target in one call).
+State: keeps no state beyond the configured threshold.
+Failure: compute_throughput returns 0.0 for an empty list; detect_spike returns False with
+fewer than 2 values; non-numeric loads raise TypeError.
 
 ## Class `FluxorAgent`
 
