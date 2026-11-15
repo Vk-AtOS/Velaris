@@ -32,7 +32,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 from velaris.api.allowlist import ACT, READ, catalog, prepare, rule_for, tool_params
 from velaris.api.auth import AuthError, Verifier, load_public_key
@@ -245,12 +245,13 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
         return {"status": "ok"}
 
     @app.get("/agents")
-    async def agents(request: Request) -> Dict[str, Any]:
+    async def agents(request: Request) -> Response:
         caller, _ = await authed(request)
         record(caller, "agents.list", {})
         if "catalog" not in state:
-            state["catalog"] = await asyncio.to_thread(catalog, engine)
-        return state["catalog"]
+            built = await asyncio.to_thread(catalog, engine)
+            state["catalog"] = json.dumps(built, default=str).encode()          # serialised ONCE (346 agents: ~76 ms each time)
+        return Response(state["catalog"], media_type="application/json")
 
     @app.post("/agents/{agent}/{method}")
     async def call_agent(agent: str, method: str, request: Request) -> JSONResponse:
