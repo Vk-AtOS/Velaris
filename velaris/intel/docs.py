@@ -29,7 +29,6 @@ import posixpath
 import re
 import sqlite3
 
-from velaris.core.sqlite_util import connect as connect_db
 import threading
 import time
 import uuid
@@ -43,6 +42,8 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from defusedxml.ElementTree import fromstring as safe_xml
 
+from velaris.core import fieldseal
+from velaris.core.sqlite_util import connect as connect_db
 from velaris.intel import guard, trace
 from velaris.intel.llm import LLM, LLMError, cosine
 from velaris.intel.paths import data_dir
@@ -367,6 +368,9 @@ def convert(name: str, data: bytes) -> Tuple[str, str]:
 
 
 # ── the library ──────────────────────────────────────────────────────────────
+SEAL = "docs"                  # purpose of the column-level encryption (velaris.core.fieldseal)
+_SEALED = ("heading", "text", "embedding")
+_CACHE_MAX = 50_000            # decoded passages kept per process: (embedding vector, word list) by passage sha256
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS documents (
     id TEXT PRIMARY KEY, scope TEXT NOT NULL, name TEXT NOT NULL, sha256 TEXT NOT NULL,
@@ -416,10 +420,12 @@ class DocStore:
     def __init__(self, llm: Optional[LLM] = None, *, path: Optional[str] = None) -> None:
         self.llm = llm or LLM()
         self._db = connect_db(path or str(data_dir() / "docs.db"), check_same_thread=False)
-        self._db.row_factory = sqlite3.Row
+        self._db.row_factory = fieldseal.row_class(SEAL, _SEALED)     # reading unseals; ingest seals
         self._db.execute("PRAGMA secure_delete=ON")          # erased text must not linger in freed pages (DPDP)
         self._db.execute("PRAGMA busy_timeout=5000")
         self._db.executescript(_SCHEMA)
+        fieldseal.seal_existing(self._db, "chunks", list(_SEALED), SEAL, key="id")   # plaintext of older releases
+        self._cache: Dict[str, Tuple[List[float], List[str]]] = {}
         try:                                                 # two current versions of one name can never coexist
             self._db.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_documents_current ON documents (scope, name) WHERE invalid_at IS NULL")
         except sqlite3.IntegrityError as e:
@@ -462,7 +468,8 @@ class DocStore:
             self._db.execute("INSERT INTO documents VALUES (?,?,?,?,?,?,?,NULL,?)",
                              (doc_id, scope, name, sha, kind, source, now, old["id"] if old else None))
             self._db.executemany("INSERT INTO chunks VALUES (?,?,?,?,?,?,?,?)", [
-                (uuid.uuid4().hex, doc_id, i, p["heading"], p["text"], shas[i], known[shas[i]], flags[i])
+                (uuid.uuid4().hex, doc_id, i, fieldseal.seal(p["heading"], SEAL), fieldseal.seal(p["text"], SEAL), shas[i],
+                 fieldseal.seal(known[shas[i]], SEAL), flags[i])
                 for i, p in enumerate(parts)])
         out = {"action": "UPDATED" if old else "ADDED", "doc_id": doc_id, "sha256": sha, "format": kind,
                "passages": len(parts), "embedded": len(new), "withheld": sum(flags)}
@@ -512,9 +519,16 @@ class DocStore:
         if not rows:
             return []
         qv = self.llm.embed([query])[0]
-        vecs = [json.loads(r["embedding"]) for r in rows]
-        meaning = [cosine(qv, v) if len(v) == len(qv) else 0.0 for v in vecs]   # other-model vectors: wording only
-        wording = _bm25(_tokens(query), [_tokens(f"{r['heading']} {r['text']}") for r in rows])
+        if len(self._cache) > _CACHE_MAX:
+            self._cache.clear()
+        decoded = []
+        for r in rows:                      # a passage is decrypted and parsed once per process, not once per query
+            sha = r["sha256"]
+            if sha not in self._cache:
+                self._cache[sha] = (json.loads(r["embedding"]), _tokens(f"{r['heading']} {r['text']}"))
+            decoded.append(self._cache[sha])
+        meaning = [cosine(qv, v) if len(v) == len(qv) else 0.0 for v, _ in decoded]   # other-model vectors: wording only
+        wording = _bm25(_tokens(query), [t for _, t in decoded])
         fused = [0.0] * len(rows)
         for scores in (meaning, wording):                    # reciprocal rank fusion; a zero score earns nothing
             order = sorted((i for i, s in enumerate(scores) if s > 0), key=lambda i: scores[i], reverse=True)
