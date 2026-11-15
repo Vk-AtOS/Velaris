@@ -100,7 +100,6 @@ def test_LYRA_presets_switch_and_unknown_preset_is_refused():
     assert ly.active_preset == "warm"                      # unchanged by the refusal
 
 
-@pytest.mark.xfail(strict=True, reason="LYRA/main.py:36 prefixes '[TECH]/n' (slash-n) instead of a newline")
 def test_LYRA_technical_preset_puts_the_tag_on_its_own_line():
     ly = make("LYRA", "LyraEngine")
     ly.set_preset("technical")

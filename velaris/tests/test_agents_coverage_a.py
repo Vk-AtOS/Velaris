@@ -101,9 +101,6 @@ def test_ZOHO_PROJECTS_empty_responses_give_zero_rates_and_empty_lists():
     assert z.health_check() == {"agent": "ZOHO_PROJECTS", "status": "ok"}
 
 
-@pytest.mark.xfail(strict=True, raises=AttributeError,
-                   reason="BUG departments/_connectors/ZOHO_PROJECTS/main.py:21: config defaults to None "
-                          "but config.get() is called on it, so ZohoProjectsConnector() crashes")
 def test_ZOHO_PROJECTS_constructs_without_a_config_argument():
     cls("ZOHO_PROJECTS", "ZohoProjectsConnector")()
 

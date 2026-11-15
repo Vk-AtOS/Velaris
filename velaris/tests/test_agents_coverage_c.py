@@ -93,8 +93,6 @@ def test_lyra_voice_engine_without_microphone_or_whisper_returns_nothing(monkeyp
     assert e.transcribe(None) == "" and e.transcribe(b"\0\0") == ""   # no ASR model: fail closed
 
 
-@pytest.mark.xfail(strict=True, raises=AttributeError, reason="interpret_intent tolerates None for the keyword "
-                   "match (text or '') but _hash(text) calls None.encode() (LYRA_VOICE_ENGINE/main.py:79, called from :135)")
 def test_lyra_voice_engine_interpret_intent_accepts_none():
     assert lyra_mod.LyraVoiceEngine().interpret_intent(None)["domain"] == "customer"
 
@@ -149,8 +147,6 @@ def test_mfa_recovery_workflow_codes_tokens_and_reset():
     assert m.reset_credentials("ann", "h") is False and not m.verify_reset_token("ann", tok)
 
 
-@pytest.mark.xfail(strict=True, reason="class docstring promises one-time recovery codes but "
-                   "verify_recovery_code never consumes the code (MFA_RECOVERY_WORKFLOW/main.py verify_recovery_code)")
 def test_mfa_recovery_workflow_code_is_one_time():
     m = make("MFA_RECOVERY_WORKFLOW", "MFARecoveryWorkflow")
     code = m.issue_recovery_code("ann")
@@ -254,3 +250,15 @@ def test_financial_ai_engine_growth_forecast_health():
     assert e.financial_health(100000, 80000, 0) == "GOOD"
     assert e.financial_health(100, 50, 0) == "FAIR"
     assert e.financial_health(100, 100, 1) == "POOR"
+
+
+# ── ACTION_ITEM_EXTRACTOR (relative due hints crashed on datetime.timedelta) ──
+def test_action_item_extractor_relative_due_hints_resolve_to_dates():
+    import datetime
+    from importlib import import_module
+    hint = import_module("velaris.agents.ACTION_ITEM_EXTRACTOR.main")._extract_due_hint
+    today = datetime.date.today()
+    assert hint("we will ship it today") == today.isoformat() and hint("due eod") == today.isoformat()
+    assert hint("send it tomorrow") == (today + datetime.timedelta(days=1)).isoformat()
+    assert hint("review next week") == (today + datetime.timedelta(days=7)).isoformat()
+    assert hint("call them friday") == "friday" and hint("nothing dated here") is None

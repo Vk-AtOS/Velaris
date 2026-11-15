@@ -11,8 +11,7 @@ This is pattern matching, not language understanding; due hints can be non-ISO t
 ("oct 15", "friday"), which are compared as plain strings by get_overdue().
 State: sqlite file action_items.db under the agent data dir (velaris.intel.paths.agent_file).
 Failure: segments without a match are skipped; close_item on an unknown id still returns
-status closed; a due hint of today, tomorrow, eod or next week reaches
-datetime.timedelta on the datetime class and raises AttributeError in the code as written.
+status closed.
 """
 
 import sys, os
@@ -22,7 +21,7 @@ import logging
 import json
 import re
 import sqlite3
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Dict, Any, List, Optional
 from velaris.intel.paths import agent_file
 
@@ -87,8 +86,7 @@ def _extract_due_hint(text: str) -> Optional[str]:
     for keyword in _DAY_MAP:
         if keyword in lower:
             if _DAY_MAP[keyword] is not None:
-                from datetime import timedelta
-                due = date.today() + datetime.timedelta(days=_DAY_MAP[keyword])
+                due = date.today() + timedelta(days=_DAY_MAP[keyword])
                 return due.isoformat()
             return keyword
     return None

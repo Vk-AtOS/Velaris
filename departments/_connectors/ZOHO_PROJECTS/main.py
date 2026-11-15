@@ -7,8 +7,8 @@ on_time_rate as percentages from those tasks. health_check() only returns status
 call Zoho. All HTTP goes through velaris.agents.ZOHO_CONNECTOR.ZohoConnector.get, using the portal id
 from config["portal_id"] or the ZOHO_PORTAL_ID environment variable.
 State: keeps none; credentials live in the Zoho connector. Failure: errors from the connector
-propagate; a missing key in the response yields an empty list. The constructor needs a config dict
-(config.get raises AttributeError when config is None).
+propagate; a missing key in the response yields an empty list. The config argument is optional
+(None means an empty dict; the portal id then comes from ZOHO_PORTAL_ID).
 """
 import logging
 import os
@@ -32,8 +32,8 @@ class ZohoProjectsConnector:
 
     def __init__(self, config: Dict[str, Any] = None):
         self.config = config or {}
-        self.zoho = ZohoConnector(config)
-        self.portal = config.get("portal_id") or os.getenv("ZOHO_PORTAL_ID", "")
+        self.zoho = ZohoConnector(self.config)
+        self.portal = self.config.get("portal_id") or os.getenv("ZOHO_PORTAL_ID", "")
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": "ZOHO_PROJECTS", "status": "ok"}

@@ -153,7 +153,7 @@ class LyraVoiceEngine:
         else:
             domain = "customer"
             payload = {"action":"greet"}
-        rid = f"lyra-{self._hash(text) % 100000:05d}"
+        rid = f"lyra-{self._hash(text or '') % 100000:05d}"
         return {"request_id": rid, "domain": domain, "payload": payload}
 
     def run_once(self, user_text: Optional[str]=None) -> Dict[str,Any]:
