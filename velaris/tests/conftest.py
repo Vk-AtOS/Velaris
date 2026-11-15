@@ -62,3 +62,12 @@ def _tests_may_read_sealed_state(monkeypatch):
                     continue
             raise
     monkeypatch.setattr(Path, "read_text", read_text)
+
+
+@pytest.fixture(autouse=True)
+def _llm_floor_reset():
+    """authorize_read() raises the model sensitivity floor for the rest of its context; tests share one."""
+    from velaris.intel import policy
+    token = policy.new_scope()
+    yield
+    policy.end_scope(token)

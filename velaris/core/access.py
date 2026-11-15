@@ -55,7 +55,7 @@ from fnmatch import fnmatchcase
 from typing import Any, Dict, FrozenSet, Iterator, Optional, Tuple
 
 from velaris.core.exceptions import VelarisError
-from velaris.intel import trace
+from velaris.intel import policy, trace
 
 # Sensitive data category -> roles that may read records that are not the caller's own.
 READ_OTHERS: Dict[str, FrozenSet[str]] = {
@@ -70,7 +70,9 @@ READ_OTHERS: Dict[str, FrozenSet[str]] = {
 GOVERNANCE_ADMIN = "governance_admin"     # PRIME grants, approvers, exemptions, policies, mandates, memory imports
 SECURITY_ADMIN = "security_admin"         # zero-trust enrolment and policy, identity tokens for others
 ATLASSIAN_READER = "atlassian_reader"     # read Jira/Confluence through the deployment's one service account
+MODEL_ADMIN = "model_admin"               # model providers: add, rotate, disable, delete, test (velaris.api.providers_api)
 GOVERNANCE_ADMINS: FrozenSet[str] = frozenset({GOVERNANCE_ADMIN})
+MODEL_ADMINS: FrozenSet[str] = frozenset({MODEL_ADMIN, GOVERNANCE_ADMIN})
 ATLASSIAN_READERS: FrozenSet[str] = frozenset({ATLASSIAN_READER, GOVERNANCE_ADMIN})   # admins hold it implicitly
 SECURITY_ADMINS: FrozenSet[str] = frozenset({SECURITY_ADMIN})
 INFRA_ADMIN = "infra_admin"               # tenants, quotas, pools, rate limits and ticket handling (it_infrastructure)
@@ -118,10 +120,11 @@ def acting_as(caller: Optional[Caller]) -> Iterator[Optional[Caller]]:
     """
     if caller is not None and not isinstance(caller, Caller):
         raise TypeError("acting_as() takes a Caller or None")
-    token = _current.set(caller)
+    token, scope = _current.set(caller), policy.new_scope()
     try:
         yield caller
     finally:
+        policy.end_scope(scope)
         _current.reset(token)
 
 
@@ -184,6 +187,7 @@ def authorize_read(category: str, subject_id: Optional[Any], *, agent: str,
         "roles": sorted(who.roles) if known else [], "reason": str(reason)[:200]})
     if allowed is not True:              # anything but an explicit True from decide() is a denial
         raise AccessDenied(str(reason)[:200])
+    policy.force_restricted()            # pay, bank, identity, health and candidate data never reach a model below restricted
     return who                           # type: ignore[return-value]  (decide() allowed it, so it is a Caller)
 
 

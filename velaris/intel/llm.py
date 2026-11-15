@@ -1,9 +1,15 @@
 """Model gateway: the only path from Velaris to any language or embedding model.
 
 Providers are plain HTTP (no vendor SDKs): Anthropic, Amazon Bedrock (bearer
-token), and a local Ollama server. A model is named "provider:model", e.g.
-"ollama:llama3.1:8b" or "anthropic:claude-sonnet-4-6". Every call is traced
-with its provider, model, sizes and duration, never the secret.
+token), a local Ollama server, and any provider in the registry
+(velaris.intel.providers), including OpenAI-compatible ones such as OmniRoute.
+A model is named "provider:model", e.g. "ollama:llama3.1:8b",
+"anthropic:claude-sonnet-4-6" or "omniroute:auto". Every call is traced with its
+provider, model, sensitivity, sizes and duration, never the secret.
+
+Every call passes the same gates before anything is sent, in `_invoke`:
+sensitivity policy (velaris.intel.policy: no level given = restricted), then kill
+switch and budget (velaris.intel.usage). It is metered afterwards, success or not.
 
 Tests and offline runs use FakeLLM, which answers from a script.
 """
@@ -23,7 +29,8 @@ from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Unio
 
 import httpx
 
-from velaris.intel import trace
+from velaris.intel import openai_compat, policy, providers, trace, usage
+from velaris.intel.errors import BudgetExceeded, LLMError, PolicyRefused, Retryable  # noqa: F401  (re-exported)
 
 logger = logging.getLogger("velaris.intel.llm")
 
@@ -44,8 +51,15 @@ def call_timeout(seconds: Optional[float]) -> Iterator[None]:
         _call_timeout.reset(token)
 
 
-class LLMError(RuntimeError):
-    """A model call failed. The message never contains a credential."""
+class _Text(str):
+    """A reply text that also carries the provider's token counts (None when it gave none)."""
+    usage: Optional[Dict[str, int]] = None
+
+
+def _with_usage(text: str, usage_: Optional[Dict[str, int]]) -> str:
+    out = _Text(text)
+    out.usage = usage_
+    return out
 
 
 @dataclass(frozen=True)
@@ -53,6 +67,7 @@ class Completion:
     text: str
     model: str
     seconds: float
+    tool_calls: tuple = ()                 # openai_compatible only: the model's tool calls, passed through untouched
 
 
 def default_model() -> str:
@@ -74,8 +89,12 @@ def _split(model: str) -> tuple[str, str]:
 def _post(url: str, headers: Dict[str, str], body: Dict[str, Any]) -> Dict[str, Any]:
     try:
         r = httpx.post(url, headers=headers, json=body, timeout=_call_timeout.get() or TIMEOUT_S)
+    except httpx.TimeoutException as e:
+        raise Retryable(f"request to {url.split('/')[2]} timed out") from e
     except httpx.HTTPError as e:
         raise LLMError(f"request to {url.split('/')[2]} failed: {type(e).__name__}") from e
+    if r.status_code == 429 or r.status_code >= 500:
+        raise Retryable(f"{url.split('/')[2]} returned {r.status_code}: {r.text[:200]}")
     if r.status_code >= 400:
         raise LLMError(f"{url.split('/')[2]} returned {r.status_code}: {r.text[:200]}")
     try:
@@ -87,21 +106,26 @@ def _post(url: str, headers: Dict[str, str], body: Dict[str, Any]) -> Dict[str, 
     return data
 
 
-def _anthropic(name: str, prompt: str, system: Optional[str], max_tokens: int, temperature: float) -> str:
-    key = os.environ.get("ANTHROPIC_API_KEY")
+def _anthropic(name: str, prompt: str, system: Optional[str], max_tokens: int, temperature: float, *,
+               key: Optional[str] = None, base_url: str = "") -> str:
+    key = key or os.environ.get("ANTHROPIC_API_KEY")
     if not key:
         raise LLMError("ANTHROPIC_API_KEY is not set")
     body: Dict[str, Any] = {"model": name, "max_tokens": max_tokens, "temperature": temperature,
                             "messages": [{"role": "user", "content": prompt}]}
     if system:
         body["system"] = system
-    data = _post("https://api.anthropic.com/v1/messages",
+    data = _post(f"{base_url or 'https://api.anthropic.com'}/v1/messages",
                  {"x-api-key": key, "anthropic-version": "2023-06-01"}, body)
-    return "".join(b.get("text", "") for b in data.get("content", []))
+    u = data.get("usage") or {}
+    return _with_usage("".join(b.get("text", "") for b in data.get("content", [])),
+                       {"tokens_in": u["input_tokens"], "tokens_out": u["output_tokens"]}
+                       if isinstance(u.get("input_tokens"), int) and isinstance(u.get("output_tokens"), int) else None)
 
 
-def _bedrock(name: str, prompt: str, system: Optional[str], max_tokens: int, temperature: float) -> str:
-    token = os.environ.get("AWS_BEARER_TOKEN_BEDROCK")
+def _bedrock(name: str, prompt: str, system: Optional[str], max_tokens: int, temperature: float, *,
+             key: Optional[str] = None, base_url: str = "") -> str:
+    token = key or os.environ.get("AWS_BEARER_TOKEN_BEDROCK")
     if not token:
         raise LLMError("AWS_BEARER_TOKEN_BEDROCK is not set")
     region = os.environ.get("AWS_REGION", "us-east-1")
@@ -109,58 +133,157 @@ def _bedrock(name: str, prompt: str, system: Optional[str], max_tokens: int, tem
                             "inferenceConfig": {"maxTokens": max_tokens, "temperature": temperature}}
     if system:
         body["system"] = [{"text": system}]
-    data = _post(f"https://bedrock-runtime.{region}.amazonaws.com/model/{name}/converse",
+    data = _post(f"{base_url or f'https://bedrock-runtime.{region}.amazonaws.com'}/model/{name}/converse",
                  {"Authorization": f"Bearer {token}"}, body)
-    return "".join(b.get("text", "") for b in data["output"]["message"]["content"])
+    u = data.get("usage") or {}
+    return _with_usage("".join(b.get("text", "") for b in data["output"]["message"]["content"]),
+                       {"tokens_in": u["inputTokens"], "tokens_out": u["outputTokens"]}
+                       if isinstance(u.get("inputTokens"), int) and isinstance(u.get("outputTokens"), int) else None)
 
 
-def _ollama(name: str, prompt: str, system: Optional[str], max_tokens: int, temperature: float) -> str:
+def _ollama(name: str, prompt: str, system: Optional[str], max_tokens: int, temperature: float, *,
+            key: Optional[str] = None, base_url: str = "") -> str:
     body: Dict[str, Any] = {"model": name, "prompt": prompt, "stream": False,
                             "options": {"num_predict": max_tokens, "temperature": temperature}}
     if system:
         body["system"] = system
-    return _post(f"{OLLAMA_URL}/api/generate", {}, body).get("response", "")
+    data = _post(f"{base_url or OLLAMA_URL}/api/generate", {}, body)
+    return _with_usage(data.get("response", ""),
+                       {"tokens_in": data["prompt_eval_count"], "tokens_out": data["eval_count"]}
+                       if isinstance(data.get("prompt_eval_count"), int) and isinstance(data.get("eval_count"), int) else None)
 
 
 _PROVIDERS: Dict[str, Callable[..., str]] = {"anthropic": _anthropic, "bedrock": _bedrock, "ollama": _ollama}
 
 
+def _timeout() -> float:
+    return _call_timeout.get() or TIMEOUT_S
+
+
+def _chat(provider: str, name: str, messages: List[Dict[str, Any]], max_tokens: int, temperature: float,
+          tools: Optional[List[Dict[str, Any]]] = None, tool_choice: Any = None, stream: bool = False,
+          on_delta: Optional[Callable[[str], None]] = None) -> Dict[str, Any]:
+    """Send one chat to a provider. ONLY `_invoke` calls this, after the policy and budget gates."""
+    p = providers.get(provider)
+    if p is not None and p.kind == "openai_compatible":
+        return openai_compat.chat(p.base_url, providers.credentials(p.id), name, messages, allow_local=p.allow_local,
+                                  timeout=_timeout(), max_tokens=max_tokens, temperature=temperature, tools=tools,
+                                  tool_choice=tool_choice, stream=stream, on_delta=on_delta)
+    if tools:
+        raise LLMError(f"tool calls need an openai_compatible provider, '{provider}' is not one")
+    system = next((m["content"] for m in messages if m["role"] == "system"), None)
+    prompt = "\n\n".join(str(m["content"]) for m in messages if m["role"] != "system")
+    kind = p.kind if p is not None else provider
+    if kind not in _PROVIDERS:
+        raise LLMError(f"unknown provider '{provider}'")
+    extra = {"key": providers.credentials(p.id), "base_url": p.base_url} if p is not None else {}
+    try:
+        text = _PROVIDERS[kind](name, prompt, system, max_tokens, temperature, **extra)
+    except (KeyError, IndexError, TypeError, AttributeError, ValueError) as e:     # reply shaped unlike the provider's docs
+        raise LLMError(f"{provider} reply could not be read: {type(e).__name__}") from e
+    if not isinstance(text, str):
+        raise LLMError(f"{provider} reply held no text")
+    return {"text": str(text), "tool_calls": [], "finish_reason": None, "usage": getattr(text, "usage", None)}
+
+
 class LLM:
     """Real gateway. Stateless; safe to share between threads."""
 
-    def complete(self, prompt: str, *, system: Optional[str] = None, model: Optional[str] = None,
-                 max_tokens: int = 1024, temperature: float = 0.2, purpose: str = "") -> Completion:
-        model = model or default_model()
+    def _invoke(self, model: str, purpose: str, sensitivity: Optional[str], prompt_chars: int,
+                send: Callable[[str, str], Dict[str, Any]]) -> tuple:
+        """THE path to any model: policy, then budget, then the call, then metering and trace.
+        `send(provider, name)` runs only after both gates passed. Returns (result, level, seconds)."""
         provider, name = _split(model)
-        if provider not in _PROVIDERS:
-            raise LLMError(f"unknown provider '{provider}'")
+        try:
+            level = policy.authorize(provider, sensitivity)
+            usage.check(model)
+        except (PolicyRefused, BudgetExceeded) as e:
+            trace.append("llm", "complete.refused", {"model": model, "purpose": purpose,
+                                                      "sensitivity": policy.effective(sensitivity), "error": str(e)})
+            raise
         start = time.time()
         try:
-            try:
-                text = _PROVIDERS[provider](name, prompt, system, max_tokens, temperature)
-            except (KeyError, IndexError, TypeError, AttributeError, ValueError) as e:     # reply shaped unlike the provider's docs
-                raise LLMError(f"{provider} reply could not be read: {type(e).__name__}") from e
-            if not isinstance(text, str):
-                raise LLMError(f"{provider} reply held no text")
+            result = send(provider, name)
         except LLMError as e:
-            trace.append("llm", "complete.failed", {"model": model, "purpose": purpose, "error": str(e)})
+            seconds = time.time() - start
+            trace.append("llm", "complete.failed", {"model": model, "purpose": purpose, "sensitivity": level,
+                                                     "error": str(e)})
+            usage.record(model=model, purpose=purpose, sensitivity=level, status="error", seconds=seconds,
+                         prompt_chars=prompt_chars, error=type(e).__name__)
             raise
         seconds = round(time.time() - start, 2)
+        text = result["text"]
+        usage.record(model=model, purpose=purpose, sensitivity=level, status="ok", seconds=seconds,
+                     prompt_chars=prompt_chars, output_chars=len(text), usage=result.get("usage"))
+        return result, level, seconds
+
+    def chat(self, messages: List[Dict[str, Any]], *, model: Optional[str] = None, max_tokens: int = 1024,
+             temperature: float = 0.2, purpose: str = "", sensitivity: Optional[str] = None,
+             tools: Optional[List[Dict[str, Any]]] = None, tool_choice: Any = None, stream: bool = False,
+             on_delta: Optional[Callable[[str], None]] = None) -> Completion:
+        """Chat with optional tool definitions (openai_compatible providers); tool calls come back untouched."""
+        model = model or default_model()
+        chars = sum(len(str(m.get("content", ""))) for m in messages)
+        result, level, seconds = self._invoke(
+            model, purpose, sensitivity, chars,
+            lambda prov, name: _chat(prov, name, messages, max_tokens, temperature, tools, tool_choice, stream, on_delta))
         trace.append("llm", "complete", {
-            "model": model, "purpose": purpose, "prompt_chars": len(prompt),
-            "output_chars": len(text), "seconds": seconds,
+            "model": model, "provider": model.split(":")[0], "purpose": purpose, "sensitivity": level,
+            "prompt_chars": chars, "output_chars": len(result["text"]), "seconds": seconds,
+            "tool_calls": len(result["tool_calls"]),
+            "prompt_sha256": hashlib.sha256(json.dumps(messages, sort_keys=True, default=str).encode()).hexdigest()})
+        return Completion(text=result["text"].strip(), model=model, seconds=seconds, tool_calls=tuple(result["tool_calls"]))
+
+    def complete(self, prompt: str, *, system: Optional[str] = None, model: Optional[str] = None,
+                 max_tokens: int = 1024, temperature: float = 0.2, purpose: str = "",
+                 sensitivity: Optional[str] = None) -> Completion:
+        """`sensitivity` is public, internal or restricted; leave it out and the call is restricted (see policy)."""
+        messages = ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": prompt}]
+        model = model or default_model()
+        result, level, seconds = self._invoke(
+            model, purpose, sensitivity, len(prompt) + len(system or ""),
+            lambda prov, name: _chat(prov, name, messages, max_tokens, temperature))
+        text = result["text"]
+        trace.append("llm", "complete", {
+            "model": model, "provider": model.split(":")[0], "purpose": purpose, "sensitivity": level,
+            "prompt_chars": len(prompt), "output_chars": len(text), "seconds": seconds,
             "prompt_sha256": hashlib.sha256(prompt.encode()).hexdigest(),
         })
         return Completion(text=text.strip(), model=model, seconds=seconds)
 
-    def embed(self, texts: Sequence[str]) -> List[List[float]]:
-        """Embeddings from Ollama's nomic-embed-text; a deterministic local fallback if it is down."""
+    def embed(self, texts: Sequence[str], *, sensitivity: Optional[str] = None) -> List[List[float]]:
+        """Embeddings: from the openai_compatible provider named in VELARIS_EMBED_MODEL ("id:model") when it is
+        a registered one, else Ollama's nomic-embed-text; a deterministic local fallback if that is down.
+        A provider that may not see this level is not used: the offline fallback sends nothing anywhere."""
         model = os.environ.get("VELARIS_EMBED_MODEL", "nomic-embed-text")
+        provider, _, name = model.partition(":")
+        p = providers.get(provider) if name else None
         try:
+            if p is not None and p.kind == "openai_compatible":
+                level = policy.authorize(provider, sensitivity)
+                usage.check(model)
+                start = time.time()
+                try:
+                    out = openai_compat.embeddings(p.base_url, providers.credentials(p.id), name, list(texts),
+                                                   allow_local=p.allow_local, timeout=_timeout())
+                except LLMError as e:
+                    usage.record(model=model, purpose="embed", sensitivity=level, status="error",
+                                 seconds=time.time() - start, prompt_chars=sum(map(len, texts)), error=type(e).__name__)
+                    raise
+                usage.record(model=model, purpose="embed", sensitivity=level, status="ok", seconds=time.time() - start,
+                             prompt_chars=sum(map(len, texts)), usage=out["usage"])
+                trace.append("llm", "embed", {"model": model, "count": len(texts), "sensitivity": level})
+                return out["vectors"]
+            level = policy.authorize("ollama", sensitivity)
+            usage.check(f"ollama:{model}")
             data = _post(f"{OLLAMA_URL}/api/embed", {}, {"model": model, "input": list(texts)})
             vectors = data["embeddings"]
-            trace.append("llm", "embed", {"model": model, "count": len(texts)})
+            usage.record(model=f"ollama:{model}", purpose="embed", sensitivity=level, status="ok", seconds=0.0,
+                         prompt_chars=sum(map(len, texts)))
+            trace.append("llm", "embed", {"model": model, "count": len(texts), "sensitivity": level})
             return vectors
+        except (BudgetExceeded, PolicyRefused):
+            raise
         except (LLMError, KeyError, TypeError) as e:
             logger.warning("embedding model unavailable (%s); using the offline fallback", e)
             trace.append("llm", "embed.fallback", {"count": len(texts)})
@@ -218,9 +341,11 @@ class FakeLLM(LLM):
         self.script, self.name, self.calls = script, name, []  # type: ignore[var-annotated]
 
     def complete(self, prompt: str, *, system: Optional[str] = None, model: Optional[str] = None,
-                 max_tokens: int = 1024, temperature: float = 0.2, purpose: str = "") -> Completion:
+                 max_tokens: int = 1024, temperature: float = 0.2, purpose: str = "",
+                 sensitivity: Optional[str] = None) -> Completion:
         model = model or self.name
-        self.calls.append({"prompt": prompt, "system": system, "model": model, "purpose": purpose})
+        self.calls.append({"prompt": prompt, "system": system, "model": model, "purpose": purpose,
+                           "sensitivity": sensitivity})
         if callable(self.script):
             text = self.script(prompt, model)
         else:
@@ -231,5 +356,5 @@ class FakeLLM(LLM):
                                           "prompt_chars": len(prompt), "output_chars": len(text)})
         return Completion(text=text, model=model, seconds=0.0)
 
-    def embed(self, texts: Sequence[str]) -> List[List[float]]:
+    def embed(self, texts: Sequence[str], *, sensitivity: Optional[str] = None) -> List[List[float]]:
         return [hashed_embedding(t) for t in texts]
