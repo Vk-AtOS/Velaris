@@ -12,10 +12,6 @@ logger = logging.getLogger("ENGINE")
 
 
 class VelarisEngine:
-    def __post_init__(self):
-        self.lifecycle = LifecycleManager()
-        self.clb = LoadBalancer()
-
     """
     Central execution engine for all Velaris operations.
     Loads agents through the REGISTRY and executes their methods dynamically.
@@ -28,6 +24,9 @@ class VelarisEngine:
     def __init__(self, config: Dict[str, Any] = None):
         self.config = config or {}
         self.registry = AgentRegistry()
+        # Were in a __post_init__ that only dataclasses call, so they never existed.
+        self.lifecycle = LifecycleManager()
+        self.clb = LoadBalancer()
         logger.debug("Engine initialized with %s agents", len(self.registry.list_agents()))
 
     #################################################
@@ -51,10 +50,11 @@ class VelarisEngine:
 
         inst = self.registry.create(agent)
 
-        if not hasattr(inst, method):
-            raise AttributeError(f"Agent '{agent}' has no method '{method}'")
-
-        fn = getattr(inst, method)
+        # Only public methods: "_private" and "__dunder__" names (and plain attributes) are never callable from here.
+        # WHO may call WHAT is decided by the layer above (PRIME grants, the API allowlist); this is the floor.
+        fn = getattr(inst, method, None) if isinstance(method, str) and method and not method.startswith("_") else None
+        if not callable(fn):
+            raise AttributeError(f"Agent '{agent}' has no public method '{method}'")
         if params:
             result = fn(**params)
         else:

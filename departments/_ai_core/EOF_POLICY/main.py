@@ -9,6 +9,7 @@ velaris.agentkit.aicore_b_rules) or the name of a built-in rule below.
 Deterministic; fails closed: an unknown rule name, a malformed rule, an empty
 policy or a missing subject is never "compliant".
 """
+import re
 from typing import Any, Dict, List, Optional
 
 from velaris.agentkit import aicore_b_rules as rules
@@ -31,11 +32,23 @@ BUILT_IN: Dict[str, List[Dict[str, Any]]] = {
          "message": "the step names no target"},
     ],
     "no-destructive-task": [
+        # `_destructive` is computed by this agent from `task` (see destructive()); a caller's own value is overwritten.
         {"id": "no-destructive-task", "severity": "critical",
-         "require": [{"field": "task", "op": "not_in", "value": ["delete", "drop", "purge", "terminate", "wipe"]}],
+         "require": [{"field": "_destructive", "op": "==", "value": False}],
          "message": "destructive tasks are not allowed under this policy"},
     ],
 }
+
+# Verb stems: "Delete", "delete_all", "DROP table", "terminateInstance", "wiping" and "removal" all match.
+_DESTRUCTIVE = ("delet", "drop", "purg", "terminat", "wip", "destroy", "remov", "erase", "truncat", "kill", "format", "shred")
+
+
+def destructive(task: Any) -> Optional[bool]:
+    """True when any word of `task` starts with a destructive verb; None when `task` is not text (undecidable)."""
+    if not isinstance(task, str) or not task.strip():
+        return None
+    words = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", task).lower()          # split camelCase before lower-casing
+    return any(w.startswith(_DESTRUCTIVE) for w in re.split(r"[^a-z0-9]+", words) if w)
 
 
 class EOF_POLICYAgent:
@@ -61,6 +74,7 @@ class EOF_POLICYAgent:
                 expanded.extend(BUILT_IN.get(rule, []))
             else:
                 expanded.append(rule)
+        subject = {**subject, "_destructive": destructive(subject.get("task"))}   # None never equals False: fails closed
         outcome = rules.evaluate(expanded, subject)
         result["errors"] += outcome["errors"]
         result["violations"] = outcome["violations"]
