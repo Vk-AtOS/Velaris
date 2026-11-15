@@ -16,7 +16,7 @@
 | [ADAPTIVE_ACTION_ENGINE](_ai_core/ADAPTIVE_ACTION_ENGINE.md) | rule_based | Adaptive action engine: tries the action that has worked best for this kind of situation. |
 | [ADVANCED_SEARCH_ENGINE](_ai_core/ADVANCED_SEARCH_ENGINE.md) | real | Advanced search engine: keyword search over in-memory datasets, plus live web search and page reading. |
 | [AEIL](_ai_core/AEIL.md) | not_implemented | Alias agent AEIL: fronts ECON_INTEL_CORE, MARKET_GAP_ANALYZER, ECONOVA. See velaris.agentkit.alias. |
-| [AGENT_EVOLUTION](_ai_core/AGENT_EVOLUTION.md) | rule_based | Agent evolution: records per-agent metrics and proposes a tuning action from a trivial count heuristic. |
+| [AGENT_EVOLUTION](_ai_core/AGENT_EVOLUTION.md) | rule_based | Agent evolution: records per-agent metrics and proposes a tuning action when a cost metric is getting worse. |
 | [AGENT_LIFECYCLE](_ai_core/AGENT_LIFECYCLE.md) | rule_based | Agent lifecycle: message-style front for AGENT_LIFECYCLE_MANAGER. |
 | [AGENT_LIFECYCLE_MANAGER](_ai_core/AGENT_LIFECYCLE_MANAGER.md) | rule_based | Agent lifecycle manager: the state machine for every agent's operational state. |
 | [AIIE_KERNEL](_ai_core/AIIE_KERNEL.md) | real | AIIE kernel: runs the initiative pipeline stage by stage and stops at the first stage that does not pass. |
@@ -28,7 +28,7 @@
 | [ASEL_PLANNER](_ai_core/ASEL_PLANNER.md) | rule_based | ASEL planner: schedules a set of dependent tasks (critical path method). |
 | [ASEL_ROUTER](_ai_core/ASEL_ROUTER.md) | rule_based | ASEL router: decides which handler carries out each plan step. |
 | [ASEL_STRATEGIST](_ai_core/ASEL_STRATEGIST.md) | rule_based | ASEL strategist: picks one option from several by weighted multi-criteria scoring. |
-| [AUTONOMOUS_PATCH_ENGINE](_ai_core/AUTONOMOUS_PATCH_ENGINE.md) | real | Autonomous patch engine: applies a JSON patch (a dict of field changes) to a dict and records it in a history. |
+| [AUTONOMOUS_PATCH_ENGINE](_ai_core/AUTONOMOUS_PATCH_ENGINE.md) | real | Autonomous patch engine: overlays a JSON patch (a dict of field changes) on a dict and keeps an audit history. |
 | [AUTONOMOUS_RESEARCH_ENGINE](_ai_core/AUTONOMOUS_RESEARCH_ENGINE.md) | real | Autonomous research engine: ranks documents in registered in-memory sources by keyword match, and delegates live-web research to velaris.intel.research. |
 | [AUTO_LEARN_CORE](_ai_core/AUTO_LEARN_CORE.md) | rule_based | Auto-learn core: a ledger of which option worked, per context. |
 | [BEHAVIOR_SHAPING_NETWORK](_ai_core/BEHAVIOR_SHAPING_NETWORK.md) | rule_based | Behaviour shaping: forces a proposed set of settings inside declared limits. |
