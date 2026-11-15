@@ -167,3 +167,39 @@ def test_the_browser_pow_solver_finds_what_the_server_accepts(client, world):
           f"const salt={json.dumps(ch['salt'])},bits={ch['bits']};for(let n=0;;n++){{if(zeroBits(sha256(e.encode(salt+':'+n)))>=bits){{console.log(n);break}}}}")
     n = int(subprocess.run(["node", "-e", js], capture_output=True, text=True, timeout=60, check=True).stdout)
     assert hf.check_solution({**ch, "n": n}, fid) is None
+
+
+# ---- KAN-127: sitemap, slugs that cannot clash --------------------------------------------------------------------------------
+def test_sitemap_lists_live_jobs_only(client, world):
+    assert "<loc>" not in client.get("/sitemap.xml").text
+    post, pid, p = live_posting(world)
+    r = client.get("/sitemap.xml")
+    assert r.status_code == 200 and r.headers["content-type"].startswith("application/xml") and "set-cookie" not in r.headers
+    assert f"<loc>{p['job_url']}</loc>" in r.text and "<lastmod>" in r.text and p["job_url"].startswith("https://")
+    with as_(world["c"]["rec"]):
+        post.take_down_posting(posting_id=pid)
+    assert p["job_url"] not in client.get("/sitemap.xml").text
+
+
+def test_a_slug_carried_by_two_live_postings_is_served_for_neither(client, world):
+    """The page used to show the first match of any organisation under the other's address."""
+    post, pid, p = live_posting(world)
+    assert client.get(f"/jobs/{p['slug']}").status_code == 200
+
+    def clone(d):
+        other = {**d["postings"][pid], "id": "post-other", "org": "other-org", "requisition_id": "req-other"}
+        d["postings"]["post-other"] = other
+    jp._st().update(clone)
+    assert client.get(f"/jobs/{p['slug']}").status_code == 404 and client.get(f"/jobs/{p['slug']}/apply", follow_redirects=False).status_code == 404
+    assert p["job_url"] not in client.get("/sitemap.xml").text
+
+
+def test_new_slugs_carry_the_whole_requisition_id():
+    from velaris.agentkit import hiring_posting as hp
+    assert hp.slugify("Backend Engineer", "req-0123456789ab") == "backend-engineer-0123456789ab"
+
+
+def test_no_native_confirm_prompts_remain():
+    src = (STATIC / "public.js").read_text()
+    assert "window.confirm" not in src and "confirm(" not in src.replace("confirmDialog(", "")
+    assert src.count("await confirmDialog(") == 4                      # withdraw, cancel booking, decline to sign, leave interview
