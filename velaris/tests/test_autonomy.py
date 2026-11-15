@@ -146,3 +146,10 @@ def test_unknown_tool_needs_approval_and_aae_policy_agrees_with_the_table():
     for cls, mode in au.table()["modes"].items():
         assert aae.decide({"type": cls})["decision"] == want[mode], cls
     assert aae.decide({"type": "something_new"})["decision"] == "deny"
+
+
+def test_legal_filing_is_recognised_by_its_words_not_by_any_file():
+    assert au.classify(spec("X.file_gst_return")) == "legal_filing"
+    assert au.classify(spec("X.efile_tds")) == "legal_filing"
+    assert au.classify(spec("X.file_note")) == "unclassified"
+    assert au.classify(spec("X.update_profile")) == "unclassified"

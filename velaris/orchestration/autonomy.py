@@ -56,7 +56,7 @@ _WORDS = {
     "irreversible": ("delete", "erase", "purge", "void", "finalis", "finaliz", "seal", "discard"),
     "access_change": ("grant", "revoke", "role", "permission", "token", "availability"),
     "deployment": ("deploy", "rollout", "release"),
-    "legal_filing": ("file", "filing"),
+    "legal_filing": ("filing", "efil"),
     "personal_data_export": ("export",),
 }
 _MONEY_WORDS = ("pay", "transfer", "refund", "disburse", "invoice")     # matched as the start of a word of the method name
@@ -92,6 +92,8 @@ def classify(spec: tools.ToolSpec, args: Optional[Dict[str, Any]] = None, *, lim
     for cls, words in _WORDS.items():
         if has(words):
             found.append(cls)
+    if "file" in tokens and has(("return", "gst", "tds", "tax")) and "legal_filing" not in found:
+        found.append("legal_filing")                                              # file_gst_return, but not file_note
     if spec.side_effects == "none":
         found.append("personal_data_read" if spec.sensitivity == "restricted" else "read")
         found = [c for c in found if c != "irreversible"]       # a read named "..._seal_..." deletes nothing
