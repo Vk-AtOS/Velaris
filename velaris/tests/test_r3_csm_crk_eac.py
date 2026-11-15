@@ -49,8 +49,7 @@ def test_csm_owner_is_checked_before_the_goal_is_stored_and_history_survives_res
 
 
 def test_csm_linker_is_bounded_and_path_still_works(monkeypatch):
-    import velaris.agents.CSM_LINKER.main as m
-    monkeypatch.setattr(m, "MAX_LINKS", 2)
+    monkeypatch.setitem(CSMLinkerAgent.link.__globals__, "MAX_LINKS", 2)     # the module the class really runs in
     l = CSMLinkerAgent()
     assert l.link("a", "b")["linked"] and l.link("b", "c")["linked"]
     assert l.link("c", "d")["status"] == "full"

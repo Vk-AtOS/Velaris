@@ -17,8 +17,7 @@ def _data(tmp_path, monkeypatch):
 
 
 def test_failpath_validates_bounds_history_and_copies_context(monkeypatch):
-    import velaris.agents.FAILPATH_CONTROL_ENGINE.main as m
-    monkeypatch.setattr(m, "MAX_HISTORY", 3)
+    monkeypatch.setitem(FailpathControlEngine.route_failure.__globals__, "MAX_HISTORY", 3)
     f = FailpathControlEngine()
     assert f.register_handler("E1", "safe_stop") and not f.register_handler("E1", "x")
     ctx = {"a": 1}
