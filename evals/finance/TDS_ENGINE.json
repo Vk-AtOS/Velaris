@@ -1,0 +1,58 @@
+{
+  "schema": 1,
+  "agent": "TDS_ENGINE",
+  "cases": [
+    {
+      "id": "select-salary_tds",
+      "input": "Use the salary_tds operation of TDS_ENGINE with {\"employee_id\": \"sample\", \"salary\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "salary_tds",
+            "args": {
+              "employee_id": "sample",
+              "salary": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-vendor_tds",
+      "input": "Use the vendor_tds operation of TDS_ENGINE with {\"nature\": \"sample\", \"payee_type\": \"sample\", \"amount\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "vendor_tds",
+            "args": {
+              "nature": "sample",
+              "payee_type": "sample",
+              "amount": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

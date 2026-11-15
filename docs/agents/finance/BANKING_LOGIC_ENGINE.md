@@ -38,4 +38,4 @@ and belongs in a dated statutory registry. Nothing is stored; the caller owns th
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_dept_finance_stubs.py`
+- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_dept_finance_stubs.py`

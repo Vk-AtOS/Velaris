@@ -1,0 +1,71 @@
+{
+  "schema": 1,
+  "agent": "INSURANCE_POLICY_ENGINE",
+  "cases": [
+    {
+      "id": "select-compute_premium",
+      "input": "Use the compute_premium operation of INSURANCE_POLICY_ENGINE with {\"p\": {\"policy_id\": \"sample\", \"applicant_age\": 1, \"applicant_income\": 1.0, \"sum_assured\": 1.0, \"policy_type\": \"sample\", \"tenure_years\": 1, \"health_flags\": {}}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "compute_premium",
+            "args": {
+              "p": {
+                "policy_id": "sample",
+                "applicant_age": 1,
+                "applicant_income": 1.0,
+                "sum_assured": 1.0,
+                "policy_type": "sample",
+                "tenure_years": 1,
+                "health_flags": {}
+              }
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-validate",
+      "input": "Use the validate operation of INSURANCE_POLICY_ENGINE with {\"p\": {\"policy_id\": \"sample\", \"applicant_age\": 1, \"applicant_income\": 1.0, \"sum_assured\": 1.0, \"policy_type\": \"sample\", \"tenure_years\": 1, \"health_flags\": {}}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "validate",
+            "args": {
+              "p": {
+                "policy_id": "sample",
+                "applicant_age": 1,
+                "applicant_income": 1.0,
+                "sum_assured": 1.0,
+                "policy_type": "sample",
+                "tenure_years": 1,
+                "health_flags": {}
+              }
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "schema": 1,
+  "agent": "METRIX",
+  "cases": [
+    {
+      "id": "select-compute_kpi",
+      "input": "Use the compute_kpi operation of METRIX with {\"metrics\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "compute_kpi",
+            "args": {
+              "metrics": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-normalize_metrics",
+      "input": "Use the normalize_metrics operation of METRIX with {\"metrics\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "normalize_metrics",
+            "args": {
+              "metrics": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-performance_score",
+      "input": "Use the performance_score operation of METRIX with {\"metrics\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "performance_score",
+            "args": {
+              "metrics": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

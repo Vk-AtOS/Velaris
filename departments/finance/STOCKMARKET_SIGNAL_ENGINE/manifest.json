@@ -1,0 +1,25 @@
+{
+  "name": "STOCKMARKET_SIGNAL_ENGINE",
+  "version": "0.1.0",
+  "description": "STOCKMARKET_SIGNAL_ENGINE: standard technical indicators on a supplied price series.",
+  "entrypoint": "main.py:StockMarketSignalEngine",
+  "harness": {
+    "schema": 1,
+    "purpose": "STOCKMARKET_SIGNAL_ENGINE: standard technical indicators on a supplied price series.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/finance/STOCKMARKET_SIGNAL_ENGINE.json",
+    "wave": "KAN-38",
+    "status": "deterministic_tool",
+    "tools": {
+      "compute_signal": {
+        "kind": "read"
+      },
+      "validate": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

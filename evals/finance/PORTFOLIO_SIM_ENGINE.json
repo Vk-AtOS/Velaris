@@ -1,0 +1,67 @@
+{
+  "schema": 1,
+  "agent": "PORTFOLIO_SIM_ENGINE",
+  "cases": [
+    {
+      "id": "select-simulate",
+      "input": "Use the simulate operation of PORTFOLIO_SIM_ENGINE with {\"p\": {\"portfolio_id\": \"sample\", \"assets\": {}, \"expected_returns\": {}, \"volatilities\": {}, \"correlations\": {}}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "simulate",
+            "args": {
+              "p": {
+                "portfolio_id": "sample",
+                "assets": {},
+                "expected_returns": {},
+                "volatilities": {},
+                "correlations": {}
+              }
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-validate",
+      "input": "Use the validate operation of PORTFOLIO_SIM_ENGINE with {\"p\": {\"portfolio_id\": \"sample\", \"assets\": {}, \"expected_returns\": {}, \"volatilities\": {}, \"correlations\": {}}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "validate",
+            "args": {
+              "p": {
+                "portfolio_id": "sample",
+                "assets": {},
+                "expected_returns": {},
+                "volatilities": {},
+                "correlations": {}
+              }
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

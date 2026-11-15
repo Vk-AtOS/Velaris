@@ -5,5 +5,27 @@
   "description": "Public methods: simple_forecast, trend_projection, rolling_projection (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:ForecastaAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Forecasta: simple numeric forecasts (fixed-rate growth, average slope, rolling mean).",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/finance/FORECASTA.json",
+    "wave": "KAN-38",
+    "status": "deterministic_tool",
+    "tools": {
+      "rolling_projection": {
+        "kind": "read"
+      },
+      "simple_forecast": {
+        "kind": "read"
+      },
+      "trend_projection": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

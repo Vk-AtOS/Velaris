@@ -1,0 +1,127 @@
+{
+  "schema": 1,
+  "agent": "BANKING_LOGIC_ENGINE",
+  "cases": [
+    {
+      "id": "select-apply_interest",
+      "input": "Use the apply_interest operation of BANKING_LOGIC_ENGINE with {\"a\": {\"account_id\": \"sample\", \"account_type\": \"sample\", \"balance\": 1.0, \"overdraft_limit\": 1.0, \"interest_rate\": 1.0, \"status\": \"sample\"}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "apply_interest",
+            "args": {
+              "a": {
+                "account_id": "sample",
+                "account_type": "sample",
+                "balance": 1.0,
+                "overdraft_limit": 1.0,
+                "interest_rate": 1.0,
+                "status": "sample"
+              }
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-process_transaction",
+      "input": "Use the process_transaction operation of BANKING_LOGIC_ENGINE with {\"a\": {\"account_id\": \"sample\", \"account_type\": \"sample\", \"balance\": 1.0, \"overdraft_limit\": 1.0, \"interest_rate\": 1.0, \"status\": \"sample\"}, \"amount\": 1.0}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "process_transaction",
+            "args": {
+              "a": {
+                "account_id": "sample",
+                "account_type": "sample",
+                "balance": 1.0,
+                "overdraft_limit": 1.0,
+                "interest_rate": 1.0,
+                "status": "sample"
+              },
+              "amount": 1.0
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-validate",
+      "input": "Use the validate operation of BANKING_LOGIC_ENGINE with {\"a\": {\"account_id\": \"sample\", \"account_type\": \"sample\", \"balance\": 1.0, \"overdraft_limit\": 1.0, \"interest_rate\": 1.0, \"status\": \"sample\"}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "validate",
+            "args": {
+              "a": {
+                "account_id": "sample",
+                "account_type": "sample",
+                "balance": 1.0,
+                "overdraft_limit": 1.0,
+                "interest_rate": 1.0,
+                "status": "sample"
+              }
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "hand-interest-from-the-engine",
+      "input": "Interest for 30 days on savings account A1 holding 100000 at 4 percent (0.04)?",
+      "execute": true,
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "apply_interest",
+            "args": {
+              "a": {
+                "account_id": "A1",
+                "account_type": "savings",
+                "balance": 100000,
+                "overdraft_limit": 0,
+                "interest_rate": 0.04,
+                "status": "active"
+              },
+              "days": 30
+            },
+            "verdict": "ran"
+          }
+        ],
+        "answer_contains": [
+          "328.77"
+        ],
+        "grounded_numbers": true
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

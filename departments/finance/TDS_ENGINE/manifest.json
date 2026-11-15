@@ -5,5 +5,30 @@
   "description": "TDS under the Income-tax Act, 2025: salary (s.392, new/old regime, rebate, surcharge, cess, monthly deduction, Form 130 data) and payments to resident contractors and professionals (s.393(1) Sl. 6). Dated registry with primary sources.",
   "entrypoint": "main.py:TdsEngine",
   "hitl_required": true,
-  "tags": ["tax", "tds", "income-tax-act-2025", "salary", "finance"]
+  "tags": [
+    "tax",
+    "tds",
+    "income-tax-act-2025",
+    "salary",
+    "finance"
+  ],
+  "harness": {
+    "schema": 1,
+    "purpose": "TDS_ENGINE: tax deducted at source under the Income-tax Act, 2025 (tax year 2026-27 onward).",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/finance/TDS_ENGINE.json",
+    "wave": "KAN-38",
+    "status": "deterministic_tool",
+    "tools": {
+      "salary_tds": {
+        "kind": "read"
+      },
+      "vendor_tds": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

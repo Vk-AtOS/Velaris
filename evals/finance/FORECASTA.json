@@ -1,0 +1,73 @@
+{
+  "schema": 1,
+  "agent": "FORECASTA",
+  "cases": [
+    {
+      "id": "select-rolling_projection",
+      "input": "Use the rolling_projection operation of FORECASTA with {\"values\": []}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "rolling_projection",
+            "args": {
+              "values": []
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-simple_forecast",
+      "input": "Use the simple_forecast operation of FORECASTA with {\"initial\": 1.0}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "simple_forecast",
+            "args": {
+              "initial": 1.0
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-trend_projection",
+      "input": "Use the trend_projection operation of FORECASTA with {\"trend\": []}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "trend_projection",
+            "args": {
+              "trend": []
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

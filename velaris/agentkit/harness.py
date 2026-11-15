@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from velaris.agentkit.harness_spec import load_json, manifest_path
-from velaris.agentkit.harness_tools import ToolSpec, specs_for, type_ok
+from velaris.agentkit.harness_tools import ToolSpec, build_object, dataclass_params, specs_for, type_ok
 from velaris.api.allowlist import READ, prepare, rule_for
 from velaris.core.access import AccessDenied, Caller
 from velaris.intel import guard, router, trace
@@ -85,7 +85,8 @@ def _digest(args: Dict[str, Any]) -> str:
 def render_tools(specs: List[ToolSpec]) -> str:
     lines = []
     for s in specs:
-        ps = ", ".join(f"{k}: {v['type']}{'' if v['required'] else ' = ' + json.dumps(v.get('default'))}" for k, v in s.params.items())
+        ps = ", ".join(f"{k}: {v['type']}{'{' + ', '.join(f'{n}: {t}' for n, t in v['fields'].items()) + '}' if 'fields' in v else ''}"
+                       f"{'' if v['required'] else ' = ' + json.dumps(v.get('default'))}" for k, v in s.params.items())
         lines.append(f"- {s.method}({ps}) [{'read' if s.side_effects == 'none' else 'act'}]: {s.doc or s.method}")
     return "\n".join(lines)
 
@@ -137,6 +138,12 @@ class Harness:
         wrong = sorted(k for k, v in args.items() if k in spec.params and not type_ok(spec.params[k]["type"], v))
         if unknown or missing or wrong:
             return None, None, f"{name} takes {sorted(spec.params)}; unknown {unknown}, missing {missing}, wrong type {wrong}"
+        try:
+            for param, cls in dataclass_params(getattr(self.engine.agent_class(self.agent), spec.method)).items():
+                if param in args:
+                    build_object(cls, args[param])
+        except ValueError as e:
+            return None, None, f"{spec.method}: not a valid object: {e}"
         return spec, args, ""
 
     def _execute(self, spec: ToolSpec, args: Dict[str, Any], caller: Optional[Caller]) -> str:
@@ -146,6 +153,9 @@ class Harness:
             if caller is None:
                 raise AccessDenied("this tool needs an identified caller")
             run_args = prepare(self.agent, spec.method, fn, args, caller)
+        for param, cls in dataclass_params(fn).items():                # an object parameter arrives as JSON; the agent gets its own class
+            if param in run_args:
+                run_args = {**run_args, param: build_object(cls, run_args[param])}
         out = self.engine.run(self.agent, spec.method, run_args, caller=caller)
         return out if isinstance(out, str) else json.dumps(out, default=str, ensure_ascii=False)
 

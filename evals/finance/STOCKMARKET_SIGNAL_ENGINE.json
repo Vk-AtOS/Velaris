@@ -1,0 +1,65 @@
+{
+  "schema": 1,
+  "agent": "STOCKMARKET_SIGNAL_ENGINE",
+  "cases": [
+    {
+      "id": "select-compute_signal",
+      "input": "Use the compute_signal operation of STOCKMARKET_SIGNAL_ENGINE with {\"m\": {\"symbol\": \"sample\", \"prices\": [], \"volumes\": [], \"sector\": \"sample\"}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "compute_signal",
+            "args": {
+              "m": {
+                "symbol": "sample",
+                "prices": [],
+                "volumes": [],
+                "sector": "sample"
+              }
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-validate",
+      "input": "Use the validate operation of STOCKMARKET_SIGNAL_ENGINE with {\"m\": {\"symbol\": \"sample\", \"prices\": [], \"volumes\": [], \"sector\": \"sample\"}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "validate",
+            "args": {
+              "m": {
+                "symbol": "sample",
+                "prices": [],
+                "volumes": [],
+                "sector": "sample"
+              }
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

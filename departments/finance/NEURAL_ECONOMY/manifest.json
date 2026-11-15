@@ -5,5 +5,21 @@
   "description": "Unit economics calculator.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:NeuralEconomyAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "NEURAL_ECONOMY: unit economics calculator.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/finance/NEURAL_ECONOMY.json",
+    "wave": "KAN-38",
+    "status": "deterministic_tool",
+    "tools": {
+      "run": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

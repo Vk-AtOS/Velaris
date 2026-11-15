@@ -9,13 +9,17 @@ not exist yet (E3, branch r3/v_e3). When it lands: delete `_derive`, make `specs
 """
 from __future__ import annotations
 
+import dataclasses
 import inspect
+import logging
 import re
+import typing
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from velaris.api.allowlist import METHODS, http_params, rule_for, READ
 
+logger = logging.getLogger("velaris.harness")
 SECRET_PARAM = re.compile(r"(^|_)(secret|password|passcode|passphrase|pin|token|api_?key|private_?key|credential)s?$")
 INJECTED = frozenset({"llm", "fetcher", "search_fn", "handler", "handlers", "func", "fn", "sender", "callback", "clock", "registry", "engine"})
 SKIP_METHODS = frozenset({"health_check", "health", "on_event"})
@@ -63,18 +67,65 @@ def type_ok(kind: str, value: Any) -> bool:
 def params_of(fn: Any, actor: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
     """Schema of the parameters a model may pass (never self/caller/the actor parameter code fills in)."""
     out: Dict[str, Dict[str, Any]] = {}
+    objects = dataclass_params(fn)
     for p in http_params(fn):
         if p.name == actor or p.name in INJECTED or "Callable" in str(p.annotation):
             continue           # code fills the actor in; collaborators are wired by code, never chosen by a model
         spec: Dict[str, Any] = {"type": json_type(p.annotation), "required": p.default is p.empty}
+        if p.name in objects:
+            spec["type"], spec["fields"] = "object", {f.name: json_type(f.type) for f in dataclasses.fields(objects[p.name]) if f.init}
         if p.default is not p.empty and isinstance(p.default, (str, int, float, bool, type(None))):
             spec["default"] = p.default
         out[p.name] = spec
     return out
 
 
+PLAIN_MODULES = frozenset({"builtins", "typing", "decimal", "datetime", "collections", "collections.abc", "pathlib", "uuid"})
+
+
+def object_param(fn: Any) -> Optional[str]:
+    """Name of a parameter that must be an object of a class defined by the agent (a dataclass, a profile): JSON cannot carry it."""
+    try:
+        hints = typing.get_type_hints(fn)
+    except Exception as e:  # unresolvable forward references: judged by the text of the annotation instead
+        logger.debug("type hints of %s unresolved: %s", getattr(fn, "__name__", fn), e)
+        hints = {}
+    for p in http_params(fn):
+        ann = hints.get(p.name, p.annotation)
+        if p.default is p.empty and ann is not p.empty and isinstance(ann, type) and ann.__module__ not in PLAIN_MODULES and not dataclasses.is_dataclass(ann):
+            return p.name
+    return None
+
+
+def dataclass_params(fn: Any) -> Dict[str, type]:
+    """Parameters annotated with a dataclass: the model writes them as a JSON object and the harness builds the instance."""
+    try:
+        hints = typing.get_type_hints(fn)
+    except Exception as e:  # unresolvable forward references
+        logger.debug("type hints of %s unresolved: %s", getattr(fn, "__name__", fn), e)
+        return {}
+    return {p.name: hints[p.name] for p in http_params(fn)
+            if isinstance(hints.get(p.name), type) and dataclasses.is_dataclass(hints[p.name])}
+
+
+def build_object(cls: type, value: Any) -> Any:
+    """cls(**value) after checking the keys: unknown or missing fields are a ValueError naming them."""
+    if not isinstance(value, dict):
+        raise ValueError(f"a {cls.__name__} must be a JSON object")
+    fields = {f.name: f for f in dataclasses.fields(cls) if f.init}
+    unknown = sorted(set(value) - set(fields))
+    missing = sorted(n for n, f in fields.items() if f.default is dataclasses.MISSING and f.default_factory is dataclasses.MISSING
+                     and n not in value)
+    if unknown or missing:
+        raise ValueError(f"{cls.__name__} has the fields {sorted(fields)}; unknown {unknown}, missing {missing}")
+    return cls(**value)
+
+
 def exposable(fn: Any) -> Optional[str]:
     """None when a model can call this method; else why not (a required callable or object cannot be written as JSON)."""
+    custom = object_param(fn)
+    if custom:
+        return f"required parameter '{custom}' is an object of the agent's own class, which JSON cannot carry"
     for p in http_params(fn):
         if p.default is p.empty and (p.name in INJECTED or "Callable" in str(p.annotation)):
             return f"required parameter '{p.name}' is a collaborator or callable, wired by code"

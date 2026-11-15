@@ -5,5 +5,27 @@
   "description": "Public methods: build_framework, pattern_score, merge_templates (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:FormulaAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Formula: builds a framework dict, scores pattern variety and shallow-merges templates (trivial helpers).",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/finance/FORMULA.json",
+    "wave": "KAN-38",
+    "status": "deterministic_tool",
+    "tools": {
+      "build_framework": {
+        "kind": "read"
+      },
+      "merge_templates": {
+        "kind": "read"
+      },
+      "pattern_score": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

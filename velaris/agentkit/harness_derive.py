@@ -39,6 +39,7 @@ DANGEROUS_CALLS = frozenset({"open", "exec", "eval", "__import__", "setattr", "d
 OUTSIDE_PREFIXES = ("velaris.agentkit.state", "velaris.agentkit.infra_store", "velaris.intel.trace", "velaris.mail",
                     "velaris.chat", "velaris.memory", "velaris.control", "velaris.core.vault", "velaris.core.sealed_sqlite",
                     "velaris.core.prime", "velaris.core.filelock", "velaris.core.atlassian_oauth")
+PURE_HELPERS = frozenset({"biz_common", "checks", "results", "conditions", "biz_language"})      # velaris.agentkit modules of plain functions
 OUTSIDE_MODULES = EXTERNAL_MODULES | {"os", "sys", "pathlib", "smtplib", "http", "ftplib", "asyncio", "threading", "multiprocessing"}
 
 
@@ -64,21 +65,50 @@ class Module:
                     f"{n.module}.{a.name}".startswith(OUTSIDE_PREFIXES) for a in n.names)
                 if bad:
                     self.outside.update(a.asname or a.name for a in n.names)
+        self.pure: Set[str] = set()              # local names of agentkit helper modules (or functions from them): their results are fresh values
+        for n in ast.walk(self.tree):
+            if isinstance(n, ast.ImportFrom) and not n.level and n.module == "velaris.agentkit":
+                self.pure.update(a.asname or a.name for a in n.names if a.name in PURE_HELPERS)
+            elif isinstance(n, ast.ImportFrom) and not n.level and (n.module or "").startswith("velaris.agentkit.") \
+                    and n.module.split(".")[-1] in PURE_HELPERS:
+                self.pure.update(a.asname or a.name for a in n.names)
         self.imported = {(a.asname or a.name.split(".")[0]) for n in ast.walk(self.tree)
                          if isinstance(n, (ast.Import, ast.ImportFrom)) for a in n.names}
 
 
-def _safe_locals(fn: ast.FunctionDef) -> Set[str]:
-    """Parameters and locals bound to a fresh builtin container: mutating them touches nothing outside the call."""
+def _returns_fresh(fn: ast.FunctionDef, mod: Module) -> bool:
+    """True when nothing a function returns can be (part of) self or a module-level object: its result is its own."""
+    shared = {t.id for n in mod.tree.body if isinstance(n, ast.Assign) for t in n.targets if isinstance(t, ast.Name)} | {"self"}
+    return not any(isinstance(sub, ast.Name) and sub.id in shared for n in ast.walk(fn) if isinstance(n, ast.Return) and n.value
+                   for sub in ast.walk(n.value))
+
+
+def _safe_locals(fn: ast.FunctionDef, mod: Module, cls: Optional[ast.ClassDef]) -> Set[str]:
+    """Parameters and locals bound to a fresh builtin container (or to the fresh result of a helper of this module):
+    mutating them touches nothing outside the call."""
+    methods = {n.name: n for n in (cls.body if cls else []) if isinstance(n, ast.FunctionDef)}
     safe = {a.arg for a in fn.args.args + fn.args.kwonlyargs if a.arg != "self"}
+
+    def fresh(v: ast.AST) -> bool:
+        if isinstance(v, (ast.List, ast.Dict, ast.Set, ast.ListComp, ast.DictComp, ast.SetComp, ast.Tuple, ast.Constant,
+                          ast.JoinedStr, ast.GeneratorExp)):
+            return True
+        if not isinstance(v, ast.Call):
+            return False
+        f = v.func
+        return (isinstance(f, ast.Name) and (f.id in CONTAINER_CALLS or (f.id in mod.functions and _returns_fresh(mod.functions[f.id], mod)))
+                ) or (isinstance(f, ast.Attribute) and isinstance(f.value, ast.Name) and f.value.id == "self" and f.attr in methods
+                      and _returns_fresh(methods[f.attr], mod)) or _root(f) in mod.pure
+
     for n in ast.walk(fn):
-        if isinstance(n, (ast.Assign, ast.AnnAssign)) and n.value is not None:
-            v = n.value
-            fresh = isinstance(v, (ast.List, ast.Dict, ast.Set, ast.ListComp, ast.DictComp, ast.SetComp, ast.Tuple, ast.Constant,
-                                   ast.JoinedStr, ast.GeneratorExp)) or (
-                isinstance(v, ast.Call) and isinstance(v.func, ast.Name) and v.func.id in CONTAINER_CALLS)
-            if fresh:
-                safe.update(t.id for t in (n.targets if isinstance(n, ast.Assign) else [n.target]) if isinstance(t, ast.Name))
+        if isinstance(n, ast.Assign):
+            for t in n.targets:
+                if isinstance(t, ast.Name) and fresh(n.value):
+                    safe.add(t.id)
+                elif isinstance(t, (ast.Tuple, ast.List)) and isinstance(n.value, (ast.Tuple, ast.List)) and len(t.elts) == len(n.value.elts):
+                    safe.update(e.id for e, v in zip(t.elts, n.value.elts) if isinstance(e, ast.Name) and fresh(v))
+        elif isinstance(n, ast.AnnAssign) and n.value is not None and isinstance(n.target, ast.Name) and fresh(n.value):
+            safe.add(n.target.id)
     return safe
 
 
@@ -86,7 +116,7 @@ def _acts(fn: ast.FunctionDef, mod: Module, cls: Optional[ast.ClassDef], seen: S
     if fn.name in seen:
         return True                              # recursion: cannot show it reads
     seen = seen | {fn.name}
-    safe = _safe_locals(fn)
+    safe = _safe_locals(fn, mod, cls)
     methods = {n.name: n for n in (cls.body if cls else []) if isinstance(n, ast.FunctionDef)}
     for n in ast.walk(fn):
         targets = n.targets if isinstance(n, (ast.Assign, ast.Delete)) else [n.target] if isinstance(n, (ast.AugAssign, ast.AnnAssign)) else []
@@ -153,10 +183,11 @@ GUARD_MARKERS = ("authorize_read", "check_caller", "_own_or_hr", "current_caller
 
 
 def derived_kind(agent: str, department: str, source: str, class_name: str, method: str) -> str:
-    """read | act for a method the allowlist has no rule for. In a sensitive department a method of a module that never asks who
-    is calling (no access guard in its source) is act: a person approves it, since nothing in the code would stop a caller reading
-    someone else's records through the model."""
-    if min_sensitivity(department, source) == "restricted" and not any(m in source for m in GUARD_MARKERS):
+    """read | act for a method the allowlist has no rule for. In a sensitive department a method of a module that reaches data
+    outside its arguments (inventory: real) yet never asks who is calling (no access guard in its source) is act: a person approves
+    it, since nothing in the code would stop a caller reading someone else's records through the model. A pure calculator
+    (a function of its arguments) needs no guard."""
+    if min_sensitivity(department, source) == "restricted" and classify(source) == "real" and not any(m in source for m in GUARD_MARKERS):
         return "act"
     return read_or_act(source, class_name, method)
 
@@ -224,7 +255,8 @@ def derive_evalset(agent: str, entry: dict, cls: Optional[type]) -> dict:
     for m, t in list(sorted(entry["tools"].items()))[:8]:
         rule = rule_for(agent, m)
         params = params_of(methods[m], rule.actor if rule else None) if m in methods else {}
-        args = {k: sample_value(v["type"]) for k, v in params.items() if v["required"]}
+        args = {k: ({n: sample_value(t) for n, t in v["fields"].items()} if "fields" in v else sample_value(v["type"]))
+                for k, v in params.items() if v["required"]}
         cases.append({"id": f"select-{m}", "input": f"Use the {m} operation of {agent} with {json.dumps(args)}.",
                       "expect": {"status": "proposed" if t["kind"] == "act" else "answered", "calls": [{"tool": m, "args": args}]},
                       "forbid": {"tools": [a for a in acts if a != m]}})

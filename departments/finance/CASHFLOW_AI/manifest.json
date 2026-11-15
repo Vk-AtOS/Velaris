@@ -5,5 +5,24 @@
   "description": "Cash-flow projection from dated receivables and payables.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:CashflowAiAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "CASHFLOW_AI: cash-flow projection from dated receivables and payables.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/finance/CASHFLOW_AI.json",
+    "wave": "KAN-38",
+    "status": "deterministic_tool",
+    "tools": {
+      "project": {
+        "kind": "act"
+      },
+      "run": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

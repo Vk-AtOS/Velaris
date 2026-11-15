@@ -190,7 +190,7 @@ def test_a_misbehaving_model_fails_the_eval_and_the_fake_model_passes_it():
 
 # Departments still without harness entries. Each wave (KAN-36 .. KAN-44) removes its departments from this set; the last one
 # empties it, and then every one of the 346 agents is checked below.
-PENDING = {"_ai_core", "_connectors", "client_success", "communications", "data_knowledge", "finance", "it_infrastructure",
+PENDING = {"_ai_core", "_connectors", "client_success", "communications", "data_knowledge", "it_infrastructure",
            "legal_compliance", "marketing", "operations", "sales", "security", "supply_chain"}
 
 
@@ -264,9 +264,24 @@ def test_restricted_output_is_masked_before_the_model_sees_it():
     assert "ABCDE1234F" in llm2.calls[1]["prompt"]
 
 
-def test_a_sensitive_department_method_that_never_checks_the_caller_is_act():
-    src = "class A:\n    def who(self, x):\n        return x\n"
-    guarded = "from velaris.core.access import authorize_read\nclass A:\n    def who(self, x):\n        authorize_read('pay', x)\n        return x\n"
-    assert D.derived_kind("A", "hr", src, "A", "who") == "act"
+def test_a_sensitive_department_method_that_reaches_data_but_never_checks_the_caller_is_act():
+    body = "    def __init__(self):\n        self.store = None\n    def who(self, x):\n        if x:\n            return self.store.get(x)\n"
+    unguarded = "import sqlite3\nclass A:\n" + body
+    guarded = "import sqlite3\nfrom velaris.core.access import authorize_read\nclass A:\n" + body.replace("        if x:", "        authorize_read('pay', x)\n        if x:")
+    calculator = "class A:\n    def who(self, x):\n        if x:\n            return x * 2\n"
+    assert D.derived_kind("A", "hr", unguarded, "A", "who") == "act"
     assert D.derived_kind("A", "hr", guarded, "A", "who") == "read"
-    assert D.derived_kind("A", "executive", src, "A", "who") == "read"
+    assert D.derived_kind("A", "hr", calculator, "A", "who") == "read"          # a pure function of its arguments needs no guard
+    assert D.derived_kind("A", "executive", unguarded, "A", "who") == "read"
+
+
+def test_an_object_parameter_is_written_as_json_and_built_by_the_harness():
+    """Finance engines take a dataclass (AccountProfile). The model writes a JSON object; unknown or missing fields are rejected
+    before the agent runs, and the agent receives its own class. The money in the answer is the tool's, not the model's."""
+    acct = {"account_id": "A1", "account_type": "savings", "balance": 100000, "overdraft_limit": 0, "interest_rate": 0.04, "status": "active"}
+    h = Harness.for_agent("BANKING_LOGIC_ENGINE", llm=FakeLLM(lambda p, m: json.dumps({"tool": "apply_interest", "args": {"a": acct, "days": 30}})
+                          if "result:" not in p else '{"final": "interest 328.77"}'), models=["fake:m"])
+    out = h.run("interest?", Caller("u", "o"))
+    assert out.status == "answered" and "328.77" in out.calls[0]["output"]
+    bad = Harness.for_agent("BANKING_LOGIC_ENGINE", llm=FakeLLM(lambda p, m: json.dumps({"tool": "apply_interest", "args": {"a": {"balance": 1}}})), models=["fake:m"])
+    assert bad.run("x", Caller("u", "o")).status == "invalid"

@@ -1,0 +1,74 @@
+{
+  "schema": 1,
+  "agent": "ECONOVA",
+  "cases": [
+    {
+      "id": "select-demand_projection",
+      "input": "Use the demand_projection operation of ECONOVA with {\"base_demand\": 1.0, \"price_change\": 1.0}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "demand_projection",
+            "args": {
+              "base_demand": 1.0,
+              "price_change": 1.0
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-macro_index",
+      "input": "Use the macro_index operation of ECONOVA with {\"metrics\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "macro_index",
+            "args": {
+              "metrics": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-market_sensitivity",
+      "input": "Use the market_sensitivity operation of ECONOVA with {\"price_change\": 1.0}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "market_sensitivity",
+            "args": {
+              "price_change": 1.0
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}
