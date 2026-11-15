@@ -169,7 +169,9 @@ def test_tokens_are_hashed_purpose_bound_and_expire(env, monkeypatch):
         assert forms.issue_candidate_token(application_id="app-nope")["status"] == "not_found"
         assert forms.issue_candidate_token(application_id=app, purpose="admin")["status"] == "invalid_input"
         wtok = forms.issue_candidate_token(application_id=app, purpose="withdraw", days=2)["token"]
-    assert tok not in (agent_dir("SCREENING_FORMS") / "forms.json").read_text() and hf.sha(tok) in (agent_dir("SCREENING_FORMS") / "forms.json").read_text()
+    assert tok not in (agent_dir("SCREENING_FORMS") / "forms.json").read_text()                       # only its hash is kept,
+    assert hf._tokens().get(hf.sha(tok))["purpose"] == "status"                                        # one sealed file per token (KAN-64)
+    assert not any(tok in p.read_text(errors="ignore") for p in agent_dir("SCREENING_FORMS").rglob("*") if p.is_file())
     s = hi.public_status(tok)
     assert s["status"] == "ok" and s["progress"] == "Received" and set(s) == {"status", "progress", "updated"}
     assert hi.public_status(wtok)["status"] == "not_found" and hi.public_withdraw(tok)["status"] == "not_found"     # wrong purpose

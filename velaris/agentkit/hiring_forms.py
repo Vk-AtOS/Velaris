@@ -18,6 +18,8 @@ import zipfile
 from typing import Any, Dict, List, Optional, Tuple
 
 from velaris.agentkit.hiring_common import DAY, bad, digest, now, sha, store
+from velaris.agentkit.recstore import RecordStore
+from velaris.agentkit.state import JsonState
 from velaris.intel.paths import agent_dir, load_or_create_key
 
 AGENT = "SCREENING_FORMS"
@@ -43,8 +45,23 @@ _PHONE = re.compile(r"\+?[0-9][0-9 ()-]{7,18}[0-9]")
 _NAME = re.compile(r"[a-z][a-z0-9_]{0,39}")
 
 
+def _tokens() -> RecordStore:
+    return RecordStore(AGENT, "tokens", f"hiring:{AGENT}")        # one sealed file per token, keyed by its SHA-256 (KAN-64)
+
+
+def _move_tokens(d: Dict[str, Any]) -> Dict[str, Any]:
+    """Schema 1 -> 2: tokens left the shared 1 MiB document. Idempotent (the copy is overwritten, never duplicated);
+    the old entries disappear from the file at its next save."""
+    ts = _tokens()
+    for h, rec in (d.get("tokens") or {}).items():
+        ts.put(h, rec)
+    d["tokens"] = {}
+    return d
+
+
 def _st() -> Any:
-    return store(AGENT, "forms.json", {"forms": {}, "submissions": {}, "tokens": {}, "pow_used": {}, "withdrawals": {}, "hourly": {}})
+    return JsonState(AGENT, "forms.json", {"forms": {}, "submissions": {}, "tokens": {}, "pow_used": {}, "withdrawals": {}, "hourly": {}},
+                     encrypted=f"hiring:{AGENT}", version=2, migrations={1: _move_tokens})
 
 
 # ---- form definitions ----------------------------------------------------------------------------
@@ -243,8 +260,8 @@ def issue_token(org: str, application_id: str, purpose: str, days: int) -> str:
     if purpose not in PURPOSES or isinstance(days, bool) or not isinstance(days, int) or not 1 <= days <= TOKEN_TTL_DAYS_MAX:
         raise bad(f"purpose must be one of {list(PURPOSES)} and days 1 to {TOKEN_TTL_DAYS_MAX}")
     raw = secrets.token_urlsafe(24)
-    _st().update(lambda d: d["tokens"].__setitem__(sha(raw), {"org": org, "application_id": application_id, "purpose": purpose,
-                                                               "expires": now() + days * DAY, "created_at": now()}))
+    _tokens().put(sha(raw), {"org": org, "application_id": application_id, "purpose": purpose,
+                             "expires": now() + days * DAY, "created_at": now()})
     return raw
 
 
@@ -252,17 +269,28 @@ def lookup_token(raw: Any, purpose: str) -> Optional[Dict[str, Any]]:
     """The token record, or None for anything unknown, expired or of another purpose (the same answer for all)."""
     if not isinstance(raw, str) or not 20 <= len(raw) <= 80:
         return None
-    rec = _st().load()["tokens"].get(sha(raw))
+    _legacy_tokens()
+    rec = _tokens().get(sha(raw))
     return rec if rec and rec["purpose"] == purpose and rec["expires"] > now() else None
 
 
+_migrated_dir = ""
+
+
+def _legacy_tokens() -> None:
+    """Tokens still in an un-migrated forms.json are moved on first use (load() runs the migration hook; the save clears them)."""
+    global _migrated_dir
+    here = str(_st().path)
+    if _migrated_dir != here and _st().path.exists():
+        _st().update(lambda d: None)                                # load() ran the 1 -> 2 hook, save() writes version 2
+    _migrated_dir = here
+
+
 def revoke_tokens(org: str, application_ids: List[str]) -> int:
-    def go(d: Dict[str, Any]) -> int:
-        gone = [h for h, t in d["tokens"].items() if t["org"] == org and t["application_id"] in application_ids]
-        for h in gone:
-            del d["tokens"][h]
-        return len(gone)
-    return _st().update(go)
+    _legacy_tokens()
+    ts = _tokens()
+    gone = [h for h, t in ts.scan(lambda t: t["org"] == org and t["application_id"] in application_ids)]
+    return sum(ts.delete(h) for h in gone)
 
 
 # ---- candidate data held here (erasable) -----------------------------------------------------------------
@@ -279,7 +307,9 @@ def purge_candidate(org: str, candidate_id: str) -> int:
         gone = [k for k, s in d["submissions"].items() if s["org"] == org and s.get("candidate_id") == candidate_id]
         for k in gone:
             del d["submissions"][k]
-        for h in [h for h, t in d["tokens"].items() if t["org"] == org and t["application_id"] in apps]:
-            del d["tokens"][h]
         return len(gone)
-    return _st().update(go)
+    n = _st().update(go)
+    ts = _tokens()
+    for h in [h for h, _ in ts.scan(lambda t: t["org"] == org and t["application_id"] in apps)]:
+        ts.delete(h)
+    return n
