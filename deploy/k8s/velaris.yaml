@@ -36,6 +36,8 @@ spec:
               valueFrom: {secretKeyRef: {name: velaris-secrets, key: org}}
             - name: VELARIS_API_SECRET
               valueFrom: {secretKeyRef: {name: velaris-secrets, key: api_secret}}
+            - name: VELARIS_VAULT_KEY                    # encryption at rest + signed trace head; supplied from the secret manager, never in the data volume
+              valueFrom: {secretKeyRef: {name: velaris-secrets, key: vault_key}}
           volumeMounts:
             - {name: data, mountPath: /data}
             - {name: identity, mountPath: /run/velaris, readOnly: true}
@@ -85,6 +87,8 @@ spec:
             - {name: VELARIS_PUBLIC_TRUST_PROXY, value: "1"}
             - name: VELARIS_ORG
               valueFrom: {secretKeyRef: {name: velaris-secrets, key: org}}
+            - name: VELARIS_VAULT_KEY
+              valueFrom: {secretKeyRef: {name: velaris-secrets, key: vault_key}}
             - name: VELARIS_PUBLIC_CORS_ORIGINS
               valueFrom: {secretKeyRef: {name: velaris-secrets, key: public_cors_origins, optional: true}}
           volumeMounts:
