@@ -58,7 +58,7 @@ class Atlassian:
 def world():
     a = Atlassian()
     t = httpx.MockTransport(a.handle)
-    oa = ao.OAuth(client_id="cid", client_secret="csecret", redirect_uri="https://aetheros.example/cb", transport=t, resolver=PUBLIC, clock=lambda: a.now)
+    oa = ao.OAuth(client_id="cid", client_secret="csecret", redirect_uri="https://aetheros.example/cb", site="https://acme.atlassian.net", transport=t, resolver=PUBLIC, clock=lambda: a.now)
     client = AtlassianClient({"auth": "oauth", "oauth": oa, "jira_projects": "KAN,OPS"}, transport=t, resolver=PUBLIC)
     return a, oa, client
 
@@ -156,6 +156,48 @@ def test_a_token_revoked_before_it_expires_is_refreshed_once_then_refused(world)
     assert len([c for c in a.calls if c[3].get("grant_type") == "refresh_token"]) == 1      # exactly one forced refresh, no loop
 
 
+def test_only_the_configured_site_can_be_bound_and_the_binding_is_rechecked(world):
+    a, oa, client = world
+    real = a.handle
+
+    def two_sites(request):
+        if request.url.path == "/oauth/token/accessible-resources":
+            return httpx.Response(200, json=[{"id": "cloud-9", "url": "https://other.atlassian.net"}, {"id": "cloud-1", "url": "https://acme.atlassian.net"}])
+        return real(request)
+    oa._http = httpx.Client(transport=httpx.MockTransport(two_sites))
+    assert connect(oa, ALICE)["site"] == "https://acme.atlassian.net"           # not sites[0]
+    with acting_as(ALICE):
+        client.request("GET", "/rest/api/3/issue/KAN-1")
+    assert a.calls[-1][2].startswith("/ex/jira/cloud-1/")                          # the call went to the configured site's cloud id
+    only_other = httpx.MockTransport(lambda r: httpx.Response(200, json=[{"id": "cloud-9", "url": "https://other.atlassian.net"}]) if r.url.path.endswith("accessible-resources") else real(r))
+    oa._http = httpx.Client(transport=only_other)
+    with pytest.raises(ao.OAuthError) as e:
+        connect(oa, BOB)
+    assert e.value.code == "exchange_failed" and oa.status(BOB)["connected"] is False
+    assert not ao.OAuth(client_id="c", client_secret="s", redirect_uri="https://x/cb").configured       # no site configured: refuses to run
+    oa.site = "https://moved.atlassian.net"                                      # the configured site changed after alice connected
+    with acting_as(ALICE), pytest.raises(AtlassianError) as e:
+        client.request("GET", "/rest/api/3/issue/KAN-1")
+    assert e.value.reason == "reauthorize_required" and oa.status(ALICE)["connected"] is False
+
+
+def test_a_revoke_during_a_refresh_is_not_resurrected(world):
+    a, oa, client = world
+    connect(oa, ALICE)
+    a.now += 3600
+    real = a.handle
+
+    def revoke_mid_refresh(request):
+        if request.url.path == "/oauth/token" and json.loads(request.content).get("grant_type") == "refresh_token":
+            oa.revoke_user("acme", "alice", by="hr")                             # offboarding lands while the refresh is in flight
+        return real(request)
+    oa._http = httpx.Client(transport=httpx.MockTransport(revoke_mid_refresh))
+    with acting_as(ALICE), pytest.raises(AtlassianError) as e:
+        client.request("GET", "/rest/api/3/issue/KAN-1")
+    assert e.value.reason == "user_not_connected" and oa.status(ALICE)["connected"] is False
+    assert b"at-alice" not in (data_dir() / "agents" / "ATLASSIAN_OAUTH" / "tokens.json").read_bytes()
+
+
 def test_revoking_a_user_on_offboarding_forgets_the_tokens_and_is_traced(world):
     a, oa, client = world
     connect(oa, ALICE)
@@ -172,7 +214,7 @@ def test_the_api_routes_connect_callback_status_disconnect_and_admin_revoke(tmp_
     from velaris.api.app import Settings, create_app
     from velaris.tests.test_api_service import KEY, SECRET, engine, send
     a = Atlassian()
-    oa = ao.OAuth(client_id="cid", client_secret="csecret", redirect_uri="https://aetheros.example/cb", transport=httpx.MockTransport(a.handle),
+    oa = ao.OAuth(client_id="cid", client_secret="csecret", redirect_uri="https://aetheros.example/cb", site="https://acme.atlassian.net", transport=httpx.MockTransport(a.handle),
                   resolver=PUBLIC, clock=lambda: a.now)
     import velaris.api.app as appmod
     real = appmod.mount_atlassian

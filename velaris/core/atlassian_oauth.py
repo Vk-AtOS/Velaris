@@ -65,19 +65,27 @@ def _b64(b: bytes) -> str:
 
 
 class OAuth:
-    def __init__(self, *, client_id: str = "", client_secret: str = "", redirect_uri: str = "", store: Optional[JsonState] = None,
+    def __init__(self, *, client_id: str = "", client_secret: str = "", redirect_uri: str = "", site: str = "", cloud_id: str = "", store: Optional[JsonState] = None,
                  transport: Optional[httpx.BaseTransport] = None, resolver: Resolver = _resolve,
                  clock: Callable[[], float] = time.time, scopes: Tuple[str, ...] = DEFAULT_SCOPES) -> None:
         self.client_id = client_id or os.environ.get("ATLASSIAN_OAUTH_CLIENT_ID", "")
         self._secret = client_secret or os.environ.get("ATLASSIAN_OAUTH_CLIENT_SECRET", "")
         self.redirect_uri = redirect_uri or os.environ.get("VELARIS_ATLASSIAN_REDIRECT_URI", "")
+        # The ONE Atlassian site this deployment's organisation owns. A person who can reach several sites must not be able to bind the
+        # connector to another one: exchange() picks exactly this site and every later call re-checks it.
+        self.site = (site or os.environ.get("ATLASSIAN_SITE", "")).strip().rstrip("/").lower()
+        self.cloud_id = (cloud_id or os.environ.get("ATLASSIAN_CLOUD_ID", "")).strip()
         self.scopes, self._clock, self._resolver = scopes, clock, resolver
         self._store = store or JsonState("ATLASSIAN_OAUTH", "tokens.json", {"tokens": {}, "pending": {}}, encrypted=_SEAL)
         self._http = httpx.Client(transport=transport, follow_redirects=False, timeout=20.0, limits=httpx.Limits(max_keepalive_connections=0))
 
     @property
     def configured(self) -> bool:
-        return bool(self.client_id and self._secret and self.redirect_uri.startswith("https://"))
+        return bool(self.client_id and self._secret and self.redirect_uri.startswith("https://") and (self.site or self.cloud_id))
+
+    def _is_ours(self, cloud_id: str, site: str) -> bool:
+        """Does this accessible-resources entry (or stored record) belong to the configured site?"""
+        return ((not self.cloud_id or cloud_id == self.cloud_id) and (not self.site or site.rstrip("/").lower() == self.site))
 
     # ── helpers ─────────────────────────────────────────────────────────────
     @staticmethod
@@ -167,7 +175,9 @@ class OAuth:
             raise OAuthError("exchange_failed" if e.code == "grant_rejected" else e.code) from None
         if not isinstance(sites, list) or not sites or not tok.get("refresh_token"):
             raise OAuthError("exchange_failed")                              # no site, or no offline_access: nothing durable to keep
-        site = sites[0]
+        site = next((s for s in sites if isinstance(s, dict) and self._is_ours(str(s.get("id", "")), str(s.get("url", "")))), None)
+        if site is None:                                                     # the person cannot reach this organisation's site
+            raise OAuthError("exchange_failed")
         rec = {"access_token": tok["access_token"], "refresh_token": tok["refresh_token"], "expires_at": self._clock() + int(tok.get("expires_in", 3600)),
                "scope": str(tok.get("scope", ""))[:500], "cloud_id": str(site.get("id", "")), "site": str(site.get("url", ""))[:200],
                "connected_at": self._clock()}
@@ -183,6 +193,9 @@ class OAuth:
         rec = self._store.load()["tokens"].get(key)
         if not rec:
             raise OAuthError("user_not_connected")
+        if not self._is_ours(rec["cloud_id"], rec["site"]):                  # stored for another site (or the configured site changed)
+            self.revoke_user(caller.org, caller.id, by="site_mismatch")
+            raise OAuthError("reauthorize_required")
         if rec["expires_at"] - self._clock() > REFRESH_BEFORE_S:
             return rec["access_token"], rec["cloud_id"]
         try:
@@ -197,7 +210,14 @@ class OAuth:
             raise
         except (KeyError, TypeError):
             raise OAuthError("bad_response") from None
-        self._store.update(lambda d: d["tokens"].__setitem__(key, new))       # the refresh token rotated: keep the new one
+        def keep(d: Dict[str, Any]) -> bool:        # only if the person is still connected with the grant we refreshed: a revoke or a
+            cur = d["tokens"].get(key)               # disconnect during the call must not be resurrected
+            if cur is None or cur["refresh_token"] != rec["refresh_token"]:
+                return False
+            d["tokens"][key] = new
+            return True
+        if not self._store.update(keep):
+            raise OAuthError("user_not_connected")   # the new tokens are discarded, never stored
         return new["access_token"], new["cloud_id"]
 
     def expire_access(self, caller: Caller) -> None:

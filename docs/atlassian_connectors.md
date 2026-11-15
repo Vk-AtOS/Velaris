@@ -14,7 +14,8 @@ Two ways to authenticate the JIRA and CONFLUENCE connectors:
    `read:confluence-content.all`, `read:confluence-space.summary`; `offline_access` (needed for refresh tokens).
 2. Callback URL: the AetherOS route that forwards the browser to Velaris `GET /integrations/atlassian/callback` as the signed-in person
    (AetherOS side: a page that passes `code` and `state` through; not part of this repository change).
-3. Set `ATLASSIAN_OAUTH_CLIENT_ID`, `ATLASSIAN_OAUTH_CLIENT_SECRET`, `VELARIS_ATLASSIAN_REDIRECT_URI` (https), and `VELARIS_ATLASSIAN_AUTH=oauth`
+3. Set `ATLASSIAN_SITE` (https://yourorg.atlassian.net) or `ATLASSIAN_CLOUD_ID`: the ONE site this deployment belongs to. A person who can reach several Atlassian sites is bound to this one only; none configured means per-user mode refuses to run.
+4. Set `ATLASSIAN_OAUTH_CLIENT_ID`, `ATLASSIAN_OAUTH_CLIENT_SECRET`, `VELARIS_ATLASSIAN_REDIRECT_URI` (https), and `VELARIS_ATLASSIAN_AUTH=oauth`
    from the secret manager. Nothing is stored in code or in the data directory in clear: tokens are encrypted with the vault key.
 
 ## Flow
