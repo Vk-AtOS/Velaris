@@ -18,6 +18,7 @@ from typing import Any, Dict, Optional
 from velaris.agentkit.checks import is_name, is_number
 from velaris.agentkit.results import fail, invalid, ok
 from velaris.agentkit.state import JsonState
+from velaris.core.access import INFRA_ADMINS, check_caller
 
 NAME = "THROUGHPUT_MANAGER"
 
@@ -31,6 +32,11 @@ class THROUGHPUT_MANAGERAgent:
         return {"agent": self.name, "status": "ok", "version": "1.0.0"}
 
     def set_limit(self, key: str, rate_per_s: float, burst: float) -> Dict[str, Any]:
+        """Infra admins only: a limit is shared state, and whoever can raise it can lift it."""
+        _, refused = check_caller(NAME, "set_limit", {"key": str(key)[:64], "rate": str(rate_per_s)[:32],
+                                                       "burst": str(burst)[:32]}, roles=INFRA_ADMINS)
+        if refused:
+            return refused
         if not is_name(key) or not is_number(rate_per_s, 0.000001) or not is_number(burst, 1):
             return invalid("need a key name, rate_per_s > 0 and burst >= 1")
 

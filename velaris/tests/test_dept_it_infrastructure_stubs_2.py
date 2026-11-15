@@ -7,7 +7,7 @@ from importlib import import_module
 
 import pytest
 
-from velaris.core.access import Caller, acting_as
+from velaris.core.access import INFRA_ADMIN, Caller, acting_as
 from velaris.intel import trace
 
 
@@ -17,9 +17,16 @@ def data_dir(tmp_path, monkeypatch):
     return tmp_path
 
 
+@pytest.fixture(autouse=True)
+def infra_admin():
+    """Tenants, quotas, pools, limits and ticket moves are admin-only (KAN-90); tests that check refusals override this."""
+    with acting_as(Caller("ops", "kf", frozenset({INFRA_ADMIN}))):
+        yield
+
+
 def run_as(who, fn):
     """Call fn() as the named caller (an empty name still needs someone calling)."""
-    with acting_as(Caller(who or "someone", "kf")):
+    with acting_as(Caller(who or "someone", "kf", frozenset({INFRA_ADMIN}))):
         return fn()
 
 
@@ -473,12 +480,14 @@ def test_itsm_denies_illegal_moves_and_bad_input():
 
 def test_itsm_records_the_caller_and_refuses_anonymous_or_borrowed_names():
     e = make("ITSM_ENGINE", "ITSMEngine")
-    assert e.open_ticket(ticket(), now=0)["status"] == "unauthenticated"
+    with acting_as(None):
+        assert e.open_ticket(ticket(), now=0)["status"] == "unauthenticated"
     with acting_as(Caller("asha", "kf")):
         assert e.open_ticket(ticket(), by="ravi", now=0)["status"] == "denied"      # cannot open in ravi's name
         assert e.open_ticket(ticket(), now=0)["status"] == "ok"                     # no name needed: the caller is asha
-    assert e.transition("INC-1", "assigned", now=1)["status"] == "unauthenticated"
-    with acting_as(Caller("ravi", "kf")):
+    with acting_as(None):
+        assert e.transition("INC-1", "assigned", now=1)["status"] == "unauthenticated"
+    with acting_as(Caller("ravi", "kf", frozenset({INFRA_ADMIN}))):
         assert e.transition("INC-1", "assigned", by="asha", now=1)["status"] == "denied"
         assert e.transition("INC-1", "assigned", now=1)["status"] == "ok"
     assert [(h["by"], h["to"]) for h in e.get_ticket("INC-1")["ticket"]["history"]] == [("asha", "new"),

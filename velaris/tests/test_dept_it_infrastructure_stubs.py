@@ -11,11 +11,20 @@ from importlib import import_module
 
 import pytest
 
+from velaris.core.access import INFRA_ADMIN, Caller, acting_as
+
 
 @pytest.fixture(autouse=True)
 def data_dir(tmp_path, monkeypatch):
     monkeypatch.setenv("VELARIS_DATA", str(tmp_path))
     return tmp_path
+
+
+@pytest.fixture(autouse=True)
+def infra_admin():
+    """Tenants, quotas, pools, limits and ticket moves are admin-only (KAN-90); tests that check refusals override this."""
+    with acting_as(Caller("ops", "kf", frozenset({INFRA_ADMIN}))):
+        yield
 
 
 def make(name, cls=None):

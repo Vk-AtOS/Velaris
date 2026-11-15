@@ -57,6 +57,8 @@ def test_itsm_tickets_are_stamped_and_hidden_from_other_organisations():
         assert e.list_tickets() == []                                                  # fail closed
     with acting_as(ACME):
         assert [x["ticket_id"] for x in e.list_tickets()] == ["T1"]
+        assert e.transition("T1", "assigned")["status"] == "denied"                    # moving tickets needs infra_admin
+    with acting_as(Caller("u-ops", "acme", frozenset({"infra_admin"}))):
         assert e.transition("T1", "assigned")["status"] == "ok"
 
 

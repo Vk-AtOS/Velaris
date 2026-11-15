@@ -73,6 +73,8 @@ ATLASSIAN_READER = "atlassian_reader"     # read Jira/Confluence through the dep
 GOVERNANCE_ADMINS: FrozenSet[str] = frozenset({GOVERNANCE_ADMIN})
 ATLASSIAN_READERS: FrozenSet[str] = frozenset({ATLASSIAN_READER, GOVERNANCE_ADMIN})   # admins hold it implicitly
 SECURITY_ADMINS: FrozenSet[str] = frozenset({SECURITY_ADMIN})
+INFRA_ADMIN = "infra_admin"               # tenants, quotas, pools, rate limits and ticket handling (it_infrastructure)
+INFRA_ADMINS: FrozenSet[str] = frozenset({INFRA_ADMIN, SECURITY_ADMIN})
 
 
 class AccessDenied(VelarisError, PermissionError):
