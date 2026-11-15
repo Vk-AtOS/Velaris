@@ -1,6 +1,6 @@
 """DSS monitor: classifies each node as healthy, degraded or down.
 
-down      no heartbeat yet, or the last one is older than `timeout_s`
+down      no heartbeat yet, the last one is older than `timeout_s`, or it lies more than `clock_skew_s` in the future
 degraded  alive, but cpu, memory or error rate is over its limit
 healthy   everything else
 Works on a node list passed in, or on the DSS_CLUSTER_MANAGER registry.
@@ -16,8 +16,9 @@ LIMITS = {"cpu": 0.85, "mem": 0.90, "error_rate": 0.05}
 
 
 class DSS_MONITORAgent:
-    def __init__(self, name=NAME, timeout_s=30.0, limits=None):
+    def __init__(self, name=NAME, timeout_s=30.0, limits=None, clock_skew_s=5.0):
         self.name = name
+        self.clock_skew_s = clock_skew_s
         self.timeout_s = timeout_s
         self.limits = {**LIMITS, **(limits or {})}
 
@@ -43,9 +44,12 @@ class DSS_MONITORAgent:
                 state, reasons, age = "down", ["no heartbeat received"], None
             else:
                 age = round(now - beat, 3)
+                skew = age < -self.clock_skew_s
                 over = [f"{k} {metrics[k]} over limit {limit}" for k, limit in sorted(self.limits.items())
                         if number(metrics.get(k)) is not None and metrics[k] > limit]
-                if age > self.timeout_s:
+                if skew:                       # a heartbeat from the future is a wrong clock or a forgery, never "fresh"
+                    state, reasons = "down", [f"last heartbeat is {-age}s in the future (allowed skew {self.clock_skew_s}s)"]
+                elif age > self.timeout_s:
                     state, reasons = "down", [f"last heartbeat {age}s ago, timeout {self.timeout_s}s"]
                 elif over:
                     state, reasons = "degraded", over

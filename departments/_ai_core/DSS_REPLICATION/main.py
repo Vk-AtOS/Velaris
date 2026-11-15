@@ -21,7 +21,7 @@ def _zones(nodes):
     zones = {}
     for node in nodes:
         name = ident(node.get("name") if isinstance(node, dict) else node)
-        if name is None:
+        if name is None or name in zones:        # malformed, or the same node name twice (the later zone would win silently)
             return None
         zones[name] = (node.get("zone") if isinstance(node, dict) else None) or "default"
     return zones

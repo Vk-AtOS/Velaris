@@ -34,4 +34,4 @@ node each missing copy should be rebuilt on. It plans; it does not move data.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_a_dss.py`, `velaris/tests/test_layer10_dss.py`
+- **tests:** `velaris/tests/test_aicore_a_dss.py`, `velaris/tests/test_layer10_dss.py`, `velaris/tests/test_r3_dss.py`
