@@ -14,6 +14,7 @@ by the named approver; a legacy `by` must be the caller. Pending
 tasks are stored owner-only under this agent's state directory and survive a
 restart (handlers must be registered again on the new autopilot instance).
 """
+import logging
 import time
 from typing import Any, Dict, Optional
 
@@ -25,6 +26,8 @@ from velaris.agents.VCAS_ROUTER.main import VCASRouterAgent
 from velaris.agents.VCAS_SUPERVISOR.main import VCASSupervisorAgent
 from velaris.core.access import check_caller
 from velaris.intel import trace
+
+logger = logging.getLogger("VCAS_CORE")
 
 NAME = "VCAS_CORE"
 
@@ -74,10 +77,14 @@ class VCASCoreAgent:
             return fail("denied", f"only {entry['approver']} can decide this task")
         if not isinstance(approve, bool):
             return invalid("approve must be true or false")
+        try:      # record first: if the trace cannot be written the task stays pending and can be decided again
+            recorded = trace.append(NAME, "decision", {"task_id": str(task_id), "approved": approve, "by": by,
+                                                       "task_digest": task_digest(entry["task"]),
+                                                       "note": str(note)[:300]})
+        except (OSError, ValueError, TypeError) as e:
+            logger.warning("VCAS_CORE: decision on %s not recorded, task stays pending: %s", task_id, e)
+            return fail("audit_failed", "the decision could not be recorded; the task is still pending")
         self._pending.update(lambda s: s["pending"].pop(str(task_id), None))
-        recorded = trace.append(NAME, "decision", {"task_id": str(task_id), "approved": approve, "by": by,
-                                                   "task_digest": task_digest(entry["task"]),
-                                                   "note": str(note)[:300]})
         if not approve:
             return {"status": "rejected", "outcome": "rejected", "by": by}
         ran = self.autopilot.execute(entry["task"], {"trace_hash": recorded["hash"]})

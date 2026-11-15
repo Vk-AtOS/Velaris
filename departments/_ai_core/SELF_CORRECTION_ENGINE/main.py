@@ -1,7 +1,8 @@
 """SELF_CORRECTION_ENGINE: repairs a record against a declared schema and says what it changed.
 
 Schema: {field: {"type": "number" | "integer" | "string" | "boolean", "required": bool,
-"default": ..., "min": n, "max": n, "choices": [...], "max_length": n}}.
+"default": ..., "min": n, "max": n, "choices": [...], "max_length": n, "money": true}}.
+A "money" field is never clamped: an amount outside min..max is reported as unfixable.
 
 Repairs made (each one listed in "corrections"): numeric text to a number
 ("1,200.50"), yes/no text to a boolean, surrounding whitespace removed, a
@@ -85,6 +86,10 @@ class SelfCorrectionEngine:
                 low, high = number(spec.get("min")), number(spec.get("max"))
                 bounded = value if low is None else max(value, low)
                 bounded = bounded if high is None else min(bounded, high)
+                if bounded != value and spec.get("money") is True:
+                    # An amount outside its range is never silently changed: a person decides what it should be.
+                    base["unfixable"].append({"field": field, "why": f"amount outside the allowed range {low}..{high}", "value": old})
+                    continue
                 if bounded != value:
                     value = int(bounded) if spec["type"] == "integer" else bounded
                     why.append("clamped to the allowed range")

@@ -1,4 +1,5 @@
 import logging
+import math
 from typing import List, Dict, Any
 
 logger = logging.getLogger("STRATEGOS")
@@ -23,9 +24,15 @@ class StrategosAgent:
         Simple heuristic: higher benefit, lower cost -> higher score.
         Expects strategy dict with 'benefit' and 'cost' numeric fields.
         """
-        benefit = float(strategy.get("benefit", 0))
-        cost = float(strategy.get("cost", 0))
-        risk = float(strategy.get("risk", 0))
+        try:
+            benefit = float(strategy.get("benefit", 0))
+            cost = float(strategy.get("cost", 0))
+            risk = float(strategy.get("risk", 0))
+        except (TypeError, ValueError, AttributeError):
+            raise ValueError("strategy needs numeric 'benefit', 'cost' and 'risk'") from None
+        if not all(math.isfinite(v) for v in (benefit, cost, risk)) or risk < 0:
+            # risk -1 divided by zero and risk below -1 flipped the ranking: a negative risk has no meaning here
+            raise ValueError("benefit, cost and risk must be finite and risk must be zero or more")
         # basic scoring formula
         score = (benefit - cost) / (1 + risk)
         logger.debug("Evaluated strategy: %s -> score=%s", strategy, score)

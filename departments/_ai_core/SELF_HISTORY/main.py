@@ -1,24 +1,32 @@
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any
+
+from velaris.agentkit.checks import is_json
+from velaris.agentkit.state import JsonState
+
 logger = logging.getLogger("SELF_HISTORY")
-logger.setLevel(logging.DEBUG)
-h = logging.StreamHandler()
-h.setFormatter(logging.Formatter("%(asctime)s - SELF_HISTORY - %(levelname)s - %(message)s"))
-if not logger.handlers:
-    logger.addHandler(h)
+MAX_EVENTS = 1000     # the newest events are kept; older ones drop off
+
 
 class SELF_HISTORYAgent:
     def __init__(self):
         self.name = "SELF_HISTORY"
-        self.events: List[Dict[str, Any]] = []
-        logger.debug("SELF_HISTORY initialized")
+        self._state = JsonState(self.name, "events.json")      # owner-only, shared by workers, survives a restart
 
     def health_check(self):
         return {"agent": self.name, "status": "ok"}
 
+    @property
+    def events(self):
+        return list(self._state.load().get("events", []))
+
     def record(self, event: Dict[str, Any]):
-        self.events.append(event)
-        logger.debug("event recorded")
+        if not isinstance(event, dict) or not is_json(event):
+            logger.warning("SELF_HISTORY refused an event that is not a JSON object")
+            return False
+        self._state.update(lambda d: d.__setitem__("events", (d.get("events", []) + [event])[-MAX_EVENTS:]))
+        return True
 
     def last(self):
-        return self.events[-1] if self.events else {}
+        events = self.events
+        return events[-1] if events else {}
