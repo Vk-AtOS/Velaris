@@ -206,9 +206,10 @@ def store_audio_file(org: str, s: Dict[str, Any], participant: str, src: str, mi
     sha = h.hexdigest()
     track_record(participant, sha, size, mime, duration_s, None)                 # validates mime and duration before anything is written
     path = private_dir(agent_dir(AGENT) / "audio") / f"{sha}.bin"
+    created = not path.exists()
     with open(src, "rb") as f:
         vault.write_sealed_stream(path, iter(lambda: f.read(1 << 20), b""), _SEAL)
-    return track_record(participant, sha, size, mime, duration_s, str(path))
+    return {**track_record(participant, sha, size, mime, duration_s, str(path)), "_created": created}
 
 
 def track_record(participant: str, sha256: str, size: int, mime: str, duration_s: Any, path: Optional[str]) -> Dict[str, Any]:

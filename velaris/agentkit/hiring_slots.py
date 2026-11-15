@@ -11,10 +11,13 @@ replace the old copy. Text values are escaped and lines folded at 75 octets (RFC
 """
 from __future__ import annotations
 
+import re
 from datetime import date, datetime, time as dtime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from velaris.agentkit.hiring_common import DAY, bad
+
+_CTRL = re.compile(r"[\x00-\x1f\x7f]")       # no control character (CR, LF, ...) can start a new ICS line
 
 IST = timezone(timedelta(hours=5, minutes=30), "Asia/Kolkata")
 WEEKDAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
@@ -163,11 +166,11 @@ def build_ics(method: str, *, uid: str, sequence: int, start: float, end: float,
              f"SUMMARY:{_esc(summary)}", f"DESCRIPTION:{_esc(description)}", f"LOCATION:{_esc(location)}",
              f"ORGANIZER;CN={_param(organizer[0])}:mailto:{organizer[1]}"]
     for name, email, role in attendees:
-        lines.append(f"ATTENDEE;CN={_param(name)};ROLE={role};PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:{email}")
+        lines.append(f"ATTENDEE;CN={_param(name)};ROLE={role};PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:{_CTRL.sub('', str(email))}")
     lines += [f"STATUS:{'CANCELLED' if method == 'CANCEL' else 'CONFIRMED'}", "TRANSP:OPAQUE", "END:VEVENT", "END:VCALENDAR"]
     return "\r\n".join(_fold(l) for l in lines) + "\r\n"
 
 
 def _param(v: str) -> str:
-    v = str(v).replace('"', "").replace(";", " ").replace(":", " ").replace(",", " ").replace("\n", " ")
+    v = _CTRL.sub(" ", str(v)).replace('"', "").replace(";", " ").replace(":", " ").replace(",", " ")
     return f'"{v}"'

@@ -253,3 +253,22 @@ def test_hourly_cap_counts_accepted_posts_only_and_the_post_is_one_write(env, mo
     assert submit(fid)["status"] == "ok"
     assert submit(fid)["status"] == "rate_limited"
     assert len(list((agent_dir("SCREENING_FORMS") / "uploads").glob("*.bin"))) == 2   # the refused upload was removed
+
+
+def test_unreviewed_submissions_per_form_are_capped_and_a_failed_write_leaves_no_upload(env, monkeypatch):
+    """KAN-64 review: submissions share one size-limited state file; a flood filled it for every organisation."""
+    _, _, _, fid, _ = env
+    monkeypatch.setattr(hi, "MAX_PENDING_PER_FORM", 2)
+    assert submit(fid)["status"] == "ok" and submit(fid)["status"] == "ok"
+    full = submit(fid)
+    assert full["status"] == "rate_limited" and "recruiter reviews" in full["reason"]
+    uploads = lambda: len(list((agent_dir("SCREENING_FORMS") / "uploads").glob("*.bin")))      # noqa: E731
+    assert uploads() == 2
+    monkeypatch.setattr(hi, "MAX_PENDING_PER_FORM", 100)
+
+    def boom(self, d):
+        raise ValueError("state file is full")
+    monkeypatch.setattr(hf._st().__class__, "save", boom)
+    with pytest.raises(ValueError):
+        submit(fid)
+    assert uploads() == 2                                                # the sealed upload of the failed post was removed

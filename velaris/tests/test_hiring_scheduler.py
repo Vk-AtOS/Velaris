@@ -328,3 +328,12 @@ def test_fair_slots_same_set_per_stage_round_and_divergence_needs_an_hr_admin_re
     advance(monkeypatch, 4 * hc.DAY)
     with as_(c["rec"]):
         assert tok(apps[0], ("iv-b",))["status"] == "ok"
+
+
+def test_ics_text_fields_cannot_inject_lines():
+    """KAN-64 review: CR was not stripped from names and the e-mail was not escaped."""
+    from velaris.agentkit import hiring_slots as sl
+    ics = sl.build_ics("REQUEST", uid="u1", sequence=0, start=0, end=3600, stamp=0, summary="s", description="d", location="l",
+                       organizer=("Org", "o@x.com"), attendees=[("Eve\rATTENDEE:mailto:evil@x.com\r\nBEGIN:VALARM", "a@x.com\r\nX-EVIL:1", "REQ-PARTICIPANT")])
+    assert not any(line.startswith(("X-EVIL", "BEGIN:VALARM", "ATTENDEE;CN=\"Eve\rATTENDEE")) for line in ics.splitlines())
+    assert "\r" not in ics.replace("\r\n", "")

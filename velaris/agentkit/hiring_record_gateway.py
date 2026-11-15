@@ -4,6 +4,7 @@ in the identity-authenticated API. Every call is gated by that participant's rec
 """
 from __future__ import annotations
 
+import os
 import secrets
 from typing import Any, Dict, Optional
 
@@ -95,6 +96,7 @@ def ingest_audio_file(token: str, src: str, mime: str, duration_s: float) -> Dic
     try:
         t, s = _open(hr.st().load(), token)
         track = hr.store_audio_file(t["org"], s, t["participant"], src, mime, duration_s)
+        created = track.pop("_created", False)
 
         def go(d: Dict[str, Any]) -> Dict[str, Any]:
             t2, s2 = _open(d, token)                       # the link, consent and "one track" rule may have changed meanwhile
@@ -102,7 +104,12 @@ def ingest_audio_file(token: str, src: str, mime: str, duration_s: float) -> Dic
             s2["tracks"][t2["participant"]] = track
             audit(hr.AGENT, "audio.stored", t2["org"], None, session=hid(t2["org"], s2["id"]), audio_sha256=track["sha256"])
             return {"sha256": track["sha256"]}
-        return ok(**hr.st().update(go))
+        try:
+            return ok(**hr.st().update(go))
+        except BaseException:                              # nothing references the sealed file: it must not stay behind
+            if created and track.get("path"):
+                os.unlink(track["path"]) if os.path.exists(track["path"]) else None
+            raise
     except HiringError as e:
         return fail(e.status, e.reason)
 
