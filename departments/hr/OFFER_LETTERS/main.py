@@ -20,6 +20,7 @@ import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
 import base64
+import hashlib
 import logging
 from datetime import date
 import re
@@ -366,6 +367,13 @@ class OfferLetters:
             return fail("not_configured", "the e-signature evidence could not be checked")
         if not info or info.get("status") != "sealed" or info.get("document_ref") != offer_id:
             return fail("evidence_mismatch", "the evidence reference is not a sealed e-signature request for this offer")
+        o = self.store.get("offers", offer_id, org)
+        sent_sha = (o or {}).get("sent_document_sha256")
+        if not sent_sha or info.get("document_sha256") != sent_sha:        # a request that only NAMES this offer but carries another document
+            return fail("evidence_mismatch", "the signed document is not the offer letter that was sent")
+        email = ((o or {}).get("candidate") or {}).get("email", "").strip().lower()
+        if not email or hashlib.sha256(email.encode()).hexdigest() not in (info.get("signer_email_sha256") or []):
+            return fail("evidence_mismatch", "the offer was not signed by the candidate it was made to")
         return None
 
     def withdraw_offer(self, offer_id: str, reason: str) -> Dict[str, Any]:

@@ -148,11 +148,11 @@ def make_offer(app):
     return oid
 
 
-def seal(oid, email="asha@example.com", name="Asha Kumar", otp=False):
+def seal(oid, email="asha@example.com", name="Asha Kumar", otp=False, pdf_b64=None):
     sender, clock = FakeSender(), Clock()
     e = Esign({"sender": sender, "clock": clock})
     with acting_as(HR1):
-        rid = e.create_request("Offer", base64.b64encode(build_pdf([("h1", "Offer")])).decode(), [{"name": name, "email": email}],
+        rid = e.create_request("Offer", pdf_b64 or base64.b64encode(build_pdf([("h1", "Offer")])).decode(), [{"name": name, "email": email}],
                                document_ref=oid)["request"]["id"]
         assert e.send_request(rid)["status"] == "ok"
     tok = sender.token_for(email)
@@ -169,8 +169,13 @@ def test_offer_response_cites_sealed_esign_evidence_through_the_real_adapters(ap
     assert run("OFFER_LETTERS", "get_offer", HR1, offer_id=oid)["offer"]["candidate"]["name"] == "Asha Kumar"      # from ATS, not the arguments
     assert run("OFFER_LETTERS", "send_offer", HR1, offer_id=oid)["status"] == "not_configured"                     # no sender: only a draft
     assert run("OFFER_LETTERS", "send_offer", HR1, offer_id=oid, delivered_manually=True)["offer"]["status"] == "sent"
-    rid = seal(oid)
+    pdf = run("OFFER_LETTERS", "render_offer", HR1, offer_id=oid, fmt="pdf")["pdf_base64"]
+    rid = seal(oid, pdf_b64=pdf)
     other = seal("ofr-other", email="other@example.com", name="Other Person")                                     # sealed, but for another document
+    wrong_doc = seal(oid)                                                                                          # names this offer, carries another document
+    wrong_person = seal(oid, email="stranger@example.com", name="Some Stranger", pdf_b64=pdf)                      # right document, not the candidate
+    assert run("OFFER_LETTERS", "record_response", HR1, offer_id=oid, response="accept", evidence_ref=wrong_doc)["status"] == "evidence_mismatch"
+    assert run("OFFER_LETTERS", "record_response", HR1, offer_id=oid, response="accept", evidence_ref=wrong_person)["status"] == "evidence_mismatch"
     assert run("OFFER_LETTERS", "record_response", HR1, config=NOT_WIRED, offer_id=oid, response="accept", evidence_ref=rid)["status"] == "not_configured"
     assert run("OFFER_LETTERS", "record_response", HR1, offer_id=oid, response="accept", evidence_ref=other)["status"] == "evidence_mismatch"
     assert run("OFFER_LETTERS", "record_response", OTHER_HR, offer_id=oid, response="accept", evidence_ref=rid)["status"] == "evidence_mismatch"   # ESIGN is not looked into
