@@ -1,5 +1,6 @@
 """KAN-18 backend: /providers on the Velaris API. model_admin only, keys never come back, test is safe."""
 import json
+import os
 import secrets
 
 import pytest
@@ -89,9 +90,12 @@ def test_preset_and_bad_input(client):
 
 
 def test_no_vault_key_is_a_clear_503_and_stores_nothing(client, monkeypatch):
+    key = os.environ["VELARIS_VAULT_KEY"]
     monkeypatch.delenv("VELARIS_VAULT_KEY")
     r = send(client, "POST", "/providers", {"id": "gw", "kind": "ollama", "api_key": APIKEY})
-    assert r.status_code == 503 and r.json()["error"]["code"] == "vault_unavailable"
+    monkeypatch.setenv("VELARIS_VAULT_KEY", key)                # back, so the list below can be recorded and read
+    # the trace head is signed with the vault key, so the call cannot be recorded and is refused before the registry is touched
+    assert r.status_code == 503 and r.json()["error"]["code"] == "audit_unavailable"
     assert send(client, "GET", "/providers").json()["providers"] == []
 
 

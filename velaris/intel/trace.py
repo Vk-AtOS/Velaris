@@ -84,6 +84,12 @@ def _sign(count: int, last: str) -> str:
     return hmac.new(key, f"{count}|{last}".encode(), hashlib.sha256).hexdigest()
 
 
+def require_writable() -> None:
+    """Raise TraceHeadError now if an entry could not be signed (no vault key). For code that changes state and then records
+    it: call this first, so a change that could not be recorded is refused before anything is stored."""
+    _sign(0, "")
+
+
 def _head_paths(base: Optional[Path] = None) -> list:
     anchor = os.environ.get("VELARIS_TRACE_ANCHOR_FILE", "").strip()
     return [(base or data_dir()) / "trace.head"] + ([Path(anchor)] if anchor else [])

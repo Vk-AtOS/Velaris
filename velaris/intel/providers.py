@@ -157,6 +157,7 @@ def create(provider_id: str, *, kind: str, base_url: str = "", api_key: Optional
         key = _check_key(api_key)
         row.update(sealed_key=_seal(provider_id, key), key_last4=key[-4:])   # VaultKeyError here: nothing stored
     row.update(created_at=time.time(), updated_at=time.time(), rotated_at=0.0)
+    trace.require_writable()                       # a provider that could not be recorded must not exist
 
     def add(d: Dict[str, Any]) -> None:
         if provider_id in d["providers"]:
@@ -191,6 +192,7 @@ def update(provider_id: str, *, by: str = "", **changes: Any) -> Provider:
     allowed = {"base_url", "models", "sensitivity_allowed", "enabled", "allow_local", "free_pool"}
     if set(changes) - allowed:
         raise ProviderError(f"cannot change: {', '.join(sorted(set(changes) - allowed))}")
+    trace.require_writable()
 
     def edit(d: Dict[str, Any]) -> Dict[str, Any]:
         row = d["providers"].get(provider_id)
@@ -213,6 +215,7 @@ def rotate(provider_id: str, new_key: str, *, by: str = "") -> Provider:
     """Replace the key. The old one is gone from disk as soon as the file is written."""
     key = _check_key(new_key)
     sealed = _seal(provider_id, key)
+    trace.require_writable()
 
     def swap(d: Dict[str, Any]) -> Dict[str, Any]:
         row = d["providers"].get(provider_id)
@@ -226,6 +229,7 @@ def rotate(provider_id: str, new_key: str, *, by: str = "") -> Provider:
 
 
 def delete(provider_id: str, *, by: str = "") -> bool:
+    trace.require_writable()
     gone = _state().update(lambda d: d["providers"].pop(provider_id, None)) is not None
     if gone:
         trace.append("providers", "delete", {"id": provider_id, "by": by})

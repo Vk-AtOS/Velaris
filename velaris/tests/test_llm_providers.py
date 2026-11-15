@@ -49,8 +49,23 @@ def test_without_the_vault_key_nothing_is_stored(monkeypatch):
     with pytest.raises(vault.VaultKeyError):
         providers.create("nokey", kind="openai_compatible", base_url="https://r.example.com/v1", api_key=KEY)
     assert providers.get("nokey") is None
-    providers.create("local", kind="ollama")                    # no key to protect: fine
-    assert providers.get("local").has_key is False
+    # Without the vault key the trace head cannot be signed, so the change could not be recorded: it is refused BEFORE
+    # anything is stored (a provider with no audit entry must not exist), even when there is no API key to protect.
+    with pytest.raises(trace.TraceHeadError):
+        providers.create("local", kind="ollama")
+    assert providers.get("local") is None
+
+
+def test_no_change_is_stored_when_it_cannot_be_recorded(monkeypatch):
+    providers.create("p", kind="ollama")
+    monkeypatch.delenv("VELARIS_VAULT_KEY")
+    monkeypatch.delenv("VELARIS_VAULT_KEY_FILE", raising=False)
+    before = providers.get("p")
+    for change in (lambda: providers.update("p", enabled=False), lambda: providers.rotate("p", "sk-second-KEY-0000-9999"),
+                   lambda: providers.delete("p")):
+        with pytest.raises((trace.TraceHeadError, vault.VaultKeyError)):
+            change()
+        assert providers.get("p") == before
 
 
 def test_refuses_bad_records():
