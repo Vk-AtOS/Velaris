@@ -23,8 +23,9 @@ class CognitiveIntentFirewall:
 
     @staticmethod
     def _has(word: str, text: str) -> bool:
-        """The word as a whole word (with a common ending), so "skill" does not contain "kill"."""
-        return re.search(rf"\b{re.escape(word)}(?:s|es|ed|ing)?\b", text) is not None
+        """The word as the START of a word, so "harmful", "attacker" and "killing" match but "skill" does not
+        contain "kill". Erring toward a match is deliberate: this is a blocking filter."""
+        return re.search(rf"\b{re.escape(word)}\w*", text) is not None
 
     def classify(self, text: str) -> Dict:
         if not isinstance(text, str):

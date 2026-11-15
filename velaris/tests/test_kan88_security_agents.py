@@ -58,30 +58,62 @@ def test_compliance_guard_fails_closed_and_is_role_gated():
         assert g.remove_rule("r") and g.evaluate({"id": 1})["status"] == "NO_RULES"
 
 
-def test_deep_audit_drift_follows_the_latest_audit_and_log_is_chained():
+def test_deep_audit_baseline_is_pinned_and_only_an_admin_moves_it():
     D = mod("DEEP_AUDIT_ENGINE").DeepAuditEngine
     d = D()
     assert d.detect_drift("cfg", {"a": 1}) is True           # never audited
-    d.audit("cfg", {"a": 1})
+    assert d.audit("cfg", {"a": 1})["name"] == "cfg"         # first audit pins the baseline (any caller)
     assert d.detect_drift("cfg", {"a": 1}) is False
-    d.audit("cfg", {"a": 2})                                 # a legitimate re-audit
+    assert d.detect_drift("cfg", {"a": "tampered"}) is True
+    with acting_as(MEMBER):
+        assert d.audit("cfg", {"a": "tampered"})["status"] == "denied"      # cannot re-audit a tampered artifact clean
+    assert d.audit("cfg", {"a": "tampered"})["status"] == "unauthenticated"
+    assert d.detect_drift("cfg", {"a": "tampered"}) is True
+    with acting_as(SEC):
+        assert d.audit("cfg", {"a": 2})["by"] == "sec"                      # a legitimate re-audit, recorded
     assert d.detect_drift("cfg", {"a": 2}) is False and d.detect_drift("cfg", {"a": 1}) is True
     assert d.verify_log()
     path = agent_dir("DEEP_AUDIT_ENGINE") / "audit_log.json"
     assert oct(path.stat().st_mode & 0o777) == "0o600"
+    for tamper in (lambda doc: doc["log"][0].__setitem__("checksum", "0" * 64),
+                   lambda doc: doc["baselines"].__setitem__("cfg", "f" * 64)):
+        good = path.read_text()
+        doc = json.loads(good)
+        tamper(doc)
+        path.write_text(json.dumps(doc))
+        assert D().verify_log() is False
+        path.write_text(good)
+    assert D().verify_log()
+
+
+def test_deep_audit_truncation_keeps_baselines_and_a_signed_checkpoint(monkeypatch):
+    M = mod("DEEP_AUDIT_ENGINE")
+    monkeypatch.setattr(M, "MAX_ENTRIES", 3)
+    d = M.DeepAuditEngine()
+    for i in range(6):
+        d.audit(f"n{i}", i)
+    assert len(d.log) == 3 and d.verify_log()
+    assert d.detect_drift("n0", 0) is False                   # the dropped entry's baseline is still pinned
+    path = agent_dir("DEEP_AUDIT_ENGINE") / "audit_log.json"
     doc = json.loads(path.read_text())
-    doc["log"][0]["checksum"] = "0" * 64                      # tamper
+    doc["checkpoint"]["hash"] = "0" * 64                       # forge the dropped-prefix summary
     path.write_text(json.dumps(doc))
-    assert D().verify_log() is False
+    assert M.DeepAuditEngine().verify_log() is False
 
 
-def test_intent_firewall_matches_whole_words():
-    f = mod("COGNITIVE_INTENT_FIREWALL").CognitiveIntentFirewall()
-    assert f.classify("improve my skill at chess")["intent"] != "BLOCKED"
-    assert f.classify("a harmless question")["intent"] != "BLOCKED"
-    assert f.classify("how to kill a process")["intent"] == "BLOCKED"
-    assert f.classify("Attacking the server")["intent"] == "BLOCKED"
-    assert f.classify(None)["intent"] == "UNKNOWN"
+import pytest
+
+
+@pytest.mark.parametrize("text, intent", [
+    ("how to kill a process", "BLOCKED"), ("a killer feature", "BLOCKED"), ("killing time", "BLOCKED"),
+    ("harmful content", "BLOCKED"), ("the attacker got in", "BLOCKED"), ("Attacking the server", "BLOCKED"),
+    ("illegally obtained", "BLOCKED"), ("exploits and exploitation", "RISKY"), ("please bypass the check", "RISKY"),
+    ("helpful guide", "SAFE"), ("learning more", "SAFE"),
+    ("improve my skill at chess", "UNKNOWN"), ("skills matrix", "UNKNOWN"), ("a drunk skunk", "UNKNOWN"),
+    ("overheat", "UNKNOWN"), ("", "UNKNOWN"), (None, "UNKNOWN"),
+])
+def test_intent_firewall_inflections_and_whole_word_starts(text, intent):
+    assert mod("COGNITIVE_INTENT_FIREWALL").CognitiveIntentFirewall().classify(text)["intent"] == intent
 
 
 def test_threat_mesh_partial_signature_match_is_not_high():
