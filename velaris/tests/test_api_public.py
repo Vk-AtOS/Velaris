@@ -308,10 +308,24 @@ def test_ip_buckets_are_separate_and_x_forwarded_for_is_only_trusted_when_set(es
     assert codes == [404, 404, 404]                                           # the proxy's own entry (last) separates clients
 
 
-def test_counter_table_is_bounded_and_fails_closed(esign_world, tick):
-    c = TestClient(create_public_app(PublicSettings(esign=esign_world[0], clock=tick, max_keys=4)), raise_server_exceptions=False)
-    codes = [c.post(f"/schedule/{chr(97 + i) * 32}/cancel").status_code for i in range(6)]
-    assert 429 in codes
+def test_counter_table_is_bounded_and_fails_closed_for_addresses_but_random_ids_cannot_lock_clients_out(esign_world, tick):
+    """KAN-64 review: random tokens in the URL used to create rate keys until the table was full and every new client got 429."""
+    c = TestClient(create_public_app(PublicSettings(esign=esign_world[0], clock=tick, max_keys=4, trust_proxy=True)), raise_server_exceptions=False)
+    flood = [c.post(f"/schedule/{chr(97 + i) * 32}/cancel", headers={"x-forwarded-for": "198.51.100.200"}).status_code for i in range(8)]
+    assert 429 not in flood                                           # ids are not counted once their table is full
+    legit = c.post(f"/schedule/{'z' * 32}/cancel", headers={"x-forwarded-for": "198.51.100.7"})
+    assert legit.status_code == 404                                   # a real client is still served (and told "not found", not "busy")
+    for i in range(6):                                                # distinct ADDRESSES do fill the address table: fail closed
+        last = c.post(f"/schedule/{'y' * 32}/cancel", headers={"x-forwarded-for": f"198.51.100.{20 + i}"})
+    assert last.status_code == 429
+
+
+def test_malformed_ids_never_reach_a_counter_and_deep_json_is_a_400(client, world, tick):
+    for i in range(30):
+        client.post(f"/schedule/short{i}/cancel")
+    deep = b"[" * 1000 + b"]" * 1000
+    err(client.post(f"/schedule/{world['sched']}/pick", content=deep, headers={"content-type": "application/json"}), 400, "invalid_input")
+    err(client.post(f"/schedule/{world['sched']}/pick", json={"start": 10 ** 400}), 400, "invalid_input")
 
 
 def test_body_size_limits_content_type_and_shape(client, world):

@@ -72,12 +72,16 @@ class NonceStore:
 
 
 class RateStore:
-    def __init__(self, max_keys: int = 50_000) -> None:
-        self._db = _Db("rate.db", "CREATE TABLE IF NOT EXISTS hit(k TEXT NOT NULL, ts REAL NOT NULL);"
+    def __init__(self, max_keys: int = 50_000, filename: str = "rate.db", evictable: bool = False) -> None:
+        self._evictable = evictable
+        self._db = _Db(filename, "CREATE TABLE IF NOT EXISTS hit(k TEXT NOT NULL, ts REAL NOT NULL);"
                                   "CREATE INDEX IF NOT EXISTS ix_hit_k ON hit(k, ts);")
         self._max, self._last_sweep, self._keys = max_keys, 0.0, 0
 
     def allow(self, key: str, limit: int, window: float, now: Optional[float] = None) -> bool:
+        """One more hit for `key` unless it already has `limit` in the window. A full table refuses an unknown key (fail
+        closed), or, for a store built with `evictable=True` (counters keyed by something the caller chose, such as a token
+        or form id), lets it through unrecorded, so random identifiers cannot fill the table and lock real clients out."""
         now = time.time() if now is None else now
         c = self._db.conn()
         if now - self._last_sweep > 2.0:
@@ -88,9 +92,12 @@ class RateStore:
         try:
             c.execute("DELETE FROM hit WHERE k=? AND ts<=?", (key, now - window))
             n = c.execute("SELECT count(*) FROM hit WHERE k=?", (key,)).fetchone()[0]
-            if n >= limit or (n == 0 and self._keys >= self._max):      # a full table refuses unknown clients (fail closed)
+            if n >= limit:
                 c.execute("COMMIT")
                 return False
+            if n == 0 and self._keys >= self._max:
+                c.execute("COMMIT")
+                return self._evictable                     # unknown clients are refused (fail closed); caller-chosen ids are not counted
             c.execute("INSERT INTO hit(k, ts) VALUES (?,?)", (key, now))
             c.execute("COMMIT")
             self._keys += n == 0                          # exact count is refreshed from the table at each sweep
