@@ -2,11 +2,13 @@
 
   seal(value, purpose)      "vlv1:" + base64(AES-256-GCM, key outside VELARIS_DATA via velaris.core.vault); a value that
                             is None, not text, empty or already sealed is returned unchanged.
-  unseal(value, purpose)    the plaintext; a value without the prefix (written before sealing) is returned as it is.
+  unseal(value, purpose)    the plaintext; a non-empty text WITHOUT the prefix raises vault.PlaintextRefused (a planted
+                            row must not be trusted) unless the one-time migration window of velaris.core.vault is open.
   row_class(purpose, cols)  a sqlite3.Row subclass: reading row["body"] (or dict(row)) of a sealed column gives the
                             plaintext, so SELECT code does not change. Columns are matched by NAME.
   seal_existing(conn, table, cols, purpose, key)   one-off: seal plaintext values already stored, in batches, then
-                            checkpoint the WAL and VACUUM so the old plaintext pages do not stay in the file.
+                            checkpoint the WAL and VACUUM so the old plaintext pages do not stay in the file. Outside
+                            the migration window it seals nothing and raises PlaintextRefused if it finds plaintext.
   blind_tokens(text, purpose)  space-separated HMAC-SHA256 (truncated) of the words of `text`, for a search index that
                             holds no readable words (see mail/chat): exact-word search, no prefix or substring search.
 
@@ -42,7 +44,7 @@ def seal(v: Any, purpose: str) -> Any:
 
 def unseal(v: Any, purpose: str) -> Any:
     if not is_sealed(v):
-        return v
+        return vault.legacy_plaintext(v, f"a {purpose} value") if isinstance(v, str) and v else v
     return vault.open_bytes(base64.b64decode(v[len(PREFIX):]), purpose).decode("utf-8")
 
 
@@ -97,6 +99,7 @@ def seal_existing(conn: sqlite3.Connection, table: str, cols: List[str], purpose
         rows = cur.execute(f"SELECT {key}, {', '.join(cols)} FROM {table} WHERE {where} LIMIT {int(batch)}").fetchall()
         if not rows:
             break
+        vault.legacy_plaintext(None, f"{len(rows)}+ rows of {table}")     # never bless planted plaintext by sealing it
         for r in rows:
             sets = ", ".join(f"{c}=?" for c in cols)
             conn.execute(f"UPDATE {table} SET {sets} WHERE {key}=?", (*[seal(v, purpose) for v in r[1:]], r[0]))

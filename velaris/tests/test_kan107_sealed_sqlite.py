@@ -47,7 +47,7 @@ def test_missing_key_wrong_purpose_and_tamper_fail_closed(tmp_path, monkeypatch)
     assert not (tmp_path / "new.db").exists()
 
 
-def test_plaintext_database_from_an_older_release_is_sealed_on_next_commit(tmp_path):
+def test_plaintext_database_from_an_older_release_is_sealed_on_next_commit(tmp_path, plaintext_migration):
     p = tmp_path / "old.db"
     o = sqlite3.connect(p)
     o.execute("CREATE TABLE t(a)")

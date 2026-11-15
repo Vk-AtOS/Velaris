@@ -86,8 +86,10 @@ def test_docs_and_memory_hard_erase_leave_no_text_behind():
     assert d._db.execute("SELECT count(*) FROM documents").fetchone()[0] == 0
     assert d._db.execute("SELECT count(*) FROM chunks").fetchone()[0] == 0
     m = MemoryStore(FakeLLM({}))
-    m._db.execute("INSERT INTO memories (id, scope, text, embedding, created_at) VALUES ('a','s','old phone','[]',1)")
-    m._db.execute("INSERT INTO memories (id, scope, text, embedding, created_at, supersedes) VALUES ('b','s','new phone','[]',2,'a')")
+    from velaris.core import fieldseal
+    sealed = (fieldseal.seal("a phone", "memory"), fieldseal.seal("[]", "memory"))
+    m._db.execute("INSERT INTO memories (id, scope, text, embedding, created_at) VALUES ('a','s',?,?,1)", sealed)
+    m._db.execute("INSERT INTO memories (id, scope, text, embedding, created_at, supersedes) VALUES ('b','s',?,?,2,'a')", sealed)
     m._db.commit()
     assert m.erase("b", reason="dpdp") == 2 and m._db.execute("SELECT count(*) FROM memories").fetchone()[0] == 0
 

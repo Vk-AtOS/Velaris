@@ -5,8 +5,8 @@
 The database lives in memory while the process runs. The file on disk is `VLV1` + AES-256-GCM of the sqlite image
 (velaris.core.vault: key outside VELARIS_DATA, missing key raises = fail closed, `purpose` is authenticated so a file
 cannot be swapped between stores). Every commit (and close) seals the whole image and replaces the file atomically
-(temp, fsync, rename) under a cross-process lock. A plaintext database left by an older release is read and sealed on
-its first commit.
+(temp, fsync, rename) under a cross-process lock. A plaintext database is refused (vault.PlaintextRefused) unless the
+one-time migration window of velaris.core.vault is open; then it is sealed as it is opened.
 
 Ceilings, on purpose: the whole image is rewritten per commit, so this is for the small personal-data stores of the HR
 agents (hundreds of KB to a few MB), not for mail or chat; and ONE process writes a file: if another process replaced
@@ -43,9 +43,9 @@ class SealedConnection(sqlite3.Connection):
         with lock_for(str(path) + ".lock"):
             if path.exists() and path.stat().st_size:
                 blob = read_private(path)
-                self.deserialize(vault.open_bytes(blob, purpose) if vault.is_sealed(blob) else blob)
-                if not vault.is_sealed(blob):
-                    self._synced = None                    # plaintext from an older release: seal on the next commit
+                self.deserialize(vault.open_bytes(blob, purpose) if vault.is_sealed(blob) else vault.legacy_plaintext(blob, path))
+                if not vault.is_sealed(blob):              # migration window only: seal now, not "on the next commit"
+                    vault.write_sealed(path, self.serialize(), purpose)
             else:
                 vault.derive_key(purpose)                  # no key, no new store (fail closed before anything is written)
             self._stamp = self._file_stamp()

@@ -62,6 +62,31 @@ def _tests_may_read_sealed_state(monkeypatch):
                     continue
             raise
     monkeypatch.setattr(Path, "read_text", read_text)
+    orig_write = Path.write_text
+
+    def write_text(self, data, *a, **k):
+        """A test that edits a sealed state file writes it back sealed (an insider with the key): a plaintext file
+        in its place is the downgrade the vault refuses, which test_plaintext_downgrade.py covers on purpose."""
+        try:
+            blob = self.read_bytes()
+        except OSError:
+            blob = b""
+        if vault.is_sealed(blob):
+            agent = next((p.name for p in self.parents if p.parent.name == "agents"), "")
+            for purpose in (f"hiring:{agent}", f"hr:{agent}", f"memory:{agent}", agent):
+                try:
+                    vault.open_bytes(blob, purpose)
+                except vault.VaultError:
+                    continue
+                return self.write_bytes(vault.seal_bytes(data.encode(), purpose))
+        return orig_write(self, data, *a, **k)
+    monkeypatch.setattr(Path, "write_text", write_text)
+
+
+@pytest.fixture
+def plaintext_migration(monkeypatch):
+    """The one-time migration window of velaris.core.vault (stores accept and seal plaintext of older releases)."""
+    monkeypatch.setenv("VELARIS_VAULT_ALLOW_PLAINTEXT", "1")
 
 
 @pytest.fixture(autouse=True)

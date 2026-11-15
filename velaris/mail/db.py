@@ -164,9 +164,11 @@ class Database:
     def get_blob(self, sha: str) -> bytes:
         try:
             data = read_private(self._blob_path(sha))
-            data = vault.open_bytes(data, "mail:blob") if vault.is_sealed(data) else data      # older blobs are plaintext
+            data = vault.open_bytes(data, "mail:blob") if vault.is_sealed(data) else vault.legacy_plaintext(data, f"mail blob {sha[:8]}")
         except FileNotFoundError:
             raise MailError("not_found", "no such attachment", 404) from None
+        except vault.VaultError as e:                              # tampered, or plaintext planted in its place
+            raise MailError("corrupt", "the stored attachment failed its integrity check", 500) from e
         if hashlib.sha256(data).hexdigest() != sha:
             raise MailError("corrupt", "the stored attachment failed its integrity check", 500)
         return data

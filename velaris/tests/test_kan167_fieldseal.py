@@ -13,7 +13,7 @@ from velaris.intel.paths import data_dir
 def test_roundtrip_and_blind_token_helpers():
     s = fieldseal.seal("hello Asha", "x")
     assert s.startswith("vlv1:") and "Asha" not in s and fieldseal.unseal(s, "x") == "hello Asha"
-    assert fieldseal.seal(s, "x") == s and fieldseal.unseal("plain", "x") == "plain"
+    assert fieldseal.seal(s, "x") == s and fieldseal.unseal("", "x") == "" and fieldseal.unseal(None, "x") is None
     with pytest.raises(vault.VaultError):
         fieldseal.unseal(s, "other-store")
     assert fieldseal.blind_tokens("Hello hello WORLD", "m") == fieldseal.blind_tokens("hello world", "m")
@@ -29,7 +29,7 @@ def test_row_class_unseals_by_column_name_for_key_dict_and_iteration():
     assert r["body"] == "secret" and r[1] == "secret" and dict(r) == {"id": 1, "body": "secret"} and tuple(r) == (1, "secret")
 
 
-def test_plaintext_from_older_release_is_sealed_at_open_and_old_pages_are_vacuumed():
+def test_plaintext_from_older_release_is_sealed_at_open_and_old_pages_are_vacuumed(plaintext_migration):
     db = data_dir() / "mem_old.db"
     c = sqlite3.connect(db)
     c.executescript("CREATE TABLE memories(id TEXT PRIMARY KEY, text TEXT, embedding TEXT)")
@@ -85,7 +85,7 @@ def test_chat_text_is_sealed_in_the_file_and_search_still_works(tmp_path, fts):
     assert svc.store.fts is fts
 
 
-def test_chat_database_of_an_older_release_is_sealed_and_reindexed_once(tmp_path):
+def test_chat_database_of_an_older_release_is_sealed_and_reindexed_once(tmp_path, plaintext_migration):
     import sqlite3
     from velaris.chat.store import SCHEMA, Store
     from velaris.tests.chat_support import ALICE, service
@@ -122,7 +122,7 @@ def test_mail_text_attachments_and_search_index_are_sealed_but_search_and_thread
     assert store.list_messages(ALICE, mb["id"], q="zebra")["total"] == 1
 
 
-def test_mail_database_of_an_older_release_is_sealed_and_reindexed_once(tmp_path):
+def test_mail_database_of_an_older_release_is_sealed_and_reindexed_once(tmp_path, plaintext_migration):
     import sqlite3
     from velaris.mail import db as maildb
     path = tmp_path / "old_mail.db"
