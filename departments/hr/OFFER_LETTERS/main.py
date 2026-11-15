@@ -302,16 +302,40 @@ class OfferLetters:
         content = self._render(o, expires)
         message = {"to": o["candidate"]["email"], "subject": f"Offer of employment: {o['terms']['role_title']}", "body": content["text"]}
         sender, channel = self.config.get("sender"), "manual"
+        if not delivered_manually and sender is None:
+            return fail("not_configured", "no message sender is configured; the offer was not sent", draft=message)
+
+        def _claim(r: Dict[str, Any]) -> Dict[str, Any]:       # one sender wins: the state moves BEFORE anything leaves the building
+            if r["status"] != "approved":
+                raise Refused(fail("conflict", f"offer is {r['status']}"))
+            r.update(status="sending", sending_at=iso(now))
+            return ok()
+
+        def _release(r: Dict[str, Any]) -> Dict[str, Any]:
+            if r["status"] == "sending":
+                r["status"] = "approved"
+            return ok()
+
+        claimed = self.store.update("offers", offer_id, who.org, _claim)
+        if claimed.get("status") != "ok":
+            return claimed
         if not delivered_manually:
-            if sender is None:
-                return fail("not_configured", "no message sender is configured; the offer was not sent", draft=message)
-            if sender.send(**message) is not True:
+            try:
+                accepted = sender.send(**message) is True
+            except Exception as e:                              # a sender outside this agent: it did not deliver
+                logger.warning("offer %s: sender raised %s", offer_id, type(e).__name__)
+                accepted = False
+            if not accepted:
+                self.store.update("offers", offer_id, who.org, _release)
                 return fail("delivery_failed", "the message sender did not accept the message", draft=message)
             channel = "mail_draft" if getattr(sender, "drafts_only", False) else "sender"
 
         def _do(r: Dict[str, Any]) -> Dict[str, Any]:
-            if r["status"] != "approved":
+            if r["status"] not in ("sending", "withdrawn"):
                 raise Refused(fail("conflict", f"offer is {r['status']}"))
+            if r["status"] == "withdrawn":                       # withdrawn while the message was going out: say so, keep it withdrawn
+                r["sent_after_withdrawal"] = {"via": channel, "at": iso(now)}
+                return fail("conflict", "the offer was withdrawn while it was being sent; the message may have gone out")
             r.update(status="sent", sent_at=iso(now), expires_at=iso(expires), sent_via=channel,
                      sent_document_sha256=sha256_hex(content["pdf"]))
             return ok(offer=self._summary(r))

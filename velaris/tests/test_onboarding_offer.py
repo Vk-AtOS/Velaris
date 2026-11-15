@@ -349,3 +349,30 @@ def test_record_response_evidence_fails_closed_without_an_esign_view():
         assert o.get_offer(oid)["offer"]["status"] == "sent"
         r = o.record_response(oid, "accept")                                        # no claim, no check: the weaker basis
         assert r["status"] == "ok" and o.get_offer(oid)["offer"]["response"]["basis"] == "recorded_by_hr"
+
+
+def test_a_second_send_cannot_deliver_while_the_first_is_going_out_and_a_failed_send_releases_the_offer():
+    """KAN-96: the state used to change only AFTER the message left, so two senders could both deliver."""
+    class Reentrant(FakeSender):
+        def send(self, to, subject, body):
+            if not self.messages:                                   # a second HR admin clicks send while the first is in flight
+                with acting_as(HR2):
+                    self.inner = o.send_offer(oid)
+            return super().send(to, subject, body)
+    sender = Reentrant()
+    o, _ = make(sender=sender)
+    oid = draft(o)["offer"]["id"]
+    approve_all(o, oid)
+    with acting_as(HR1):
+        assert o.send_offer(oid)["offer"]["status"] == "sent"
+    assert sender.inner["status"] == "conflict" and len(sender.messages) == 1          # exactly one message left the building
+    refusing = FakeSender(accept=False)
+    o2, _ = make(sender=refusing)
+    oid2 = draft(o2)["offer"]["id"]
+    approve_all(o2, oid2)
+    with acting_as(HR1):
+        assert o2.send_offer(oid2)["status"] == "delivery_failed"
+        assert o2.get_offer(oid2)["offer"]["status"] == "approved"                      # released: HR can retry
+    refusing.accept = True
+    with acting_as(HR1):
+        assert o2.send_offer(oid2)["offer"]["status"] == "sent"
