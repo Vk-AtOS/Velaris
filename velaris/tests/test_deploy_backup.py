@@ -81,3 +81,37 @@ def test_cli_and_lock_file(tmp_path):
     archive = next((tmp_path / "o").glob("*.tar.gz"))
     assert vb.main(["restore", "--archive", str(archive), "--target", str(tmp_path / "r")]) == 0
     assert vb.main(["restore", "--archive", str(archive), "--target", str(tmp_path / "r")]) == 1     # not empty
+
+
+def _drill_module():
+    p = Path(__file__).resolve().parents[2] / "deploy" / "backup" / "restore_drill.py"
+    s = importlib.util.spec_from_file_location("restore_drill", p)
+    m = importlib.util.module_from_spec(s)
+    s.loader.exec_module(m)
+    return m
+
+
+def test_drill_passes_on_a_good_archive_and_records_timings(tmp_path, monkeypatch):
+    from velaris.intel import trace
+    monkeypatch.setenv("VELARIS_DATA", str(tmp_path / "live"))
+    for i in range(3):
+        trace.append("t", f"a{i}", {})
+    data = Path(tmp_path / "live")
+    con = sqlite3.connect(data / "flow.db")
+    con.execute("CREATE TABLE e (x)")
+    con.commit()
+    con.close()
+    rec = _drill_module().drill(vb.backup(data, tmp_path / "out"))
+    assert rec["passed"] and rec["trace_entries"] == 3
+    assert [s["step"] for s in rec["steps"]][0].startswith("restore archive") and rec["total_seconds"] >= 0
+
+
+def test_drill_fails_when_the_backed_up_trace_was_tampered_with(tmp_path, monkeypatch):
+    from velaris.intel import trace
+    monkeypatch.setenv("VELARIS_DATA", str(tmp_path / "live"))
+    for i in range(3):
+        trace.append("t", f"a{i}", {})
+    tf = tmp_path / "live" / "trace.jsonl"
+    tf.write_text(tf.read_text().replace('"a1"', '"EVIL"'))              # a rewritten history inside the backup
+    rec = _drill_module().drill(vb.backup(tmp_path / "live", tmp_path / "out"))
+    assert not rec["passed"] and any(not s["ok"] and "trace" in s["step"] for s in rec["steps"])

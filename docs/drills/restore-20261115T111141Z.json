@@ -1,0 +1,29 @@
+{
+  "archive": "velaris-data-20261115T111141Z.tar.gz",
+  "archive_bytes": 12066,
+  "steps": [
+    {
+      "step": "restore archive (checksums verified)",
+      "seconds": 0.01,
+      "ok": true,
+      "detail": "2 files"
+    },
+    {
+      "step": "sqlite integrity",
+      "seconds": 0.0,
+      "ok": true,
+      "detail": "all SQLite files pass integrity_check"
+    },
+    {
+      "step": "trace chain verifies",
+      "seconds": 0.01,
+      "ok": true,
+      "detail": "200 entries"
+    }
+  ],
+  "started_at": "2026-11-15T11:11:41Z",
+  "trace_entries": 200,
+  "total_seconds": 0.02,
+  "passed": true,
+  "note": "synthetic data (200 trace entries, one SQLite file) on a developer machine; NOT a production archive or environment"
+}
