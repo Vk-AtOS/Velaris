@@ -2,7 +2,7 @@
 
 - **Department:** `hr`
 - **Status (static inventory):** `real`
-- **Source:** `departments/hr/EMPLOYEE_RECORDS/main.py` (452 lines)
+- **Source:** `departments/hr/EMPLOYEE_RECORDS/main.py` (458 lines)
 
 ## Purpose
 
@@ -58,6 +58,7 @@ The employee master with conversion, history, exit and data-subject rights. See 
 - `velaris.agents.PERFORMANCE_REVIEW_ENGINE.main`
 - `velaris.agents.POLICY_ACKS.main`
 - `velaris.core.access`
+- `velaris.core.offboarding`
 - `velaris.intel`
 
 ## State and configuration
