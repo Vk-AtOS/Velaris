@@ -338,10 +338,20 @@ def test_without_a_sender_messages_are_queued_in_an_owner_only_outbox():
     assert "signing code" not in json.dumps(r) and "token_sha256" not in json.dumps(r)
     box = Path(os.environ["VELARIS_DATA"]) / "agents" / "ESIGN" / "outbox" / "outbox.jsonl"
     assert stat.S_IMODE(box.stat().st_mode) == 0o600 and stat.S_IMODE(box.parent.stat().st_mode) == 0o700
-    lines = [json.loads(x) for x in box.read_text().splitlines()]
+    assert "signing code" not in box.read_text() and "@" not in box.read_text()                 # sealed: no code, no address in the file
+    from velaris.agentkit.state import read_lines
+    from velaris.agents.ESIGN.main import OUTBOX_SEAL
+    lines = read_lines(box, encrypted=OUTBOX_SEAL)
     assert len(lines) == 2 and "signing code" in lines[0]["body"]
     token = lines[0]["body"].split("signing code", 1)[1].split(": ", 1)[1].split()[0]
     assert e.open_signing(token, lines[0]["to"], IP, UA)["status"] == "ok"             # the operator's relay can deliver it
+
+
+def test_a_non_ascii_email_is_a_mismatch_not_a_server_error():
+    e, sender, _, rid = setup()
+    token = sender.token_for(SIGNERS[0]["email"])
+    r = e.open_signing(token, "joséé@exämple.com", IP, UA)
+    assert r["status"] == "identity_mismatch"
 
 
 def test_create_request_input_and_access():

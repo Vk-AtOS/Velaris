@@ -41,6 +41,7 @@ logger = logging.getLogger("ESIGN")
 _AGENT = "ESIGN"
 _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 MAX_DOC = 5 * 1024 * 1024
+OUTBOX_SEAL = "hr:ESIGN:outbox"       # purpose of the outbox encryption; an operator's relay reads it with state.read_lines(path, encrypted=OUTBOX_SEAL)
 MAX_FAILS, MAX_OTP_TRIES, OTP_MINUTES, MAX_REMINDERS = 10, 5, 10, 3
 _PENDING = ("sent", "viewed", "consented")
 
@@ -96,7 +97,7 @@ class Esign:
                 logger.warning("sender failed for %s %s: %s", kind, req_id, e)
         append_line(self.store.files_dir("outbox") / "outbox.jsonl",
                     {"kind": kind, "to": to, "subject": subject, "body": body, "request": req_id, "signer": signer_id,
-                     "at": iso(self._now())})
+                     "at": iso(self._now())}, encrypted=OUTBOX_SEAL)       # signing codes and addresses: sealed at rest
         return "queued_in_outbox"
 
     def _invite_body(self, req: Dict[str, Any], signer: Dict[str, Any], token: str) -> str:
@@ -288,7 +289,7 @@ class Esign:
                 raise Refused(fail("not_open", f"the request is {r['status']}" if r["status"] != "sent" else "the request has expired"))
             if s["failed"] >= MAX_FAILS:
                 raise Refused(fail("locked", "too many wrong attempts; ask for a new signing code"))
-            if not isinstance(email, str) or not hmac.compare_digest(email.strip().lower(), s["email"]):
+            if not isinstance(email, str) or not hmac.compare_digest(email.strip().lower().encode(), s["email"].encode()):   # bytes: non-ASCII is a mismatch, not a TypeError
                 s["failed"] += 1                       # returned (not raised) so the counter is saved
                 self._trace_step(req_id, sid, org, "identity_mismatch", s["state"], must=False)
                 return fail("identity_mismatch", "the e-mail does not belong to this signing code")
