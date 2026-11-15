@@ -109,3 +109,15 @@ def test_aetheros_trace_id_becomes_the_request_id_and_reaches_the_trace(tmp_path
     assert api_entries("agents.list")[-1]["request_id"] == "aeth-trace-0123456789abcdef"   # the signed trace names it
     hostile = signed_get("x injected id").headers["x-request-id"]
     assert hostile != "x injected id" and len(hostile) == 16
+
+
+def test_healthz_is_liveness_and_readyz_is_503_when_the_data_dir_is_not_usable(tmp_path, monkeypatch):
+    from velaris.api import app as api_app
+    c = app_client(tmp_path)
+    assert c.get("/healthz").status_code == 200 and c.get("/health").status_code == 200
+    ok = c.get("/readyz")
+    assert ok.status_code == 200 and ok.json() == {"ready": True, "problems": []}
+    monkeypatch.setattr(api_app, "MIN_FREE_BYTES", 10 ** 18)               # the volume is "full"
+    full = c.get("/readyz")
+    assert full.status_code == 503 and full.json()["ready"] is False
+    assert c.get("/healthz").status_code == 200                             # liveness does not depend on the volume

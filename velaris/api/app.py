@@ -23,6 +23,7 @@ import asyncio
 import json
 import logging
 import os
+import shutil
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
@@ -46,6 +47,7 @@ from velaris.core.prime import PrimeGate, gate_from_env, install_read_authoriser
 from velaris.intel import trace
 from velaris.intel.flow import Flow, FlowError, Tool
 from velaris.intel.llm import LLM
+from velaris.intel.paths import data_dir
 from velaris.mail.api import mount_mail
 
 logger = logging.getLogger("velaris.api")
@@ -99,6 +101,18 @@ def _who(caller: Caller) -> Dict[str, Any]:
 def _caller(meta: Dict[str, Any]) -> Caller:
     c = meta["caller"]
     return Caller(id=c["id"], org=c["org"], roles=frozenset(c["roles"]), employee_id=c["employee_id"])
+
+
+MIN_FREE_BYTES = 50 * 1024 * 1024
+
+
+def _data_problems() -> List[str]:
+    d = data_dir()
+    if not os.access(d, os.W_OK):
+        return ["data directory is not writable"]
+    if shutil.disk_usage(d).free < MIN_FREE_BYTES:
+        return ["less than 50 MB free in the data directory"]
+    return []
 
 
 def create_app(settings: Settings, engine: Any = None) -> FastAPI:
@@ -228,8 +242,16 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
 
     # ── endpoints ────────────────────────────────────────────────────────────
     @app.get("/health")
+    @app.get("/healthz")
     async def health() -> Dict[str, Any]:
-        return {"status": "ok"}
+        return {"status": "ok"}          # liveness: the process answers; touches nothing else
+
+    @app.get("/readyz")
+    async def ready() -> JSONResponse:
+        """Readiness: VELARIS_DATA is there, writable and has room. Without that the API cannot record a trace, and a call
+        that cannot be recorded is refused anyway (audit_unavailable), so say so to the load balancer first."""
+        problems = await asyncio.to_thread(_data_problems)
+        return JSONResponse({"ready": not problems, "problems": problems}, status_code=503 if problems else 200)
 
     @app.get("/agents")
     async def agents(request: Request) -> Dict[str, Any]:
