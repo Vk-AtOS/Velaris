@@ -29,7 +29,10 @@ EXPECTED = {("GET", "/careers/forms/{form_id}"), ("GET", "/careers/challenge/{fo
             ("GET", "/schedule/{token}/slots"), ("POST", "/schedule/{token}/pick"), ("POST", "/schedule/{token}/cancel"),
             ("POST", "/interview/{token}/consent"), ("POST", "/interview/{token}/events"), ("POST", "/interview/{token}/withdraw"),
             ("POST", "/sign/{token}/open"), ("POST", "/sign/{token}/otp/request"), ("POST", "/sign/{token}/otp/verify"),
-            ("POST", "/sign/{token}/consent"), ("POST", "/sign/{token}/sign"), ("POST", "/sign/{token}/decline")}
+            ("POST", "/sign/{token}/consent"), ("POST", "/sign/{token}/sign"), ("POST", "/sign/{token}/decline"),
+            # the HTML pages (KAN-123..127): shells only, behaviour is in /static/public.js; see test_public_pages.py
+            ("GET", "/apply/{form_id}"), ("GET", "/status/{token}"), ("GET", "/withdraw/{token}"), ("GET", "/schedule/{token}"), ("GET", "/sign/{token}"),
+            ("GET", "/interview/{token}"), ("GET", "/static/{name}"), ("GET", "/jobs/{slug}"), ("GET", "/jobs/{slug}/apply")}
 BODIES = {"/schedule/{token}/pick": {"start": 1}, "/interview/{token}/consent": {"scopes": ["events"], "notice_version": "v"},
           "/interview/{token}/events": {"type": "join"}, "/sign/{token}/open": {"email": "a@b.co"}, "/sign/{token}/otp/request": {"email": "a@b.co"},
           "/sign/{token}/otp/verify": {"email": "a@b.co", "code": "1"}, "/sign/{token}/consent": {"email": "a@b.co", "consent_text_version": "v1"},
@@ -108,6 +111,8 @@ def test_only_the_token_functions_are_served_and_docs_are_off(client):
 
 def test_no_route_is_reachable_without_a_token_or_proof(client):
     for method, path in sorted(EXPECTED):
+        if method == "GET" and not path.startswith(("/careers", "/schedule/{token}/slots")) and path not in ("/careers/status/{token}",):
+            continue                      # the HTML shells hold no data; the JSON routes behind them are what this test covers
         if "{token}" in path:
             url = path.replace("{token}", TOKEN)
             for bad in (TOKEN, "short", "x" * 200, "tok en%20" + "y" * 24):                    # unknown, too short, too long, malformed

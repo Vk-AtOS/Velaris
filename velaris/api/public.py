@@ -9,6 +9,11 @@ and a solved proof-of-work. This module serves ONLY the functions that already t
   interview POST /interview/{token}/consent|events|withdraw          (audio is NOT served here: it is a large upload)
   e-sign    POST /sign/{token}/open | otp/request | otp/verify | consent | sign | decline
 
+Web pages (KAN-123..127, velaris.api.public_pages): GET /apply/{form_id} /status/{token} /withdraw/{token} /schedule/{token} /sign/{token}
+/interview/{token} (HTML shells; /static/public.js, pow-worker.js, public.css do the work against the routes above) and GET /jobs/{slug}
+(+ /jobs/{slug}/apply -> 303 to the form) rendered from a LIVE JOB_POSTINGS record with its JSON-LD. Every response carries a strict CSP
+(no inline script or style), a cross-origin POST is refused (403) by its Origin header, and no cookie is ever set.
+
 Nothing here is in the identity-authenticated API (velaris.api.app) and nothing asserts an identity: every handler runs with
 `acting_as(None)`, no Authorization, identity header or cookie is read or set, and CORS is closed unless `cors_origins` lists exact
 origins. The form routes have no token by nature (a careers page must load); /careers/apply needs a valid proof-of-work, the other
@@ -54,6 +59,7 @@ from velaris.agentkit import hiring_intake as intake
 from velaris.agentkit import hiring_record_gateway as interview
 from velaris.agentkit import hiring_sched as sched
 from velaris.agents.ESIGN.main import Esign
+from velaris.api import public_pages
 from velaris.api.observability import configure_logging
 from velaris.core.access import acting_as
 from velaris.core.shared import RateStore
@@ -63,6 +69,9 @@ logger = logging.getLogger("velaris.api.public")
 TOKEN = re.compile(r"[A-Za-z0-9_-]{20,100}")
 FORM_ID = re.compile(r"[A-Za-z0-9_-]{1,80}")
 KIB = 1024
+# strict: only this app's own files run or load; no inline script or style; no framing; forms and fetches go nowhere else
+CSP = ("default-src 'none'; script-src 'self'; style-src 'self'; worker-src 'self'; connect-src 'self'; img-src 'self'; "
+       "base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
 
 
 @dataclass(frozen=True)
@@ -78,6 +87,7 @@ DEFAULT_LIMITS: Dict[str, RouteLimit] = {
     "status": RouteLimit(1 * KIB, 30, 60), "withdraw": RouteLimit(1 * KIB, 5, 10),
     "slots": RouteLimit(1 * KIB, 30, 60), "pick": RouteLimit(2 * KIB, 15, 30), "cancel": RouteLimit(1 * KIB, 5, 10),
     "i_consent": RouteLimit(4 * KIB, 10, 30), "events": RouteLimit(64 * KIB, 600, 1200), "i_withdraw": RouteLimit(1 * KIB, 5, 10),
+    "page": RouteLimit(1 * KIB, 60, 120), "job": RouteLimit(1 * KIB, 120, 240),
     "s_open": RouteLimit(4 * KIB, 20, 40), "s_otp_request": RouteLimit(4 * KIB, 5, 10), "s_otp_verify": RouteLimit(4 * KIB, 10, 20),
     "s_consent": RouteLimit(4 * KIB, 10, 20), "s_sign": RouteLimit(4 * KIB, 10, 20), "s_decline": RouteLimit(4 * KIB, 5, 10),
 }
@@ -147,6 +157,16 @@ def _client_ip(request: Request, trust_proxy: bool) -> str:
         if re.fullmatch(r"[0-9A-Fa-f:.]{3,45}", last):
             return last
     return request.client.host if request.client else "unknown"
+
+
+def _same_origin(request: Request, allowed: Tuple[str, ...]) -> bool:
+    """CSRF guard for the browser case. No cookie or header here is ambient authority (the token is the capability), but a page on
+    another site must still not be able to make a visitor's browser post to a link it learned: a browser always sends Origin on a
+    cross-origin POST, so one that is neither this host nor a listed origin is refused. No Origin (curl, mail clients) passes."""
+    origin = request.headers.get("origin")
+    if origin is None:
+        return request.headers.get("sec-fetch-site", "same-origin") in ("same-origin", "none")
+    return origin in allowed or origin.split("://", 1)[-1] == request.headers.get("host", "\0")
 
 
 def _fields(body: Dict[str, Any], spec: Mapping[str, Tuple[type, bool]]) -> Dict[str, Any]:
@@ -225,7 +245,10 @@ def create_public_app(settings: Optional[PublicSettings] = None) -> FastAPI:
     @app.middleware("http")
     async def _headers(request: Request, call_next: Callable[..., Any]) -> Any:
         response = await call_next(request)
-        response.headers["Cache-Control"] = "no-store"
+        response.headers.setdefault("Cache-Control", "no-store")
+        response.headers["Content-Security-Policy"] = CSP
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
         response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["X-Content-Type-Options"] = "nosniff"
         if "set-cookie" in response.headers:                           # this surface never sets a cookie
@@ -252,6 +275,8 @@ def create_public_app(settings: Optional[PublicSettings] = None) -> FastAPI:
                 raise Refusal(429, "rate_limited", "too many requests for this link; try again later")
             if not (TOKEN if token else FORM_ID).fullmatch(ident):
                 raise NOT_VALID
+            if request.method == "POST" and not _same_origin(request, s.cors_origins):
+                raise Refusal(403, "denied", "this request came from another site")
             data = _fields(await _read_json(request, lim.body), body) if body is not None else {}
             return _respond(await run_in_threadpool(call, data, ip, request.headers.get("user-agent", "")[:300]))
         except Refusal as r:
@@ -268,6 +293,15 @@ def create_public_app(settings: Optional[PublicSettings] = None) -> FastAPI:
                 return _plain(getattr(esign_agent(), SIGN_METHODS[name]), token=token, ip=ip, user_agent=ua, **{**(defaults or {}), **d})
             return await handle(request, "s_" + name, token, token=True, body={"email": (str, True), **extra}, call=call)
         app.add_api_route(f"/sign/{{token}}/{name.replace('_', '/')}", route, methods=["POST"])
+
+    def gate(request: Request, route: str, ident: str, token: bool) -> Optional[int]:
+        """Rate limit for the HTML pages (same counters as the JSON routes): None, or the status to refuse with."""
+        lim = s.limit(route)
+        if not limiter.allow(route, "ip", _client_ip(request, s.trust_proxy), lim.per_ip):
+            return 429
+        return None if limiter.allow(route, "tok" if token else "form", hashlib.sha256(ident.encode()).hexdigest()[:24], lim.per_token) else 429
+
+    public_pages.register(app, gate, TOKEN, FORM_ID)
 
     # ---- careers ----------------------------------------------------------------------------------------------------
     @app.get("/careers/forms/{form_id}")
