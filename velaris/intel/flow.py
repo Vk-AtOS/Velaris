@@ -49,6 +49,8 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
+
+from velaris.core.sqlite_util import connect as connect_db
 import threading
 import time
 import uuid
@@ -114,7 +116,7 @@ def _connection(path: str) -> sqlite3.Connection:
     conns = _local.__dict__.setdefault("conns", {})
     c = conns.get(path)
     if c is None:
-        c = conns[path] = sqlite3.connect(path, timeout=10, check_same_thread=False)
+        c = conns[path] = connect_db(path, timeout=10, check_same_thread=False)
         c.executescript(_SCHEMA)
     return c
 

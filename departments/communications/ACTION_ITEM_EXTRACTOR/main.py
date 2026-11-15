@@ -5,6 +5,8 @@ import logging
 import json
 import re
 import sqlite3
+
+from velaris.core.sqlite_util import connect as connect_db
 from datetime import date, datetime
 from typing import Dict, Any, List, Optional
 from velaris.intel.paths import agent_file
@@ -30,7 +32,7 @@ _OWNER_PATTERNS = [
 
 
 def _db() -> sqlite3.Connection:
-    conn = sqlite3.connect(agent_file("ACTION_ITEM_EXTRACTOR", "action_items.db"))
+    conn = connect_db(agent_file("ACTION_ITEM_EXTRACTOR", "action_items.db"))
     conn.row_factory = sqlite3.Row
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS action_items (

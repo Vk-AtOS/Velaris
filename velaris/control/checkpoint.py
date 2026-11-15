@@ -20,6 +20,8 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
+
+from velaris.core.sqlite_util import connect as connect_db
 import threading
 import time
 from pathlib import Path
@@ -71,7 +73,7 @@ class CheckpointStore:
     def __init__(self, base: Optional[Path] = None) -> None:
         self.base = private_dir(base or private_dir(data_dir() / "control"))
         self._blobs = private_dir(self.base / "blobs")
-        self.db = sqlite3.connect(str(self.base / "control.db"), check_same_thread=False)
+        self.db = connect_db(str(self.base / "control.db"), check_same_thread=False)
         self.db.executescript(_SCHEMA)
         self._lock = threading.Lock()
 

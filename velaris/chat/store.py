@@ -17,6 +17,8 @@ import json
 import os
 import re
 import sqlite3
+
+from velaris.core.sqlite_util import connect as connect_db
 import threading
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Sequence
@@ -81,7 +83,7 @@ class Store:
         os.fchmod(fd, PRIVATE_FILE)
         os.close(fd)
         self.lock = threading.RLock()
-        self.db = sqlite3.connect(self.path, check_same_thread=False, isolation_level=None)
+        self.db = connect_db(self.path, check_same_thread=False, isolation_level=None)
         self.db.row_factory = sqlite3.Row
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.execute("PRAGMA foreign_keys=ON")

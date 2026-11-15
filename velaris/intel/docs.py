@@ -28,6 +28,8 @@ import math
 import posixpath
 import re
 import sqlite3
+
+from velaris.core.sqlite_util import connect as connect_db
 import threading
 import time
 import uuid
@@ -413,7 +415,7 @@ def _bm25(query: List[str], docs: List[List[str]], k1: float = 1.5, b: float = 0
 class DocStore:
     def __init__(self, llm: Optional[LLM] = None, *, path: Optional[str] = None) -> None:
         self.llm = llm or LLM()
-        self._db = sqlite3.connect(path or str(data_dir() / "docs.db"), check_same_thread=False)
+        self._db = connect_db(path or str(data_dir() / "docs.db"), check_same_thread=False)
         self._db.row_factory = sqlite3.Row
         self._db.execute("PRAGMA secure_delete=ON")          # erased text must not linger in freed pages (DPDP)
         self._db.execute("PRAGMA busy_timeout=5000")

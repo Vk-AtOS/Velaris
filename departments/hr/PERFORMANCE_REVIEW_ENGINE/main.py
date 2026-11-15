@@ -5,6 +5,8 @@ import json
 import logging
 import math
 import sqlite3
+
+from velaris.core.sqlite_util import connect as connect_db
 from datetime import date
 from typing import Dict, Any, List, Optional
 from velaris.intel.paths import agent_file
@@ -25,7 +27,7 @@ MANAGERS = frozenset({"manager", "hiring_manager"}) | HR_ADMINS
 
 
 def _db() -> sqlite3.Connection:
-    conn = sqlite3.connect(str(agent_dir("PERFORMANCE_REVIEW_ENGINE") / "reviews.db"))
+    conn = connect_db(str(agent_dir("PERFORMANCE_REVIEW_ENGINE") / "reviews.db"))
     conn.row_factory = sqlite3.Row
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS okrs (

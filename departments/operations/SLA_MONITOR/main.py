@@ -5,6 +5,8 @@ Ported from VKatOS sla_monitor. Tracks client/delivery SLA commitments and surfa
 """
 import logging
 import sqlite3
+
+from velaris.core.sqlite_util import connect as connect_db
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 from velaris.intel.paths import agent_file
@@ -15,7 +17,7 @@ logger = logging.getLogger("SLA_MONITOR")
 class SLAMonitor:
     def __init__(self, db_path: str = ""):
         db_path = db_path or agent_file("SLA_MONITOR", "sla_data.db")
-        self.db = sqlite3.connect(db_path)
+        self.db = connect_db(db_path)
         self._init_db()
 
     def _init_db(self):

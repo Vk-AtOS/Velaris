@@ -6,6 +6,8 @@ Ported from VKatOS whatsapp_briefing. Daily metric logging + WhatsApp Business A
 import asyncio
 import logging
 import sqlite3
+
+from velaris.core.sqlite_util import connect as connect_db
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 
@@ -19,7 +21,7 @@ class WhatsAppBriefingSystem:
     def __init__(self, config: Dict[str, Any] = None):
         self.config = config or {}
         db_path = self.config.get("db_path") or agent_file("WHATSAPP_BRIEFING", "briefing_data.db")
-        self.db = sqlite3.connect(db_path)
+        self.db = connect_db(db_path)
         self._init_db()
 
     def _init_db(self):

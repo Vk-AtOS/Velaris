@@ -4,6 +4,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 import logging
 import math
 import sqlite3
+
+from velaris.core.sqlite_util import connect as connect_db
 import json
 from datetime import date, timedelta
 from typing import Dict, Any, List, Optional
@@ -20,7 +22,7 @@ logger.addHandler(handler)
 
 
 def _db() -> sqlite3.Connection:
-    conn = sqlite3.connect(agent_file("SPRINT_PLANNER", "sprints.db"))
+    conn = connect_db(agent_file("SPRINT_PLANNER", "sprints.db"))
     conn.row_factory = sqlite3.Row
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS sprints (
