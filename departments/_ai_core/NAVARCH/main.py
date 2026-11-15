@@ -3,10 +3,6 @@ from typing import Dict, List, Tuple, Any
 import heapq
 
 logger = logging.getLogger("NAVARCH")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - NAVARCH - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class NavarchAgent:
     def __init__(self, config: Dict[str, Any] = None):
@@ -27,6 +23,11 @@ class NavarchAgent:
             "B": {"A": 5, "D": 1}, ...
         }
         """
+        for edges in graph.values():
+            for w in edges.values():
+                # Dijkstra is only correct for non-negative edge costs; a negative or non-numeric one gave wrong paths.
+                if isinstance(w, bool) or not isinstance(w, (int, float)) or w != w or w < 0:
+                    raise ValueError("edge weights must be numbers, zero or more")
         pq = [(0, start, [])]
         visited = set()
 

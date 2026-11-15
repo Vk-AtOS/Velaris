@@ -1,0 +1,9 @@
+{
+  "name": "NEURAL_CREATIVITY_ENGINE",
+  "display_name": "Neural Creativity Engine",
+  "version": "0.1.0",
+  "description": "Public methods: add_to_pool, generate, pool_list",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:NeuralCreativityEngine",
+  "health_check": "health_check"
+}

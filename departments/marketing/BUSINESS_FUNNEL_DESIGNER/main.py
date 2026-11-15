@@ -2,18 +2,30 @@
 
 from typing import Dict, Any, List
 
+from velaris.agentkit.checks import is_name
+
+MAX_COUNT = 10 ** 12
+
+
+def _count(v) -> bool:
+    return isinstance(v, int) and not isinstance(v, bool) and 0 <= v <= MAX_COUNT
+
+
 class BusinessFunnelDesigner:
     """
     Velaris Business Funnel Designer
     - Generates multi-stage funnels
     - Computes drop-off percentages
-    - Suggests optimizations at each step
+    - Suggests optimizations at each step (suggest_optimizations)
     """
 
     def __init__(self):
         self.funnels: List[Dict[str, Any]] = []
 
     def create_funnel(self, name: str, stages: List[str]) -> Dict[str, Any]:
+        if not is_name(name) or not isinstance(stages, list) or not stages or len(set(stages)) != len(stages) \
+                or not all(is_name(s) for s in stages):
+            raise ValueError("a funnel needs a name and a list of distinct stage names")
         funnel = {
             "name": name,
             "stages": stages,
@@ -23,13 +35,16 @@ class BusinessFunnelDesigner:
         return funnel
 
     def record_stage(self, funnel_name: str, stage: str, visits: int, conversions: int) -> bool:
+        """False for an unknown funnel/stage, a negative or non-integer count, or more conversions than visits
+        (neither this call nor the running total may break that)."""
         f = self._find(funnel_name)
-        if not f: 
+        if not f or stage not in f["stages"] or not _count(visits) or not _count(conversions):
             return False
-        if stage not in f["stages"]:
+        m = f["metrics"][stage]
+        if m["conversions"] + conversions > m["visits"] + visits:
             return False
-        f["metrics"][stage]["visits"] += visits
-        f["metrics"][stage]["conversions"] += conversions
+        m["visits"] += visits
+        m["conversions"] += conversions
         return True
 
     def analyze(self, funnel_name: str) -> Dict[str, Any]:
@@ -50,6 +65,15 @@ class BusinessFunnelDesigner:
             analysis[stage] = {"conversion_rate": rate, "drop_off": drop}
             prev_conv = conv
         return analysis
+
+    def suggest_optimizations(self, funnel_name: str, threshold: float = 50.0) -> List[Dict[str, Any]]:
+        """Stages whose drop-off from the previous stage is at least `threshold` percent, worst first.
+        Observations for a person to weigh: the numbers say where people leave, not why."""
+        analysis = self.analyze(funnel_name)
+        rows = [{"stage": s, "drop_off": a["drop_off"], "conversion_rate": a["conversion_rate"],
+                 "suggestion": f"Review the step into '{s}': {a['drop_off']:.0f}% of the previous stage did not continue"}
+                for s, a in analysis.items() if a["drop_off"] >= threshold]
+        return sorted(rows, key=lambda r: r["drop_off"], reverse=True)
 
     def _find(self, name: str):
         for f in self.funnels:

@@ -1,0 +1,9 @@
+{
+  "name": "MRF_EVAL",
+  "display_name": "Mrf Eval",
+  "version": "0.1.0",
+  "description": "MRF_EVAL: scores a piece of output (a draft, an answer, a JSON reply) against a stated rubric.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:MRF_EVALAgent",
+  "health_check": "health_check"
+}

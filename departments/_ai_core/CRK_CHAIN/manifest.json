@@ -1,0 +1,9 @@
+{
+  "name": "CRK_CHAIN",
+  "display_name": "Crk Chain",
+  "version": "0.1.0",
+  "description": "CRK chain: puts the steps of an argument in dependency order and seals them.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:CRK_CHAINAgent",
+  "health_check": "health_check"
+}

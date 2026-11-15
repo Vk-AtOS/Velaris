@@ -4,10 +4,6 @@ import logging
 from typing import List, Dict, Any
 
 logger = logging.getLogger("SCHEDULON")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - SCHEDULON - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class SchedulonAgent:
     def __init__(self, config: Dict[str, Any] = None):

@@ -20,11 +20,12 @@ class ZohoProjectsConnector:
 
     def __init__(self, config: Dict[str, Any] = None):
         self.config = config or {}
-        self.zoho = ZohoConnector(config)
-        self.portal = config.get("portal_id") or os.getenv("ZOHO_PORTAL_ID", "")
+        self.zoho = ZohoConnector(self.config)
+        self.portal = self.config.get("portal_id") or os.getenv("ZOHO_PORTAL_ID", "")
 
     def health_check(self) -> Dict[str, Any]:
-        return {"agent": "ZOHO_PROJECTS", "status": "ok"}
+        configured = self.zoho.health_check()["configured"]
+        return {"agent": "ZOHO_PROJECTS", "status": "ok" if configured else "unconfigured", "configured": configured}
 
     def get_projects(self) -> List[Dict]:
         resp = self.zoho.get(f"{self.BASE}/{self.portal}/projects/", {"status": "active"})
@@ -61,10 +62,18 @@ class ZohoProjectsConnector:
             if t.get("status", {}).get("name") != "Closed"
             and t.get("end_date_long", 0) < time.time() * 1000
         )
+        # A task closed AFTER its end date was late too, even though it is no longer "overdue" (it is Closed).
+        late_closed = sum(
+            1 for t in tasks
+            if t.get("status", {}).get("name") == "Closed"
+            and t.get("completed_time_long") and t.get("end_date_long")
+            and t["completed_time_long"] > t["end_date_long"]
+        )
         return {
             "total_tasks": total,
             "completed": completed,
             "completion_rate": round(completed / total * 100, 1) if total else 0,
             "overdue": overdue,
-            "on_time_rate": round((completed - overdue) / completed * 100, 1) if completed else 0
+            "late_closed": late_closed,
+            "on_time_rate": round((completed - late_closed) / completed * 100, 1) if completed else 0
         }

@@ -33,7 +33,7 @@ class LyraEngine:
         if tone == "warm":
             text = "✨ " + text + " ✨"
         if fmt == "structured":
-            text = "[TECH]/n" + text
+            text = "[TECH]\n" + text
 
         return text
 

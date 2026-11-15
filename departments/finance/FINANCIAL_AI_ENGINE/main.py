@@ -1,6 +1,6 @@
 # ================================================================================
 
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import statistics
 
 class FinancialAIEngine:
@@ -11,9 +11,10 @@ class FinancialAIEngine:
     - Evaluates financial health scores
     """
 
-    def compute_growth(self, previous: float, current: float) -> float:
+    def compute_growth(self, previous: float, current: float) -> Optional[float]:
+        """Percent growth, or None when it is undefined (previous is zero or negative): 0.0 would mean "no growth"."""
         if previous <= 0:
-            return 0.0
+            return None
         return ((current - previous) / previous) * 100
 
     def forecast_linear(self, data: List[float]) -> float:

@@ -1,0 +1,9 @@
+{
+  "name": "CLBPP_PREDICTIVE_BALANCER",
+  "display_name": "Clbpp Predictive Balancer",
+  "version": "0.1.0",
+  "description": "CLBPP predictive balancer: forecasts each worker's utilisation and plans moves ahead of overload.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:CLBPP_PREDICTIVE_BALANCERAgent",
+  "health_check": "health_check"
+}

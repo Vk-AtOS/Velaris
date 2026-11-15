@@ -1,0 +1,9 @@
+{
+  "name": "LYRA_VOICE_ENGINE",
+  "display_name": "Lyra Voice Engine",
+  "version": "0.1.0",
+  "description": "Voice interface for LYRA: wake word, intent capture and hand-off to a handler.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:LyraVoiceEngine",
+  "health_check": "health_check"
+}

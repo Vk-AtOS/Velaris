@@ -69,7 +69,9 @@ class DOMAIN_ADVISORAgent:
                 add("A3", r["vertical"], f"win rate {r['win_rate']:.0%} vs company {overall_rate:.0%} over {n} closed")
             elif gap >= WIN_RATE_GAP:
                 add("A4", r["vertical"], f"win rate {r['win_rate']:.0%} vs company {overall_rate:.0%} over {n} closed")
-            if overall_cycle and r["median_cycle_days"] is not None \
+            # `is not None`, not truthiness: a company median of 0 days is a real value (same-day closes), and a
+            # vertical that takes days is then slow. A vertical at 0 days is never "slow".
+            if overall_cycle is not None and r["median_cycle_days"] is not None and r["median_cycle_days"] > 0 \
                     and r["median_cycle_days"] >= SLOW_CYCLE_FACTOR * overall_cycle:
                 add("A5", r["vertical"], f"median {r['median_cycle_days']} days vs company {overall_cycle} days")
         return {"status": "ok", "advice": advice,

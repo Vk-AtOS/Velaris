@@ -1,0 +1,9 @@
+{
+  "name": "ASEL_ROUTER",
+  "display_name": "Asel Router",
+  "version": "0.1.0",
+  "description": "ASEL router: decides which handler carries out each plan step.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:ASEL_ROUTERAgent",
+  "health_check": "health_check"
+}

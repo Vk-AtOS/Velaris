@@ -1,0 +1,9 @@
+{
+  "name": "ASEL",
+  "display_name": "Asel",
+  "version": "0.1.0",
+  "description": "Alias agent ASEL: fronts ASEL_PLANNER, ASEL_EXECUTOR, ASEL_ROUTER, ASEL_STRATEGIST, ASEL_EVALUATOR. See velaris.agentkit.alias.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:ASELAgent",
+  "health_check": "health_check"
+}

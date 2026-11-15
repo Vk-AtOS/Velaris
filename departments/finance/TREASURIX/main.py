@@ -2,10 +2,6 @@ import logging
 from typing import Dict, Any, List
 
 logger = logging.getLogger("TREASURIX")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - TREASURIX - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class TreasurixAgent:
     def __init__(self, config: Dict[str, Any] = None):

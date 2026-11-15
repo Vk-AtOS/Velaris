@@ -73,6 +73,8 @@ ATLASSIAN_READER = "atlassian_reader"     # read Jira/Confluence through the dep
 GOVERNANCE_ADMINS: FrozenSet[str] = frozenset({GOVERNANCE_ADMIN})
 ATLASSIAN_READERS: FrozenSet[str] = frozenset({ATLASSIAN_READER, GOVERNANCE_ADMIN})   # admins hold it implicitly
 SECURITY_ADMINS: FrozenSet[str] = frozenset({SECURITY_ADMIN})
+INFRA_ADMIN = "infra_admin"               # tenants, quotas, pools, rate limits and ticket handling (it_infrastructure)
+INFRA_ADMINS: FrozenSet[str] = frozenset({INFRA_ADMIN, SECURITY_ADMIN})
 
 
 class AccessDenied(VelarisError, PermissionError):
@@ -253,6 +255,12 @@ def resource_matches(pattern: Any, resource: Any) -> bool:
 
 
 # ---- memory scopes -----------------------------------------------------------
+
+def may_read_scope(caller: Optional[Caller], scope: Any) -> bool:
+    """A caller reads memory of their own organisation only: scope "<org>" or "<org>:<anything>"."""
+    return (isinstance(caller, Caller) and isinstance(scope, str)
+            and (scope == caller.org or scope.startswith(caller.org + ":")))
+
 
 def may_write_scope(caller: Optional[Caller], scope: Any) -> bool:
     """A memory scope belongs to an organisation: "<org>" or "<org>:<anything>".

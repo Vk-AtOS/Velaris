@@ -1,5 +1,7 @@
 # ================================================================================
 
+import re
+
 from velaris.intel import guard
 from typing import Dict, List
 
@@ -19,19 +21,27 @@ class CognitiveIntentFirewall:
     def add_rule(self, rule: Dict):
         self.rules.append(rule)
 
+    @staticmethod
+    def _has(word: str, text: str) -> bool:
+        """The word as the START of a word, so "harmful", "attacker" and "killing" match but "skill" does not
+        contain "kill". Erring toward a match is deliberate: this is a blocking filter."""
+        return re.search(rf"\b{re.escape(word)}\w*", text) is not None
+
     def classify(self, text: str) -> Dict:
+        if not isinstance(text, str):
+            return {"intent": "UNKNOWN", "reason": "Not text"}
         t = text.lower()
 
         for b in self.blocked_keywords:
-            if b in t:
+            if self._has(b, t):
                 return {"intent": "BLOCKED", "reason": f"Contains '{b}'"}
 
         for r in self.risky_keywords:
-            if r in t:
+            if self._has(r, t):
                 return {"intent": "RISKY", "reason": f"Contains '{r}'"}
 
         for s in self.safe_keywords:
-            if s in t:
+            if self._has(s, t):
                 return {"intent": "SAFE", "reason": f"Contains '{s}'"}
 
         return {"intent": "UNKNOWN", "reason": "No matched patterns"}

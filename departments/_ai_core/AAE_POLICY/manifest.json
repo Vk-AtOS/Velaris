@@ -1,0 +1,9 @@
+{
+  "name": "AAE_POLICY",
+  "display_name": "Aae Policy",
+  "version": "0.1.0",
+  "description": "AAE policy: decides whether a proposed action may run.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:AAE_POLICYAgent",
+  "health_check": "health_check"
+}

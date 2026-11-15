@@ -1,0 +1,9 @@
+{
+  "name": "VCAS_CORE",
+  "display_name": "Vcas Core",
+  "version": "0.1.0",
+  "description": "VCAS_CORE: submit a task, and it runs on autopilot only when it is allowed to.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:VCASCoreAgent",
+  "health_check": "health_check"
+}

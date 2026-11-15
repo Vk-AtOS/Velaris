@@ -1,0 +1,9 @@
+{
+  "name": "CSM_REASONER",
+  "display_name": "Csm Reasoner",
+  "version": "0.1.0",
+  "description": "CSM reasoner: a quick read of where a goal stands and what posture to take.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:CSMReasonerAgent",
+  "health_check": "health_check"
+}

@@ -1,0 +1,9 @@
+{
+  "name": "BEHAVIOR_SHAPING_NETWORK",
+  "display_name": "Behavior Shaping Network",
+  "version": "0.1.0",
+  "description": "Behaviour shaping: forces a proposed set of settings inside declared limits.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:BehaviorShapingNetwork",
+  "health_check": "health_check"
+}

@@ -1,0 +1,9 @@
+{
+  "name": "HYPER_REASONER",
+  "display_name": "Hyper Reasoner",
+  "version": "0.1.0",
+  "description": "HYPER_REASONER: structural validation of a decision graph before anything is planned from it.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:HyperReasoner",
+  "health_check": "health_check"
+}

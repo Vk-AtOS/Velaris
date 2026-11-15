@@ -1,0 +1,9 @@
+{
+  "name": "CRK_INTENT",
+  "display_name": "Crk Intent",
+  "version": "0.1.0",
+  "description": "CRK intent: names what a short request is asking for, from a fixed list of intents.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:CRK_INTENTAgent",
+  "health_check": "health_check"
+}

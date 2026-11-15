@@ -118,6 +118,10 @@ class ZERO_TRUST_PIPELINEAgent:
     def add_policy(self, policy_id: str, policy: Dict[str, Any]) -> Dict[str, Any]:
         """{"effect": "allow"|"deny", "resources": [glob], "actions": [...], "roles": [...],
         "device": {conditions}, "context": {conditions}}. Device and context default to no conditions."""
+        # Authorise BEFORE validating: an unprivileged caller learns nothing about what a valid policy looks like.
+        _, refused = check_caller(NAME, "add_policy", {"policy_id": str(policy_id)[:128]}, roles=SECURITY_ADMINS)
+        if refused:
+            return refused
         if not is_name(policy_id) or not isinstance(policy, dict):
             return invalid("policy_id must be a short name and policy an object")
         problems = []
@@ -134,9 +138,6 @@ class ZERO_TRUST_PIPELINEAgent:
                      if k not in ("effect", "resources", "actions", "roles", "device", "context")]
         if problems:
             return invalid("; ".join(problems))
-        _, refused = check_caller(NAME, "add_policy", {"policy_id": policy_id, "policy": policy}, roles=SECURITY_ADMINS)
-        if refused:
-            return refused
         stored = {"device": {}, "context": {}, **policy}
         self._state.update(lambda d: d.setdefault("policies", {}).__setitem__(policy_id, stored))
         return ok(policy_id=policy_id)

@@ -2,10 +2,6 @@ import logging
 import time
 
 logger = logging.getLogger("ARGUS")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - ARGUS - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class ArgusAgent:
     def __init__(self, config=None):

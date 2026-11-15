@@ -73,7 +73,9 @@ def test_transcriber_without_whisper_says_what_to_install(tmp_path, monkeypatch)
     monkeypatch.setitem(sys.modules, "whisper", None)       # makes `import whisper` raise ImportError
     audio = tmp_path / "call.wav"
     audio.write_bytes(b"RIFF")
-    out = CallTranscriber().transcribe(str(audio))
+    from velaris.core.access import Caller, acting_as
+    with acting_as(Caller("u", "kf")):
+        out = CallTranscriber({"audio_roots": [str(tmp_path)]}).transcribe(str(audio))
     assert "openai-whisper" in out["error"] and "not installed" in out["error"]
 
 

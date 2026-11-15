@@ -62,7 +62,7 @@ Complete agent-to-domain mapping for all 243 agents.
 | TARGETA | sales_crm |
 | COHORTUS | sales_crm |
 | AMPLIFEX | sales_crm |
-| LOGISTA | sales_crm |
+| LOGISTA | client_success |
 | DOMAIN_ADVISOR | sales_crm |
 | DOMAIN_EXPANSION | sales_crm |
 | DOMAIN_MASTERY | sales_crm |

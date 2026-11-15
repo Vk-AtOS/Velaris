@@ -1,0 +1,9 @@
+{
+  "name": "EOF_GATEWAY",
+  "display_name": "Eof Gateway",
+  "version": "0.1.0",
+  "description": "EOF_GATEWAY: a durable message hand-off between agents.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:EOF_GATEWAYAgent",
+  "health_check": "health_check"
+}

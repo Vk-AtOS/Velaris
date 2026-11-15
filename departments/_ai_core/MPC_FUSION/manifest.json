@@ -1,0 +1,9 @@
+{
+  "name": "MPC_FUSION",
+  "display_name": "Mpc Fusion",
+  "version": "0.1.0",
+  "description": "MPC_FUSION: merges records about the same thing from several sources into one, field by field.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:MPC_FUSIONAgent",
+  "health_check": "health_check"
+}

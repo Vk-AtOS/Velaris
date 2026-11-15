@@ -1,0 +1,9 @@
+{
+  "name": "CONTROL_LAYER",
+  "display_name": "Control Layer",
+  "version": "0.1.0",
+  "description": "CONTROL_LAYER: narrow, scripted work in files, a terminal or a browser, logged and mostly reversible.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:CONTROL_LAYERAgent",
+  "health_check": "health_check"
+}

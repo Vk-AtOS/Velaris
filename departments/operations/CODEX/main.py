@@ -5,10 +5,6 @@ import json
 import hashlib
 
 logger = logging.getLogger("CODEX")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - CODEX - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class CodexAgent:
     def __init__(self, config=None):
@@ -41,7 +37,7 @@ class CodexAgent:
 
     def rules_changed(self, key, new_rules_dict):
         if key not in self.rule_store:
-            return False
+            return True                      # never stored: there is nothing to say they are unchanged
         encoded = self.encode_rules(new_rules_dict)
         new_hash = self.rules_hash(encoded)
         old_hash = self.rule_store[key]

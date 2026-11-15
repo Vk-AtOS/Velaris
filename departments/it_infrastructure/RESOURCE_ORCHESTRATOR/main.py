@@ -12,6 +12,7 @@ from typing import Any, Dict, Optional
 from velaris.agentkit.checks import is_name, is_number
 from velaris.agentkit.results import fail, invalid, ok
 from velaris.agentkit.state import JsonState
+from velaris.core.access import INFRA_ADMINS, check_caller
 
 NAME = "RESOURCE_ORCHESTRATOR"
 
@@ -25,7 +26,10 @@ class RESOURCE_ORCHESTRATORAgent:
         return {"agent": self.name, "status": "ok", "version": "1.0.0"}
 
     def define_pool(self, pool: str, capacity: float) -> Dict[str, Any]:
-        """Create a pool or change its capacity (never below what is already granted)."""
+        """Create a pool or change its capacity (never below what is already granted). Infra admins only."""
+        _, refused = check_caller(NAME, "define_pool", {"pool": str(pool)[:64], "capacity": str(capacity)[:32]}, roles=INFRA_ADMINS)
+        if refused:
+            return refused
         if not is_name(pool) or not is_number(capacity, 0):
             return invalid("pool must be a short name and capacity a number >= 0")
 
@@ -54,7 +58,11 @@ class RESOURCE_ORCHESTRATORAgent:
         return self._state.update(grant)
 
     def release(self, pool: str, owner: str, amount: Optional[float] = None) -> Dict[str, Any]:
-        """Give back `amount` of an owner's grant, or all of it when amount is omitted."""
+        """Give back `amount` of an owner's grant, or all of it when amount is omitted. The owner or an infra admin."""
+        _, refused = check_caller(NAME, "release", {"pool": str(pool)[:64], "owner": str(owner)[:64]}, roles=INFRA_ADMINS,
+                                  also=owner if isinstance(owner, str) else None)
+        if refused:
+            return refused
         if amount is not None and (not is_number(amount) or amount <= 0):
             return invalid("amount must be a number > 0")
 

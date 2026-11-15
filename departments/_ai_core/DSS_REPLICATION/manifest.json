@@ -1,0 +1,9 @@
+{
+  "name": "DSS_REPLICATION",
+  "display_name": "Dss Replication",
+  "version": "0.1.0",
+  "description": "DSS replication: decides which nodes hold the copies of a key, and audits the result.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:DSS_REPLICATIONAgent",
+  "health_check": "health_check"
+}

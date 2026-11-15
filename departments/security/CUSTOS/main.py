@@ -1,15 +1,11 @@
 import logging
 
 logger = logging.getLogger("CUSTOS")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - CUSTOS - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class CustosAgent:
     def __init__(self, config=None):
         self.config = config or {}
-        self.roles = self.config.get("roles", {})
+        self.roles = {r: set(p) for r, p in (self.config.get("roles") or {}).items()}   # lists seeded by callers become sets
         self.permissions = self.config.get("permissions", {})
 
     def health_check(self):

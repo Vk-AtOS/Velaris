@@ -21,7 +21,9 @@ from typing import Any, Dict, List, Optional
 from velaris.agentkit import infra_memory
 from velaris.agentkit.checks import is_json, is_name, is_number
 from velaris.agentkit.results import fail, invalid, ok
+from velaris.agentkit.infra_store import audit
 from velaris.agentkit.state import JsonState
+from velaris.core.access import current_caller, may_read_scope, org_denied
 from velaris.intel.memory import MemoryStore
 
 NAME = "MEMORY_MESH"
@@ -91,6 +93,11 @@ class MemoryAgentBase:
             return invalid("scopes must be a non-empty list of scope names")
         if not is_number(k, 1, 100) or isinstance(k, float):
             return invalid("k must be a whole number 1..100")
+        caller = current_caller()
+        refused = [sc for sc in dict.fromkeys(scopes) if not may_read_scope(caller, sc)]
+        if refused or org_denied(caller):
+            audit(NAME, "recall_across.denied", {"caller": caller.id if caller else None, "scopes": refused[:10]})
+            return fail("denied", "a caller may recall only from their own organisation's scopes", scopes=refused[:10])
         try:
             store = MemoryStore(self.llm)
             found = [m.to_dict() for scope in dict.fromkeys(scopes) for m in store.recall(query, scope=scope, k=k)]

@@ -5,15 +5,11 @@ import logging
 import json
 import re
 import sqlite3
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Dict, Any, List, Optional
 from velaris.intel.paths import agent_file
 
 logger = logging.getLogger("ACTION_ITEM_EXTRACTOR")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - ACTION_ITEM_EXTRACTOR - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 
 # Relative date resolution keywords
@@ -70,8 +66,7 @@ def _extract_due_hint(text: str) -> Optional[str]:
     for keyword in _DAY_MAP:
         if keyword in lower:
             if _DAY_MAP[keyword] is not None:
-                from datetime import timedelta
-                due = date.today() + datetime.timedelta(days=_DAY_MAP[keyword])
+                due = date.today() + timedelta(days=_DAY_MAP[keyword])
                 return due.isoformat()
             return keyword
     return None
@@ -172,7 +167,8 @@ class ActionItemExtractor:
         today = date.today().isoformat()
         conn = _db()
         rows = conn.execute(
-            "SELECT * FROM action_items WHERE status='open' AND due_date IS NOT NULL AND due_date < ?",
+            # ISO dates only: a hint such as "oct 15" is text, and comparing it with an ISO date as strings gave wrong answers
+            "SELECT * FROM action_items WHERE status='open' AND due_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND due_date < ?",
             (today,)
         ).fetchall()
         conn.close()

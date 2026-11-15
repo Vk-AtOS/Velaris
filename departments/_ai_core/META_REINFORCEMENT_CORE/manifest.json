@@ -1,0 +1,9 @@
+{
+  "name": "META_REINFORCEMENT_CORE",
+  "display_name": "Meta Reinforcement Core",
+  "version": "0.1.0",
+  "description": "META_REINFORCEMENT_CORE: picks between options from their recorded outcomes (UCB1 bandit).",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:MetaReinforcementCore",
+  "health_check": "health_check"
+}

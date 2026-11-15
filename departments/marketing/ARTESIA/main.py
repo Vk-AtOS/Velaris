@@ -2,10 +2,6 @@ import logging
 from typing import List, Dict, Any
 
 logger = logging.getLogger("ARTESIA")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - ARTESIA - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class ArtesiaAgent:
     def __init__(self, config: Dict[str, Any] = None):

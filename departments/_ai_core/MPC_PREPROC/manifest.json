@@ -1,0 +1,9 @@
+{
+  "name": "MPC_PREPROC",
+  "display_name": "Mpc Preproc",
+  "version": "0.1.0",
+  "description": "MPC_PREPROC: cleans raw records so that records from different sources can be compared.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:MPC_PREPROCAgent",
+  "health_check": "health_check"
+}

@@ -1,0 +1,9 @@
+{
+  "name": "DSS_MONITOR",
+  "display_name": "Dss Monitor",
+  "version": "0.1.0",
+  "description": "DSS monitor: classifies each node as healthy, degraded or down.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:DSS_MONITORAgent",
+  "health_check": "health_check"
+}

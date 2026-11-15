@@ -1,0 +1,9 @@
+{
+  "name": "AUTONOMOUS_PATCH_ENGINE",
+  "display_name": "Autonomous Patch Engine",
+  "version": "0.1.0",
+  "description": "Public methods: validate_patch, simulate_patch, apply_patch, get_history",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:AutonomousPatchEngine",
+  "health_check": "health_check"
+}

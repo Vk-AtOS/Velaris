@@ -3,10 +3,6 @@ import json
 import hashlib
 
 logger = logging.getLogger("CHROMOS")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - CHROMOS - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class ChromosAgent:
     def __init__(self, config=None):

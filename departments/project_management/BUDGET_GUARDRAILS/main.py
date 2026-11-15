@@ -1,70 +1,105 @@
 # ================================================================================
 
-import math
-from typing import Dict, Any
+from decimal import Decimal, InvalidOperation
+from typing import Any, Dict, Optional
 
+from velaris.agentkit.state import JsonState
 from velaris.core.access import GOVERNANCE_ADMINS, check_caller
 
 NAME = "BUDGET_GUARDRAILS"
+MAX_PAISE = 10 ** 15            # 10 trillion rupees: anything larger is a typo, not a budget
+MAX_CATEGORIES = 1000
+_PAISE = Decimal(100)
 
 
-def _amount(x) -> bool:
-    return isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x) and x >= 0
+def _paise(x: Any) -> Optional[int]:
+    """Rupees (int, float, Decimal or numeric text) as an exact integer number of paise, or None.
+
+    None for bool, NaN, infinity, negative, more than two decimals, or absurdly large: money is exact."""
+    if isinstance(x, bool) or not isinstance(x, (int, float, Decimal, str)):
+        return None
+    try:
+        d = Decimal(str(x).strip()) if not isinstance(x, Decimal) else x
+    except InvalidOperation:
+        return None
+    if not d.is_finite() or d < 0:
+        return None
+    p = d * _PAISE
+    if p != p.to_integral_value() or p > MAX_PAISE:
+        return None
+    return int(p)
+
+
+def _rupees(paise: int) -> Decimal:
+    return (Decimal(paise) / _PAISE).quantize(Decimal("0.01"))
 
 
 class BudgetGuardrails:
     """
-    Velaris Budget Guardrails
-    - Enforces spending limits
-    - Tracks usage
-    - Blocks overrun attempts
+    Velaris Budget Guardrails (INR, exact to the paisa)
+    - Enforces spending limits; tracks usage; blocks overrun attempts
+    - Amounts are Decimal rupees; stored as integer paise in VELARIS_DATA, so every worker sees the same totals
+      and the check-and-add of a spend is one atomic, cross-process step
     """
 
     def __init__(self):
-        self.limits: Dict[str, float] = {}
-        self.spent: Dict[str, float] = {}
+        self._state = JsonState(NAME, "budgets.json")
 
-    def set_limit(self, category: str, amount: float) -> bool:
+    @property
+    def limits(self) -> Dict[str, Decimal]:
+        return {k: _rupees(v) for k, v in (self._state.load().get("limits") or {}).items()}
+
+    @property
+    def spent(self) -> Dict[str, Decimal]:
+        return {k: _rupees(v) for k, v in (self._state.load().get("spent") or {}).items()}
+
+    def set_limit(self, category: str, amount: Any) -> bool:
         """Set a limit. Governance admins only; not negative/NaN and never below what is already spent."""
-        if not isinstance(category, str) or not category or not _amount(amount):
+        p = _paise(amount)
+        if not isinstance(category, str) or not category or p is None:
             return False
-        if amount < self.spent.get(category, 0.0):
-            return False
-        _, refused = check_caller(NAME, "set_limit", {"category": category[:128], "amount": amount},
+        _, refused = check_caller(NAME, "set_limit", {"category": category[:128], "amount": str(amount)[:40]},
                                   roles=GOVERNANCE_ADMINS)
         if refused:
             return False
-        self.limits[category] = amount
-        self.spent.setdefault(category, 0.0)
-        return True
 
-    def record_spend(self, category: str, amount: float) -> bool:
+        def put(d):
+            limits, spent = d.setdefault("limits", {}), d.setdefault("spent", {})
+            if p < spent.get(category, 0) or (category not in limits and len(limits) >= MAX_CATEGORIES):
+                return False
+            limits[category] = p
+            spent.setdefault(category, 0)
+            return True
+        return bool(self._state.update(put))
+
+    def record_spend(self, category: str, amount: Any) -> bool:
         """Return True if allowed, False if blocked."""
-        if category not in self.limits or not _amount(amount):
-            return False                      # negative or NaN would lower or poison the total
-        _, refused = check_caller(NAME, "record_spend", {"category": category[:128], "amount": amount})
+        p = _paise(amount)
+        if not isinstance(category, str) or p is None:
+            return False                      # negative, NaN or fractional paise would corrupt the total
+        _, refused = check_caller(NAME, "record_spend", {"category": category[:128], "amount": str(amount)[:40]})
         if refused:
             return False
-        new_total = self.spent[category] + amount
-        if new_total > self.limits[category]:
-            return False
-        self.spent[category] = new_total
-        return True
 
-    def remaining(self, category: str) -> float:
-        if category not in self.limits:
-            return 0.0
-        return self.limits[category] - self.spent.get(category, 0.0)
+        def add(d):
+            limit = d.get("limits", {}).get(category)
+            total = d.setdefault("spent", {}).get(category, 0) + p
+            if limit is None or total > limit:
+                return False
+            d["spent"][category] = total
+            return True
+        return bool(self._state.update(add))
+
+    def remaining(self, category: str) -> Decimal:
+        limit, spent = self.limits.get(category), self.spent.get(category, Decimal("0.00"))
+        return Decimal("0.00") if limit is None else limit - spent
 
     def status(self, category: str) -> Dict[str, Any]:
-        if category not in self.limits:
+        limits = self.limits
+        if category not in limits:
             return {"exists": False}
-        return {
-            "exists": True,
-            "limit": self.limits[category],
-            "spent": self.spent.get(category, 0.0),
-            "remaining": self.remaining(category),
-            "blocked": self.remaining(category) <= 0
-        }
+        spent = self.spent.get(category, Decimal("0.00"))
+        return {"exists": True, "limit": limits[category], "spent": spent,
+                "remaining": limits[category] - spent, "blocked": limits[category] - spent <= 0}
 
 # ================================================================================

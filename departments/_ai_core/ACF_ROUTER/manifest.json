@@ -1,0 +1,9 @@
+{
+  "name": "ACF_ROUTER",
+  "display_name": "Acf Router",
+  "version": "0.1.0",
+  "description": "ACF router: sends a signal to a destination by declared rules.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:ACFRouterAgent",
+  "health_check": "health_check"
+}

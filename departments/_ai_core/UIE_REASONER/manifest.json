@@ -1,0 +1,9 @@
+{
+  "name": "UIE_REASONER",
+  "display_name": "Uie Reasoner",
+  "version": "0.1.0",
+  "description": "UIE_REASONER: decides what should happen next with an interpreted request.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:UIEReasonerAgent",
+  "health_check": "health_check"
+}

@@ -1,0 +1,9 @@
+{
+  "name": "EAC_COMPLIANCE",
+  "display_name": "Eac Compliance",
+  "version": "0.1.0",
+  "description": "EAC_COMPLIANCE: a register of compliance controls and the check of a record against them.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:EAC_COMPLIANCEAgent",
+  "health_check": "health_check"
+}

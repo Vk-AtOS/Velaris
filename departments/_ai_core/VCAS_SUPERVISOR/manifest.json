@@ -1,0 +1,9 @@
+{
+  "name": "VCAS_SUPERVISOR",
+  "display_name": "Vcas Supervisor",
+  "version": "0.1.0",
+  "description": "VCAS_SUPERVISOR: says whether a task may run, by asking PRIME.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:VCASSupervisorAgent",
+  "health_check": "health_check"
+}

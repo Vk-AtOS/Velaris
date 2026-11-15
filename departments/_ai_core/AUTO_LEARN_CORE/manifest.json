@@ -1,0 +1,9 @@
+{
+  "name": "AUTO_LEARN_CORE",
+  "display_name": "Auto Learn Core",
+  "version": "0.1.0",
+  "description": "Auto-learn core: a ledger of which option worked, per context.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:AUTO_LEARN_COREAgent",
+  "health_check": "health_check"
+}

@@ -1,0 +1,9 @@
+{
+  "name": "ASEL_EVALUATOR",
+  "display_name": "Asel Evaluator",
+  "version": "0.1.0",
+  "description": "ASEL evaluator: says whether an executed plan achieved what it was for.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:ASEL_EVALUATORAgent",
+  "health_check": "health_check"
+}

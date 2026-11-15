@@ -1,0 +1,9 @@
+{
+  "name": "LOCAL_BIOMETRICS_INTERFACE",
+  "display_name": "Local Biometrics Interface",
+  "version": "0.1.0",
+  "description": "Public methods: enroll, verify, update, list_users",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:LocalBiometricsInterface",
+  "health_check": "health_check"
+}

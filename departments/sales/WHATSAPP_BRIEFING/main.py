@@ -4,6 +4,7 @@ WHATSAPP_BRIEFING — Velaris BOS agent for Knackforge
 Ported from VKatOS whatsapp_briefing. Daily metric logging + WhatsApp Business API dispatch.
 """
 import asyncio
+import concurrent.futures
 import logging
 import sqlite3
 from datetime import datetime
@@ -34,7 +35,7 @@ class WhatsAppBriefingSystem:
     def log(self, name: str, value: float, unit: str = "", notes: str = "") -> None:
         self.db.execute(
             "INSERT INTO daily_metrics (metric_name,metric_value,metric_unit,timestamp,notes) VALUES (?,?,?,?,?)",
-            (name, value, unit, datetime.utcnow().isoformat(), notes),
+            (name, value, unit, datetime.now().isoformat(), notes)   # LOCAL time: the briefing filters by the local date,
         )
         self.db.commit()
         logger.info("Metric logged: %s = %.1f %s", name, value, unit)
@@ -128,7 +129,14 @@ class WhatsAppBriefingAgent:
 
     def send_briefing(self) -> Dict[str, Any]:
         message = self.system.generate_briefing()
-        return asyncio.run(self.system.send(message))
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(self.system.send(message))
+        # Called from inside a running event loop (an async API handler): asyncio.run would raise, so the
+        # send runs on its own loop in a worker thread.
+        with concurrent.futures.ThreadPoolExecutor(1) as ex:
+            return ex.submit(asyncio.run, self.system.send(message)).result()
 
 
 if __name__ == "__main__":

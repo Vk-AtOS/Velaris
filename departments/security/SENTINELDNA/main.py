@@ -3,10 +3,6 @@ import hashlib
 import json
 
 logger = logging.getLogger("SENTINELDNA")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - SENTINELDNA - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class SentinelDNAAgent:
     def __init__(self, config=None):

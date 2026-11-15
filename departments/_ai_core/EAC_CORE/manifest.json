@@ -1,0 +1,9 @@
+{
+  "name": "EAC_CORE",
+  "display_name": "Eac Core",
+  "version": "0.1.0",
+  "description": "EAC_CORE: one compliance assessment, end to end.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:EAC_COREAgent",
+  "health_check": "health_check"
+}

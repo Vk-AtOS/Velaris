@@ -12,10 +12,6 @@ from velaris.intel.paths import agent_file
 from velaris.intel.paths import agent_dir
 
 logger = logging.getLogger("SPRINT_PLANNER")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - SPRINT_PLANNER - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 
 
@@ -53,7 +49,7 @@ def _db() -> sqlite3.Connection:
 class SprintPlanner:
     """
     Scrum/Kanban sprint management: create sprints, assign tasks, track velocity.
-    Integrates with ZOHO_PROJECTS for task sync when configured.
+    Standalone: no Zoho or Jira sync exists in this agent.
     """
 
     def __init__(self, config: Dict[str, Any] = None):
@@ -91,6 +87,9 @@ class SprintPlanner:
                 or not math.isfinite(story_points) or story_points < 0:
             return {"error": "story_points must be a finite number, zero or more"}
         conn = _db()
+        if not conn.execute("SELECT 1 FROM sprints WHERE id=?", (sprint_id,)).fetchone():
+            conn.close()
+            return {"error": "sprint_not_found"}
         cur = conn.execute(
             "INSERT INTO sprint_tasks (sprint_id, task_id, title, assignee, story_points) VALUES (?,?,?,?,?)",
             (sprint_id, task_id, title, assignee, story_points)
@@ -107,9 +106,11 @@ class SprintPlanner:
         if status not in valid:
             return {"error": f"status must be one of {valid}"}
         conn = _db()
-        conn.execute("UPDATE sprint_tasks SET status=? WHERE id=?", (status, item_id))
+        changed = conn.execute("UPDATE sprint_tasks SET status=? WHERE id=?", (status, item_id)).rowcount
         conn.commit()
         conn.close()
+        if not changed:
+            return {"error": "task_not_found"}
         return {"id": item_id, "status": status}
 
     def get_sprint_board(self, sprint_id: int) -> Dict[str, Any]:
@@ -142,6 +143,9 @@ class SprintPlanner:
     def close_sprint(self, sprint_id: int) -> Dict[str, Any]:
         """Mark sprint done; returns velocity achieved."""
         conn = _db()
+        if not conn.execute("SELECT 1 FROM sprints WHERE id=?", (sprint_id,)).fetchone():
+            conn.close()
+            return {"error": "sprint_not_found"}
         tasks = conn.execute(
             "SELECT story_points, status FROM sprint_tasks WHERE sprint_id=?", (sprint_id,)
         ).fetchall()

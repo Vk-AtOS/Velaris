@@ -1,0 +1,9 @@
+{
+  "name": "AAE_RUNTIME",
+  "display_name": "Aae Runtime",
+  "version": "0.1.0",
+  "description": "AAE runtime: runs one approved action, once, and keeps a record of it.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:AAE_RUNTIMEAgent",
+  "health_check": "health_check"
+}

@@ -1,0 +1,9 @@
+{
+  "name": "VHOE_OPTIMIZER",
+  "display_name": "Vhoe Optimizer",
+  "version": "0.1.0",
+  "description": "VHOE_OPTIMIZER: assigns a whole queue of work to a pool of workers.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:VHOE_OPTIMIZERAgent",
+  "health_check": "health_check"
+}

@@ -1,0 +1,9 @@
+{
+  "name": "RCI_CORE",
+  "display_name": "Rci Core",
+  "version": "0.1.0",
+  "description": "RCI_CORE: the way events get into the running context, and the way the context is read.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:RCI_COREAgent",
+  "health_check": "health_check"
+}

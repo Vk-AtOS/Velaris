@@ -1,0 +1,9 @@
+{
+  "name": "VPSE_CORE",
+  "display_name": "Vpse Core",
+  "version": "0.1.0",
+  "description": "VPSE_CORE: projects a series forward and shows what each scenario does to every future period.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:VPSE_COREAgent",
+  "health_check": "health_check"
+}

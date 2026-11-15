@@ -22,35 +22,18 @@ import logging
 import time
 from typing import Any, Callable, Dict, Optional
 
-from velaris.agentkit.aicore_b_authz import task_digest
+from velaris.agentkit.aicore_b_authz import approval_proven
 from velaris.agentkit.checks import ident, is_json
 from velaris.agentkit.results import fail, health, invalid
 from velaris.agentkit.state import JsonState
 from velaris.agents.VCAS_SUPERVISOR.main import task_error
-from velaris.core.access import current_caller
 from velaris.intel import trace
 
 logger = logging.getLogger("VCAS_AUTOPILOT")
 NAME = "VCAS_AUTOPILOT"
 
 
-def _proven(task: Dict[str, Any], approval: Any) -> bool:
-    """Is `approval` backed by a trace entry that approves this task?"""
-    wanted = approval.get("trace_hash") if isinstance(approval, dict) else None
-    if not isinstance(wanted, str):
-        return False
-    # ponytail: linear scan of the trace; index decisions by hash if the trace grows large
-    entry = next((e for e in trace.entries() if e.get("hash") == wanted), None)
-    if entry is None:
-        return False
-    p, caller = entry["payload"], current_caller()
-    if p.get("task_digest") != task_digest(task) or caller is None:
-        return False
-    if entry["actor"] == "PRIME" and entry["action"] == "prime.decision":
-        return p.get("decision") == "allow" and caller.id == task["principal"]
-    if entry["actor"] == "VCAS_CORE" and entry["action"] == "decision":
-        return p.get("approved") is True and caller.id == p.get("by")
-    return False
+_proven = approval_proven      # the one implementation lives in aicore_b_authz (ASEL_EXECUTOR uses it too)
 
 
 class VCASAutopilotAgent:

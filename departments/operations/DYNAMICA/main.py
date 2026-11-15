@@ -1,11 +1,8 @@
+import copy
 import logging
 from typing import List, Dict, Any, Callable
 
 logger = logging.getLogger("DYNAMICA")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - DYNAMICA - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class DynamicaAgent:
     def __init__(self, config: Dict[str, Any] = None):
@@ -30,11 +27,11 @@ class DynamicaAgent:
         """
         Apply multi-variable updates across steps.
         """
-        results = [initial]
-        current = initial
+        results = [copy.deepcopy(initial)]      # the caller's own dict is never stored or changed
+        current = copy.deepcopy(initial)
         for _ in range(self.steps - 1):
-            current = update(current.copy())
-            results.append(current)
+            current = update(copy.deepcopy(current))
+            results.append(copy.deepcopy(current))
         logger.debug("Evolve multi=%s", results)
         return results
 

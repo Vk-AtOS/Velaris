@@ -1,0 +1,9 @@
+{
+  "name": "INTER_AGENT_COHESION",
+  "display_name": "Inter Agent Cohesion",
+  "version": "0.1.0",
+  "description": "INTER_AGENT_COHESION: a shared board where agents leave facts for each other without overwriting each other.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:Cohesion",
+  "health_check": "health_check"
+}

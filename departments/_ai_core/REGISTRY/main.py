@@ -10,10 +10,6 @@ from typing import Dict, Any, List, Type
 from velaris.agents import department_dirs
 
 logger = logging.getLogger("REGISTRY")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - REGISTRY - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 
 class AgentRegistry:
@@ -82,16 +78,27 @@ class AgentRegistry:
         return getattr(module, cls_name)
 
     def create(self, agent_name: str, config: Dict[str, Any] = None):
+        """Build the agent. `config` is passed only to a constructor whose first parameter is named `config`;
+        any other constructor is called with its own defaults (its first parameter is not a config dict: giving
+        it {} silently changed ALK_EVO's thresholds and AAE_POLICY's rules). A constructor with required
+        arguments of its own cannot be built here and raises ValueError."""
         cls = self.get_agent_class(agent_name)
         params = [p for p in inspect.signature(cls).parameters.values()
-                  if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD, p.VAR_POSITIONAL)]
-        return cls(config or {}) if params else cls()      # some agents (GST_ENGINE) take no constructor argument
+                  if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY)]
+        if params and params[0].name == "config":
+            return cls(config or {})
+        if any(p.default is p.empty for p in params):
+            raise ValueError(f"Agent {agent_name} needs constructor arguments the registry cannot supply")
+        return cls()
 
     def health_all(self) -> Dict[str, Any]:
         out = {}
         for name in self.list_agents():
             try:
                 inst = self.create(name)
+                if not callable(getattr(inst, "health_check", None)):
+                    out[name] = {"agent": name, "status": "no_health_check"}
+                    continue
                 out[name] = inst.health_check()
             except Exception as e:
                 out[name] = {"agent": name, "status": "error", "error": str(e)}

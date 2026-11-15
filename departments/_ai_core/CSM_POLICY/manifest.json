@@ -1,0 +1,9 @@
+{
+  "name": "CSM_POLICY",
+  "display_name": "Csm Policy",
+  "version": "0.1.0",
+  "description": "CSM policy: builds a checkable policy from a short specification, and checks records against it.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:CSMPolicyAgent",
+  "health_check": "health_check"
+}

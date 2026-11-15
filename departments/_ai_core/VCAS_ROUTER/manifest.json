@@ -1,0 +1,9 @@
+{
+  "name": "VCAS_ROUTER",
+  "display_name": "Vcas Router",
+  "version": "0.1.0",
+  "description": "VCAS_ROUTER: can this task run on autopilot at all?",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:VCASRouterAgent",
+  "health_check": "health_check"
+}

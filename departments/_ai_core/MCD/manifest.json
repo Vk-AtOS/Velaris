@@ -1,0 +1,9 @@
+{
+  "name": "MCD",
+  "display_name": "Mcd",
+  "version": "0.1.0",
+  "description": "Public methods: render, route_exists, get_route_target",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:MasterControlDashboard",
+  "health_check": "health_check"
+}

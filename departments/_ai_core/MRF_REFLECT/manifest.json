@@ -1,0 +1,9 @@
+{
+  "name": "MRF_REFLECT",
+  "display_name": "Mrf Reflect",
+  "version": "0.1.0",
+  "description": "MRF_REFLECT: turns an evaluation's failures into revision instructions, and optionally has a model apply them.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:MRF_REFLECTAgent",
+  "health_check": "health_check"
+}

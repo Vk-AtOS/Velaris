@@ -1,0 +1,9 @@
+{
+  "name": "DSS_CLUSTER_MANAGER",
+  "display_name": "Dss Cluster Manager",
+  "version": "0.1.0",
+  "description": "DSS cluster manager: the registry of worker nodes for the DSS family.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:DSS_CLUSTER_MANAGERAgent",
+  "health_check": "health_check"
+}

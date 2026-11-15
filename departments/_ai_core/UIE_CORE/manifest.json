@@ -1,0 +1,9 @@
+{
+  "name": "UIE_CORE",
+  "display_name": "Uie Core",
+  "version": "0.1.0",
+  "description": "UIE_CORE: a raw message in, a decision about the next step out.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:UIECoreAgent",
+  "health_check": "health_check"
+}

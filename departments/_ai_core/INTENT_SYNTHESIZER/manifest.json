@@ -1,0 +1,9 @@
+{
+  "name": "INTENT_SYNTHESIZER",
+  "display_name": "Intent Synthesizer",
+  "version": "0.1.0",
+  "description": "INTENT_SYNTHESIZER: turns a loosely worded idea into a structured intent that can be planned.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:IntentSynthesizer",
+  "health_check": "health_check"
+}

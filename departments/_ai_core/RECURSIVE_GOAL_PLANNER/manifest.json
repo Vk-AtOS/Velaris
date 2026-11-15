@@ -1,0 +1,9 @@
+{
+  "name": "RECURSIVE_GOAL_PLANNER",
+  "display_name": "Recursive Goal Planner",
+  "version": "0.1.0",
+  "description": "RECURSIVE_GOAL_PLANNER: flattens a nested goal into a dependency-ordered task list.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:RecursiveGoalPlanner",
+  "health_check": "health_check"
+}

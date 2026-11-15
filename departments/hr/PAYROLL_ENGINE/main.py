@@ -12,10 +12,6 @@ from velaris.agents.PAYROLL_ENGINE.registry import money, paise
 from velaris.core.access import Caller
 
 logger = logging.getLogger("PAYROLL_ENGINE")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - PAYROLL_ENGINE - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 PayPeriod = Union[date, str, Tuple[int, int], None]
 EPF_BASES = (None, "ceiling", "full_wages")

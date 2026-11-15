@@ -2,10 +2,6 @@ import logging
 from typing import Dict, List, Any
 
 logger = logging.getLogger("COHORTUS")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - COHORTUS - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class CohortusAgent:
     def __init__(self, config: Dict[str, Any] = None):

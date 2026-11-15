@@ -2,10 +2,6 @@ import logging
 from typing import List, Dict, Any
 
 logger = logging.getLogger("ECONOVA")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - ECONOVA - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class EconovaAgent:
     def __init__(self, config: Dict[str, Any] = None):
@@ -30,7 +26,7 @@ class EconovaAgent:
         """
         demand = base_demand * (1 - elasticity * price_change)
         """
-        demand = base_demand * (1 - self.elasticity * price_change)
+        demand = max(0.0, base_demand * (1 - self.elasticity * price_change))      # demand cannot be negative
         logger.debug("Demand projection=%s", demand)
         return demand
 

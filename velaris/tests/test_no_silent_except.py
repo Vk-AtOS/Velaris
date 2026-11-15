@@ -51,11 +51,11 @@ def test_hfal_corrupt_session_store_is_reported_and_kept(tmp_path, monkeypatch, 
     token = first.create_session("asha", "4321")
     store = Path(first.SESSION_FILE)
     store.write_text("{ not json")
-    with caplog.at_level(logging.WARNING, logger="HFAL"):
+    with caplog.at_level(logging.WARNING, logger="velaris.agentkit.state"):
         again = HFAL()
+        assert again.validate(token, "4321") is False                      # fails closed (loading the store reports it)
     assert any("unreadable" in r.getMessage() for r in caplog.records)     # said so, not silent
-    assert again.validate(token, "4321") is False                          # fails closed
-    assert Path(str(store) + ".corrupt").read_text() == "{ not json"       # evidence kept, not overwritten
+    assert [p.read_text() for p in store.parent.glob(store.name + ".corrupt-*")] == ["{ not json"]   # evidence kept
 
 
 def test_identity_store_corruption_refuses_instead_of_wiping_accounts(tmp_path, monkeypatch):

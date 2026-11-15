@@ -1,0 +1,9 @@
+{
+  "name": "RCI_CONTEXT",
+  "display_name": "Rci Context",
+  "version": "0.1.0",
+  "description": "RCI_CONTEXT: builds a bounded \"current context\" from a stream of events.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:RCI_CONTEXTAgent",
+  "health_check": "health_check"
+}

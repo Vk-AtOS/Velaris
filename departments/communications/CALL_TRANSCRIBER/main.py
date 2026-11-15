@@ -6,13 +6,13 @@ import json
 import subprocess
 from typing import Dict, Any, Optional
 
-from velaris.intel.paths import agent_dir
+from velaris.core.access import check_caller
+from velaris.intel.paths import agent_dir, agent_file
 
 logger = logging.getLogger("CALL_TRANSCRIBER")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - CALL_TRANSCRIBER - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
+
+
+AUDIO_EXTENSIONS = frozenset({".wav", ".mp3", ".m4a", ".flac", ".ogg", ".webm"})
 
 
 class CallTranscriber:
@@ -70,8 +70,12 @@ class CallTranscriber:
         filepath: absolute path to audio file
         language: override language (e.g. 'ta' for Tamil, 'en' for English)
         """
-        if not os.path.exists(filepath):
-            return {"error": f"file_not_found: {filepath}"}
+        _, refused = check_caller("CALL_TRANSCRIBER", "transcribe", {"file": os.path.basename(str(filepath))[:80]})
+        if refused:
+            return {"error": refused["status"], "reason": refused["reason"], "filepath": str(filepath)[:200]}
+        problem = self._audio_problem(filepath)
+        if problem:
+            return {"error": problem, "filepath": str(filepath)[:200]}
         lang = language or self.language
         try:
             self._load_model()
@@ -101,6 +105,22 @@ class CallTranscriber:
         except Exception as e:
             logger.error("Transcription failed: %s", e)
             return {"error": str(e), "filepath": filepath}
+
+    def _audio_roots(self):
+        extra = [r for r in self.config.get("audio_roots", []) if isinstance(r, str)]
+        return [os.path.realpath(r) for r in [str(agent_dir("CALL_TRANSCRIBER")), agent_file("CALL_RECORDER", "recordings"), *extra]]
+
+    def _audio_problem(self, filepath: str) -> Optional[str]:
+        """Only an audio file under a recordings folder (this agent's, CALL_RECORDER's, or config["audio_roots"]) is read:
+        an unrestricted path would transcribe, and so disclose, any file the process can read."""
+        if not isinstance(filepath, str) or "\x00" in filepath or os.path.splitext(filepath)[1].lower() not in AUDIO_EXTENSIONS:
+            return f"filepath must be an audio file ({', '.join(sorted(AUDIO_EXTENSIONS))})"
+        real = os.path.realpath(filepath)
+        if not any(real.startswith(r + os.sep) for r in self._audio_roots()):
+            return "filepath is outside the folders this agent may read audio from"
+        if not os.path.isfile(real):
+            return f"file_not_found: {os.path.basename(filepath)}"
+        return None
 
     @staticmethod
     def _output_problem(filepath: str, output_path: str) -> Optional[str]:
@@ -135,6 +155,8 @@ class CallTranscriber:
         return result
 
     def transcribe_to_text(self, filepath: str, language: Optional[str] = None) -> str:
-        """Convenience: returns just the text string."""
+        """Convenience: returns just the text string. Raises RuntimeError on failure: an error message is not a transcript."""
         result = self.transcribe(filepath, language)
-        return result.get("text", result.get("error", ""))
+        if "error" in result:
+            raise RuntimeError(str(result["error"]))
+        return result["text"]

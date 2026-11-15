@@ -99,7 +99,7 @@ def vault_secret(name: str) -> Optional[str]:
     """The default secret source: the SECRETS_VAULT agent. Raises ConnectorError if the vault cannot answer."""
     try:
         return SecretsVault().get_secret(name)
-    except (ValueError, OSError):
+    except (ValueError, OSError, RuntimeError):      # RuntimeError: no vault master key (VaultKeyError) - fail closed
         raise ConnectorError("secret_unavailable") from None
 
 

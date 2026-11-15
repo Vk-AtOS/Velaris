@@ -1,0 +1,9 @@
+{
+  "name": "LOCAL_EMBEDDING_ENGINE",
+  "display_name": "Local Embedding Engine",
+  "version": "0.1.0",
+  "description": "LOCAL_EMBEDDING_ENGINE: text to vectors without sending anything off the machine, and similarity search.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:LocalEmbeddingEngine",
+  "health_check": "health_check"
+}

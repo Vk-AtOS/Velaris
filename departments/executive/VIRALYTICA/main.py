@@ -3,10 +3,6 @@ from typing import List, Dict, Any
 import math
 
 logger = logging.getLogger("VIRALYTICA")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - VIRALYTICA - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class ViralyticaAgent:
     def __init__(self, config: Dict[str, Any] = None):

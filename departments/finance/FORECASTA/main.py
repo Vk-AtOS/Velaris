@@ -2,10 +2,6 @@ import logging
 from typing import Dict, Any, List
 
 logger = logging.getLogger("FORECASTA")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - FORECASTA - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class ForecastaAgent:
     def __init__(self, config: Dict[str, Any] = None):

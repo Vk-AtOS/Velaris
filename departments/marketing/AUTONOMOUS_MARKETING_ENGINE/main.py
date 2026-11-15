@@ -1,13 +1,17 @@
 # ================================================================================
 
+import math
 import time
 from typing import Dict, Any, List
+
+from velaris.agentkit.checks import number
+
 
 class AutonomousMarketingEngine:
     """
     Velaris Autonomous Marketing Engine (AME)
     - Generates marketing campaigns
-    - Scores audiences
+    - Scores audiences from MEASURED data: {"size": people, "engagement": 0..1, "conversion": 0..1}
     - Produces multi-channel strategy outputs
     - Offline-safe, no external requests
     """
@@ -16,6 +20,10 @@ class AutonomousMarketingEngine:
         self.history: List[Dict[str, Any]] = []
 
     def generate_campaign(self, product: str, audience: str, budget: int) -> Dict[str, Any]:
+        if not (isinstance(product, str) and product.strip() and isinstance(audience, str) and audience.strip()):
+            raise ValueError("product and audience must be non-empty text")
+        if number(budget, 0) is None:
+            raise ValueError("budget must be a finite number, zero or more")
         result = {
             "product": product,
             "audience": audience,
@@ -30,9 +38,18 @@ class AutonomousMarketingEngine:
         self.history.append(result)
         return result
 
-    def score_audience(self, audience: str) -> int:
-        base = sum(ord(c) for c in audience) % 100
-        return base
+    def score_audience(self, audience: Dict[str, Any]) -> int:
+        """0-100: engagement 50%, conversion 30%, size 20% (log scale, a million people is full marks).
+
+        Raises ValueError for anything but measured numbers: a name alone says nothing about an audience."""
+        if not isinstance(audience, dict):
+            raise ValueError("score_audience needs measured data: {'size', 'engagement', 'conversion'}")
+        size, eng, conv = number(audience.get("size"), 0), number(audience.get("engagement"), 0, 1), \
+            number(audience.get("conversion"), 0, 1)
+        if size is None or eng is None or conv is None:
+            raise ValueError("size must be >= 0 and engagement and conversion must be numbers from 0 to 1")
+        size_part = min(1.0, math.log10(size + 1) / 6)
+        return int(round(100 * (0.5 * eng + 0.3 * conv + 0.2 * size_part)))
 
     def suggest_channels(self, score: int) -> List[str]:
         if score > 70:

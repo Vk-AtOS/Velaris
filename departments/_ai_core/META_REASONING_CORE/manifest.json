@@ -1,0 +1,9 @@
+{
+  "name": "META_REASONING_CORE",
+  "display_name": "Meta Reasoning Core",
+  "version": "0.1.0",
+  "description": "META_REASONING_CORE: draft, check against a rubric, revise, re-check; keep the best attempt.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:META_REASONING_COREAgent",
+  "health_check": "health_check"
+}

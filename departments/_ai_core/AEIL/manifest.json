@@ -1,0 +1,9 @@
+{
+  "name": "AEIL",
+  "display_name": "Aeil",
+  "version": "0.1.0",
+  "description": "Alias agent AEIL: fronts ECON_INTEL_CORE, MARKET_GAP_ANALYZER, ECONOVA. See velaris.agentkit.alias.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:AEILAgent",
+  "health_check": "health_check"
+}

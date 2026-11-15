@@ -1,0 +1,9 @@
+{
+  "name": "AIIE_KERNEL",
+  "display_name": "Aiie Kernel",
+  "version": "0.1.0",
+  "description": "AIIE kernel: runs the initiative pipeline stage by stage and stops at the first stage that does not pass.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:AIIEKernel",
+  "health_check": "health_check"
+}

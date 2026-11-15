@@ -13,20 +13,19 @@ when a topic passes a few hundred thousand events.
 """
 import logging
 import re
-import threading
 import time
 from typing import Any, Dict, List
 
 from velaris.agentkit.checks import is_json
 from velaris.agentkit.results import fail, health, invalid
 from velaris.agentkit.state import append_line, peek_dir, read_lines
+from velaris.core.filelock import lock_for
 from velaris.intel.paths import agent_dir
 
 logger = logging.getLogger("RCI_STREAM")
 NAME = "RCI_STREAM"
 _TOPIC = re.compile(r"^[a-z0-9][a-z0-9_.-]{0,63}$")
 MAX_READ = 1000
-_publish_lock = threading.Lock()      # offset = count + 1 must not interleave with another append
 
 
 class RCI_STREAMAgent:
@@ -39,7 +38,9 @@ class RCI_STREAMAgent:
         if not isinstance(event, dict) or not event or not is_json(event):
             return invalid("event must be a non-empty JSON object")
         try:
-            with _publish_lock:
+            # A cross-process lock: offset = count + 1 must not interleave with another WORKER's append either
+            # (a threading.Lock only covered this process, so two workers handed out the same offset).
+            with lock_for(agent_dir(NAME) / f"{topic}.jsonl.lock"):
                 offset = len(read_lines(peek_dir(NAME) / f"{topic}.jsonl")) + 1
                 entry = {"offset": offset, "ts": time.time(), "event": event}
                 append_line(agent_dir(NAME) / f"{topic}.jsonl", entry)

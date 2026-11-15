@@ -1,0 +1,9 @@
+{
+  "name": "GCK",
+  "display_name": "Gck",
+  "version": "0.1.0",
+  "description": "Alias agent GCK: fronts GLOBAL_STATE_MAP. See velaris.agentkit.alias.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:GCKAgent",
+  "health_check": "health_check"
+}

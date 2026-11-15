@@ -1,0 +1,9 @@
+{
+  "name": "CCSF_CORE",
+  "display_name": "Ccsf Core",
+  "version": "0.1.0",
+  "description": "CCSF core: one agreed view of an entity that several systems each hold a copy of.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:CCSF_COREAgent",
+  "health_check": "health_check"
+}

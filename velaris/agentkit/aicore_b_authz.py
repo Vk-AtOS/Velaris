@@ -36,7 +36,8 @@ from fnmatch import fnmatchcase
 from typing import Any, Dict, Iterable, List, Optional
 
 from velaris.agentkit.checks import ident, number
-from velaris.core.access import resource_matches
+from velaris.core.access import current_caller, resource_matches
+from velaris.intel import trace
 
 ALLOW, NEEDS_APPROVAL, DENY = "allow", "needs_approval", "deny"
 CURRENCY = "INR"                     # ponytail: one currency, no FX; other currencies go to a person
@@ -244,3 +245,31 @@ def delegation_error(held: Iterable[Dict[str, Any]], grant: Dict[str, Any], now:
             return None
     return (f"{grant['grantor']} holds no live, delegable grant covering these actions, resources, autonomy, "
             "period, amount, currency and approver")
+
+
+def approval_proven(task: Dict[str, Any], approval: Any) -> bool:
+    """Is `approval` ({"trace_hash": ...}) backed by a trace entry that approves exactly this task?
+
+    The entry must be PRIME's "allow" decision (then the current caller must be the task's principal) or VCAS_CORE's
+    record of a person approving (then the current caller must be that person), and its task_digest must equal
+    task_digest(task). The hash is looked up in the trace, so a caller cannot make one up; callers spend each hash once.
+    """
+    wanted = approval.get("trace_hash") if isinstance(approval, dict) else None
+    if not isinstance(wanted, str):
+        return False
+    # ponytail: linear scan of the trace; index decisions by hash if the trace grows large
+    entry = next((e for e in trace.entries() if e.get("hash") == wanted), None)
+    caller = current_caller()
+    if entry is None or caller is None:
+        return False
+    p = entry["payload"]
+    try:
+        if p.get("task_digest") != task_digest(task):
+            return False
+    except (TypeError, ValueError):
+        return False
+    if entry["actor"] == "PRIME" and entry["action"] == "prime.decision":
+        return p.get("decision") == "allow" and caller.id == task.get("principal")
+    if entry["actor"] == "VCAS_CORE" and entry["action"] == "decision":
+        return p.get("approved") is True and caller.id == p.get("by")
+    return False

@@ -1,0 +1,9 @@
+{
+  "name": "RCI_STREAM",
+  "display_name": "Rci Stream",
+  "version": "0.1.0",
+  "description": "RCI_STREAM: durable, append-only event streams with offsets.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:RCI_STREAMAgent",
+  "health_check": "health_check"
+}
