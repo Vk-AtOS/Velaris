@@ -1,3 +1,20 @@
+"""Action item extractor: finds action items in meeting text with regex rules and stores them in SQLite.
+
+ActionItemExtractor(config): health_check(); extract_from_segments(segments, meeting_id)
+takes [{"text", "start", "end"}], keeps segments matching keyword patterns (will ... by,
+need to, action item, follow up, due, deadline, assign, ensure, ...), guesses an owner from
+capitalised-name patterns and a due-date hint, inserts rows and returns them;
+extract_from_text(text, meeting_id) splits into sentences first; close_item(item_id) marks
+a row closed; get_open_items(owner=None); get_overdue() lists open items whose due_date
+string sorts before today.
+This is pattern matching, not language understanding; due hints can be non-ISO text
+("oct 15", "friday"), which are compared as plain strings by get_overdue().
+State: sqlite file action_items.db under the agent data dir (velaris.intel.paths.agent_file).
+Failure: segments without a match are skipped; close_item on an unknown id still returns
+status closed; a due hint of today, tomorrow, eod or next week reaches
+datetime.timedelta on the datetime class and raises AttributeError in the code as written.
+"""
+
 import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 

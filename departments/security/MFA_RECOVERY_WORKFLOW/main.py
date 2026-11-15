@@ -1,5 +1,18 @@
 # ================================================================================
 
+"""MFA recovery workflow: simulated one-time recovery codes and reset tokens (not production-grade).
+
+MFARecoveryWorkflow: issue_recovery_code(user) returns a 6-digit code and stores its hash;
+verify_recovery_code(user, code) compares hashes and does not consume the code;
+issue_reset_token(user) returns a 16-char token derived from the user and random.random();
+verify_reset_token(user, token); reset_credentials(user, new_hash) only checks a reset
+token exists for the user and deletes it, it does not change any credential. Codes and
+tokens come from the non-cryptographic random module, are not single-use or rate-limited,
+and have no expiry.
+State: in memory only (self.recovery_codes, self.reset_tokens), lost on restart.
+Failure: unknown users return False; a non-string code raises AttributeError.
+"""
+
 import hashlib
 import os
 import random

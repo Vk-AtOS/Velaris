@@ -1,5 +1,13 @@
 # ================================================================================
 
+"""Deep audit engine: records SHA-256 checksums of data and detects changes against them.
+
+checksum(data) hashes the JSON form (sorted keys; non-JSON data raises TypeError). audit(name,
+data) appends {name, checksum} to the log and saves it. detect_drift(name, new_data) compares
+with the first logged entry for that name and returns True when it differs or when the name was
+never audited. The log is append-only but not tamper-proof. State: audit_log.json (a JSON list)
+under <VELARIS_DATA>/agents/DEEP_AUDIT_ENGINE; an unreadable file is logged and treated as empty.
+"""
 import logging
 import os
 import json

@@ -1,5 +1,13 @@
 # ================================================================================
 
+"""Multilingual brain: word-for-word offline translation from registered dictionaries.
+MultilingualBrain.register_language(lang, mapping) stores a word mapping and returns True, or False
+(keeping the old one) if the language is already registered. translate(lang, text) splits on
+whitespace and replaces each lowercased word found in the mapping; unmapped words are kept as written.
+languages() lists the registered codes. There is no grammar handling or built-in dictionary.
+State: in-memory dict only, nothing persisted, so languages must be registered again after a restart.
+Failure: an unregistered language returns the text unchanged; a non-string text raises AttributeError.
+"""
 from typing import Dict
 
 class MultilingualBrain:

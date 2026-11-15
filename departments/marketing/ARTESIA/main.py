@@ -1,3 +1,14 @@
+"""Artesia: trivial style helpers (name fusion, weighted attribute sum, feature profile).
+
+ArtesiaAgent(config; "style_weight" default 1.0): health_check(); fuse_styles(base,
+overlay) returns "<base>-<overlay> Fusion"; aesthetic_score(attributes) = sum of the
+values * style_weight; style_profile(features) returns the count and the unique features
+(unordered).
+State: keeps no state beyond the configured weight.
+Failure: no validation; non-numeric attributes raise TypeError and unhashable features
+raise TypeError.
+"""
+
 import logging
 from typing import List, Dict, Any
 

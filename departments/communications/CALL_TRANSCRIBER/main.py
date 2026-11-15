@@ -1,3 +1,16 @@
+"""Call transcriber: local speech-to-text of audio files with OpenAI Whisper or faster-whisper.
+CallTranscriber.transcribe(filepath, language=None) returns {"filepath", "language", "text",
+"segments"[, "language_probability", "duration_sec"]} where segments carry start, end and text.
+transcribe_and_save(filepath, output_path=None, language=None) also writes the result as JSON
+(default <audio>_transcript.json) and adds "transcript_path"; the output must be a .json path, not a
+symlink, next to the audio file or under this agent's data folder (agent_dir). transcribe_to_text
+returns just the text (or the error string). health_check() reports whether the Whisper package imports
+(status "ok" or "degraded"). The model is loaded lazily on first use; no audio leaves the machine.
+State: no persistent state apart from the transcript files it is asked to write.
+Failure: a missing file returns {"error": "file_not_found: ..."}; any transcription error, including
+the Whisper package not being installed, returns {"error": ...} instead of raising; a rejected output
+path returns {"error": <reason>}.
+"""
 import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 

@@ -1,5 +1,19 @@
 # ================================================================================
 
+"""Local biometrics interface: stores SHA-256 hashes of biometric strings per user and checks presented ones against them.
+
+LocalBiometricsInterface: enroll(user, biometrics) stores a hash per factor
+({"finger"|"face"|"voice": text}, any key accepted) and returns False if the user is
+already enrolled; verify(user, biometrics) is True only if the user exists, at least one
+factor is presented, and every presented factor equals its enrolled hash; update(user,
+biometrics) overwrites or adds factor hashes for an enrolled user; list_users() returns
+the enrolled user names.
+This is an exact-hash comparison, not fuzzy biometric matching, and the hash is unsalted.
+State: in memory only (self.templates), lost on restart.
+Failure: unknown user, empty input or any unmatched or un-enrolled factor returns False
+(fail closed); non-string factor values raise AttributeError.
+"""
+
 import hashlib
 from typing import Dict, Any
 

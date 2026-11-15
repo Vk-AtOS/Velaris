@@ -1,5 +1,13 @@
 # ================================================================================
 
+"""Owner verification: compares fingerprint, face and voice strings with hashes enrolled for one owner.
+
+enroll(fingerprint, face, voice) stores the SHA-256 of each string as the single owner's templates, replacing any earlier
+ones, with no check on who is enrolling. verify(...) is True only when all three hash-match. partial_verify(finger=, face=,
+voice=) is True when every supplied factor matches; no factors, an unknown factor name, or any mismatch gives False. With
+nothing enrolled everything is False (fails closed). It compares exact strings, so it does no biometric matching, and the
+hashes are unsalted. State: in memory only, so the enrolment is lost on exit.
+"""
 import hashlib
 from typing import Dict
 

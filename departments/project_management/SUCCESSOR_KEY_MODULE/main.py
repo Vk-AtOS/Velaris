@@ -1,5 +1,16 @@
 # ================================================================================
 
+"""Successor key module: holds the SHA-256 hash of one successor key for emergency transfer and verifies a presented key against it.
+
+SuccessorKeyModule: set_successor_key(key) stores the hash only if none is set (else
+False); wipe_key() clears it; verify(key) compares hashes; has_key(). The owner check is
+not done here (the caller must do it), and wipe_key has no authorisation of its own. The
+hash is unsalted and compared with ==, not a constant-time comparison.
+State: in memory only (self.successor_hash), lost on restart.
+Failure: verify returns False when no key is set or on mismatch; a non-string key raises
+AttributeError.
+"""
+
 import hashlib
 from typing import Dict, Optional
 

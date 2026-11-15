@@ -1,5 +1,14 @@
 # ================================================================================
 
+"""Dry-run simulation: records actions as simulated or executed without performing any side effect.
+DryRunSimulation(dry_run=True).execute_action(action_name, payload) in dry-run mode logs the action as
+simulated and returns {"status": "SIMULATED", ...}; in live mode it records and logs it as executed and
+returns {"status": "EXECUTED", ...}. It never runs the action itself. log_action(action_name,
+payload) logs a simulated entry. toggle_dry_run(val) switches the mode and read_log() returns the log.
+State: <VELARIS_DATA>/agents/DRY_RUN_SIMULATION/dryrun.log (a JSON list, created as [] if absent) plus
+in-memory lists for the current instance. Failure: an unreadable log is logged as a warning and
+restarted on append or read as []; a failed write raises OSError. There is no caller check.
+"""
 import json
 import logging
 import os

@@ -1,5 +1,13 @@
 # ================================================================================
 
+"""Digital twin XR engine: in-memory store of named twin dicts with diff and merge (no XR or simulation).
+
+create_twin(name, data) (False if it exists), update_twin(name, data) (shallow merge; False if
+unknown), get_twin(name) ({} if unknown), diff(a, b) returns the fields that differ as
+{field: {"a": ..., "b": ...}}, merge(target, source) copies source fields into target (False if
+either is unknown). Names are lower-cased. create_twin keeps the caller's dict, not a copy.
+State: a dict in memory only, lost on restart.
+"""
 from typing import Dict, Any
 
 

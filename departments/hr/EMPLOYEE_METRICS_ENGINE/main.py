@@ -1,3 +1,19 @@
+"""Employee metrics engine: aggregates Zoho People, Payroll and Projects data into a per-employee profile, a ranked team scorecard and an org heatmap.
+
+EmployeeMetricsEngine(config): health_check() reports the three connectors' status;
+get_employee_profile(employee_id, month=None, year=None, caller=None) returns attendance,
+leave, performance summary, payroll (gross, net, statutory) and project delivery for the
+month (default: current); get_team_scorecard(employee_ids, month, year, caller) ranks by
+composite = attendance_pct*0.30 + delivery completion*0.50 + latest appraisal score*20
+(capped at 100)*0.20, using no pay data; get_org_heatmap(...) buckets attendance, delivery
+and hours (avg, min, max, count under 70), lists the top 3 and composites under 60.
+State: keeps no state; all data is fetched from the connectors on each call.
+Failure: each section is fetched separately; AccessDenied from a connector becomes
+{"withheld": reason} and any other error is logged and becomes {"error": message}, so a
+profile is still returned. Pay access is decided by velaris.core.access in the payroll
+connector.
+"""
+
 import logging
 import datetime
 from typing import Dict, Any, List, Optional

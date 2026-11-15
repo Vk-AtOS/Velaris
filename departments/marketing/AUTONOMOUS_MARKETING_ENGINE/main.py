@@ -1,5 +1,14 @@
 # ================================================================================
 
+"""Autonomous marketing engine: template-based campaign text and a toy audience score.
+
+generate_campaign(product, audience, budget) returns a dict with fixed email, social and
+landing-page strings and a timestamp, and records it; get_history() returns a copy of the
+recorded campaigns; score_audience(audience) is the sum of character codes modulo 100 (an
+arbitrary number, not a measurement); suggest_channels(score) maps >70, >40 and lower scores
+to fixed channel lists. Template and heuristic only; no external calls. State: history list
+in memory only, lost on restart. No input validation.
+"""
 import time
 from typing import Dict, Any, List
 

@@ -1,3 +1,13 @@
+"""Zoho connector: OAuth2 base client that other Zoho agents use to call Zoho REST APIs.
+
+Config (or the ZOHO_CLIENT_ID, ZOHO_CLIENT_SECRET, ZOHO_REFRESH_TOKEN environment variables): client_id, client_secret,
+refresh_token and dc (data centre, default "in"). get(url, params) and post(url, payload) send the request with a
+Zoho-oauthtoken header and return the decoded JSON; the access token is fetched from the refresh token on first use and
+reused until a minute before it expires. health_check() returns status "ok" or "unconfigured" and makes no network call.
+Credentials are not checked up front: a call with missing or wrong ones, or any network or HTTP error, raises the
+urllib exception (or a KeyError if the token reply has no access_token). Timeouts are 15 s (token) and 30 s (calls).
+State: the access token and its expiry are held in memory only.
+"""
 import logging
 import os
 import time

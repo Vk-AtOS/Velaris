@@ -1,5 +1,12 @@
 # ================================================================================
 
+"""Multi-tenant engine: an in-memory key-value store partitioned by tenant id.
+
+create_tenant(id) returns False if it exists; delete_tenant(id) returns False if unknown. set_value(tenant, key, value)
+returns False for an unknown tenant; get_value(tenant, key) returns None for an unknown tenant or key; tenant_snapshot(id)
+returns a shallow copy or None; list_tenants() returns the ids. Separation is only that each tenant has its own dict: there
+is no caller or authorisation check and no persistence. State: in memory only, lost on exit.
+"""
 from typing import Dict, Any, Optional
 
 class MultiTenantEngine:

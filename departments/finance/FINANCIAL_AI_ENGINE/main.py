@@ -1,5 +1,13 @@
 # ================================================================================
 
+"""Financial AI engine: rule-based finance arithmetic, not a learned model.
+
+compute_growth(previous, current) is percentage growth, 0.0 when previous <= 0;
+forecast_linear(data) is the next value of a least-squares line (last value for one point, 0.0
+for empty); financial_health(revenue, expenses, debt) scores revenue - expenses - 0.2*debt and
+returns EXCELLENT (>50000), GOOD (>10000), FAIR (>0) or POOR. Fixed thresholds, no currency
+handling. Keeps no state. Non-numeric input raises TypeError.
+"""
 from typing import Dict, Any, List
 import statistics
 

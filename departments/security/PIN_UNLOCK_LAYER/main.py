@@ -1,5 +1,16 @@
 # ================================================================================
 
+"""PIN unlock layer: per-user SHA-256 PIN hashes with a locked or unlocked flag.
+
+PINUnlockLayer: register_pin(user, pin) stores the hash and starts locked (False if
+already registered); unlock(user, pin) clears the lock on a matching PIN; lock(user)
+re-locks a registered user; is_locked(user). There is no attempt counter or lockout, and
+the hash is unsalted.
+State: in memory only (self.pins, self.locked), lost on restart.
+Failure: an unknown user or wrong PIN makes unlock return False; is_locked is True for an
+unknown user (fail closed); a non-string PIN raises AttributeError.
+"""
+
 import hashlib
 from typing import Dict
 

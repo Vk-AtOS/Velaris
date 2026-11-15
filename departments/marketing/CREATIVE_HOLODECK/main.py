@@ -1,5 +1,16 @@
 # ================================================================================
 
+"""Creative holodeck: composes a text scene description from fixed style, mood, element and action lists; rule-based, not a generative model.
+
+CreativeHolodeck: compose(style, mood, element, action) validates each against its list
+(styles fantasy/scifi/noir/minimal, moods bright/dark/calm/chaotic, elements
+forest/city/ocean/desert, actions exploring/resting/battling/searching) and returns the
+four values plus a description sentence; random_scene() composes a random valid choice.
+State: keeps no state beyond the fixed lists; random_scene is not seeded.
+Failure: an unknown value returns {"error": "invalid_style" | "invalid_mood" |
+"invalid_element" | "invalid_action"} (checked in that order).
+"""
+
 from typing import List, Dict
 
 

@@ -1,5 +1,14 @@
 # ================================================================================
 
+"""Skillpack loader: stores JSON skillpacks as files and keeps the loaded ones in a registry.
+
+load_skillpack(name, data) writes <name>.json and registers it, returning False if the file already exists.
+unload_skillpack(name) deletes the file and returns False if there is none. get_skillpack(name) returns the registered
+pack, else reads the file (and registers it), else None; a file that is not valid JSON raises ValueError.
+list_skillpacks() lists only packs registered in this process. The name is used in the file path without validation, and
+no skill function is executed or registered here: packs are data only.
+State: <VELARIS_DATA>/agents/SKILLPACK_LOADER/skillpacks/<name>.json plus an in-memory registry.
+"""
 import os
 import json
 from typing import Dict, Any, Optional

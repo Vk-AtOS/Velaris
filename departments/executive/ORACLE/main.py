@@ -1,3 +1,11 @@
+"""Oracle: Monte Carlo success-probability forecast from additive factors.
+OracleAgent.forecast(factors, trials=1000) starts from a 0.5 baseline, adds the sum of the factor
+values, clamps to 0..1, runs that many random trials and returns {"effective", "wins", "trials",
+"probability"}. multi_scenario(scenarios, trials=500) returns {name: probability} per scenario.
+A "seed" in config seeds the global random module. This is a toy model, not a calibrated forecast.
+State: keeps none. Failure: trials of 0 or less gives probability 0; non-numeric factor values raise
+TypeError; nothing is caught.
+"""
 import logging
 import random
 from typing import Dict, List, Any

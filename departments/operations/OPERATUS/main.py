@@ -1,3 +1,17 @@
+"""Operatus: runs a named workflow by calling the handler registered for each step in order.
+
+OperatusAgent(config): health_check(); register(step, handler) maps a step name to a
+callable; execute_workflow(steps) calls each handler with no arguments and returns
+{"steps": [...], "status"}; validate_inputs(inputs, required) is True when every required
+key is present.
+Step results are "done" (with output), "not_run" (no handler; overall status becomes
+"incomplete" and later steps still run) or "failed" (handler raised; status "failed" and
+the workflow stops).
+State: in memory only (self.handlers), lost on restart.
+Failure: register raises ValueError for a non-string step or non-callable handler;
+handler exceptions are caught and reported, not raised.
+"""
+
 import logging
 from typing import Dict, Any, List
 

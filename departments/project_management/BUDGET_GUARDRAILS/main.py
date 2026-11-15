@@ -1,5 +1,19 @@
 # ================================================================================
 
+"""Budget guardrails: per-category spending limits that refuse any spend which would exceed the limit.
+
+BudgetGuardrails: set_limit(category, amount) is allowed only for governance admins
+(velaris.core.access.check_caller, roles GOVERNANCE_ADMINS), needs a finite non-negative
+amount and cannot go below what is already spent; record_spend(category, amount) adds to
+the total if the category has a limit, the amount is finite and non-negative, the caller is
+allowed and the total stays within the limit; remaining(category); status(category)
+returns exists, limit, spent, remaining and blocked.
+State: in memory only (self.limits, self.spent), lost on restart.
+Failure: set_limit and record_spend return False (never raise) for bad input, an unknown
+category, an unauthorised caller or an overrun; remaining() is 0.0 and status() is
+{"exists": False} for an unknown category.
+"""
+
 import math
 from typing import Dict, Any
 

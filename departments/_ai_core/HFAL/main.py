@@ -1,5 +1,14 @@
 # ================================================================================
 
+"""HFAL (Human-Friendly Auth Layer): issues short PIN-backed session tokens and validates them.
+
+create_session(user, pin) returns a 12-hex-character token (the start of an unsalted SHA-256 of user+pin) and stores the
+user and the SHA-256 of the pin. validate(token, pin) is True only for a known token whose pin hash matches; an unknown
+token or wrong pin returns False. destroy_session(token) deletes it and returns True, or False if unknown. There is no
+expiry and no attempt limit; the same user and pin always give the same token.
+State: <VELARIS_DATA>/agents/HFAL/sessions.db (JSON, owner-only file). If it is unreadable or not a JSON object, it is
+renamed to sessions.db.corrupt and the agent starts with no sessions, so every validate() fails closed.
+"""
 import json
 import logging
 import os

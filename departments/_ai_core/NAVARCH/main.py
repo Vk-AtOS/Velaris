@@ -1,3 +1,10 @@
+"""Navarch: finds the cheapest path through a weighted graph and passes step lists through.
+
+compute_path(graph, start, goal) runs Dijkstra over {node: {neighbour: weight}} and returns {"path": [...], "cost": n},
+or None when the goal cannot be reached. Weights are assumed non-negative and are not checked. sequence_steps(steps)
+only logs the list and returns it unchanged (a stub). health_check() returns {"agent", "status": "ok", "version"}.
+Keeps no state. A malformed graph (a non-dict neighbour map) raises from the underlying dict or arithmetic.
+"""
 import logging
 from typing import Dict, List, Tuple, Any
 import heapq

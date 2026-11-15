@@ -1,3 +1,13 @@
+"""Neural mesh: a message queue between agents, backed by MEMORY_FABRIC.
+
+route(from_agent, to_agent, payload, context_key=None) appends the message to to_agent's
+inbox and optionally stores it under a context key; it returns ok/queued True and delivered
+False (nothing is pushed to the receiver). A missing to_agent or a non-dict payload returns
+ok False with a reason. broadcast(agents, payload, context_key=None) routes to each agent
+(returns {} if agents is not a list). receive(agent) returns the queued messages oldest
+first and empties the inbox. No scoring or ranking is done despite the class note.
+State: MemoryFabric namespaces neural_inbox, neural_context, neural_broadcast.
+"""
 import logging
 from typing import Dict, Any, List, Optional
 from velaris.agents.MEMORY_FABRIC.main import MemoryFabric

@@ -1,3 +1,10 @@
+"""Valora: weighted valuation score for assets.
+ValoraAgent.compute_value(metrics) returns the sum of weight * metric using config "weights"
+(default revenue 0.4, growth 0.3, stability 0.3); missing metrics count as zero.
+compare_assets(a, b) returns "A", "B" or "Equal" by comparing the two scores. value_shift(old, new)
+returns score(new) - score(old). Fixed-weight arithmetic, not a market valuation model.
+State: keeps none beyond config. Failure: non-numeric values raise TypeError; nothing is caught.
+"""
 import logging
 from typing import Dict, Any
 
