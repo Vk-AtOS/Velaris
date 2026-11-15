@@ -5,7 +5,7 @@ Provides the unified startup routine for the core system.
 """
 
 from .config import PROJECT_ROOT
-from .loader import initialize_core, safe_import
+from .loader import initialize_core
 from .utils import log
 
 def velaris_start():

@@ -45,6 +45,10 @@ _LONG = re.compile(r"[A-Za-z0-9_-]{24,}")
 _KV = re.compile(r"(?i)\b(token|secret|password|authorization|signature|api[_-]?key)(\"?\s*[:=]\s*\"?)([^\s\",&]+)")
 
 
+def current_request_id() -> str:
+    return _request_id.get()
+
+
 def mask(text: str) -> str:
     text = _KV.sub(lambda m: f"{m.group(1)}{m.group(2)}***", text)
     return _LONG.sub(lambda m: m.group()[:4] + "***", text)
@@ -180,8 +184,11 @@ def install(app: FastAPI, metrics: Metrics, authed: Callable[..., Any], gauges: 
     """Request-id + in-flight middleware and the signed GET /metrics."""
     @app.middleware("http")
     async def _request_context(request: Request, call_next: Callable[..., Any]) -> Any:
-        given = request.headers.get("x-request-id", "")
-        rid = given if _RID.match(given) else secrets.token_hex(8)
+        # AetherOS sends its trace id as X-Trace-Id so one id follows a request across both systems (KAN-50). It is not
+        # signed, so it is only used when it has the shape of an id; otherwise X-Request-Id, otherwise a fresh one.
+        given = next((v for v in (request.headers.get("x-trace-id", ""), request.headers.get("x-request-id", ""))
+                      if _RID.match(v)), "")
+        rid = given or secrets.token_hex(8)
         token = _request_id.set(rid)
         with metrics._lock:
             metrics.in_flight += 1

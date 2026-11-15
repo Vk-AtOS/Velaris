@@ -4,7 +4,6 @@ Phase 4B — Core Intelligence Agent #3
 Validates bucket-based storing, appending, and retrieval.
 """
 
-from velaris.core_agents.mnemosyne import mnemosyne
 from velaris.agents.agents.router import router
 from velaris.memory.mesh import mesh
 

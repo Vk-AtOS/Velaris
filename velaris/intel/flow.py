@@ -353,9 +353,9 @@ class Flow:
         `limit` keeps the NEWEST that many AFTER that filter, so one person's runs are not crowded out by everyone
         else's."""
         where, args = ["e.kind IN ('call', 'exec', 'gate')"], []
-        for field, value in (("org", org), ("id", owner)):
+        for key, value in (("org", org), ("id", owner)):
             if value is not None:
-                where.append(f"json_extract(s.body, '$.meta.caller.{field}') = ?")
+                where.append(f"json_extract(s.body, '$.meta.caller.{key}') = ?")
                 args.append(value)
         rows = self._db.execute(
             "SELECT e.run_id, e.kind, e.body FROM events e JOIN (SELECT run_id, MAX(seq) AS m FROM events "

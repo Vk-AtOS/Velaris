@@ -26,7 +26,7 @@ from velaris.agentkit import onboarding_retention as retention
 from velaris.agentkit.onboarding_common import (dsr_gate, HR_ADMINS, Store, canonical, clean_text, iso, new_id, parse_date, reader, sha256_hex,
                                                 utcnow, writer)
 from velaris.agentkit.results import fail, health, invalid, ok
-from velaris.core.access import AccessDenied, Caller, authorize_read
+from velaris.core.access import AccessDenied, authorize_read
 from velaris.intel import trace
 
 logger = logging.getLogger("POLICY_ACKS")

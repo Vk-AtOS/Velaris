@@ -20,7 +20,7 @@ from velaris.api import public
 from velaris.api.public import PublicSettings, RouteLimit, create_public_app
 from velaris.core.access import acting_as
 from velaris.tests.onboarding_helpers import HR1, Clock, FakeSender
-from velaris.tests.test_hiring_scheduler import MON, WEEKLY
+from velaris.tests.test_hiring_scheduler import WEEKLY
 from velaris.tests.test_hiring_forms import ANSWERS, DEFINITION
 
 TOKEN = "t" * 32                      # well-formed, unknown

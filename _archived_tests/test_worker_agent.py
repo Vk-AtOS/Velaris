@@ -18,7 +18,7 @@ def run_test():
     mesh.store = {}
 
     # Instantiate worker agent
-    worker = WorkerAgent()
+    WorkerAgent()
 
     # Subscribe to worker output
     router.subscribe("worker_out", worker_callback)

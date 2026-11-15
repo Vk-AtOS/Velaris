@@ -17,7 +17,7 @@ from email.parser import BytesParser
 from email.utils import formatdate, getaddresses, make_msgid, parsedate_to_datetime
 from typing import Dict, List, Optional, Sequence, Tuple
 
-from velaris.mail.common import MailError, clip, sha256
+from velaris.mail.common import MailError, sha256
 from velaris.mail.sanitize import html_to_text, sanitize_html
 
 MAX_PARTS, MAX_DEPTH, MAX_TEXT = 200, 12, 2_000_000

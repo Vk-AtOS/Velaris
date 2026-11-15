@@ -26,7 +26,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from velaris.control import audit as A
 from velaris.control import policy
 from velaris.control.checkpoint import CheckpointStore, Journal
-from velaris.control.core import Action, ActResult, ControlError, Observation, Surface, canon, sha
+from velaris.control.core import Action, ActResult, Observation, Surface, canon
 from velaris.control.tasks import Check, Task
 from velaris.core.access import Caller, org_denied
 from velaris.intel import guard

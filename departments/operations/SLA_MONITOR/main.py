@@ -8,7 +8,7 @@ import sqlite3
 
 from velaris.core.sqlite_util import connect as connect_db
 from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from velaris.intel.paths import agent_file
 
 logger = logging.getLogger("SLA_MONITOR")

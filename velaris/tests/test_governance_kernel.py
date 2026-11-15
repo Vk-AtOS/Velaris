@@ -1,6 +1,5 @@
 from importlib import import_module
 
-import pytest
 
 from velaris.core.access import GOVERNANCE_ADMIN, SECURITY_ADMIN, Caller, acting_as
 from velaris.intel import trace

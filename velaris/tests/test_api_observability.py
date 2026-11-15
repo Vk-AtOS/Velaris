@@ -126,3 +126,33 @@ def test_the_chat_assistant_model_is_counted_too(tmp_path, monkeypatch):
     settings = Settings(secret=b"s" * 32, identity_key=Ed25519PrivateKey.generate().public_key(), org="acme", llm=FakeLLM(lambda p, m: "hi"))
     create_app(settings, engine=object())
     assert isinstance(seen["llm"], obs.CountingLLM)
+
+
+def test_aetheros_trace_id_becomes_the_request_id_and_reaches_the_trace(tmp_path):
+    import secrets as _s
+    from velaris.tests.test_api_service import KEY, SECRET, api_entries, make_assertion, sign
+    c = app_client(tmp_path)
+
+    def signed_get(trace_id):
+        nonce = _s.token_urlsafe(16)
+        h = sign(SECRET, "GET", "/agents", b"", make_assertion(KEY, sub="u1", org="acme", roles=(), employee_id=None,
+                                                                  nonce=nonce), nonce=nonce)
+        return c.get("/agents", headers={**h, "X-Trace-Id": trace_id})
+
+    r = signed_get("aeth-trace-0123456789abcdef")
+    assert r.headers["x-request-id"] == "aeth-trace-0123456789abcdef"
+    assert api_entries("agents.list")[-1]["request_id"] == "aeth-trace-0123456789abcdef"   # the signed trace names it
+    hostile = signed_get("x injected id").headers["x-request-id"]
+    assert hostile != "x injected id" and len(hostile) == 16
+
+
+def test_healthz_is_liveness_and_readyz_is_503_when_the_data_dir_is_not_usable(tmp_path, monkeypatch):
+    from velaris.api import app as api_app
+    c = app_client(tmp_path)
+    assert c.get("/healthz").status_code == 200 and c.get("/health").status_code == 200
+    ok = c.get("/readyz")
+    assert ok.status_code == 200 and ok.json() == {"ready": True, "problems": []}
+    monkeypatch.setattr(api_app, "MIN_FREE_BYTES", 10 ** 18)               # the volume is "full"
+    full = c.get("/readyz")
+    assert full.status_code == 503 and full.json()["ready"] is False
+    assert c.get("/healthz").status_code == 200                             # liveness does not depend on the volume

@@ -16,7 +16,7 @@ from __future__ import annotations
 import ipaddress
 import re
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, List, Optional
 
 from velaris.mail.common import DnsError

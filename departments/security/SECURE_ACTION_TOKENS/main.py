@@ -6,7 +6,7 @@ import hmac
 import hashlib
 import base64
 import time
-from typing import Optional, Dict
+from typing import Dict
 
 from velaris.agentkit.state import JsonState
 from velaris.intel.paths import agent_dir, load_or_create_key

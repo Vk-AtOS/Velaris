@@ -5,11 +5,9 @@ import stat
 import pytest
 
 from velaris.core.access import Caller
-from velaris.mail import db
 from velaris.mail.common import MailError
 from velaris.mail.mime import parse_message
-from velaris.mail.store import MailStore
-from velaris.tests.mail_helpers import ADMIN, ALICE, BOB, ORG, Clock, make_world, raw_mail
+from velaris.tests.mail_helpers import ADMIN, ALICE, BOB, ORG, make_world, raw_mail
 
 
 def put(store, mb, **kw):
@@ -220,7 +218,7 @@ def test_cross_org_refusal_everywhere(monkeypatch):
 def test_export_and_erasure_remove_everything_but_audit_holds_ids_only():
     store, _, _, _, _, boxes = make_world()
     mb = boxes["alice"]
-    m = put(store, mb, mid="ex@x", subject="secret subject", frm="friend@ext.org")
+    put(store, mb, mid="ex@x", subject="secret subject", frm="friend@ext.org")
     out = store.export_mailbox(ALICE, mb["id"])
     assert out["messages"][0]["subject"] == "secret subject" and not out["truncated"]
     store.set_mailbox_settings(ALICE, mb["id"], {"signature": "Alice"})

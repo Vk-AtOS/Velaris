@@ -12,7 +12,7 @@ ponytail: dd/mm/yyyy is assumed (Indian convention); a US-format source needs a 
 """
 import json
 import re
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict
 
 from velaris.agentkit.results import health, invalid
 from velaris.intel import guard

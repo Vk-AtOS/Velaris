@@ -28,7 +28,7 @@ from velaris.agentkit import onboarding_checklists as cl
 from velaris.agentkit import onboarding_retention as retention
 from velaris.agentkit.onboarding_common import (HR_ADMINS, Refused, Store, clean_text, iso, new_id, parse_date, reader, utcnow, writer)
 from velaris.agentkit.results import fail, health, invalid, ok
-from velaris.core.access import AccessDenied, Caller, authorize_read
+from velaris.core.access import AccessDenied, authorize_read
 from velaris.intel import trace
 from velaris.agents.ESIGN.main import Esign
 from velaris.agents.LEAVE_MANAGEMENT.main import LeaveManagement

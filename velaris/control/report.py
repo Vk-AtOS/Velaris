@@ -4,7 +4,7 @@ steps, the flow's hash-chained events and the journal. It holds hashes and count
 outputs, never the contents of what was observed."""
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from velaris.control import audit as A
 from velaris.control.checkpoint import CheckpointStore

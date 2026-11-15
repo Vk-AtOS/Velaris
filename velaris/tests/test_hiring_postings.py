@@ -7,7 +7,6 @@ from velaris.agentkit.hiring_testkit import ORG, advance, as_, bootstrap, clean_
 
 from velaris.agentkit import hiring_common as hc
 from velaris.agentkit import hiring_posting as hp
-from velaris.agentkit import hiring_skills as sk
 from velaris.agents.ATS_CORE.main import AtsCore
 from velaris.agents.JOB_POSTINGS import main as jp
 from velaris.agents.JOB_POSTINGS.main import JobPostings

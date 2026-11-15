@@ -3,7 +3,6 @@
 from dataclasses import dataclass
 from typing import Dict, Any, List
 import hashlib
-import math
 
 @dataclass
 class RenewableYieldInput:

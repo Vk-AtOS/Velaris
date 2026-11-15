@@ -211,7 +211,7 @@ def test_withdrawal_needs_no_login_and_ends_in_a_due_erasure(env):
 
 def test_unaccepted_submissions_expire_and_can_be_discarded(env, monkeypatch):
     ats, forms, rid, fid, c = env
-    sid = submit(fid)["reference"]
+    submit(fid)["reference"]
     keep = submit(fid, {**ANSWERS, "name": "Ravi S", "email": "r@example.com"})["reference"]
     with as_(c["rec"]):
         assert forms.sweep_submissions()["deleted"] == 0

@@ -11,7 +11,6 @@ normalised subject is a fallback only when the new message's subject says it is 
 """
 from __future__ import annotations
 
-import json
 import re
 import time
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple

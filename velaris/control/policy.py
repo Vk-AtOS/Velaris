@@ -21,9 +21,9 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, FrozenSet, Optional, Tuple
+from typing import Any, Callable, Dict, FrozenSet, Optional
 
-from velaris.control.core import (CLASSES, COMPENSATABLE, IRREVERSIBLE, READ, UNDOABLE, Action, ControlError, Element,
+from velaris.control.core import (CLASSES, COMPENSATABLE, IRREVERSIBLE, READ, Action, ControlError, Element,
                                   Observation, Surface)
 
 ALLOW, APPROVE, DENY = "allow", "approve", "deny"

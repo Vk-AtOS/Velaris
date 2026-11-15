@@ -2,7 +2,6 @@
 import base64
 import hashlib
 
-import pytest
 
 from velaris.tests.onboarding_helpers import CANDIDATE, HR1, HR2, MGR, ORG, OTHER_ORG_HR, PAYROLL, Clock, FakeAts, FakeEsign, FakeSender, person
 from velaris.agents.OFFER_LETTERS.main import OfferLetters

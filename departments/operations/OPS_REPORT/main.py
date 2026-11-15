@@ -8,7 +8,7 @@ import sqlite3
 
 from velaris.core.sqlite_util import connect as connect_db
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Optional
 from velaris.intel.paths import agent_file
 
 from velaris.intel.paths import agent_dir

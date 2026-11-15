@@ -15,7 +15,6 @@ import sqlite3
 from velaris.core.sealed_sqlite import connect_sealed
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
-from velaris.intel.paths import agent_file
 
 from velaris.agentkit.onboarding_common import HR_ADMINS, gate_change, gate_read
 from velaris.intel.paths import agent_dir

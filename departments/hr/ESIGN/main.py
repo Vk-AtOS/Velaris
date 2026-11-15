@@ -309,7 +309,7 @@ class Esign:
         except (OSError, ValueError, TypeError) as e:
             logger.warning("signing step of %s not traced: %s", req_id, type(e).__name__)
             if must:
-                raise Refused(fail("audit_failed", "the step could not be recorded, so it was not made"))
+                raise Refused(fail("audit_failed", "the step could not be recorded, so it was not made")) from e
 
     def _step(self, token: Any, email: Any, ip: Any, ua: Any, step: Callable[..., Any], need: Tuple[str, ...]) -> Dict[str, Any]:
         return self._ceremony(token, email, ip, ua, step, need)[0]

@@ -8,7 +8,6 @@ from pathlib import Path
 import pytest
 from velaris.agentkit.hiring_testkit import as_, bootstrap, consent, who
 
-from velaris.api import allowlist
 from velaris.api.allowlist import ACT, METHODS, READ, prepare
 from velaris.core.access import AccessDenied
 

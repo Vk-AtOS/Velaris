@@ -1,6 +1,5 @@
 """KAN-103: one big or torn entry must not stop the audit trail; tail truncation is detectable."""
 import importlib
-import json
 
 from velaris.intel import trace
 
@@ -15,7 +14,7 @@ def test_big_entry_is_bounded_and_later_appends_work():
 def test_last_hash_survives_a_long_last_line(monkeypatch):
     monkeypatch.setattr(trace, "MAX_PAYLOAD_BYTES", 10**7)       # bypass the bound: file written by older code
     trace.append("a", "big", {"blob": "x" * 200_000})
-    e = trace.append("a", "next", {})
+    trace.append("a", "next", {})
     assert trace.verify()["ok"]
 
 

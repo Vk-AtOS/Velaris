@@ -19,7 +19,7 @@ def test_constraints_pin_every_runtime_requirement():
 
 def test_dockerfile_runs_non_root_with_healthcheck():
     d = (DEPLOY / "Dockerfile").read_text()
-    assert re.search(r"^USER velaris", d, re.M) and "HEALTHCHECK" in d and "python:3.11-slim" in d and "VELARIS_DATA=/data" in d
+    assert re.search(r"^USER velaris", d, re.M) and "HEALTHCHECK" in d and re.search(r"^FROM python:3\.11\.\d+-slim-bookworm@sha256:[0-9a-f]{64}", d, re.M) and "VELARIS_DATA=/data" in d
     assert "workers" not in d.split("CMD")[-1] and "COPY . " not in d
 
 

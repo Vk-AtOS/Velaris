@@ -30,9 +30,8 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: "3.11"}
       - run: pip install ruff==0.15.4
-      # The blocking set is real errors only (syntax, undefined names, bad comparisons). The repository's style findings are
-      # reported but do not fail the build until they are cleaned up: then drop --select.
-      - run: ruff check --select E9,F63,F7,F82 .
+      # F (pyflakes: unused imports/variables, undefined names), E9 (syntax) and B904 (raise ... from) are clean (KAN-59) and block.
+      - run: ruff check --select F,E9,B904 .
 
   audit:
     runs-on: ubuntu-latest

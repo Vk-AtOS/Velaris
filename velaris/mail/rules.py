@@ -16,7 +16,7 @@ Everything we send as an auto-reply carries Auto-Submitted: auto-replied, so two
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from velaris.agentkit import conditions
 from velaris.core.access import Caller

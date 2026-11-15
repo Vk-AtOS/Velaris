@@ -1,7 +1,6 @@
 """Record once, replay without a model, fail closed on drift."""
 import copy
 
-import pytest
 
 from velaris.control.browser import BrowserSurface
 from velaris.control.checkpoint import CheckpointStore, Journal

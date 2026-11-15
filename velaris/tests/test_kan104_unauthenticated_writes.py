@@ -1,5 +1,4 @@
 """KAN-104: state-changing methods of approval, policy and audit agents refuse callers without the role."""
-import time
 from importlib import import_module
 
 import pytest

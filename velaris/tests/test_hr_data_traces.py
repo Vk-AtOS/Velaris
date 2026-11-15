@@ -3,7 +3,7 @@ import json
 
 from velaris.core.access import acting_as
 from velaris.intel import trace
-from velaris.tests.onboarding_helpers import HR1, Clock, person
+from velaris.tests.onboarding_helpers import HR1, person
 from velaris.tests.test_onboarding_esign import IP, UA, ceremony, setup
 
 
@@ -33,7 +33,6 @@ def test_esign_decline_is_traced():
 
 
 def test_policy_retire_and_acknowledge_have_outcome_events():
-    from velaris.agents.POLICY_ACKS.main import PolicyAcks
     from velaris.tests.test_onboarding_records import hire, make
     er, pol, flow, clock, _ = make()
     emp = hire(er)

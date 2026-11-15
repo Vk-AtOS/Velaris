@@ -24,6 +24,7 @@ import json
 import logging
 import os
 import re
+import shutil
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
@@ -39,7 +40,7 @@ from velaris.api.allowlist import ACT, READ, catalog, prepare, rule_for, tool_pa
 from velaris.api.auth import AuthError, Verifier, load_public_key
 from velaris.api import providers_api
 from velaris.api.background import interval, lifespan
-from velaris.api.observability import CountingLLM, Metrics, install as install_observability
+from velaris.api.observability import CountingLLM, Metrics, current_request_id, install as install_observability
 from velaris.chat.api import chat_router
 from velaris.chat.assistant import llm_from_env
 from velaris.chat.service import ChatService
@@ -51,6 +52,7 @@ from velaris.intel import catalogue, trace
 from velaris.intel import health as model_health
 from velaris.intel.flow import Flow, FlowError, Tool
 from velaris.intel.llm import LLM
+from velaris.intel.paths import data_dir
 from velaris.mail.api import mount_mail
 
 logger = logging.getLogger("velaris.api")
@@ -86,14 +88,17 @@ class Settings:
 
     @classmethod
     def from_env(cls) -> "Settings":
-        """VELARIS_API_SECRET, VELARIS_IDENTITY_PUBLIC_KEY (PEM path), VELARIS_ORG; Prime: see velaris.core.prime."""
+        """VELARIS_API_SECRET, VELARIS_IDENTITY_PUBLIC_KEY (PEM path) or VELARIS_IDENTITY_PUBLIC_KEY_PEM (the PEM itself, for
+        platforms that inject environment variables, not files), VELARIS_ORG; Prime: see velaris.core.prime."""
         secret = os.environ.get("VELARIS_API_SECRET", "").encode()
         key_path = os.environ.get("VELARIS_IDENTITY_PUBLIC_KEY", "")
+        key_pem = os.environ.get("VELARIS_IDENTITY_PUBLIC_KEY_PEM", "").encode()
         org = deployment_org()
-        if not secret or not key_path or not org:
+        if not secret or not (key_path or key_pem) or not org:
             raise ValueError("VELARIS_API_SECRET, VELARIS_IDENTITY_PUBLIC_KEY and VELARIS_ORG must be set")
         install_read_authoriser()
-        return cls(secret=secret, identity_key=load_public_key(Path(key_path).read_bytes()), gate=gate_from_env(), org=org)
+        pem = Path(key_path).read_bytes() if key_path else key_pem
+        return cls(secret=secret, identity_key=load_public_key(pem), gate=gate_from_env(), org=org)
 
 
 def _error(status: int, code: str, message: str) -> JSONResponse:
@@ -113,6 +118,18 @@ def _who(caller: Caller) -> Dict[str, Any]:
 def _caller(meta: Dict[str, Any]) -> Caller:
     c = meta["caller"]
     return Caller(id=c["id"], org=c["org"], roles=frozenset(c["roles"]), employee_id=c["employee_id"])
+
+
+MIN_FREE_BYTES = 50 * 1024 * 1024
+
+
+def _data_problems() -> List[str]:
+    d = data_dir()
+    if not os.access(d, os.W_OK):
+        return ["data directory is not writable"]
+    if shutil.disk_usage(d).free < MIN_FREE_BYTES:
+        return ["less than 50 MB free in the data directory"]
+    return []
 
 
 def create_app(settings: Settings, engine: Any = None) -> FastAPI:
@@ -184,7 +201,7 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
         metrics.on_record(action, payload)
         try:
             trace.append("api", action, {"caller": caller.id, "org": caller.org, "roles": sorted(caller.roles),
-                                         **payload})
+                                         "request_id": current_request_id(), **payload})
         except (OSError, ValueError, TypeError) as e:
             logger.warning("trace write failed for %s: %s", action, type(e).__name__)
             metrics.inc("velaris_trace_failures_total")
@@ -249,8 +266,16 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
 
     # ── endpoints ────────────────────────────────────────────────────────────
     @app.get("/health")
+    @app.get("/healthz")
     async def health() -> Dict[str, Any]:
-        return {"status": "ok"}
+        return {"status": "ok"}          # liveness: the process answers; touches nothing else
+
+    @app.get("/readyz")
+    async def ready() -> JSONResponse:
+        """Readiness: VELARIS_DATA is there, writable and has room. Without that the API cannot record a trace, and a call
+        that cannot be recorded is refused anyway (audit_unavailable), so say so to the load balancer first."""
+        problems = await asyncio.to_thread(_data_problems)
+        return JSONResponse({"ready": not problems, "problems": problems}, status_code=503 if problems else 200)
 
     @app.get("/agents")
     async def agents(request: Request) -> Response:
