@@ -5,5 +5,24 @@
   "description": "Public methods: forecast, multi_scenario (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:OracleAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Oracle: Monte Carlo success-probability forecast from additive factors.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/executive/ORACLE.json",
+    "wave": "KAN-36",
+    "status": "deterministic_tool",
+    "tools": {
+      "forecast": {
+        "kind": "read"
+      },
+      "multi_scenario": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

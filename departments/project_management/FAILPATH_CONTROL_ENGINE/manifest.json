@@ -1,0 +1,34 @@
+{
+  "name": "FAILPATH_CONTROL_ENGINE",
+  "version": "0.1.0",
+  "description": "Failpath control engine: maps failure codes to handler names and records each routed failure.",
+  "entrypoint": "main.py:FailpathControlEngine",
+  "harness": {
+    "schema": 1,
+    "purpose": "Failpath control engine: maps failure codes to handler names and records each routed failure.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/project_management/FAILPATH_CONTROL_ENGINE.json",
+    "wave": "KAN-36",
+    "status": "deterministic_tool",
+    "tools": {
+      "get_handler": {
+        "kind": "read"
+      },
+      "list_handlers": {
+        "kind": "read"
+      },
+      "list_history": {
+        "kind": "read"
+      },
+      "register_handler": {
+        "kind": "act"
+      },
+      "route_failure": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "MARKET_GAP_ANALYZER",
+  "version": "0.1.0",
+  "description": "MARKET_GAP_ANALYZER: coverage analysis of customer needs against offerings.",
+  "entrypoint": "main.py:MARKET_GAP_ANALYZERAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "MARKET_GAP_ANALYZER: coverage analysis of customer needs against offerings.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/executive/MARKET_GAP_ANALYZER.json",
+    "wave": "KAN-36",
+    "status": "deterministic_tool",
+    "tools": {
+      "analyze": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

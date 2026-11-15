@@ -1,0 +1,73 @@
+{
+  "schema": 1,
+  "agent": "REALMEX",
+  "cases": [
+    {
+      "id": "select-extract_dimensions",
+      "input": "Use the extract_dimensions operation of REALMEX with {\"fused\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "extract_dimensions",
+            "args": {
+              "fused": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-fuse_realities",
+      "input": "Use the fuse_realities operation of REALMEX with {\"sims\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "fuse_realities",
+            "args": {
+              "sims": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-score_reality",
+      "input": "Use the score_reality operation of REALMEX with {\"fused\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "score_reality",
+            "args": {
+              "fused": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

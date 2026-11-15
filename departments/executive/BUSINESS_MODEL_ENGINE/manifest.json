@@ -1,0 +1,22 @@
+{
+  "name": "BUSINESS_MODEL_ENGINE",
+  "version": "0.1.0",
+  "description": "BUSINESS_MODEL_ENGINE: revenue-model analysis of the revenue streams the caller supplies.",
+  "entrypoint": "main.py:BUSINESS_MODEL_ENGINEAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "BUSINESS_MODEL_ENGINE: revenue-model analysis of the revenue streams the caller supplies.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/executive/BUSINESS_MODEL_ENGINE.json",
+    "wave": "KAN-36",
+    "status": "deterministic_tool",
+    "tools": {
+      "analyze": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "agent": "BUSINESS_MODEL_ENGINE",
+  "cases": [
+    {
+      "id": "select-analyze",
+      "input": "Use the analyze operation of BUSINESS_MODEL_ENGINE with {\"streams\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "analyze",
+            "args": {
+              "streams": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

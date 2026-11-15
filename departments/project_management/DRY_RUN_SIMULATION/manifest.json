@@ -1,0 +1,31 @@
+{
+  "name": "DRY_RUN_SIMULATION",
+  "version": "0.1.0",
+  "description": "Dry-run simulation: records what an action would do instead of doing it; it performs no action in either mode.",
+  "entrypoint": "main.py:DryRunSimulation",
+  "harness": {
+    "schema": 1,
+    "purpose": "Dry-run simulation: records what an action would do instead of doing it; it performs no action in either mode.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/project_management/DRY_RUN_SIMULATION.json",
+    "wave": "KAN-36",
+    "status": "deterministic_tool",
+    "tools": {
+      "execute_action": {
+        "kind": "act"
+      },
+      "log_action": {
+        "kind": "act"
+      },
+      "read_log": {
+        "kind": "read"
+      },
+      "toggle_dry_run": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

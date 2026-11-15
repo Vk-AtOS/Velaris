@@ -1,0 +1,20 @@
+{
+  "name": "SUCCESSOR_KEY_MODULE",
+  "version": "0.1.0",
+  "description": "Successor key module: stores one successor key as a salted hash and verifies a presented key against it.",
+  "entrypoint": "main.py:SuccessorKeyModule",
+  "harness": {
+    "schema": 1,
+    "status": "not_harnessed",
+    "purpose": "Successor key module: stores one successor key as a salted hash and verifies a presented key against it.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "tools": {},
+    "excluded": {},
+    "reason_code": "unsafe",
+    "reason": "the agent stores and verifies a secret key: set_successor_key and verify take the key as an argument, so every use would pass the secret through a model, and the other methods only report that a key exists. Use it from code or the security admin console, not through a model.",
+    "eval": "evals/project_management/SUCCESSOR_KEY_MODULE.json",
+    "wave": "KAN-36",
+    "reviewed": true
+  }
+}

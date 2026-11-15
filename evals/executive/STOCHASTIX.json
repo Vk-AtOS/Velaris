@@ -1,0 +1,69 @@
+{
+  "schema": 1,
+  "agent": "STOCHASTIX",
+  "cases": [
+    {
+      "id": "select-expected_final",
+      "input": "Use the expected_final operation of STOCHASTIX with {\"paths\": []}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "expected_final",
+            "args": {
+              "paths": []
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-random_walk",
+      "input": "Use the random_walk operation of STOCHASTIX with {}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "random_walk",
+            "args": {}
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-sample_paths",
+      "input": "Use the sample_paths operation of STOCHASTIX with {}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "sample_paths",
+            "args": {}
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

@@ -11,5 +11,36 @@
     "utilization",
     "timesheet",
     "delivery"
-  ]
+  ],
+  "harness": {
+    "schema": 1,
+    "purpose": "Time tracker: billable hours and utilization per employee and project.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/project_management/TIME_TRACKER.json",
+    "wave": "KAN-36",
+    "status": "deterministic_tool",
+    "tools": {
+      "log": {
+        "kind": "act"
+      },
+      "project_hours_summary": {
+        "kind": "act"
+      },
+      "start_timer": {
+        "kind": "act"
+      },
+      "stop_timer": {
+        "kind": "act"
+      },
+      "team_utilization": {
+        "kind": "act"
+      },
+      "weekly_utilization": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

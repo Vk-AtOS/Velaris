@@ -5,5 +5,24 @@
   "description": "Public methods: simulate_plan, recommend_adjustments (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:TacticianAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Tactician: Monte Carlo estimate of a plan's success rate (heuristic, not a planner).",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/project_management/TACTICIAN.json",
+    "wave": "KAN-36",
+    "status": "deterministic_tool",
+    "tools": {
+      "recommend_adjustments": {
+        "kind": "read"
+      },
+      "simulate_plan": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

@@ -5,5 +5,21 @@
   "description": "The company profile register.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:BusinessDnaAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "BUSINESS_DNA: the company profile register.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/executive/BUSINESS_DNA.json",
+    "wave": "KAN-36",
+    "status": "deterministic_tool",
+    "tools": {
+      "run": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

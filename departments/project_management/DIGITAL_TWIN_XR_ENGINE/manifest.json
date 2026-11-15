@@ -1,0 +1,34 @@
+{
+  "name": "DIGITAL_TWIN_XR_ENGINE",
+  "version": "0.1.0",
+  "description": "Digital twin / XR engine: named in-memory state dicts with update, diff and merge (no XR rendering, no device link).",
+  "entrypoint": "main.py:DigitalTwinXREngine",
+  "harness": {
+    "schema": 1,
+    "purpose": "Digital twin / XR engine: named in-memory state dicts with update, diff and merge (no XR rendering, no device link).",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/project_management/DIGITAL_TWIN_XR_ENGINE.json",
+    "wave": "KAN-36",
+    "status": "deterministic_tool",
+    "tools": {
+      "create_twin": {
+        "kind": "act"
+      },
+      "diff": {
+        "kind": "read"
+      },
+      "get_twin": {
+        "kind": "read"
+      },
+      "merge": {
+        "kind": "act"
+      },
+      "update_twin": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

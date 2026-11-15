@@ -5,5 +5,26 @@
   "description": "Public methods: run_linear, run_dynamic, scenario (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:SimulonAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Simulon: simple step-wise simulations (a stub).",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/project_management/SIMULON.json",
+    "wave": "KAN-36",
+    "status": "deterministic_tool",
+    "tools": {
+      "run_linear": {
+        "kind": "read"
+      },
+      "scenario": {
+        "kind": "read"
+      }
+    },
+    "excluded": {
+      "run_dynamic": "required parameter 'func' is a collaborator or callable, wired by code"
+    },
+    "reviewed": true
+  }
 }

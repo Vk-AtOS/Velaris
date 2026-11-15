@@ -5,5 +5,27 @@
   "description": "Public methods: fuse_realities, score_reality, extract_dimensions (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:RealmexAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Realmex: merges simulation output dicts into one matrix and counts its size.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/executive/REALMEX.json",
+    "wave": "KAN-36",
+    "status": "deterministic_tool",
+    "tools": {
+      "extract_dimensions": {
+        "kind": "read"
+      },
+      "fuse_realities": {
+        "kind": "read"
+      },
+      "score_reality": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }
