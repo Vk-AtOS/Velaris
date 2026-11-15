@@ -99,8 +99,9 @@ class ControlService:
         if task.surface == "terminal":
             return TerminalSurface(root, runner=self.runner, journal=journal)
         if task.surface == "browser":
-            driver = self.driver_factory() if self.driver_factory else PlaywrightDriver()
-            return BrowserSurface(driver, task.hosts(params) if task.hosts else [], journal=journal, resolver=self.resolver)
+            hosts = task.hosts(params) if task.hosts else []
+            driver = self.driver_factory() if self.driver_factory else PlaywrightDriver(post_hosts=hosts, readback_url=params.get("readback_url", ""))
+            return BrowserSurface(driver, hosts, journal=journal, resolver=self.resolver)
         raise Refused("unknown_surface", task.surface)
 
     def _guard_org(self, caller: Caller) -> None:

@@ -43,6 +43,8 @@ logger = logging.getLogger("velaris.intel.web_fetch")
 USER_AGENT = "VelarisBot/1.0 (+company operations assistant; respects robots.txt)"
 MAX_BYTES = 5 * 1024 * 1024
 MAX_REDIRECTS = 5
+MAX_POST_BYTES = 1024 * 1024
+POST_TYPES = ("application/x-www-form-urlencoded", "multipart/form-data", "application/json")
 TIMEOUT_S = 20.0
 MIN_GAP_S = 1.0          # between two requests to the same host
 CACHE_TTL_S = 24 * 3600
@@ -150,11 +152,13 @@ class Fetcher:
         if wait > 0:
             time.sleep(wait)
 
-    def _raw_get(self, url: str, polite: bool = True) -> httpx.Response:
+    def _raw_get(self, url: str, polite: bool = True, *, method: str = "GET", content: Optional[bytes] = None,
+                 content_type: str = "") -> httpx.Response:
         """One request, no redirects, body capped at MAX_BYTES.
 
         The host is resolved once, here; every address in the answer is checked, and the
         connection goes to one of those addresses. `response.url` therefore holds the address.
+        `method`/`content` exist only for `post_pinned`.
         """
         addresses = check_public(url, self._resolver)
         if polite:
@@ -162,8 +166,10 @@ class Fetcher:
         unreachable: Optional[httpx.HTTPError] = None
         for address in addresses:
             target, headers, extensions = pinned(url, address)
+            if content_type:
+                headers = {**headers, "Content-Type": content_type}
             try:
-                with self._client.stream("GET", target, headers=headers, extensions=extensions) as r:
+                with self._client.stream(method, target, headers=headers, extensions=extensions, content=content) as r:
                     body = bytearray()
                     for part in r.iter_bytes():
                         body.extend(part)
@@ -187,6 +193,19 @@ class Fetcher:
         per-host pause (a page loads its parts together).
         """
         return self._get_following(url, polite=False)
+
+    def post_pinned(self, url: str, body: bytes, content_type: str) -> httpx.Response:
+        """ONE form POST for the headless browser, with the same pinning as every other request (resolved once, every address
+        checked, connection to a checked address). No redirect is followed here: the browser sees the 3xx and fetches the
+        Location with a GET through get_pinned. Only form-encoded or JSON bodies up to MAX_POST_BYTES; a 307/308 would repeat the
+        POST elsewhere and is refused."""
+        ctype = content_type.split(";")[0].strip().lower()
+        if ctype not in POST_TYPES or len(body) > MAX_POST_BYTES:
+            raise FetchError("post_not_allowed", "content type or size")
+        r = self._raw_get(url, polite=False, method="POST", content=body, content_type=content_type)
+        if r.status_code in (307, 308):
+            raise FetchError("post_redirect_refused", str(r.status_code))
+        return r
 
     def _get_following(self, url: str, polite: bool = True) -> Tuple[httpx.Response, str]:
         """(response, the URL it finally came from). Every hop goes through _raw_get."""

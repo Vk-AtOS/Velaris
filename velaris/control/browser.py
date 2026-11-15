@@ -13,8 +13,11 @@ What the surface enforces, whatever the driver:
     deployment enabled transfers AND a person approved the step (class irreversible)
   - a button's effect is unknown, so clicking one is irreversible (needs a named approver);
     typing into a field or choosing an option is undoable (the previous value is journaled)
-Limits: the Playwright driver answers every request itself through the SSRF-safe fetcher, which
-only does GET, so a real form POST is refused there (a driver with a vetted POST path is needed).
+The Playwright driver answers every request itself through the SSRF-safe fetcher. It does GET; a form POST goes out only when the
+driver was given `post_hosts` (the task's allow-list): the target host AND the page that submits must be on it, the body must be
+form-encoded or JSON up to 1 MiB, the connection is pinned to a checked address, and a 307/308 is refused (web.post_pinned). It
+keeps no cookies, so sites that need a login session are out of scope. After a submit, `records()` reads the system of record
+back from the task's `readback_url` (a JSON list of {field: value}) through the same fetcher, for the verification step.
 """
 from __future__ import annotations
 
@@ -181,7 +184,7 @@ class PlaywrightDriver:
     """Playwright over Chromium with no network of its own: every request is answered by the
     SSRF-safe fetcher (velaris.intel.web). Raises Refused('playwright_missing') when not installed."""
 
-    def __init__(self, fetcher: Any = None) -> None:
+    def __init__(self, fetcher: Any = None, post_hosts: Sequence[str] = (), readback_url: str = "") -> None:
         try:
             from playwright.sync_api import sync_playwright        # optional dependency
         except ImportError:
@@ -194,8 +197,9 @@ class PlaywrightDriver:
         ctx = self._browser.new_context(service_workers="block", accept_downloads=False)
         ctx.add_init_script("for (const k of ['WebSocket','RTCPeerConnection','webkitRTCPeerConnection','WebTransport']) delete window[k];")
         budget = [web.MAX_RENDER_REQUESTS]
-        f = fetcher or web.fetcher()
-        ctx.route("**/*", lambda route: web._serve_browser_request(route, f, budget))
+        self._fetcher = f = fetcher or web.fetcher()
+        self._readback_url, self._post_hosts = readback_url, tuple(post_hosts)
+        ctx.route("**/*", lambda route: web._serve_browser_request(route, f, budget, self._post_hosts))
         self._page = ctx.new_page()
 
     def goto(self, url: str) -> None:
@@ -219,6 +223,18 @@ class PlaywrightDriver:
 
     def select(self, index: int, value: str) -> None:
         self._loc(index).select_option(value, timeout=5000)
+
+    def records(self) -> List[Dict[str, str]]:
+        """What the site's system of record holds, read from `readback_url` (JSON list of objects). [] if none is configured, the host
+        is not allowed or the answer is not that shape: the verification then fails, it never assumes success."""
+        if not self._readback_url or not host_allowed(self._readback_url, self._post_hosts):
+            return []
+        try:
+            r, _ = self._fetcher.get_pinned(self._readback_url)
+            rows = r.json()
+        except (FetchError, ValueError, OSError):
+            return []
+        return [{str(k): str(v) for k, v in row.items()} for row in rows if isinstance(row, dict)] if isinstance(rows, list) else []
 
     def close(self) -> None:
         self._browser.close()

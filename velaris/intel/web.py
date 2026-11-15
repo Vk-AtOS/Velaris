@@ -22,7 +22,7 @@ import socket
 import time
 from collections import deque
 from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Sequence
 from urllib.parse import quote_plus, urlsplit
 
 from velaris.intel import guard, trace
@@ -83,7 +83,20 @@ def browser_args(dead_port: int) -> List[str]:
             "--force-webrtc-ip-handling-policy=disable_non_proxied_udp"]
 
 
-def _serve_browser_request(route: Any, f: Fetcher, budget: List[int]) -> None:
+def _post_ok(request: Any, post_hosts: Sequence[str]) -> str:
+    """"" when this POST may go out, else why not: the target AND the page that submits it must be on the allow-list (a form on
+    another site cannot post into an allowed one), and a body is sent only as a form or JSON."""
+    allowed = {h.lower() for h in post_hosts}
+    target = (urlsplit(request.url).hostname or "").lower()
+    origin = request.headers.get("origin") or request.headers.get("referer") or ""
+    if target not in allowed:
+        return "post_host_not_allowed"
+    if (urlsplit(origin).hostname or "").lower() not in allowed:
+        return "post_cross_site"
+    return ""
+
+
+def _serve_browser_request(route: Any, f: Fetcher, budget: List[int], post_hosts: Sequence[str] = ()) -> None:
     """Answer one browser request (navigation, redirect, script, image, XHR) from this process.
 
     The request is never handed back to the browser's own network stack. `Fetcher.get_pinned`
@@ -95,14 +108,19 @@ def _serve_browser_request(route: Any, f: Fetcher, budget: List[int]) -> None:
     request = route.request
     host = urlsplit(request.url).hostname or ""
     refused = ""
-    if request.method != "GET":
-        refused = "method_not_allowed"          # rendering reads pages; it does not submit anything
+    if request.method not in ("GET", "POST") or (request.method == "POST" and not post_hosts):
+        refused = "method_not_allowed"          # rendering reads pages; only a driver given post_hosts may submit forms
+    elif request.method == "POST" and (why := _post_ok(request, post_hosts)):
+        refused = why
     elif budget[0] <= 0:
         refused = "too_many_requests"
     else:
         budget[0] -= 1
         try:
-            r, _ = f.get_pinned(request.url)
+            if request.method == "POST":
+                r = f.post_pinned(request.url, request.post_data_buffer or b"", request.headers.get("content-type", ""))
+            else:
+                r, _ = f.get_pinned(request.url)
         except FetchError as e:
             refused = e.reason
         except Exception as e:      # anything unexpected is a refusal too (recorded below), never a pass-through
