@@ -20,3 +20,11 @@ def test_pipeline():
     assert len(results) == 2
     assert results[0]['result']['agent'] == 'VIGILIS'
     assert results[1]['result']['agent'] == 'CUSTOS'
+
+def test_an_exception_or_dataclass_beside_the_agent_is_not_the_agent():
+    """agent_class used to call RECURSIVE_GOAL_PLANNER (PlanError), EXECUTION_SANDBOX (Refused) and MACRO_ECON_MODEL
+    (MacroInput) ambiguous, which made them unreachable through engine.run."""
+    from velaris.backend.engine import backend
+    assert backend.agent_class("EXECUTION_SANDBOX").__name__ == "ExecutionSandbox"
+    assert backend.agent_class("RECURSIVE_GOAL_PLANNER").__name__ == "RecursiveGoalPlanner"
+    assert backend.agent_class("MACRO_ECON_MODEL").__name__ == "MacroEconModel"

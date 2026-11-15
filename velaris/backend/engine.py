@@ -7,6 +7,7 @@ caller (velaris.core.access.acting_as) for the whole call, so every agent and co
 underneath sees who is asking without each one being handed it.
 """
 import asyncio
+import dataclasses
 import inspect
 import sys
 import os
@@ -33,13 +34,15 @@ class BackendEngine:
 
         A module that defines several public classes (a helper store beside the agent) is
         resolved to the one whose name ends in Agent/Engine or, failing that, the last one
-        defined; anything else is ambiguous and refused.
+        defined; anything else is ambiguous and refused. An exception class or a dataclass record
+        (a helper the module defines beside the agent) is never the agent.
         """
         module = self.router.get_agent(name)
         if module is None:
             raise LookupError(f"no agent named {name!r}")
         own = [c for _, c in inspect.getmembers(module, inspect.isclass)
-               if c.__module__ == module.__name__ and not c.__name__.startswith("_")]
+               if c.__module__ == module.__name__ and not c.__name__.startswith("_")
+               and not issubclass(c, BaseException) and not dataclasses.is_dataclass(c)]
         if len(own) == 1:
             return own[0]
         named = [c for c in own if c.__name__.upper().endswith(("AGENT", "ENGINE", "CONNECTOR"))]
