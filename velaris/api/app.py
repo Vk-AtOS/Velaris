@@ -39,6 +39,7 @@ from velaris.api.auth import AuthError, Verifier, load_public_key
 from velaris.api.background import interval, lifespan
 from velaris.api.observability import CountingLLM, Metrics, install as install_observability
 from velaris.chat.api import chat_router
+from velaris.chat.assistant import llm_from_env
 from velaris.chat.service import ChatService
 from velaris.control.api import mount as mount_control
 from velaris.api.trace_check import verify_incremental
@@ -119,7 +120,9 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
     llm = CountingLLM(settings.llm or LLM(), metrics)      # LLM spend counters for /metrics
     app = FastAPI(title="Velaris", docs_url=None, redoc_url=None, openapi_url=None)
     chat_service = ChatService()
-    app.include_router(chat_router(verifier, settings.org, service=chat_service, llm=settings.llm))     # company chat: /chat/... (velaris/chat)
+    chat_model = settings.llm or llm_from_env()             # chat builds its own gateway when none is given: count that one too
+    app.include_router(chat_router(verifier, settings.org, service=chat_service,       # company chat: /chat/... (velaris/chat)
+                                   llm=CountingLLM(chat_model, metrics) if chat_model is not None else None))
     state: Dict[str, Any] = {}
 
     @app.exception_handler(ApiError)

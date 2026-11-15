@@ -6,8 +6,10 @@ import urllib.error
 import urllib.request
 
 import pytest
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from velaris.api import observability as obs
+from velaris.intel.llm import FakeLLM
 from velaris.tests.test_api_service import app_client, send
 
 
@@ -91,3 +93,36 @@ def test_internal_listener_serves_only_metrics():
         assert e.value.code == 404
     finally:
         s.shutdown()
+
+
+def test_counters_are_shared_between_workers_and_spend_uses_the_price_table(monkeypatch):
+    """KAN-120: per-process counters gave each worker its own totals; chat's own model was not counted; spend was only characters."""
+    import json as _json
+    monkeypatch.setenv("VELARIS_LLM_PRICES", _json.dumps({"fake:model": {"in": 3.0, "out": 15.0}}))
+    w1, w2 = obs.Metrics(), obs.Metrics()                                    # two worker processes sharing VELARIS_DATA
+    llm = obs.CountingLLM(FakeLLM(lambda p, m: "y" * 400), w1)
+    llm.complete("x" * 4000, model="fake:model")
+    obs.CountingLLM(FakeLLM(lambda p, m: "z"), w2).complete("hello", model="other:model")           # no price for this one
+    w2.inc("velaris_calls_total", action="agents.list", outcome="ok")
+    w1.flush()
+    w2.flush()                                                               # (a worker flushes at least once a second on its own)
+    for text in (w1.render(), w2.render()):                                  # the same answer whichever worker is scraped
+        assert 'velaris_llm_calls_total{model="fake:model"} 1' in text and 'velaris_llm_calls_total{model="other:model"} 1' in text
+        assert 'velaris_llm_unpriced_calls_total{model="other:model"} 1' in text
+        assert 'velaris_calls_total{action="agents.list",outcome="ok"} 1' in text
+        spend = [float(l.split()[-1]) for l in text.splitlines() if l.startswith('velaris_llm_spend_usd_total{model="fake:model"}')][0]
+        assert abs(spend - (1000 * 3.0 + 100 * 15.0) / 1e6) < 1e-9
+    w1.in_flight, w2.in_flight = 2, 3
+    w2.flush()
+    assert "velaris_queue_depth 5" in w1.render()                          # the gauge sums the live workers
+
+
+def test_the_chat_assistant_model_is_counted_too(tmp_path, monkeypatch):
+    from velaris.api.app import Settings, create_app
+    from velaris.chat import api as chat_api
+    seen = {}
+    real = chat_api.chat_router
+    monkeypatch.setattr("velaris.api.app.chat_router", lambda *a, **k: (seen.update(k), real(*a, **k))[1])
+    settings = Settings(secret=b"s" * 32, identity_key=Ed25519PrivateKey.generate().public_key(), org="acme", llm=FakeLLM(lambda p, m: "hi"))
+    create_app(settings, engine=object())
+    assert isinstance(seen["llm"], obs.CountingLLM)

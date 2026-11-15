@@ -105,3 +105,34 @@ class RateStore:
         except BaseException:
             c.execute("ROLLBACK")
             raise
+
+
+class MetricStore:
+    """Counters and gauges that every worker process adds to and any process reads (KAN-120): in-process counters gave each worker
+    its own totals, so a scrape saw whichever worker answered. Counters are cumulative and survive restarts; a gauge row belongs
+    to one reporter (process) and only counts while it is fresh, so a dead worker's in-flight figure disappears."""
+
+    def __init__(self) -> None:
+        self._db = _Db("metrics.db", "CREATE TABLE IF NOT EXISTS counter(k TEXT PRIMARY KEY, v REAL NOT NULL) WITHOUT ROWID;"
+                                     "CREATE TABLE IF NOT EXISTS gauge(who TEXT PRIMARY KEY, v REAL NOT NULL, ts REAL NOT NULL);")
+
+    def add(self, deltas: Dict[str, float]) -> None:
+        c = self._db.conn()
+        c.execute("BEGIN IMMEDIATE")
+        try:
+            c.executemany("INSERT INTO counter(k, v) VALUES (?,?) ON CONFLICT(k) DO UPDATE SET v=v+excluded.v", list(deltas.items()))
+            c.execute("COMMIT")
+        except BaseException:
+            c.execute("ROLLBACK")
+            raise
+
+    def counters(self) -> Dict[str, float]:
+        return dict(self._db.conn().execute("SELECT k, v FROM counter").fetchall())
+
+    def set_gauge(self, who: str, value: float, now: float) -> None:
+        c = self._db.conn()
+        c.execute("INSERT INTO gauge(who, v, ts) VALUES (?,?,?) ON CONFLICT(who) DO UPDATE SET v=excluded.v, ts=excluded.ts", (who, value, now))
+        c.execute("DELETE FROM gauge WHERE ts<?", (now - 300,))
+
+    def gauge_sum(self, now: float, fresh_s: float = 15.0) -> float:
+        return float(self._db.conn().execute("SELECT COALESCE(SUM(v), 0) FROM gauge WHERE ts>=?", (now - fresh_s,)).fetchone()[0])
