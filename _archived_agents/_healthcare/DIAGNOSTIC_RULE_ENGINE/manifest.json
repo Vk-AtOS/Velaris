@@ -1,8 +1,0 @@
-{
-  "name": "DIAGNOSTIC_RULE_ENGINE",
-  "version": "1.0.0",
-  "domain": "client_services",
-  "entrypoint": "main.py:DiagnosticRuleEngine",
-  "description": "DIAGNOSTIC_RULE_ENGINE \u2014 Velaris BOS agent for Knackforge",
-  "hitl_required": false
-}

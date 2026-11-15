@@ -1,7 +1,6 @@
 """FlowEngine.run_flow: runs steps in order, records a failed step, stores the results.
 
-Replaces the old harness (now _archived_tests/test_flow_engine.py), which needed a
-router.subscribe API that never existed here.
+Replaces an old harness that needed a router.subscribe API that never existed here.
 """
 from velaris.backend.flow_engine import flow_engine
 from velaris.memory.mesh import mesh

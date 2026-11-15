@@ -1,8 +1,0 @@
-{
-  "name": "CLINICAL_PROTOCOL_ENGINE",
-  "version": "1.0.0",
-  "domain": "client_services",
-  "entrypoint": "main.py:ClinicalProtocolEngine",
-  "description": "CLINICAL_PROTOCOL_ENGINE \u2014 Velaris BOS agent for Knackforge",
-  "hitl_required": false
-}
