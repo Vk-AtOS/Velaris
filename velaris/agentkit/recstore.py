@@ -53,10 +53,17 @@ class RecordStore:
         stripe = int(self._h(key)[:4], 16) % STRIPES
         return lock_for(self.root / ".locks" / f"{stripe}.lock")
 
-    def _decode(self, raw: bytes, path: Path) -> Tuple[str, Dict[str, Any]]:
+    def _aad(self, h: str) -> str:
+        """The sealed blob is bound to its collection and key hash: copied to another path it does not open."""
+        return f"{self.purpose}:{self.collection}:{h}"
+
+    def _decode(self, raw: bytes, path: Path, key: Optional[str] = None) -> Tuple[str, Dict[str, Any]]:
         if not vault.is_sealed(raw):
             vault.legacy_plaintext(None, path)            # refused outside the migration window; there is nothing to migrate
-        env = json.loads(vault.open_bytes(raw, self.purpose).decode("utf-8"))
+        h = path.stem
+        env = json.loads(vault.open_bytes(raw, self._aad(h)).decode("utf-8"))
+        if self._h(env["k"]) != h or (key is not None and env["k"] != str(key)):
+            raise vault.VaultError(f"{path} does not belong to its key")
         v = env.get("schema_version", 0)
         if not isinstance(v, int) or v > self.version:
             raise StateVersionError(f"{path} has schema_version {v!r}; this code understands up to {self.version}")
@@ -66,22 +73,22 @@ class RecordStore:
             v += 1
         return env["k"], rec
 
-    def _read(self, path: Path) -> Optional[Tuple[str, Dict[str, Any]]]:
+    def _read(self, path: Path, key: Optional[str] = None) -> Optional[Tuple[str, Dict[str, Any]]]:
         try:
             raw = path.read_bytes()
         except FileNotFoundError:
             return None
-        return self._decode(raw, path)
+        return self._decode(raw, path, key)
 
     def get(self, key: str) -> Optional[Dict[str, Any]]:
-        got = self._read(self._path(key))
+        got = self._read(self._path(key), key)
         return got[1] if got else None
 
     def put(self, key: str, rec: Dict[str, Any]) -> None:
         body = json.dumps({"k": str(key), "v": rec, "schema_version": self.version}, sort_keys=True, default=str).encode("utf-8")
         if len(body) > MAX_RECORD_BYTES:
             raise StateTooLarge(f"{self.agent}/{self.collection} record would be {len(body)} bytes (cap {MAX_RECORD_BYTES}); not saved")
-        sealed = vault.seal_bytes(body, self.purpose)
+        sealed = vault.seal_bytes(body, self._aad(self._h(key)))
         agent_dir(self.agent)
         with self._lock(key):
             path = self._path(key)

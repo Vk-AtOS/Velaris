@@ -33,7 +33,7 @@ def test_plaintext_and_foreign_purpose_refused(tmp_path, monkeypatch):
     rs.put("a", {"n": 1})
     f = next(rs.root.glob("??/*.rec"))
     with pytest.raises(vault.VaultError):
-        RecordStore("T_AGENT", "c", "test:other").get("a")
+        RecordStore("T_AGENT", "c", "test:other").get("a")   # wrong purpose
     f.write_bytes(json.dumps({"k": "a", "v": {"n": 99}, "schema_version": 1}).encode())   # a forged plaintext record
     with pytest.raises(vault.PlaintextRefused):
         rs.get("a")
@@ -68,3 +68,31 @@ def test_token_flood_does_not_touch_the_shared_file(tmp_path, monkeypatch):
     for i in range(40):
         hf.issue_token("o", f"app-{i}", "status", 5)
     assert (agent_dir(hf.AGENT) / "forms.json").stat().st_size == size and hf._tokens().count() == 40
+
+
+def test_a_record_file_copied_over_another_does_not_open(tmp_path, monkeypatch):
+    """Record substitution: a data-directory writer copies A's sealed file to B's path (or another collection)."""
+    monkeypatch.setenv("VELARIS_DATA", str(tmp_path))
+    rs = RecordStore("T_AGENT", "c", "test:c")
+    rs.put("A", {"who": "candidate A"})
+    rs.put("B", {"who": "candidate B"})
+    pa, pb = rs._path("A"), rs._path("B")
+    pb.write_bytes(pa.read_bytes())
+    with pytest.raises(vault.VaultError):
+        rs.get("B")
+    assert rs.get("A") == {"who": "candidate A"}
+    other = RecordStore("T_AGENT", "other", "test:c")
+    other._path("A").parent.mkdir(parents=True, exist_ok=True)
+    other._path("A").write_bytes(pa.read_bytes())
+    with pytest.raises(vault.VaultError):
+        other.get("A")
+
+
+def test_truncated_record_never_returns_data(tmp_path, monkeypatch):
+    monkeypatch.setenv("VELARIS_DATA", str(tmp_path))
+    rs = RecordStore("T_AGENT", "c", "test:c")
+    rs.put("A", {"n": 1})
+    p = rs._path("A")
+    p.write_bytes(p.read_bytes()[:30])
+    with pytest.raises(ValueError):
+        rs.get("A")
