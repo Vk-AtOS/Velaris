@@ -525,3 +525,16 @@ AetherOS Prime delegations (a model of "who may act for whom"):
   `DelegationRepository.revoke` (`prime/repository.py:116`) appends an audit
   chain entry `prime.delegation.revoke` and stores `revoked_at`/`revoked_by`
   once; a revoked delegation is refused at decision time (`authz.py:191`).
+
+## 8. After KAN-29 to KAN-34 (what changed, so this page stays honest)
+
+Defects 1 to 5 of section 5 are closed for runs started through
+`velaris/orchestration`: `flow.py` now has cost and active-time caps, loop and
+invalid-reply detection, escalation, and routes the model through
+`intel/router.py` with a sensitivity (all opt-in per Flow; the API's `/flows`,
+chat, mail and control still use the old defaults and should pass limits).
+New code: `intel/tools.py` (registry), `orchestration/` (autonomy table,
+department orchestrators, executive absence, identity lookup) and `brain/`.
+ORCHESTRIX, the VCAS/EOF/ACF/ASEL/MCFE/VHOE families and the other approval
+mechanisms (defects 6 to 18) are unchanged and still unused by the new layer.
+Design: `docs/design/central_brain.md`.

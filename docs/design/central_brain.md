@@ -48,6 +48,7 @@ in `flow.py`.
 | 6 | Models only through `intel/router.py`, with a sensitivity on every call. | A run's sensitivity is the highest of its tools'. An unlisted tool is restricted, so a run that touches it can only use providers cleared for restricted data. |
 | 7 | The autonomy table is code with owner overrides in a state file. Conservative defaults; some classes cannot be loosened by an edit. | KAN-33. See section 6. |
 | 8 | Executive absence never approves locally when a Prime gate is configured. | Approvals must go through Prime; Prime owns delegations. See section 8. |
+| 10 | A person's current identity is looked up at the moment of use (`orchestration/identity.py`); roles saved in a run or a delegation are only an upper bound. | Velaris has no user directory, identities arrive signed from the gateway. Until a resolver is installed (`identity.set_resolver`) only the person themselves can advance their own runs, and a delegation cannot be used. |
 | 9 | Tool-less departments get an orchestrator that can only answer and escalate. | Only 6 of 16 departments have allowlisted methods. Widening the allowlist is a security review, not part of this epic. |
 
 ## 3. From a goal to a plan
@@ -152,7 +153,10 @@ with the delegation id) when the deployment decides locally. When a Prime gate i
 configured the brain cannot approve locally: such steps are queued exactly like
 any other waiting step and the delegation is listed in the briefing so the
 approver in Prime can apply Prime's own delegation. Everything outside the window
-or scope waits. Every use is written to an append-only ledger and the trace. The
+or scope waits. At the moment of use the principal's CURRENT roles are looked up
+(effective authority = roles recorded AND current roles); a principal who is
+inactive, or who lost a role the delegation relies on, auto-revokes it, and one
+whose identity cannot be verified covers nothing. Every use is written to an append-only ledger and the trace. The
 return briefing lists, per delegation: decided under it, waiting, escalated.
 
 ## 9. Observation
