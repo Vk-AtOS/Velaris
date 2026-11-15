@@ -13,6 +13,7 @@ pytest>=7.0
 
 # Optional: imported only where used; without the package the feature says so and the rest works.
 # Kept out of the install list on purpose (velaris/tests/test_requirements.py checks this file).
+#   dnspython        velaris.mail.inbound: SPF/DKIM/DMARC DNS lookups. Without it every verdict is temperror (nothing passes).
 #   playwright       velaris.intel.web: pages that need a browser to render. Without it the static page is used.
 #   openai-whisper / faster-whisper   CALL_TRANSCRIBER, LYRA_VOICE_ENGINE: speech to text.
 #   sounddevice, pyttsx3              LYRA_VOICE_ENGINE: microphone and speech output.
