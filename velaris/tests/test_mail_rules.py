@@ -107,28 +107,33 @@ def test_vacation_loop_protection_suppresses(extra, frm, to):
 
 
 def test_vacation_replies_once_per_sender_per_window_and_marks_itself_automatic():
-    store, ob, ib, clock, relay, boxes = make_world()
+    store, ob, ib, clock, relay, boxes = make_world(settings={"autoreply_external": True})
     mb = boxes["alice"]
     store.set_mailbox_settings(ALICE, mb["id"], {"vacation": {"enabled": True, "subject": "Out of office", "body": "away until Monday", "window_days": 7,
                                                               "start": clock() - 10, "end": clock() + 30 * 86400}})
     receive(ib, mid="v1@x")
+    clock.advance(31)                                                                   # the undo window passes
     ob.process_due()
     assert len(relay.sent) == 1
     raw = relay.sent[0]["raw"]
     assert b"Auto-Submitted: auto-replied" in raw and b"Precedence: bulk" in raw and b"In-Reply-To: <v1@x>" in raw
     assert relay.sent[0]["rcpts"] == ["x@ext.org"]
     receive(ib, mid="v2@x")
+    clock.advance(31)                                                                   # the undo window passes
     ob.process_due()
     assert len(relay.sent) == 1                                                         # same sender inside the window
     receive(ib, mid="v3@x", frm="other@ext.org")
+    clock.advance(31)                                                                   # the undo window passes
     ob.process_due()
     assert len(relay.sent) == 2                                                         # a different sender gets one
     clock.advance(8 * 86400)
     receive(ib, mid="v4@x")
+    clock.advance(31)                                                                   # the undo window passes
     ob.process_due()
     assert len(relay.sent) == 3                                                         # window over
     store.set_mailbox_settings(ALICE, mb["id"], {"vacation": {"enabled": True, "body": "x", "end": clock() - 1}})
     receive(ib, mid="v5@x", frm="late@ext.org")
+    clock.advance(31)                                                                   # the undo window passes
     ob.process_due()
     assert len(relay.sent) == 3                                                         # past its end date
 
@@ -149,15 +154,43 @@ def test_two_responders_cannot_loop_and_external_auto_replies_can_be_turned_off(
 
 
 def test_auto_reply_rule_has_its_own_daily_window():
-    store, ob, ib, clock, relay, boxes = make_world()
+    store, ob, ib, clock, relay, boxes = make_world(settings={"autoreply_external": True})
     mb = boxes["alice"]
     rules.create_rule(store, ALICE, mb["id"], {"name": "ack", "conditions": [{"field": "subject", "op": "contains", "value": "support"}],
                                                "actions": [{"type": "auto_reply", "subject": "Got it", "body": "We will reply soon."}]})
     receive(ib, subject="support needed", mid="a1@x")
     receive(ib, subject="support again", mid="a2@x")
+    clock.advance(31)
     ob.process_due()
     assert len(relay.sent) == 1
     clock.advance(86400 + 1)
     receive(ib, subject="support third", mid="a3@x")
+    clock.advance(31)
     ob.process_due()
     assert len(relay.sent) == 2
+
+
+def test_auto_reply_waits_out_the_undo_window_can_be_cancelled_and_external_needs_the_admin_setting():
+    """KAN-108: an auto-reply is no longer sent at once with no way back, and outside domains need autoreply_external."""
+    store, ob, ib, clock, relay, boxes = make_world(settings={"autoreply_external": True})
+    mb = boxes["alice"]
+    store.set_mailbox_settings(ALICE, mb["id"], {"vacation": {"enabled": True, "body": "away until Monday"}})
+    receive(ib, mid="u1@x")
+    ob.process_due()
+    assert relay.sent == []                                                             # still inside the undo window
+    sub = ob.list_submissions(ALICE, mb["id"])[0]
+    assert sub["undoStatus"] == "pending" and sub["canCancel"]
+    ob.cancel(ALICE, sub["id"])
+    clock.advance(60)
+    ob.process_due()
+    assert relay.sent == []
+
+
+def test_external_auto_replies_are_off_by_default():
+    store, ob, ib, clock, relay, boxes = make_world()                                    # default organisation settings
+    assert store.org_settings("acme")["autoreply_external"] is False
+    store.set_mailbox_settings(ALICE, boxes["alice"]["id"], {"vacation": {"enabled": True, "body": "away"}})
+    receive(ib, mid="u2@x")
+    clock.advance(60)
+    ob.process_due()
+    assert relay.sent == []
