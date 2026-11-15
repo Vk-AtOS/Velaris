@@ -32,7 +32,8 @@ EXPECTED = {("GET", "/careers/forms/{form_id}"), ("GET", "/careers/challenge/{fo
             ("POST", "/sign/{token}/consent"), ("POST", "/sign/{token}/sign"), ("POST", "/sign/{token}/decline"),
             # the HTML pages (KAN-123..127): shells only, behaviour is in /static/public.js; see test_public_pages.py
             ("GET", "/apply/{form_id}"), ("GET", "/status/{token}"), ("GET", "/withdraw/{token}"), ("GET", "/schedule/{token}"), ("GET", "/sign/{token}"),
-            ("GET", "/interview/{token}"), ("GET", "/static/{name}"), ("GET", "/jobs/{slug}"), ("GET", "/jobs/{slug}/apply")}
+            ("GET", "/interview/{token}"), ("GET", "/static/{name}"), ("GET", "/jobs/{slug}"), ("GET", "/jobs/{slug}/apply"),
+            ("GET", "/sitemap.xml"), ("GET", "/schedule/{token}/calendar.ics")}
 BODIES = {"/schedule/{token}/pick": {"start": 1}, "/interview/{token}/consent": {"scopes": ["events"], "notice_version": "v"},
           "/interview/{token}/events": {"type": "join"}, "/sign/{token}/open": {"email": "a@b.co"}, "/sign/{token}/otp/request": {"email": "a@b.co"},
           "/sign/{token}/otp/verify": {"email": "a@b.co", "code": "1"}, "/sign/{token}/consent": {"email": "a@b.co", "consent_text_version": "v1"},
@@ -193,6 +194,21 @@ def test_self_schedule_pick_move_cancel(client, world):
     assert client.post(f"/schedule/{tok}/pick", json={"start": slots["starts"][2]}).status_code == 200       # moving it
     assert client.post(f"/schedule/{tok}/cancel").status_code == 200
     err(client.post(f"/schedule/{tok}/cancel"), 404, "not_found")
+
+
+def test_booked_slot_downloads_as_a_calendar_file_without_other_people(client, world):
+    """KAN-124: the candidate can add the booked time to a calendar; nothing about the interviewers' addresses is in it."""
+    tok = world["sched"]
+    assert client.get(f"/schedule/{tok}/calendar.ics").status_code == 404                              # nothing booked yet
+    start = client.get(f"/schedule/{tok}/slots").json()["result"]["starts"][0]
+    assert client.post(f"/schedule/{tok}/pick", json={"start": start}).status_code == 200
+    r = client.get(f"/schedule/{tok}/calendar.ics")
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/calendar")
+    assert "attachment" in r.headers["content-disposition"] and r.headers["cache-control"] == "no-store"
+    assert r.text.startswith("BEGIN:VCALENDAR") and "METHOD:PUBLISH" in r.text and "STATUS:CONFIRMED" in r.text and "ATTENDEE" not in r.text
+    assert client.get(f"/schedule/{'z' * 32}/calendar.ics").status_code == 404
+    assert client.post(f"/schedule/{tok}/cancel").status_code == 200
+    assert client.get(f"/schedule/{tok}/calendar.ics").status_code == 404                              # cancelled: no file
 
 
 def test_interview_events_need_participant_token_and_consent(client, world):

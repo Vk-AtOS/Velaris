@@ -236,6 +236,23 @@ def public_pick(token: str, start: float) -> Dict[str, Any]:
         return {"status": e.status, "reason": e.reason}
 
 
+def public_ics(token: str) -> Dict[str, Any]:
+    """Candidate side: the booked slot as a calendar file (KAN-124). METHOD:PUBLISH with no attendee list, so the interviewers'
+    addresses are not handed to the candidate and the file asks for no reply. Only a CONFIRMED booking of this token has one."""
+    at, d = now(), st().load()
+    t = _token(d, token, at)
+    b = d["bookings"].get(t["booking_id"]) if t and t.get("booking_id") else None
+    if not b or b["status"] != "confirmed":
+        return {"status": "not_found", "reason": "there is no booking on this link"}
+    try:
+        org_ = organizer(t["org"])
+    except HiringError as e:
+        return {"status": e.status, "reason": e.reason}
+    ics = sl.build_ics("PUBLISH", uid=b["uid"], sequence=b["sequence"], start=b["start"], end=b["end"], stamp=at, summary=b["title"],
+                       description=b["notes"] or "Interview", location=b["location"], organizer=(org_["name"], org_["email"]), attendees=[])
+    return {"status": "ok", "ics": ics, "filename": "interview.ics"}
+
+
 def public_cancel(token: str) -> Dict[str, Any]:
     at = now()
     try:
