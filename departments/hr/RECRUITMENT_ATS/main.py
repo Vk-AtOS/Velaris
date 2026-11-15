@@ -14,7 +14,6 @@ or back, and the database and export live under VELARIS_DATA, never in the worki
 import csv
 import io
 import logging
-import sqlite3
 
 from velaris.core.sealed_sqlite import connect_sealed
 from datetime import datetime, timedelta

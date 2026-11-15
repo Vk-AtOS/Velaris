@@ -13,7 +13,6 @@ registry.json.corrupt-<time> and the registry starts empty.
 """
 import logging
 import os
-import json
 from typing import Dict, Any, Optional
 
 from velaris.agentkit.state import JsonState

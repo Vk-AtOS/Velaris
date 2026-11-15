@@ -9,8 +9,7 @@ expenses, debt) scores revenue - expenses - 0.2 * debt and returns "EXCELLENT" (
 "FAIR" (above 0) or "POOR".
 State: keeps none. Failure: no input validation; non-numeric values raise TypeError.
 """
-from typing import Dict, Any, List, Optional
-import statistics
+from typing import List, Optional
 
 class FinancialAIEngine:
     """

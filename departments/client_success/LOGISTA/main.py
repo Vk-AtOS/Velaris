@@ -8,7 +8,7 @@ finite numbers of zero or more; choose_route ignores costs that are not finite n
 """
 import logging
 import math
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Optional
 
 logger = logging.getLogger("LOGISTA")
 

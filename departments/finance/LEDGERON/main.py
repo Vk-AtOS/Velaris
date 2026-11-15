@@ -10,7 +10,7 @@ State: a dict in memory only, lost on restart. No access check or double-entry b
 """
 import logging
 from decimal import Decimal, InvalidOperation
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 logger = logging.getLogger("LEDGERON")
 _PAISE = Decimal("0.01")

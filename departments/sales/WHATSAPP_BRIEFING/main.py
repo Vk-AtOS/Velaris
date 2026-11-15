@@ -6,7 +6,6 @@ Ported from VKatOS whatsapp_briefing. Daily metric logging + WhatsApp Business A
 import asyncio
 import concurrent.futures
 import logging
-import sqlite3
 
 from velaris.core.sqlite_util import connect as connect_db
 from datetime import datetime

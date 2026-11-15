@@ -10,7 +10,6 @@ VELARIS_DATA, never in the working directory. A missing employee_id means "all o
 Raises AccessDenied when refused.
 """
 import logging
-import sqlite3
 
 from velaris.core.sealed_sqlite import connect_sealed
 from datetime import datetime, timedelta

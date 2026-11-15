@@ -18,12 +18,10 @@ import math
 import sqlite3
 
 from velaris.core.sqlite_util import connect as connect_db
-import json
 from datetime import date, timedelta
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from velaris.intel.paths import agent_file
 
-from velaris.intel.paths import agent_dir
 
 logger = logging.getLogger("SPRINT_PLANNER")
 

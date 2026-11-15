@@ -9,7 +9,6 @@ unknown). request(connector_name, payload) performs no real IO: it echoes the pa
 stored as given; get_connector masks ("***") values whose key looks like a secret (secret, token,
 password, api_key, credential, authorization, private), and that is the only secret handling. State: a dict in memory only, lost on restart.
 """
-import json
 import re
 from typing import Dict, Any, Optional
 

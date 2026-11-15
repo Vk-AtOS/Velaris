@@ -4,7 +4,6 @@ OPS_REPORT — Velaris BOS agent for Knackforge
 Ported from VKatOS ops_report. Daily operations report with categories, blockers, and export.
 """
 import logging
-import sqlite3
 
 from velaris.core.sqlite_util import connect as connect_db
 from datetime import datetime

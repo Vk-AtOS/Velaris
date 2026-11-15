@@ -4,7 +4,6 @@ SLA_MONITOR — Velaris BOS agent for Knackforge
 Ported from VKatOS sla_monitor. Tracks client/delivery SLA commitments and surfaces breaches.
 """
 import logging
-import sqlite3
 
 from velaris.core.sqlite_util import connect as connect_db
 from datetime import datetime, timedelta

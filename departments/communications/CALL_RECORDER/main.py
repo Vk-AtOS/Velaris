@@ -18,11 +18,10 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 
 import logging
 import subprocess
-import json
 import threading
 import uuid
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from velaris.core.access import check_caller
 from velaris.intel.paths import agent_file
 

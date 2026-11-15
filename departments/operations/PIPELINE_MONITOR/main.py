@@ -4,7 +4,6 @@ PIPELINE_MONITOR — Velaris BOS agent for Knackforge
 Ported from VKatOS pipeline_monitor. Statistical risk scoring for pipeline stage durations.
 """
 import logging
-import sqlite3
 
 from velaris.core.sqlite_util import connect as connect_db
 import statistics
