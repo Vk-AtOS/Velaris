@@ -92,3 +92,22 @@ def test_hr_agent_databases_are_sealed_and_need_the_key(tmp_path, monkeypatch):
     monkeypatch.delenv("VELARIS_VAULT_KEY")
     with pytest.raises(vault.VaultKeyError):
         import_module("departments.hr.RECRUITMENT_ATS.main").RecruitmentTracker()
+
+
+def test_sealed_stream_roundtrip_and_reordered_or_cut_records_fail(tmp_path):
+    import os
+    p = tmp_path / "a.bin"
+    data = os.urandom(3 * vault.CHUNK + 5)
+    assert vault.write_sealed_stream(p, (data[i:i + 700_000] for i in range(0, len(data), 700_000)), "x") == len(data)
+    assert vault.read_sealed(p, "x") == data
+    with pytest.raises(vault.VaultError):
+        list(vault.open_sealed_stream(p, "other"))
+    raw = p.read_bytes()
+    rec = 16 + vault.CHUNK + 16
+    swapped = raw[:4] + raw[4 + rec:4 + 2 * rec] + raw[4:4 + rec] + raw[4 + 2 * rec:]
+    p.write_bytes(swapped)
+    with pytest.raises(vault.VaultError):
+        vault.read_sealed(p, "x")
+    p.write_bytes(raw[:4 + rec])                                  # the last record is missing
+    with pytest.raises(vault.VaultError):
+        vault.read_sealed(p, "x")

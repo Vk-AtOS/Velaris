@@ -27,7 +27,7 @@ from typing import Any, Callable, Dict, Iterator, List, Optional
 from velaris.agentkit.hiring_common import DAY, HiringError, bad, digest, now, parse_date, store
 from velaris.core import vault
 from velaris.agentkit.state import append_line, read_lines
-from velaris.intel.paths import agent_dir, private_dir, write_private
+from velaris.intel.paths import agent_dir, private_dir
 
 AGENT = "INTERVIEW_RECORD"
 SCOPES = ("events", "audio", "transcript")
@@ -164,12 +164,59 @@ def store_audio(org: str, s: Dict[str, Any], participant: str, data: bytes, mime
     return track_record(participant, h, len(data), mime, duration_s, str(path))
 
 
+AUDIO_MIMES = ("audio/wav", "audio/ogg", "audio/webm", "audio/mpeg", "audio/mp4", "audio/flac")
+
+
+def sniff_audio(head: bytes, mime: str) -> bool:
+    """Do the first bytes look like the declared container? (Not a decoder: it only refuses an obvious wrong file.)"""
+    if mime == "audio/wav":
+        return head[:4] == b"RIFF" and head[8:12] == b"WAVE"
+    if mime == "audio/ogg":
+        return head[:4] == b"OggS"
+    if mime == "audio/flac":
+        return head[:4] == b"fLaC"
+    if mime == "audio/webm":
+        return head[:4] == b"\x1a\x45\xdf\xa3"
+    if mime == "audio/mp4":
+        return head[4:8] == b"ftyp"
+    return head[:3] == b"ID3" or (len(head) > 1 and head[0] == 0xFF and head[1] & 0xE0 == 0xE0)      # audio/mpeg
+
+
+def audio_precheck(s: Dict[str, Any], participant: str) -> None:
+    """Refuse an upload BEFORE its body is read: no consent, or the participant already has a track."""
+    if not consented(s, participant, "audio"):
+        raise HiringError("denied", "this participant has not consented to audio recording")
+    if participant in s["tracks"]:
+        raise HiringError("conflict", "this participant already has an audio track: one track per participant")
+
+
+def store_audio_file(org: str, s: Dict[str, Any], participant: str, src: str, mime: str, duration_s: Any) -> Dict[str, Any]:
+    """Seal an uploaded audio file (already on disk, owner-only, size-checked by the caller) without holding it in memory."""
+    audio_precheck(s, participant)
+    size = os.stat(src).st_size
+    if not 0 < size <= MAX_AUDIO:
+        raise bad("audio must be 1 byte to 200 MB")
+    with open(src, "rb") as f:
+        head = f.read(16)
+        if mime in AUDIO_MIMES and not sniff_audio(head, mime):
+            raise bad("the file is not the audio type it claims to be")
+        h = hashlib.sha256(head)
+        for block in iter(lambda: f.read(1 << 20), b""):
+            h.update(block)
+    sha = h.hexdigest()
+    track_record(participant, sha, size, mime, duration_s, None)                 # validates mime and duration before anything is written
+    path = private_dir(agent_dir(AGENT) / "audio") / f"{sha}.bin"
+    with open(src, "rb") as f:
+        vault.write_sealed_stream(path, iter(lambda: f.read(1 << 20), b""), _SEAL)
+    return track_record(participant, sha, size, mime, duration_s, str(path))
+
+
 def track_record(participant: str, sha256: str, size: int, mime: str, duration_s: Any, path: Optional[str]) -> Dict[str, Any]:
     if not isinstance(sha256, str) or len(sha256) != 64 or any(c not in "0123456789abcdef" for c in sha256):
         raise bad("sha256 must be 64 lowercase hex characters")
     if isinstance(duration_s, bool) or not isinstance(duration_s, (int, float)) or not 0 < duration_s <= 6 * 3600:
         raise bad("duration_s must be seconds, up to 6 hours")
-    if mime not in ("audio/wav", "audio/ogg", "audio/webm", "audio/mpeg", "audio/mp4", "audio/flac"):
+    if mime not in AUDIO_MIMES:
         raise bad("mime must be an audio type: wav, ogg, webm, mpeg, mp4 or flac")
     return {"participant": participant, "sha256": sha256, "bytes": int(size), "mime": mime, "duration_s": float(duration_s),
             "path": path, "transcript": None, "transcript_status": "not_requested", "registered_at": now()}
@@ -177,10 +224,9 @@ def track_record(participant: str, sha256: str, size: int, mime: str, duration_s
 
 @contextlib.contextmanager
 def _plain_copy(path: str) -> Iterator[str]:
-    data = vault.read_sealed(path, _SEAL)
     with tempfile.TemporaryDirectory(prefix="vl-audio-") as d:
         tmp = os.path.join(d, os.path.basename(path))
-        write_private(tmp, data)
+        vault.unseal_to_file(path, _SEAL, tmp)          # streamed: a 200 MB track is never held in memory
         yield tmp
 
 

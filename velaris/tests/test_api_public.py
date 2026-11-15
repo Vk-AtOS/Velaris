@@ -28,7 +28,7 @@ EXPECTED = {("GET", "/careers/forms/{form_id}"), ("GET", "/careers/challenge/{fo
             ("GET", "/careers/status/{token}"), ("POST", "/careers/withdraw/{token}"),
             ("GET", "/schedule/{token}/slots"), ("POST", "/schedule/{token}/pick"), ("POST", "/schedule/{token}/cancel"),
             ("POST", "/interview/{token}/consent"), ("POST", "/interview/{token}/events"), ("POST", "/interview/{token}/withdraw"),
-            ("POST", "/sign/{token}/open"), ("POST", "/sign/{token}/otp/request"), ("POST", "/sign/{token}/otp/verify"),
+            ("POST", "/interview/{token}/audio"), ("POST", "/sign/{token}/open"), ("POST", "/sign/{token}/otp/request"), ("POST", "/sign/{token}/otp/verify"),
             ("POST", "/sign/{token}/consent"), ("POST", "/sign/{token}/sign"), ("POST", "/sign/{token}/decline")}
 BODIES = {"/schedule/{token}/pick": {"start": 1}, "/interview/{token}/consent": {"scopes": ["events"], "notice_version": "v"},
           "/interview/{token}/events": {"type": "join"}, "/sign/{token}/open": {"email": "a@b.co"}, "/sign/{token}/otp/request": {"email": "a@b.co"},
@@ -190,6 +190,41 @@ def test_interview_events_need_participant_token_and_consent(client, world):
     err(client.post(f"/interview/{tok}/events", json={"data": {}}), 400, "invalid_input")                       # missing "type"
     assert client.post(f"/interview/{tok}/withdraw").status_code == 200
     err(client.post(f"/interview/{tok}/events", json={"type": "join"}), 403, "denied")                          # recording stopped
+
+
+def wav(n=2000):
+    return b"RIFF" + (n + 28).to_bytes(4, "little") + b"WAVEfmt " + bytes(range(256)) * (n // 256 + 1)
+
+
+def test_audio_upload_streams_seals_and_obeys_consent_type_size_and_one_track(client, world, monkeypatch):
+    """KAN-74: the HTTP ingress for audio: consent first, a file that is what it claims, capped size, sealed at rest, once."""
+    from velaris.agents.INTERVIEW_RECORD.main import InterviewRecord
+    from velaris.core import vault
+    from velaris.intel.paths import data_dir
+    tok, url = world["itok"], None
+    url = f"/interview/{tok}/audio?duration_s=12.5"
+    hdr = {"content-type": "audio/wav"}
+    monkeypatch.setitem(public.DEFAULT_LIMITS, "i_audio", RouteLimit(10_000_000, 50, 50))
+    err(client.post(url, content=wav(), headers=hdr), 403, "denied")                                           # no audio consent yet
+    assert client.post(f"/interview/{tok}/consent", json={"scopes": ["audio"], "notice_version": "v1"}).status_code == 200
+    err(client.post(url, content=wav(), headers={"content-type": "text/plain"}), 415, "unsupported_media_type")
+    err(client.post(f"/interview/{tok}/audio", content=wav(), headers=hdr), 400, "invalid_input")               # no duration
+    err(client.post(url, content=b"not audio at all, just text", headers=hdr), 400, "invalid_input")           # wrong magic bytes
+    monkeypatch.setitem(public.DEFAULT_LIMITS, "i_audio", RouteLimit(1500, 50, 50))
+    err(client.post(url, content=wav(), headers=hdr), 413, "too_large")                                       # over the route's cap
+    monkeypatch.setitem(public.DEFAULT_LIMITS, "i_audio", RouteLimit(10_000_000, 50, 50))
+    data = wav(3_000_000)
+    r = client.post(url, content=data, headers=hdr)
+    assert r.status_code == 200, r.text
+    sha = r.json()["result"]["sha256"]
+    stored = data_dir() / "agents" / "INTERVIEW_RECORD" / "audio" / f"{sha}.bin"
+    assert stored.exists() and stored.read_bytes()[:4] == vault.STREAM_MAGIC and data[:300] not in stored.read_bytes()
+    assert vault.read_sealed(stored, "hiring:INTERVIEW_RECORD") == data
+    err(client.post(url, content=wav(), headers=hdr), 409, "conflict")                                        # one track per participant
+    assert not list((data_dir() / "uploads").glob("*"))                                                        # no temp file left behind
+    with pytest.raises(vault.VaultError):
+        stored.write_bytes(stored.read_bytes()[:-30])                                                         # cut short: refused when read
+        vault.read_sealed(stored, "hiring:INTERVIEW_RECORD")
 
 
 # ---- the signing ceremony, end to end against ESIGN ----------------------------------------------------------------------------

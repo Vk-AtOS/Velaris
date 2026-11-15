@@ -6,7 +6,8 @@ and a solved proof-of-work. This module serves ONLY the functions that already t
   careers   GET  /careers/forms/{form_id}   GET /careers/challenge/{form_id}   POST /careers/apply/{form_id}
             GET  /careers/status/{token}    POST /careers/withdraw/{token}
   schedule  GET  /schedule/{token}/slots    POST /schedule/{token}/pick        POST /schedule/{token}/cancel
-  interview POST /interview/{token}/consent|events|withdraw          (audio is NOT served here: it is a large upload)
+  interview POST /interview/{token}/consent|events|withdraw
+            POST /interview/{token}/audio?duration_s=N   body = the audio file itself, Content-Type audio/wav|ogg|webm|mpeg|mp4|flac
   e-sign    POST /sign/{token}/open | otp/request | otp/verify | consent | sign | decline
 
 Nothing here is in the identity-authenticated API (velaris.api.app) and nothing asserts an identity: every handler runs with
@@ -35,11 +36,13 @@ from __future__ import annotations
 
 import base64
 import binascii
+import asyncio
 import hashlib
 import json
 import logging
 import os
 import re
+import secrets
 import sqlite3
 import time
 from dataclasses import dataclass, field
@@ -51,18 +54,22 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from velaris.agentkit import hiring_intake as intake
+from velaris.agentkit import hiring_record as record
 from velaris.agentkit import hiring_record_gateway as interview
 from velaris.agentkit import hiring_sched as sched
 from velaris.agents.ESIGN.main import Esign
 from velaris.api.observability import configure_logging
 from velaris.core.access import acting_as
 from velaris.core.shared import RateStore
+from velaris.intel.paths import data_dir, private_dir
 
 logger = logging.getLogger("velaris.api.public")
 
 TOKEN = re.compile(r"[A-Za-z0-9_-]{20,100}")
 FORM_ID = re.compile(r"[A-Za-z0-9_-]{1,80}")
 KIB = 1024
+AUDIO_CONCURRENCY = int(os.environ.get("VELARIS_AUDIO_UPLOADS", "4"))     # uploads streamed at once per process; more get 503
+AUDIO_DEADLINE_S = 900.0                                                  # a whole upload must finish in 15 minutes (slow-loris cap)
 
 
 @dataclass(frozen=True)
@@ -77,6 +84,7 @@ DEFAULT_LIMITS: Dict[str, RouteLimit] = {
     "apply": RouteLimit(2 * KIB * KIB, 20, 10),                    # a small résumé in base64 fits; the form's own file rule applies too
     "status": RouteLimit(1 * KIB, 30, 60), "withdraw": RouteLimit(1 * KIB, 5, 10),
     "slots": RouteLimit(1 * KIB, 30, 60), "pick": RouteLimit(2 * KIB, 15, 30), "cancel": RouteLimit(1 * KIB, 5, 10),
+    "i_audio": RouteLimit(record.MAX_AUDIO, 3, 6),
     "i_consent": RouteLimit(4 * KIB, 10, 30), "events": RouteLimit(64 * KIB, 600, 1200), "i_withdraw": RouteLimit(1 * KIB, 5, 10),
     "s_open": RouteLimit(4 * KIB, 20, 40), "s_otp_request": RouteLimit(4 * KIB, 5, 10), "s_otp_verify": RouteLimit(4 * KIB, 10, 20),
     "s_consent": RouteLimit(4 * KIB, 10, 20), "s_sign": RouteLimit(4 * KIB, 10, 20), "s_decline": RouteLimit(4 * KIB, 5, 10),
@@ -330,6 +338,60 @@ def create_public_app(settings: Optional[PublicSettings] = None) -> FastAPI:
     @app.post("/interview/{token}/withdraw")
     async def i_withdraw(token: str, request: Request) -> JSONResponse:
         return await handle(request, "i_withdraw", token, token=True, body={}, call=lambda d, ip, ua: _plain(interview.candidate_withdraw, token))
+
+    audio_slots = asyncio.Semaphore(AUDIO_CONCURRENCY)
+
+    @app.post("/interview/{token}/audio")
+    async def i_audio(token: str, request: Request) -> JSONResponse:
+        """Stream an audio track to a private temp file (never into memory), then seal it chunk by chunk. Consent and the
+        one-track rule are checked before the body is read; size, rate, concurrency and total time are capped."""
+        lim, ip, tmp = s.limit("i_audio"), _client_ip(request, s.trust_proxy), None
+        try:
+            if not limiter.allow("i_audio", "ip", ip, lim.per_ip) or not limiter.allow(
+                    "i_audio", "tok", hashlib.sha256(token.encode()).hexdigest()[:24], lim.per_token):
+                raise Refusal(429, "rate_limited", "too many requests; try again later")
+            if not TOKEN.fullmatch(token):
+                raise NOT_VALID
+            if (early := await run_in_threadpool(_plain, interview.audio_precheck, token))["status"] != "ok":
+                return _respond(early)
+            mime = request.headers.get("content-type", "").split(";")[0].strip().lower()
+            if mime not in record.AUDIO_MIMES:
+                raise Refusal(415, "unsupported_media_type", f"send the file with Content-Type one of {list(record.AUDIO_MIMES)}")
+            try:
+                duration = float(request.query_params.get("duration_s", ""))
+            except ValueError:
+                raise Refusal(400, "invalid_input", "duration_s (seconds) is required") from None
+            declared = request.headers.get("content-length", "")
+            if not declared.isdigit():
+                raise Refusal(411, "length_required", "send a Content-Length")
+            if not 0 < int(declared) <= lim.body:
+                raise Refusal(413, "too_large", "the audio must be 1 byte to 200 MB")
+            if audio_slots.locked():
+                return _err(503, "busy", "the server is receiving other recordings; retry in a minute")
+            async with audio_slots:
+                tmp = private_dir(data_dir() / "uploads") / f"audio-{secrets.token_hex(12)}.part"
+                size = 0
+                async with asyncio.timeout(AUDIO_DEADLINE_S):
+                    with open(tmp, "xb") as f:
+                        os.fchmod(f.fileno(), 0o600)
+                        async for chunk in request.stream():
+                            size += len(chunk)
+                            if size > int(declared) or size > lim.body:
+                                raise Refusal(413, "too_large", "the audio is larger than declared")
+                            await run_in_threadpool(f.write, chunk)
+                if size != int(declared):
+                    raise Refusal(400, "invalid_input", "the upload ended early")
+                return _respond(await run_in_threadpool(_plain, interview.ingest_audio_file, token, str(tmp), mime, duration))
+        except Refusal as r:
+            return _err(r.status, r.code, r.message)
+        except TimeoutError:
+            return _err(408, "timeout", "the upload took too long")
+        except Exception as e:
+            logger.warning("public route i_audio failed: %s", type(e).__name__)
+            return _err(500, "error", "the request could not be completed")
+        finally:
+            if tmp is not None:
+                tmp.unlink(missing_ok=True)
 
     # ---- e-sign signer ceremony ---------------------------------------------------------------------------------------------
     for name, extra, defaults in (("open", {}, {}), ("otp_request", {}, {}), ("otp_verify", {"code": (str, True)}, {}),

@@ -12,9 +12,9 @@ from velaris.agentkit.hiring_common import HiringError, audit, bad, hid, need_te
 from velaris.agentkit.results import fail, ok
 
 PUBLIC = ["POST /interview/{token}/consent  -> candidate_consent", "POST /interview/{token}/events  -> ingest_event",
-          "POST /interview/{token}/withdraw -> candidate_withdraw"]
-# served by velaris.api.public.create_public_app. ingest_audio is NOT served there (uploads of up to MAX_AUDIO need a streaming
-# ingress with its own limits); until one exists audio tracks are registered by staff (INTERVIEW_RECORD.register_audio_track).
+          "POST /interview/{token}/withdraw -> candidate_withdraw", "POST /interview/{token}/audio    -> audio_precheck + ingest_audio_file"]
+# served by velaris.api.public.create_public_app. The audio route streams the body to a private temp file under its own limits
+# (size, rate, concurrency) and seals it chunk by chunk; ingest_audio (bytes in memory) stays for callers that already hold the data.
 
 
 def issue_token(d: Dict[str, Any], org: str, session_id: str, participant: str, hours: int) -> str:
@@ -74,6 +74,34 @@ def ingest_event(token: str, event_type: str, data: Optional[Dict[str, Any]] = N
             e = hr.append_event(t["org"], s, t["participant"], event_type, data, client_t)
             s["event_count"], s["chain_head"] = e["seq"], e["hash"]
             return {"seq": e["seq"]}
+        return ok(**hr.st().update(go))
+    except HiringError as e:
+        return fail(e.status, e.reason)
+
+
+def audio_precheck(token: str) -> Dict[str, Any]:
+    """Is this link valid and has the participant consented to audio (and not uploaded yet)? Called before the body is read."""
+    try:
+        t, s = _open(hr.st().load(), token)
+        hr.audio_precheck(s, t["participant"])
+        return ok()
+    except HiringError as e:
+        return fail(e.status, e.reason)
+
+
+def ingest_audio_file(token: str, src: str, mime: str, duration_s: float) -> Dict[str, Any]:
+    """Store an uploaded audio file that is already on disk (see velaris.api.public). Sealing a large file takes seconds, so
+    it happens OUTSIDE the store lock; the lock is taken twice, briefly: to read the session and to record the track (re-checked)."""
+    try:
+        t, s = _open(hr.st().load(), token)
+        track = hr.store_audio_file(t["org"], s, t["participant"], src, mime, duration_s)
+
+        def go(d: Dict[str, Any]) -> Dict[str, Any]:
+            t2, s2 = _open(d, token)                       # the link, consent and "one track" rule may have changed meanwhile
+            hr.audio_precheck(s2, t2["participant"])
+            s2["tracks"][t2["participant"]] = track
+            audit(hr.AGENT, "audio.stored", t2["org"], None, session=hid(t2["org"], s2["id"]), audio_sha256=track["sha256"])
+            return {"sha256": track["sha256"]}
         return ok(**hr.st().update(go))
     except HiringError as e:
         return fail(e.status, e.reason)

@@ -18,6 +18,7 @@ import base64
 import os
 import stat
 from pathlib import Path
+from typing import Iterable, Iterator
 
 from velaris.intel.paths import read_private, write_private
 from cryptography.exceptions import InvalidTag
@@ -100,5 +101,101 @@ def write_sealed(path, data: bytes, purpose: str) -> None:
 
 def read_sealed(path, purpose: str) -> bytes:
     """The plaintext of a sealed file; a file still in plaintext (written before sealing existed) is returned as is."""
+    if is_stream(path):
+        return b"".join(open_sealed_stream(path, purpose))
     blob = read_private(path)
     return open_bytes(blob, purpose) if is_sealed(blob) else blob
+
+
+# ---- large files: chunked sealing (audio uploads of up to 200 MB must not be held in memory) -------------------------------
+STREAM_MAGIC = b"VLS1"
+CHUNK = 1 << 20
+
+
+def _stream_aad(purpose: str, index: int, last: bool) -> bytes:
+    return purpose.encode() + b"|" + index.to_bytes(8, "big") + (b"L" if last else b"M")     # no reordering, no truncation
+
+
+def write_sealed_stream(path, chunks: Iterable[bytes], purpose: str) -> int:
+    """Seal an iterable of byte chunks (any sizes) into `path` as VLS1 records of at most 1 MiB, atomically and owner-only.
+    Each record is authenticated with its position and whether it is the last, so cutting the file short or swapping
+    records fails on reading. Returns the number of plaintext bytes."""
+    aead, target, total = AESGCM(_key(purpose)), Path(path), 0
+    tmp = target.with_name(f".{target.name}.{os.urandom(6).hex()}.tmp")
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(STREAM_MAGIC)
+            pending, index = b"", 0
+            buf = bytearray()
+
+            def emit(block: bytes, last: bool) -> None:
+                nonlocal index
+                nonce = os.urandom(12)
+                ct = aead.encrypt(nonce, block, _stream_aad(purpose, index, last))
+                f.write(nonce + len(ct).to_bytes(4, "big") + ct)
+                index += 1
+
+            for part in chunks:
+                total += len(part)
+                buf += part
+                while len(buf) > CHUNK:                       # keep at least one byte back: the last record must be marked
+                    emit(bytes(buf[:CHUNK]), False)
+                    del buf[:CHUNK]
+            emit(bytes(buf), True)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, target)
+    finally:
+        tmp.unlink(missing_ok=True)
+    return total
+
+
+def open_sealed_stream(path, purpose: str) -> Iterator[bytes]:
+    """The plaintext of a VLS1 file, chunk by chunk. Raises VaultError on tamper, truncation, wrong store or key."""
+    aead = AESGCM(_key(purpose))
+    with open(path, "rb") as f:
+        if f.read(4) != STREAM_MAGIC:
+            raise VaultError("not a sealed stream")
+        index, seen_last = 0, False
+        while True:
+            head = f.read(16)
+            if not head:
+                break
+            if seen_last or len(head) < 16:
+                raise VaultError("sealed stream has data after its last record or a torn record")
+            nonce, n = head[:12], int.from_bytes(head[12:], "big")
+            ct = f.read(n)
+            if len(ct) != n or n > CHUNK + 16:
+                raise VaultError("sealed stream is truncated")
+            for last in (False, True):
+                try:
+                    yield aead.decrypt(nonce, ct, _stream_aad(purpose, index, last))
+                    seen_last = last
+                    break
+                except InvalidTag:
+                    continue
+            else:
+                raise VaultError("sealed stream failed authentication (tampered, reordered or wrong store/key)")
+            index += 1
+        if not seen_last:
+            raise VaultError("sealed stream is truncated (no final record)")
+
+
+def is_stream(path) -> bool:
+    try:
+        with open(path, "rb") as f:
+            return f.read(4) == STREAM_MAGIC
+    except OSError:
+        return False
+
+
+def unseal_to_file(path, purpose: str, dest) -> None:
+    """Write the plaintext of a sealed file (either format) to `dest`, owner-only, without holding it in memory."""
+    if not is_stream(path):
+        write_private(dest, read_sealed(path, purpose))
+        return
+    fd = os.open(dest, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "wb") as f:
+        for block in open_sealed_stream(path, purpose):
+            f.write(block)
