@@ -46,7 +46,23 @@ MAX_PAYLOAD_BYTES = 32768      # an entry above this keeps only a digest, so no 
 _CHUNK = 65536
 
 
+MAX_FIELD_CHARS = 1000
+
+
+def _shorten(v: Any) -> Any:
+    """A string field over MAX_FIELD_CHARS (a URL with a long query, an error text) keeps its start, its length and a digest,
+    so one long value cannot push an entry over the payload limit and callers need no trimming of their own."""
+    if isinstance(v, str) and len(v) > MAX_FIELD_CHARS:
+        return f"{v[:MAX_FIELD_CHARS]}...[{len(v)} chars, sha256 {hashlib.sha256(v.encode()).hexdigest()[:16]}]"
+    if isinstance(v, dict):
+        return {k: _shorten(x) for k, x in v.items()}
+    if isinstance(v, list):
+        return [_shorten(x) for x in v]
+    return v
+
+
 def _bound(payload: Dict[str, Any]) -> Dict[str, Any]:
+    payload = _shorten(payload)
     raw = json.dumps(payload, sort_keys=True, default=str).encode()
     if len(raw) <= MAX_PAYLOAD_BYTES:
         return payload
@@ -54,12 +70,18 @@ def _bound(payload: Dict[str, Any]) -> Dict[str, Any]:
             "keys": sorted(str(k) for k in payload)[:20]}
 
 
-class TraceHeadError(RuntimeError):
-    """The signed head is missing, forged or does not fit the trace: appends stop (fail closed)."""
+class TraceHeadError(OSError):
+    """The signed head is missing, forged or does not fit the trace, or there is no vault key to sign it: appends stop (fail
+    closed). An OSError on purpose: every caller already treats a trace that cannot be written as "refuse" (503 audit_unavailable,
+    change refused with audit_failed), and must not crash on a new exception type."""
 
 
 def _sign(count: int, last: str) -> str:
-    return hmac.new(vault.derive_key("trace-head"), f"{count}|{last}".encode(), hashlib.sha256).hexdigest()
+    try:
+        key = vault.derive_key("trace-head")
+    except vault.VaultKeyError as e:
+        raise TraceHeadError(f"no vault key to sign the trace head: {e}") from e
+    return hmac.new(key, f"{count}|{last}".encode(), hashlib.sha256).hexdigest()
 
 
 def _head_paths() -> list:
@@ -73,6 +95,8 @@ def _read_head(p: Path) -> Optional[tuple]:
         d = json.loads(read_private(p))
         count, last = int(d["count"]), str(d["hash"])
         return (count, last) if hmac.compare_digest(_sign(count, last), str(d["mac"])) else None
+    except TraceHeadError:
+        raise                                    # no key is not "no head": the caller must say so
     except (OSError, ValueError, KeyError, TypeError):
         return None
 
@@ -82,8 +106,12 @@ def heads() -> list:
     return [(p, _read_head(p)) for p in _head_paths()]
 
 
-def _write_heads(count: int, last: str) -> None:
-    body = json.dumps({"count": count, "hash": last, "mac": _sign(count, last)})
+def _head_body(count: int, last: str) -> str:
+    return json.dumps({"count": count, "hash": last, "mac": _sign(count, last)})
+
+
+def _write_heads(count: int, last: str, body: Optional[str] = None) -> None:
+    body = body or _head_body(count, last)
     for p in _head_paths():
         write_private(p, body)
 
@@ -147,13 +175,14 @@ def append(actor: str, action: str, payload: Optional[Dict[str, Any]] = None) ->
             ts = time.time()
             entry = {"ts": ts, "actor": actor, "action": action, "payload": payload,
                      "prev": prev, "hash": _hash(prev, ts, actor, action, payload)}
+            head_body = _head_body(count, entry["hash"])     # signed BEFORE the entry is written: no key, nothing is written
             with open_private(path, "a") as f:       # the trace names people and what was read about them
                 if path.stat().st_size and _ends_without_newline(path):
                     f.write("\n")                    # a torn line stays its own (malformed) line
                 f.write(json.dumps(entry, sort_keys=True) + "\n")
                 f.flush()
                 os.fsync(f.fileno())
-            _write_heads(count, entry["hash"])
+            _write_heads(count, entry["hash"], head_body)
         finally:
             fcntl.flock(lk.fileno(), fcntl.LOCK_UN)
     return entry
@@ -240,7 +269,7 @@ def verify(check_head: bool = True) -> Dict[str, Any]:
     """Walk the chain. Returns {"ok", "entries", "broken_at", "reason"}. Never raises on bad data."""
     try:
         want = {h[0] for _, h in heads() if h} if check_head else set()
-    except vault.VaultKeyError:
+    except TraceHeadError:
         want = set()                                 # head_problem reports the missing key
     v, _, at = _walk(want)
     if v["ok"] and check_head and (bad := head_problem(v["entries"], at)):
@@ -250,9 +279,11 @@ def verify(check_head: bool = True) -> Dict[str, Any]:
 
 def head_problem(total: int, hash_at: Dict[int, str]) -> str:
     """Why the signed head(s) do not fit a trace of `total` well-formed entries (hash_at maps position -> hash), or ""."""
+    if not total and not any(p.exists() for p in _head_paths()):
+        return ""                                    # nothing written yet: no head to check, and no key needed to say so
     try:
         hs = heads()
-    except vault.VaultKeyError:
+    except TraceHeadError:
         return "no vault key: the signed trace head cannot be checked"
     for hp, head in hs:
         if head is None:

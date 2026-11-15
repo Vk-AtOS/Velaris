@@ -85,7 +85,7 @@ def verify_incremental(max_entries: int = MAX_ENTRIES, full: bool = False, now: 
                         "reason": "trace before the checkpoint was altered or shortened", "complete": True}
         try:
             wanted = {h[0] for _, h in trace.heads() if h}
-        except vault.VaultKeyError:
+        except trace.TraceHeadError:
             wanted = set()                               # head_problem below reports the missing key
         marks = {int(k): v for k, v in st["marks"].items()}      # hash at each signed-head position, recorded in earlier calls
         full_at, pass_at = float(st["full_at"]), float(st["pass_at"])

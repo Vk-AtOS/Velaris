@@ -6,8 +6,8 @@ from velaris.intel import trace
 
 
 def test_big_entry_is_bounded_and_later_appends_work():
-    e = trace.append("a", "big", {"blob": "x" * 200_000})
-    assert e["payload"]["truncated"] and e["payload"]["bytes"] > 200_000
+    e = trace.append("a", "big", {f"k{i}": "x" * 900 for i in range(200)})      # many fields: each is short, the entry is not
+    assert e["payload"]["truncated"] and e["payload"]["bytes"] > 180_000
     trace.append("a", "after", {})
     assert trace.verify() == {"ok": True, "entries": 2, "broken_at": None, "reason": ""}
 

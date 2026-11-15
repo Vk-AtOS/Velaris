@@ -154,3 +154,24 @@ def test_append_during_resign_waits_for_the_lock_and_is_not_lost(monkeypatch):
     t.join()
     monkeypatch.setattr(trace, "_walk", real)
     assert trace.verify() == {"ok": True, "entries": 4, "broken_at": None, "reason": ""}
+
+
+def test_one_long_field_is_shortened_not_the_whole_entry_dropped():
+    """KAN-136: an unbounded URL from web.py/web_fetch.py used to turn a 40 KB payload into a bare digest."""
+    url = "https://example.com/?q=" + "x" * 40_000
+    e = trace.append("web", "scrape", {"url": url, "chars": 5, "nested": {"u": [url]}})
+    assert e["payload"]["chars"] == 5 and len(e["payload"]["url"]) < 1100 and "40023 chars" in e["payload"]["url"]
+    assert "truncated" not in e["payload"] and len(e["payload"]["nested"]["u"][0]) < 1100
+    assert trace.verify()["ok"]
+
+
+def test_a_missing_vault_key_is_a_refusal_not_a_crash(monkeypatch):
+    """The new trace head needs the vault key; every caller treats an OSError from the trace as 'refuse', not as a bug."""
+    from velaris.core.access import Caller, acting_as, check_caller
+    monkeypatch.delenv("VELARIS_VAULT_KEY")
+    with pytest.raises(OSError):
+        trace.append("a", "x", {})
+    with acting_as(Caller("u", "acme", frozenset({"hr_admin"}))):
+        _, refusal = check_caller("AGENT", "change")
+    assert refusal and refusal["status"] == "audit_failed"
+    assert trace.verify()["ok"] is True                     # nothing was written, an empty trace has no head to check
