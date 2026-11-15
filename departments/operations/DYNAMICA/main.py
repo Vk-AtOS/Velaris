@@ -1,3 +1,4 @@
+import copy
 import logging
 from typing import List, Dict, Any, Callable
 
@@ -26,11 +27,11 @@ class DynamicaAgent:
         """
         Apply multi-variable updates across steps.
         """
-        results = [initial]
-        current = initial
+        results = [copy.deepcopy(initial)]      # the caller's own dict is never stored or changed
+        current = copy.deepcopy(initial)
         for _ in range(self.steps - 1):
-            current = update(current.copy())
-            results.append(current)
+            current = update(copy.deepcopy(current))
+            results.append(copy.deepcopy(current))
         logger.debug("Evolve multi=%s", results)
         return results
 

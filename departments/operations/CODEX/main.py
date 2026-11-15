@@ -37,7 +37,7 @@ class CodexAgent:
 
     def rules_changed(self, key, new_rules_dict):
         if key not in self.rule_store:
-            return False
+            return True                      # never stored: there is nothing to say they are unchanged
         encoded = self.encode_rules(new_rules_dict)
         new_hash = self.rules_hash(encoded)
         old_hash = self.rule_store[key]

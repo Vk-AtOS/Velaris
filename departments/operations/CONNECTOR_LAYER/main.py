@@ -1,7 +1,19 @@
 # ================================================================================
 
 import json
+import re
 from typing import Dict, Any, Optional
+
+_SECRET_KEY = re.compile(r"(secret|token|password|passwd|api_?key|credential|authorization|private)", re.I)
+
+
+def _masked(value: Any, key: str = "") -> Any:
+    if isinstance(value, dict):
+        return {k: _masked(v, str(k)) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_masked(v, key) for v in value]
+    return "***" if value and _SECRET_KEY.search(key) else value
+
 
 class ConnectorLayer:
     """
@@ -27,7 +39,9 @@ class ConnectorLayer:
         return True
 
     def get_connector(self, name: str) -> Optional[Dict[str, Any]]:
-        return self.connectors.get(name)
+        """A COPY of the connector's config with secret-looking values masked; the live config never leaves this agent."""
+        cfg = self.connectors.get(name)
+        return None if cfg is None else _masked(cfg)
 
     def remove_connector(self, name: str) -> bool:
         if name in self.connectors:

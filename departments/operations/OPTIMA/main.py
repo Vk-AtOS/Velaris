@@ -36,7 +36,7 @@ class OptimaAgent:
         """
         if not metrics:
             return {}
-        max_val = max(metrics.values())
+        max_val = max(abs(v) for v in metrics.values())      # by magnitude: dividing by a negative max flipped every sign
         if max_val == 0:
             return {k: 0 for k in metrics}
         norm = {k: v / max_val for k, v in metrics.items()}
@@ -47,6 +47,8 @@ class OptimaAgent:
         """
         Pivot = (after - before) / max(before, 1)
         """
-        pivot = (after - before) / max(abs(before), 1)
+        if before == 0:
+            return 0.0 if after == 0 else None      # growth from nothing has no percentage
+        pivot = (after - before) / abs(before)        # relative change: CTR 0.02 -> 0.04 is +100%, not +0.02
         logger.debug("Pivot factor=%s before=%s after=%s", pivot, before, after)
         return pivot
