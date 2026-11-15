@@ -7,7 +7,7 @@ held as needs_review because no retention rule exists). Rule-based: averages and
 suggestion for a person, not a decision. Every method needs an authenticated caller: you act on your own records, HR admins
 on anyone's; no caller or the wrong role raises AccessDenied. Reviewer and calibrator must be the caller. Bad review_type or
 scores return {"error": ...}; an unknown OKR returns {"error": "okr not found"}. Rows are filtered by organisation.
-State: sqlite at <VELARIS_DATA>/agents/PERFORMANCE_REVIEW_ENGINE/reviews.db (okrs, reviews, calibration tables).
+State: sqlite, encrypted at rest (velaris.core.sealed_sqlite), at <VELARIS_DATA>/agents/PERFORMANCE_REVIEW_ENGINE/reviews.db (okrs, reviews, calibration tables).
 """
 import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))

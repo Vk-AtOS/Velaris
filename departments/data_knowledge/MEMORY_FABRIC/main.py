@@ -1,7 +1,7 @@
 """Memory fabric: in-process key-value memory shared between agents, with no persistence.
 
 MEMORY_FABRICAgent offers write_bucket(bucket, data) and read_bucket(bucket) (returns {} for an unknown bucket).
-MemoryFabric, a compatibility shim, offers get_store(namespace) (a dict, created on demand), put(namespace, key, value,
+MemoryFabric, the store other agents use (the only implementation, not a stand-in), offers get_store(namespace) (a dict, created on demand), put(namespace, key, value,
 ttl) (ttl in seconds, None means never expires), get(namespace, key) (the value, or None if absent or expired) and
 query(namespace, prefix) (unexpired {key: value}, optionally only keys starting with prefix). health_check() returns ok.
 State: Python dicts in memory only; everything is lost when the process ends. It does no validation and raises nothing

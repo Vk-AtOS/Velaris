@@ -1,5 +1,18 @@
 # ================================================================================
 
+"""Deep audit engine: pins a checksum baseline per name, detects drift from it, and keeps a hash-chained audit log.
+
+checksum(data) is the SHA-256 of the sorted-key JSON form. audit(name, data) records the checksum and who audited: the
+first audit of a name pins its baseline (any caller, or none), and auditing the name again moves the baseline and so
+needs a security admin (check_caller; the refusal dict is returned otherwise). It returns the log entry {name, checksum,
+by, prev, hash}, or {"status": "invalid", ...} for an empty name or more than 5000 names. detect_drift(name, new_data)
+is True when the checksum differs from the baseline, and also for a name never audited. verify_log() re-walks the chain
+and checks that each baseline equals its newest log entry; False means the file was altered.
+State: <VELARIS_DATA>/agents/DEEP_AUDIT_ENGINE/audit_log.json (owner-only, atomic, locked) and audit.key. The log keeps
+the newest 2000 entries; the dropped prefix is replaced by a checkpoint signed with the key (HMAC-SHA256). The key sits
+beside the log, so verify_log() catches damage and edits made without the key, not an attacker who can read both files.
+Failure: data that cannot be written as JSON raises TypeError.
+"""
 import base64
 import hashlib
 import hmac

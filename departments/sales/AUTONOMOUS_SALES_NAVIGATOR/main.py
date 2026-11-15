@@ -2,11 +2,11 @@
 
 """Autonomous sales navigator: weighted lead scoring (fixed formula, no learning).
 
-add_lead(name, budget, interest, fit) stores a lead; score_lead(lead) is int(0.4*budget +
-0.3*interest + 0.3*fit); predict_close_probability(lead) is score/100 capped at 1.0 (not a
-trained probability); suggest_strategy(lead) returns one of three fixed texts for score >80,
->50 and lower; top_leads(n) returns the n best leads. State: leads list in memory only, lost
-on restart. A lead missing budget, interest or fit raises KeyError.
+add_lead(name, budget, interest, fit) stores a lead whose three ratings are finite numbers from 0 to 100;
+score_lead(lead) is int(0.4*budget + 0.3*interest + 0.3*fit); predict_close_probability(lead) is score/100, a ratio of
+the ratings and not a trained probability; suggest_strategy(lead) returns one of three fixed texts for score >80, >50
+and lower; top_leads(n) returns the n best leads. State: leads list in memory only, lost on restart. An empty name, a
+rating that is missing, not a number or outside 0-100, or an n that is negative or not a whole number raises ValueError.
 """
 from typing import Dict, Any, List
 

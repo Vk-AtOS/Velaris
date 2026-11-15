@@ -1,8 +1,10 @@
-"""Self history: a minimal in-memory event log for the system's own activity.
+"""Self history: a small persisted event log for the system's own activity.
 
-record(event) appends any event dict; last() returns the most recent one, or {} when empty;
-health_check() reports status ok. It is close to a stub: no validation, no size limit, no
-persistence. State: a list in memory only, lost on restart.
+record(event) appends a JSON-serialisable dict and returns True; anything else is refused with a logged warning and
+returns False. last() returns the most recent event, or {} when empty; the events property returns them all;
+health_check() reports status ok.
+State: <VELARIS_DATA>/agents/SELF_HISTORY/events.json (owner-only, atomic, shared by workers, kept across restarts);
+only the newest 1000 events are kept. No caller check is made.
 """
 import logging
 from typing import Dict, Any

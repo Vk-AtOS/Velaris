@@ -4,7 +4,8 @@ simulate_plan(plan, trials=100) takes base_success (default 0.5) and optional mo
 are added and clamped to 0..1, runs trials random draws and returns {trials, successes,
 success_rate, effective}. recommend_adjustments(plan, target_rate=0.8) returns the current
 estimate and the additive modifier still needed (target - current, floored at 0). Results are
-random unless config["seed"] is set, which seeds the global random module. Keeps no state;
+random unless config["seed"] is set, which seeds this agent's own generator (the global random
+module is not touched); trials is clamped to 0..1,000,000. Keeps no state;
 non-numeric plan values raise.
 """
 import logging

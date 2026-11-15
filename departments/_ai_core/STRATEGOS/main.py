@@ -3,8 +3,8 @@ StrategosAgent.evaluate_strategy(strategy) returns (benefit - cost) / (1 + risk)
 fields "benefit", "cost" and "risk" (each defaults to 0). rank_strategies(strategies) returns
 [{"strategy", "score"}] sorted by score descending. pick_best(strategies) returns the top item, or None
 for an empty list. This is a rule-based formula, not a learned model.
-State: keeps no state. Failure: a field that cannot be converted to float raises ValueError or
-TypeError; a risk of -1 raises ZeroDivisionError. Nothing is caught.
+State: keeps no state. Failure: a field that cannot be converted to float, a value that is
+not finite, or a negative risk raises ValueError.
 """
 import logging
 import math

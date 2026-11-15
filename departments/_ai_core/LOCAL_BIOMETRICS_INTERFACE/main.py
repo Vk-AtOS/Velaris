@@ -1,5 +1,18 @@
 # ================================================================================
 
+"""Local biometrics interface: enrols and verifies per-user biometric templates by exact string match.
+
+enroll(user, biometrics) takes any non-empty subset of {"finger", "face", "voice"} as non-empty strings and stores a
+salted scrypt hash of each. Only the user themselves or a security admin may enrol (check_caller, traced), and a user who
+is already enrolled is refused. verify(user, biometrics) is True only when every presented factor matches an enrolled
+one; an unknown user, an empty dict and an unknown or un-enrolled factor are all False, and 5 failed verifications in a
+row lock that user for 15 minutes (correct templates are refused too). update(user, current, biometrics) replaces or adds
+templates once `current` verifies, for the same callers as enroll. list_users() returns the enrolled names. Refusals are
+False returns.
+State: <VELARIS_DATA>/agents/LOCAL_BIOMETRICS_INTERFACE/templates.json (hashes only, owner-only, shared by workers) and
+throttle.json. A real sensor never produces the same capture twice, so this is a stand-in for a matcher: it compares
+enrolled strings and does not score similarity.
+"""
 from typing import Dict, Optional
 
 from velaris.agentkit.secure import Throttle, hash_secret, verify_secret

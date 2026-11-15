@@ -3,8 +3,8 @@
 CustosAgent(config; "roles", "permissions"): health_check(); define_role(role, perms)
 sets the role's permission set; assign_permission(role, permission) adds one (creating the
 role if needed); check_access(role, action) is True if the action is in the role's set.
-State: in memory only (self.roles), lost on restart. A "roles" config must map to sets,
-since lists would break assign_permission.
+State: in memory only (self.roles), lost on restart. A "roles" config may map to lists or
+sets; both are stored as sets.
 Failure: an unknown role or action returns False (deny); it does not identify callers.
 """
 

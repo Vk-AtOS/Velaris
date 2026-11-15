@@ -1,5 +1,14 @@
 # ================================================================================
 
+"""Digital twin / XR engine: named in-memory state dicts with update, diff and merge (no XR rendering, no device link).
+
+create_twin(name, data) (False if the name exists), update_twin(name, data) (merges top-level keys; False if unknown),
+get_twin(name) (a copy; {} if unknown), diff(a, b) returns {field: {"a": value, "b": value}} for every field that
+differs, treating an unknown twin as empty, and merge(target, source) copies the source's fields over the target's
+(False if either is unknown). Names are case-insensitive. Data is deep-copied in and out, so callers cannot edit a twin
+in place.
+State: a dict in memory only, lost on restart. Failure: a non-string name raises AttributeError; no caller check is made.
+"""
 import copy
 from typing import Dict, Any
 

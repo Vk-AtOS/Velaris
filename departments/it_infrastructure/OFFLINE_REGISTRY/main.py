@@ -1,3 +1,11 @@
+"""Offline registry: a small key/value store in one local JSON file, usable without any network.
+
+OFFLINE_REGISTRYAgent(path=""): set(k, v) stores a value under a non-empty text key (ValueError otherwise); get(k,
+default=None) returns it or the default; health_check() returns {"agent", "status": "ok", "version"}.
+State: <VELARIS_DATA>/agents/OFFLINE_REGISTRY/registry.json, or the path given; owner-only, written atomically and locked
+across workers, so values survive a restart. A file that cannot be parsed is set aside as <name>.corrupt-<time> and the
+registry starts empty; a value that cannot be written as JSON raises on set. No caller check is made.
+"""
 import logging
 
 from velaris.agentkit.state import JsonState

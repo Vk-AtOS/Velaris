@@ -6,8 +6,11 @@ create_snapshot(name, state) writes <name>.json and logs CREATE (overwrites an e
 snapshot); load_snapshot(name) reads it; rollback(name) returns the snapshot state and logs
 ROLLBACK, it does not apply the state anywhere; get_log() returns the history list. Names must
 be 1-100 letters, digits, "_", "-" or "." starting with a letter or digit, else ValueError;
-a missing snapshot raises FileNotFoundError. State: snapshots/ and rollback.log (a JSON list)
-under <VELARIS_DATA>/agents/ROLLBACK_ENGINE; an unreadable log is reset with a warning.
+a missing snapshot raises FileNotFoundError. A state holding NaN or anything not
+JSON-serialisable raises. State: snapshots/ (owner-only files, written atomically) and
+rollback.json (the newest 1000 log entries, locked across workers) under
+<VELARIS_DATA>/agents/ROLLBACK_ENGINE; a log that cannot be parsed is set aside as
+rollback.json.corrupt-<time> and the history starts empty.
 """
 import json
 import os

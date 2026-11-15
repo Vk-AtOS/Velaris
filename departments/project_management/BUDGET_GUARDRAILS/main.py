@@ -1,5 +1,16 @@
 # ================================================================================
 
+"""Budget guardrails: per-category spending limits in rupees, exact to the paisa, that block overruns.
+
+set_limit(category, amount) sets a limit: governance admins only (check_caller, traced), never below what is already
+spent, at most 1000 categories. record_spend(category, amount) adds to the category's total and returns True, or False
+when the spend would pass the limit, the category has no limit, or there is no authenticated caller; the check and the
+add are one atomic step across processes. remaining(category) returns limit minus spent as a Decimal (0.00 for an
+unknown category); status(category) returns {exists, limit, spent, remaining, blocked}, or {"exists": False}. Amounts may
+be int, float, Decimal or numeric text; a bool, NaN, infinity, a negative value, more than two decimals or more than 10
+trillion rupees is refused with False, never raised.
+State: <VELARIS_DATA>/agents/BUDGET_GUARDRAILS/budgets.json (integer paise, owner-only, shared by every worker).
+"""
 from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, Optional
 

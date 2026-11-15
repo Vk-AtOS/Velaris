@@ -7,10 +7,11 @@ leave_type, from_date, to_date, reason) files a request over weekday-only days; 
 reject(leave_id, reviewed_by) are HR-admin only, the reviewer must be the caller and may not
 review their own leave. dsr_export and dsr_erase(org, subject_id, ...) serve data-subject
 requests; erase is held (needs_review) while retention rules apply.
-Failure: apply and review return {"error": ...} dicts (invalid_leave_type, no_balance_record,
+Failure: apply and review return {"error": ...} dicts (invalid_leave_type, invalid_date,
+overlapping_leave when the days clash with a pending or approved request, no_balance_record,
 insufficient_balance, unauthenticated, denied, access_denied, not_found, already_<status>,
 self_approval_not_allowed); gated reads and changes raise through the access layer.
-State: sqlite <VELARIS_DATA>/agents/LEAVE_MANAGEMENT/leaves.db (tables leave_requests,
+State: sqlite, encrypted at rest (velaris.core.sealed_sqlite), <VELARIS_DATA>/agents/LEAVE_MANAGEMENT/leaves.db (tables leave_requests,
 leave_balances), scoped by organisation.
 """
 import sys, os

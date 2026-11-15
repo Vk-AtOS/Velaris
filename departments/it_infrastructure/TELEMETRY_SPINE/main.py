@@ -1,5 +1,15 @@
 # ================================================================================
 
+"""Telemetry spine: an append-only local log of typed events with a simple query and per-type counts.
+
+record(event_type, payload) appends {"ts", "type", "payload"} as one JSON line and returns the entry; the payload is
+first redacted of secrets and personal identifiers (velaris.agentkit.infra_store.redact_json). It returns None and writes
+nothing when event_type is not a plain name, the payload is not a JSON-serialisable dict, or the entry is over 16 KiB.
+query(event_type=None) returns the newest 10,000 events, optionally of one type; stats() counts them by type.
+State: <VELARIS_DATA>/agents/TELEMETRY_SPINE/telemetry.jsonl, owner-only and locked across workers. Beyond 20 MiB the
+file is renamed to telemetry.jsonl.1 (one generation kept) and a new one starts, so older events leave query(). A torn
+last line is skipped on read. No caller check is made.
+"""
 import json
 import logging
 import os

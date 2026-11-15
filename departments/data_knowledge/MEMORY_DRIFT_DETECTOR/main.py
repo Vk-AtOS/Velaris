@@ -6,7 +6,8 @@ it or None. drift_score(label, new_data) is the percentage (0-100) of keys, over
 new keys, whose values differ; with no baseline it returns 100.0, and 0.0 when both are empty.
 detect(label, new_data) returns {"label", "score", "status"} with status STABLE below 20, DRIFT below
 60, otherwise SEVERE. Plain key-by-key equality, not a statistical test.
-State: <VELARIS_DATA>/agents/MEMORY_DRIFT_DETECTOR/baseline.json (created as {} if absent).
+State: <VELARIS_DATA>/agents/MEMORY_DRIFT_DETECTOR/baseline.json (owner-only, written atomically by
+set_baseline; it does not exist before the first one).
 Failure: an unreadable baseline file is logged as a warning and treated as empty; a failed write
 raises OSError; non-dict data raises AttributeError.
 """

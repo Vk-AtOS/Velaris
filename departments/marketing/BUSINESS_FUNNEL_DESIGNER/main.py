@@ -5,10 +5,13 @@ BusinessFunnelDesigner.create_funnel(name, stages) adds a funnel with zeroed vis
 per stage and returns it. record_stage(funnel_name, stage, visits, conversions) adds to a stage's
 counters and returns True, or False for an unknown funnel or stage. analyze(funnel_name) returns
 {stage: {"conversion_rate", "drop_off"}} where the rate is conversions/visits in percent and drop_off
-is the percent fall in conversions from the previous stage; {} for an unknown funnel. It does not
-suggest optimizations; it only computes these figures.
-State: in-memory list only, nothing persisted. Failure: no input validation; duplicate funnel names
-are allowed and the first match wins.
+is the percent fall in conversions from the previous stage; {} for an unknown funnel.
+suggest_optimizations(funnel_name, threshold=50.0) lists the stages whose drop-off is at least the
+threshold, worst first, each with a fixed-text note: it says where people leave, not why.
+State: in-memory list only, nothing persisted. Failure: create_funnel raises ValueError unless given a
+name and a non-empty list of distinct stage names; record_stage also returns False for a count that is
+negative or not an integer, or when conversions would exceed visits; duplicate funnel names are
+allowed and the first match wins.
 """
 from typing import Dict, Any, List
 

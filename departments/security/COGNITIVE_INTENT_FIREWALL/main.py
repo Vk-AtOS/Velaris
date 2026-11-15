@@ -1,5 +1,16 @@
 # ================================================================================
 
+"""Cognitive intent firewall: keyword classification of text, plus a prompt-injection scan of untrusted content.
+
+classify(text) returns {"intent", "reason"}: BLOCKED if a blocked keyword (harm, attack, illegal, kill) starts any word,
+else RISKY (bypass, override, exploit), else SAFE (help, info, guide, learn), else UNKNOWN; non-text is UNKNOWN. Matching
+is on word starts, so "attacker" matches "attack" and "skill" does not match "kill". add_rule(rule) registers a dict;
+evaluate_rules(text) returns "Forbidden content: <term>" for each rule["forbidden"] term found as a substring, ignoring
+case. scan_untrusted(text, source="") runs velaris.intel.guard.scan and returns {level, blocked, score, findings}.
+This is a keyword list, not an understanding of intent: it is easy to phrase around and must not be the only control.
+State: keyword lists and rules in memory, per instance. Failure: evaluate_rules raises AttributeError for non-text; rules
+are not validated, and no caller check is made.
+"""
 import re
 
 from velaris.intel import guard

@@ -1,7 +1,7 @@
 """Time tracker: billable hours and utilization per employee and project.
 TimeTracker.start_timer(employee_id, project_id, task_id, description) starts a timer, first
 stopping and logging any running one for that employee. stop_timer(employee_id, billable=True)
-logs the elapsed hours. log(employee_id, project_id, hours, log_date, task_id, description,
+logs the elapsed hours, capped at 24 (a timer left running is not logged as days). log(employee_id, project_id, hours, log_date, task_id, description,
 billable) adds a manual entry. weekly_utilization(employee_id, week_start) returns total, billable
 and per-project hours and utilization against a billable target (config billable_target_weekly,
 default 40). team_utilization(employee_ids, week_start) maps that over employees.

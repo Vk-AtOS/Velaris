@@ -1,5 +1,15 @@
 # ================================================================================
 
+"""Successor key module: stores one successor key as a salted hash and verifies a presented key against it.
+
+set_successor_key(key) stores the scrypt hash of a key of at least 8 characters: security admins only (check_caller,
+traced), and False if a key is already set (it must be wiped first). wipe_key() removes it, security admins only.
+verify(key) is True only for the stored key (constant-time compare); 5 wrong keys in a row lock verification for 15
+minutes, during which the right key is refused too, and with no key set it is always False. has_key() says whether one
+is set. Verifying grants nothing by itself: whatever transfer the key gates is the caller's to perform.
+State: <VELARIS_DATA>/agents/SUCCESSOR_KEY_MODULE/successor.json (the hash only) and throttle.json, owner-only and shared
+by every worker. Refusals are False returns; nothing is raised.
+"""
 from typing import Optional
 
 from velaris.agentkit.secure import Throttle, hash_secret, verify_secret

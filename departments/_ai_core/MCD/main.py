@@ -1,5 +1,13 @@
 # ================================================================================
 
+"""MCD (Master Control Dashboard): a fixed route table and a one-line HTML page template.
+
+render(content) returns the template with the content inserted as escaped text (HTML in it is never interpreted).
+route_exists(path) and get_route_target(path) look up the three built-in routes ("/", "/status", "/agents"); an unknown
+path gives False and None. health_check() returns {"agent", "status": "ok", "routes": n}. It serves nothing itself: there
+is no HTTP server and no authentication here.
+State: none beyond the in-memory route dict. Nothing is raised on bad input.
+"""
 import html
 
 
