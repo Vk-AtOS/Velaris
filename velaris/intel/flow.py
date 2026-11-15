@@ -311,7 +311,7 @@ class Flow:
     # ── running ──────────────────────────────────────────────────────────────
     def _execute(self, run_id: str, events: List[Dict[str, Any]], call: Dict[str, Any]) -> None:
         self._append(run_id, events, "exec", {"call_seq": call["seq"]})      # written BEFORE the side effect
-        started = self._clock()
+        started = time.monotonic()      # not self._clock: the Atlassian approval gate runs this method on a stand-in object
         try:
             out, ok = self.tools[call["tool"]].fn(**call["args"]), True
             out = out if isinstance(out, str) else json.dumps(out, default=str, ensure_ascii=False)
@@ -322,7 +322,7 @@ class Flow:
         if flagged:
             out = "[the tool's output was withheld because it read like instructions, not data]"
         self._append(run_id, events, "result", {"call_seq": call["seq"], "ok": ok, "output": out,
-                                                "flagged": flagged, "sec": self._clock() - started})
+                                                "flagged": flagged, "sec": time.monotonic() - started})
 
     def _advance(self, run_id: str) -> Result:
         events = self.history(run_id)
