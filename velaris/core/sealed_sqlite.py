@@ -19,14 +19,16 @@ agents (hundreds of KB to a few MB), not for mail or chat; a long transaction bl
 """
 from __future__ import annotations
 
+import contextlib
 import logging
+import os
 import re
 import sqlite3
 from pathlib import Path
-from typing import Callable, Dict, Optional, Tuple
+from typing import Callable, Dict, Iterator, Optional, Tuple
 
 from velaris.core import vault
-from velaris.core.filelock import lock_for
+from velaris.core.filelock import DEFAULT_TIMEOUT, flock_fd, lock_for
 from velaris.core.sqlite_util import SchemaTooNew, _upgrade, adopt_if_agent_file
 from velaris.intel.paths import read_private
 
@@ -43,11 +45,13 @@ class SealedConnection(sqlite3.Connection):
     _purpose: str
     _synced: object = None
     _stamp: Tuple[int, int] = (0, 0)
-    _holding: bool = False
+    _fd: Optional[int] = None
+    _lockpath: str = ""
 
     def _attach(self, path: Path, purpose: str) -> None:
         self._path, self._purpose = path, purpose
-        with lock_for(str(path) + ".lock"):
+        self._lockpath = str(path) + ".lock"
+        with lock_for(self._lockpath):
             if path.exists() and path.stat().st_size:
                 blob = read_private(path)
                 self.deserialize(vault.open_bytes(blob, purpose) if vault.is_sealed(blob) else vault.legacy_plaintext(blob, path))
@@ -69,26 +73,39 @@ class SealedConnection(sqlite3.Connection):
         run = super().execute                          # not self.execute: no write scan, no refresh
         return (self.total_changes, run("PRAGMA schema_version").fetchone()[0], run("PRAGMA user_version").fetchone()[0])
 
+    @contextlib.contextmanager
+    def _locked(self) -> Iterator[None]:
+        """The cross-process lock for a short step: the one this connection already holds, or a fresh one."""
+        if self._fd is not None:
+            yield
+            return
+        self._fd = flock_fd(self._lockpath, DEFAULT_TIMEOUT)
+        try:
+            yield
+        finally:
+            self._release()
+
     def _refresh(self) -> None:
         """Load the file again if another process replaced it since we last did (only with no local changes pending)."""
-        if self._file_stamp() == self._stamp or (self.in_transaction and not self._holding):
+        if self._file_stamp() == self._stamp or (self.in_transaction and self._fd is None):
             return
-        with lock_for(str(self._path) + ".lock"):
+        with self._locked():
             self.deserialize(vault.open_bytes(read_private(self._path), self._purpose))
             self._stamp, self._synced = self._file_stamp(), self._version()
 
     def _before(self, sql: object) -> None:
-        if self._holding:
-            return
-        if isinstance(sql, str) and _WRITE.match(sql):
-            lock_for(str(self._path) + ".lock").acquire()          # queues behind other writers (TimeoutError after the bound)
-            self._holding = True
+        if self._fd is None and isinstance(sql, str) and _WRITE.match(sql):
+            self._fd = flock_fd(self._lockpath, DEFAULT_TIMEOUT)    # queues behind other writers (TimeoutError after the bound)
         self._refresh()
 
     def _release(self) -> None:
-        if self._holding:
-            self._holding = False
-            lock_for(str(self._path) + ".lock").release()
+        """Drop the write lock (closing the descriptor releases the flock). Safe to call twice and from a finalizer."""
+        fd, self._fd = self._fd, None
+        if fd is not None:
+            try:
+                os.close(fd)
+            except OSError as e:
+                logger.warning("releasing the lock of %s: %s", self._path, e)
 
     def execute(self, sql, *a):
         self._before(sql)
@@ -123,7 +140,7 @@ class SealedConnection(sqlite3.Connection):
     def _flush_locked(self) -> None:
         if self._synced == self._version():
             return
-        with lock_for(str(self._path) + ".lock"):
+        with self._locked():
             if self._file_stamp() != self._stamp:
                 raise SealedConflict(f"{self._path.name} was changed by another process; reload before writing")
             vault.write_sealed(self._path, self.serialize(), self._purpose)
@@ -142,8 +159,7 @@ class SealedConnection(sqlite3.Connection):
         return out
 
     def executescript(self, sql: str) -> sqlite3.Cursor:
-        lock_for(str(self._path) + ".lock").acquire()
-        self._holding = True
+        self._fd = self._fd if self._fd is not None else flock_fd(self._lockpath, DEFAULT_TIMEOUT)
         try:
             self._refresh()
             cur = super().executescript(sql)           # DDL commits implicitly
@@ -154,10 +170,21 @@ class SealedConnection(sqlite3.Connection):
 
     def close(self) -> None:
         try:
-            if not self.in_transaction:
-                self._flush()
+            try:
+                if self.in_transaction:
+                    super().rollback()                 # uncommitted work is discarded, never half-written
+                else:
+                    self._flush()
+            finally:
+                self._release()
         finally:
             super().close()
+
+    def __del__(self) -> None:                         # dropped without close(): a held lock must not outlive the object
+        try:
+            self._release()
+        except Exception as e:                         # interpreter shutdown: nothing useful left to do
+            logger.debug("finalizer: %s", e)
 
 
 def connect_sealed(path, purpose: str, version: int = 1,
