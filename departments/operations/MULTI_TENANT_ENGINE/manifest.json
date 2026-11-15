@@ -19,7 +19,7 @@
         "kind": "act"
       },
       "get_value": {
-        "kind": "read"
+        "kind": "act"
       },
       "list_tenants": {
         "kind": "read"
@@ -28,7 +28,7 @@
         "kind": "act"
       },
       "tenant_snapshot": {
-        "kind": "read"
+        "kind": "act"
       }
     },
     "excluded": {},

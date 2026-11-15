@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "agent": "CREATIVE_HOLODECK",
+  "cases": [
+    {
+      "id": "select-compose",
+      "input": "Use the compose operation of CREATIVE_HOLODECK with {\"style\": \"sample\", \"mood\": \"sample\", \"element\": \"sample\", \"action\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "compose",
+            "args": {
+              "style": "sample",
+              "mood": "sample",
+              "element": "sample",
+              "action": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-random_scene",
+      "input": "Use the random_scene operation of CREATIVE_HOLODECK with {}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "random_scene",
+            "args": {}
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

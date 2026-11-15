@@ -1,0 +1,34 @@
+{
+  "name": "GLOBAL_STATE_MAP",
+  "version": "0.1.0",
+  "description": "GLOBAL_STATE_MAP: one shared, versioned map of state that several agents read and write.",
+  "entrypoint": "main.py:GLOBAL_STATE_MAPAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "GLOBAL_STATE_MAP: one shared, versioned map of state that several agents read and write.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/data_knowledge/GLOBAL_STATE_MAP.json",
+    "wave": "KAN-42",
+    "status": "deterministic_tool",
+    "tools": {
+      "changes": {
+        "kind": "read"
+      },
+      "delete": {
+        "kind": "act"
+      },
+      "get": {
+        "kind": "read"
+      },
+      "set": {
+        "kind": "act"
+      },
+      "snapshot": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

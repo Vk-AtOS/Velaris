@@ -1,0 +1,75 @@
+{
+  "schema": 1,
+  "agent": "ATTRACTA",
+  "cases": [
+    {
+      "id": "select-appeal_score",
+      "input": "Use the appeal_score operation of ATTRACTA with {\"emotional\": 1.0, \"logical\": 1.0}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "appeal_score",
+            "args": {
+              "emotional": 1.0,
+              "logical": 1.0
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-attraction_potential",
+      "input": "Use the attraction_potential operation of ATTRACTA with {\"impressions\": 1, \"engagement\": 1}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "attraction_potential",
+            "args": {
+              "impressions": 1,
+              "engagement": 1
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-emotional_resonance",
+      "input": "Use the emotional_resonance operation of ATTRACTA with {\"sentiments\": []}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "emotional_resonance",
+            "args": {
+              "sentiments": []
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

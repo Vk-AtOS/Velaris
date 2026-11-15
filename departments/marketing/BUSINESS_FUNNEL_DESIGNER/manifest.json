@@ -1,0 +1,31 @@
+{
+  "name": "BUSINESS_FUNNEL_DESIGNER",
+  "version": "0.1.0",
+  "description": "Business funnel designer: multi-stage conversion funnels with drop-off analysis.",
+  "entrypoint": "main.py:BusinessFunnelDesigner",
+  "harness": {
+    "schema": 1,
+    "purpose": "Business funnel designer: multi-stage conversion funnels with drop-off analysis.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/marketing/BUSINESS_FUNNEL_DESIGNER.json",
+    "wave": "KAN-42",
+    "status": "deterministic_tool",
+    "tools": {
+      "analyze": {
+        "kind": "act"
+      },
+      "create_funnel": {
+        "kind": "act"
+      },
+      "record_stage": {
+        "kind": "act"
+      },
+      "suggest_optimizations": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

@@ -24,7 +24,8 @@
           "resume",
           "run",
           "set_quota",
-          "suspend"
+          "suspend",
+          "usage"
         ]
       }
     },
@@ -49,7 +50,8 @@
           "resume",
           "run",
           "set_quota",
-          "suspend"
+          "suspend",
+          "usage"
         ]
       }
     },
@@ -75,7 +77,8 @@
           "resume",
           "run",
           "set_quota",
-          "suspend"
+          "suspend",
+          "usage"
         ]
       }
     },
@@ -100,7 +103,8 @@
           "release",
           "run",
           "set_quota",
-          "suspend"
+          "suspend",
+          "usage"
         ]
       }
     },
@@ -125,7 +129,8 @@
           "release",
           "resume",
           "set_quota",
-          "suspend"
+          "suspend",
+          "usage"
         ]
       }
     },
@@ -152,7 +157,8 @@
           "release",
           "resume",
           "run",
-          "suspend"
+          "suspend",
+          "usage"
         ]
       }
     },
@@ -177,7 +183,8 @@
           "release",
           "resume",
           "run",
-          "set_quota"
+          "set_quota",
+          "usage"
         ]
       }
     },
@@ -185,7 +192,7 @@
       "id": "select-usage",
       "input": "Use the usage operation of MULTI_TENANCY_GRID with {\"tenant\": \"sample\"}.",
       "expect": {
-        "status": "answered",
+        "status": "proposed",
         "calls": [
           {
             "tool": "usage",
@@ -224,7 +231,8 @@
           "resume",
           "run",
           "set_quota",
-          "suspend"
+          "suspend",
+          "usage"
         ]
       }
     },
@@ -245,7 +253,8 @@
           "resume",
           "run",
           "set_quota",
-          "suspend"
+          "suspend",
+          "usage"
         ]
       }
     }

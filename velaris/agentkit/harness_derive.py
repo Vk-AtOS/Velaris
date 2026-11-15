@@ -303,11 +303,17 @@ def min_sensitivity(department: str, source: str) -> str:
 GUARD_MARKERS = ("authorize_read", "check_caller", "_own_or_hr", "current_caller", "AccessDenied", "acting_as")
 
 
-def derived_kind(agent: str, department: str, source: str, class_name: str, method: str) -> str:
+SCOPE_PARAMS = frozenset({"scope", "tenant", "tenant_id", "org", "org_id", "organisation", "organization", "namespace"})
+
+
+def derived_kind(agent: str, department: str, source: str, class_name: str, method: str, fn: object = None) -> str:
     """read | act for a method the allowlist has no rule for. In a sensitive department a method of a module that reaches data
     outside its arguments (inventory: real) yet never asks who is calling (no access guard in its source) is act: a person approves
     it, since nothing in the code would stop a caller reading someone else's records through the model. A pure calculator
-    (a function of its arguments) needs no guard."""
+    (a function of its arguments) needs no guard. A method with a scope/tenant/namespace parameter and no allowlist rule is act: the
+    allowlist is what pins `scope` to the caller's organisation, and without it a model could name another organisation's scope."""
+    if fn is not None and SCOPE_PARAMS & {p.name for p in inspect.signature(fn).parameters.values()}:
+        return "act"
     if min_sensitivity(department, source) == "restricted" and classify(source) == "real" and not any(m in source for m in GUARD_MARKERS):
         return "act"
     return read_or_act(source, class_name, method)
@@ -351,7 +357,7 @@ def derive_entry(agent: str, department: str, engine: object, manifest: dict, wa
         return fail("stub", "the agent is a stub (inventory: not_implemented); a harness around it would claim a capability that is not there")
     cls = engine.agent_class(agent)                                        # type: ignore[attr-defined]
     cands = candidate_methods(agent, cls)
-    tools = {m: {"kind": kind_of(agent, m, derived_kind(agent, department, source, cls.__name__, m))} for m, why in cands.items() if not why}
+    tools = {m: {"kind": kind_of(agent, m, derived_kind(agent, department, source, cls.__name__, m, getattr(cls, m)))} for m, why in cands.items() if not why}
     excluded = {m: why for m, why in cands.items() if why}
     if not tools:
         return {**fail("no_methods", "the agent has no public method a model can call"), "excluded": excluded}

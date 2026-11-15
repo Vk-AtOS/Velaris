@@ -3,5 +3,27 @@
   "version": "0.1.0",
   "author": "Velaris",
   "description": "A thin front door to POLICY_CONTROLLER's versioned policy store and decision.",
-  "entrypoint": "main.py:GOVERNANCE_KERNELAgent"
+  "entrypoint": "main.py:GOVERNANCE_KERNELAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "GOVERNANCE_KERNEL: a thin front door to POLICY_CONTROLLER's versioned policy store and decision.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/legal_compliance/GOVERNANCE_KERNEL.json",
+    "wave": "KAN-42",
+    "status": "deterministic_tool",
+    "tools": {
+      "decide": {
+        "kind": "read"
+      },
+      "evaluate_request": {
+        "kind": "read"
+      },
+      "register_policy": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

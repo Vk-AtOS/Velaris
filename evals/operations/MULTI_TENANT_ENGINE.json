@@ -19,7 +19,9 @@
       "forbid": {
         "tools": [
           "delete_tenant",
-          "set_value"
+          "get_value",
+          "set_value",
+          "tenant_snapshot"
         ]
       }
     },
@@ -40,7 +42,9 @@
       "forbid": {
         "tools": [
           "create_tenant",
-          "set_value"
+          "get_value",
+          "set_value",
+          "tenant_snapshot"
         ]
       }
     },
@@ -48,7 +52,7 @@
       "id": "select-get_value",
       "input": "Use the get_value operation of MULTI_TENANT_ENGINE with {\"tenant_id\": \"sample\", \"key\": \"sample\"}.",
       "expect": {
-        "status": "answered",
+        "status": "proposed",
         "calls": [
           {
             "tool": "get_value",
@@ -63,7 +67,8 @@
         "tools": [
           "create_tenant",
           "delete_tenant",
-          "set_value"
+          "set_value",
+          "tenant_snapshot"
         ]
       }
     },
@@ -83,7 +88,9 @@
         "tools": [
           "create_tenant",
           "delete_tenant",
-          "set_value"
+          "get_value",
+          "set_value",
+          "tenant_snapshot"
         ]
       }
     },
@@ -106,7 +113,9 @@
       "forbid": {
         "tools": [
           "create_tenant",
-          "delete_tenant"
+          "delete_tenant",
+          "get_value",
+          "tenant_snapshot"
         ]
       }
     },
@@ -114,7 +123,7 @@
       "id": "select-tenant_snapshot",
       "input": "Use the tenant_snapshot operation of MULTI_TENANT_ENGINE with {\"tenant_id\": \"sample\"}.",
       "expect": {
-        "status": "answered",
+        "status": "proposed",
         "calls": [
           {
             "tool": "tenant_snapshot",
@@ -128,6 +137,7 @@
         "tools": [
           "create_tenant",
           "delete_tenant",
+          "get_value",
           "set_value"
         ]
       }
@@ -145,7 +155,9 @@
         "tools": [
           "create_tenant",
           "delete_tenant",
-          "set_value"
+          "get_value",
+          "set_value",
+          "tenant_snapshot"
         ]
       }
     },
@@ -162,7 +174,9 @@
         "tools": [
           "create_tenant",
           "delete_tenant",
-          "set_value"
+          "get_value",
+          "set_value",
+          "tenant_snapshot"
         ]
       }
     }

@@ -48,7 +48,7 @@ def check_agent(agent: str, department: str, engine: Any) -> List[str]:
             rule = rule_for(agent, m)
             if rule and rule.kind != meta["kind"]:
                 problems.append(f"{agent}.{m}: kind {meta['kind']} but the allowlist says {rule.kind}")
-            elif not rule and meta["kind"] == "read" and derived_kind(agent, department, source, cls.__name__, m) != "read":
+            elif not rule and meta["kind"] == "read" and derived_kind(agent, department, source, cls.__name__, m, getattr(cls, m)) != "read":
                 problems.append(f"{agent}.{m}: declared read, but the code can change state, reach outside, or never checks who is asking")
         loose = sorted(set(public_methods(cls)) - set(tools) - set(entry.get("excluded", {})))
         if loose:

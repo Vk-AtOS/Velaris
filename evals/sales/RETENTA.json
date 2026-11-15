@@ -1,0 +1,73 @@
+{
+  "schema": 1,
+  "agent": "RETENTA",
+  "cases": [
+    {
+      "id": "select-churn_probability",
+      "input": "Use the churn_probability operation of RETENTA with {\"inactive_days\": 1}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "churn_probability",
+            "args": {
+              "inactive_days": 1
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-engagement_decay",
+      "input": "Use the engagement_decay operation of RETENTA with {\"engagements\": []}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "engagement_decay",
+            "args": {
+              "engagements": []
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-retention_score",
+      "input": "Use the retention_score operation of RETENTA with {\"sessions\": []}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "retention_score",
+            "args": {
+              "sessions": []
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

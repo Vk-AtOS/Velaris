@@ -37,7 +37,7 @@
         "kind": "act"
       },
       "usage": {
-        "kind": "read"
+        "kind": "act"
       }
     },
     "excluded": {},

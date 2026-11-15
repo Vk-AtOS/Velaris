@@ -190,8 +190,8 @@ def test_a_misbehaving_model_fails_the_eval_and_the_fake_model_passes_it():
 
 # Departments still without harness entries. Each wave (KAN-36 .. KAN-44) removes its departments from this set; the last one
 # empties it, and then every one of the 346 agents is checked below.
-PENDING = {"_ai_core", "_connectors", "client_success", "communications", "data_knowledge",
-           "legal_compliance", "marketing", "sales", "supply_chain"}
+PENDING = {"_ai_core", "_connectors", "client_success", "communications",
+           "supply_chain"}
 
 
 def _agents():
@@ -386,3 +386,16 @@ class A:
 ])
 def test_freshness_is_proven_never_assumed(method, kind):
     assert D.read_or_act(FRESH_SRC, "A", method) == kind
+
+
+def test_a_scope_parameter_without_an_allowlist_rule_is_act():
+    class M:
+        def recall(self, scope, key):
+            if key:
+                return {}
+        def peek(self, key):
+            if key:
+                return {}
+    src = "class M:\n    def recall(self, scope, key):\n        if key:\n            return {}\n    def peek(self, key):\n        if key:\n            return {}\n"
+    assert D.derived_kind("M", "data_knowledge", src, "M", "recall", M.recall) == "act"
+    assert D.derived_kind("M", "data_knowledge", src, "M", "peek", M.peek) == "read"

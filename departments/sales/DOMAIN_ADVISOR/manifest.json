@@ -1,0 +1,22 @@
+{
+  "name": "DOMAIN_ADVISOR",
+  "version": "0.1.0",
+  "description": "DOMAIN_ADVISOR: rule-based observations about each sales vertical, from deal records.",
+  "entrypoint": "main.py:DOMAIN_ADVISORAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "DOMAIN_ADVISOR: rule-based observations about each sales vertical, from deal records.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/sales/DOMAIN_ADVISOR.json",
+    "wave": "KAN-42",
+    "status": "deterministic_tool",
+    "tools": {
+      "advise": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

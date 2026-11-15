@@ -5,5 +5,27 @@
   "description": "Public methods: amplify, audience_growth, signal_strength (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:AmplifexAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Amplifex: simple reach and audience arithmetic for sales and marketing (no data sources, no model).",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/sales/AMPLIFEX.json",
+    "wave": "KAN-42",
+    "status": "deterministic_tool",
+    "tools": {
+      "amplify": {
+        "kind": "read"
+      },
+      "audience_growth": {
+        "kind": "read"
+      },
+      "signal_strength": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

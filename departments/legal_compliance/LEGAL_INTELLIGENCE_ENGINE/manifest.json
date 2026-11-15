@@ -1,0 +1,31 @@
+{
+  "name": "LEGAL_INTELLIGENCE_ENGINE",
+  "version": "0.1.0",
+  "description": "Legal intelligence engine: an in-memory store of legal rule texts with exact lookup and keyword search.",
+  "entrypoint": "main.py:LegalIntelligenceEngine",
+  "harness": {
+    "schema": 1,
+    "purpose": "Legal intelligence engine: an in-memory store of legal rule texts with exact lookup and keyword search.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/legal_compliance/LEGAL_INTELLIGENCE_ENGINE.json",
+    "wave": "KAN-42",
+    "status": "deterministic_tool",
+    "tools": {
+      "add_rule": {
+        "kind": "act"
+      },
+      "lookup": {
+        "kind": "read"
+      },
+      "search": {
+        "kind": "read"
+      },
+      "update_rule": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "name": "CREATIVE_ENGINE",
+  "version": "0.1.0",
+  "description": "CREATIVE_ENGINE: campaign ideas, variations and blends, drafted by a model.",
+  "entrypoint": "main.py:CreativeEngine",
+  "harness": {
+    "schema": 1,
+    "purpose": "CREATIVE_ENGINE: campaign ideas, variations and blends, drafted by a model.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/marketing/CREATIVE_ENGINE.json",
+    "wave": "KAN-42",
+    "status": "mixed",
+    "tools": {
+      "blend": {
+        "kind": "act"
+      },
+      "generate_idea": {
+        "kind": "act"
+      },
+      "get_history": {
+        "kind": "read"
+      },
+      "variations": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}
