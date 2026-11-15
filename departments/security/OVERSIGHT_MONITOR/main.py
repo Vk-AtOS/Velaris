@@ -1,11 +1,6 @@
 import logging
 from typing import Dict, Any, List
 logger = logging.getLogger("OVERSIGHT_MONITOR")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - OVERSIGHT_MONITOR - %(levelname)s - %(message)s"))
-if not logger.handlers:
-    logger.addHandler(handler)
 
 class OVERSIGHT_MONITORAgent:
     def __init__(self):

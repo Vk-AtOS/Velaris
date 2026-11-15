@@ -2,10 +2,6 @@ import logging
 from typing import Dict, List, Any
 
 logger = logging.getLogger("METRIX")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - METRIX - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class MetrixAgent:
     def __init__(self, config: Dict[str, Any] = None):

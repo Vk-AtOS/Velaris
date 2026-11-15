@@ -12,10 +12,6 @@ from velaris.core.access import check_caller
 from velaris.intel.paths import agent_file
 
 logger = logging.getLogger("CALL_RECORDER")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - CALL_RECORDER - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 _SESSIONS: Dict[str, Dict] = {}  # session_id → session state
 _LOCK = threading.Lock()

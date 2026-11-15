@@ -2,10 +2,6 @@ import logging
 from typing import Dict, Any, List, Optional
 from velaris.agents.MEMORY_FABRIC.main import MemoryFabric
 logger = logging.getLogger('NEURAL_MESH')
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter('%(asctime)s - NEURAL_MESH - %(levelname)s - %(message)s'))
-logger.addHandler(handler)
 
 class NeuralMesh:
     """

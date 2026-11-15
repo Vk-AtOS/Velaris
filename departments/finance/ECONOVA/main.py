@@ -2,10 +2,6 @@ import logging
 from typing import List, Dict, Any
 
 logger = logging.getLogger("ECONOVA")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - ECONOVA - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class EconovaAgent:
     def __init__(self, config: Dict[str, Any] = None):

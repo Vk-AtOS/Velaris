@@ -2,10 +2,6 @@ import logging
 from typing import Dict, List, Any
 
 logger = logging.getLogger("TARGETA")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - TARGETA - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class TargetaAgent:
     def __init__(self, config: Dict[str, Any] = None):

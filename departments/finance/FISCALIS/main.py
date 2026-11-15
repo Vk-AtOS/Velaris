@@ -2,10 +2,6 @@ import logging
 from typing import Dict, List, Any
 
 logger = logging.getLogger("FISCALIS")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - FISCALIS - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class FiscalisAgent:
     def __init__(self, config: Dict[str, Any] = None):

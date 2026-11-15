@@ -5,10 +5,6 @@ from typing import Dict, Any, List
 from velaris.agents.AGENT_LIFECYCLE_MANAGER.main import LifecycleManager
 
 logger = logging.getLogger("COGNITIVE_LOAD_BALANCER")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - COGNITIVE_LOAD_BALANCER - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class LoadBalancer:
     def __init__(self, config: Dict[str, Any] = None):

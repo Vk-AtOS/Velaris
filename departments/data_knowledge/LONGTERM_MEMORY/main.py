@@ -2,11 +2,6 @@ from velaris.intel.memory import MemoryStore
 import logging, json, os
 from velaris.intel.paths import agent_file, write_private
 logger = logging.getLogger("LONGTERM_MEMORY")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - LONGTERM_MEMORY - %(levelname)s - %(message)s"))
-if not logger.handlers:
-    logger.addHandler(handler)
 
 class LONGTERM_MEMORYAgent:
     def __init__(self, path: str = ""):

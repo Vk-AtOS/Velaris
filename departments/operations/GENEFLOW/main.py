@@ -2,10 +2,6 @@ import logging
 import json
 
 logger = logging.getLogger("GENEFLOW")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - GENEFLOW - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class GeneFlowAgent:
     def __init__(self, config=None):

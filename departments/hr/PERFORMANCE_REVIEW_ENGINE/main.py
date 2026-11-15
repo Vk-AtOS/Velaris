@@ -15,10 +15,6 @@ from velaris.core.access import AccessDenied, Caller, current_caller
 from velaris.intel.paths import agent_dir
 
 logger = logging.getLogger("PERFORMANCE_REVIEW_ENGINE")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - PERFORMANCE_REVIEW_ENGINE - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 SCALE = (0.0, 5.0)                      # every score is on this scale; the rating bands below assume it
 MANAGERS = frozenset({"manager", "hiring_manager"}) | HR_ADMINS

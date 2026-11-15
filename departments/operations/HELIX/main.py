@@ -3,10 +3,6 @@ import hashlib
 import json
 
 logger = logging.getLogger("HELIX")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - HELIX - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class HelixAgent:
     def __init__(self, config=None):

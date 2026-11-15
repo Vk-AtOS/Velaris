@@ -10,10 +10,6 @@ from velaris.core.access import check_caller
 from velaris.intel.paths import agent_dir, agent_file
 
 logger = logging.getLogger("CALL_TRANSCRIBER")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - CALL_TRANSCRIBER - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 
 AUDIO_EXTENSIONS = frozenset({".wav", ".mp3", ".m4a", ".flac", ".ogg", ".webm"})

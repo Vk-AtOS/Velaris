@@ -2,10 +2,6 @@ import logging
 import statistics
 
 logger = logging.getLogger("PRAETOR")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - PRAETOR - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class PraetorAgent:
     def __init__(self, config=None):

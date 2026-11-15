@@ -3,10 +3,6 @@ from typing import Dict, List, Tuple, Any
 import heapq
 
 logger = logging.getLogger("NAVARCH")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - NAVARCH - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class NavarchAgent:
     def __init__(self, config: Dict[str, Any] = None):

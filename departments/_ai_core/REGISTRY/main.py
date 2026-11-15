@@ -10,10 +10,6 @@ from typing import Dict, Any, List, Type
 from velaris.agents import department_dirs
 
 logger = logging.getLogger("REGISTRY")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - REGISTRY - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 
 class AgentRegistry:

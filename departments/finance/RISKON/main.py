@@ -3,10 +3,6 @@ from typing import Dict, List, Any
 import math
 
 logger = logging.getLogger("RISKON")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - RISKON - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class RiskonAgent:
     def __init__(self, config: Dict[str, Any] = None):

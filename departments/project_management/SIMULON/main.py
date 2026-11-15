@@ -2,10 +2,6 @@ import logging
 from typing import Dict, Any, List, Callable
 
 logger = logging.getLogger("SIMULON")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - SIMULON - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class SimulonAgent:
     def __init__(self, config: Dict[str, Any] = None):

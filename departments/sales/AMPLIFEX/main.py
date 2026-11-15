@@ -2,10 +2,6 @@ import logging
 from typing import Dict, Any, List
 
 logger = logging.getLogger("AMPLIFEX")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - AMPLIFEX - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class AmplifexAgent:
     def __init__(self, config: Dict[str, Any] = None):

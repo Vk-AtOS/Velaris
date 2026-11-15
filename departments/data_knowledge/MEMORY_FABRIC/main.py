@@ -2,11 +2,6 @@ import logging
 import time
 from typing import Any, Dict
 logger = logging.getLogger("MEMORY_FABRIC")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - MEMORY_FABRIC - %(levelname)s - %(message)s"))
-if not logger.handlers:
-    logger.addHandler(handler)
 
 class MEMORY_FABRICAgent:
     def __init__(self):

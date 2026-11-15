@@ -354,13 +354,14 @@ def test_engine_runs_once_per_task_id(data_dir):
     assert len([x for x in trace.entries() if x["actor"] == "OFFLINE_SANDBOX" and x["action"] == "run"]) == 1
 
 
-def test_engine_records_refusals_and_passes_files():
+def test_engine_does_not_journal_refusals_and_passes_files():
     e = make("OFFLINE_EXECUTION_ENGINE", "OfflineExecutionEngine")
     refused = e.execute({"id": "bad", "argv": ["curl", "example.com"]})
     assert refused["status"] == "refused" and refused["executed"] is False
-    assert e.get("bad")["status"] == "refused"
+    assert e.get("bad")["status"] == "unknown_task"      # nothing ran, so nothing is journaled under the id (KAN-90):
+    # a corrected retry is a fresh request. The refusal itself is in the trace (OFFLINE_SANDBOX).
     out = e.execute({"argv": ["head", "-n", "1", "f.txt"], "files": {"f.txt": "top\nrest\n"}})
-    assert out["stdout"] == "top\n" and len(e.history()) == 2
+    assert out["stdout"] == "top\n" and len(e.history()) == 1
 
 
 def test_engine_bad_input():

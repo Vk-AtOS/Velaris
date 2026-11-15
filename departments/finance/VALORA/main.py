@@ -2,10 +2,6 @@ import logging
 from typing import Dict, Any
 
 logger = logging.getLogger("VALORA")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - VALORA - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class ValoraAgent:
     def __init__(self, config: Dict[str, Any] = None):

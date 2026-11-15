@@ -12,10 +12,6 @@ from velaris.intel.paths import agent_file
 from velaris.intel.paths import agent_dir
 
 logger = logging.getLogger("SPRINT_PLANNER")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - SPRINT_PLANNER - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 
 

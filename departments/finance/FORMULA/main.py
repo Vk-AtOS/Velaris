@@ -2,10 +2,6 @@ import logging
 from typing import List, Dict, Any
 
 logger = logging.getLogger("FORMULA")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - FORMULA - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class FormulaAgent:
     def __init__(self, config: Dict[str, Any] = None):

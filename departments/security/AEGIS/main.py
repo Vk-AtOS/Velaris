@@ -2,10 +2,6 @@ import logging
 import time
 
 logger = logging.getLogger("AEGIS")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - AEGIS - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class AegisAgent:
     def __init__(self, config=None):

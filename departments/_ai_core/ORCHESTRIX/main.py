@@ -2,10 +2,6 @@ import logging
 from typing import Dict, List, Any
 
 logger = logging.getLogger("ORCHESTRIX")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - ORCHESTRIX - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class OrchestrixAgent:
     def __init__(self, config: Dict[str, Any] = None):

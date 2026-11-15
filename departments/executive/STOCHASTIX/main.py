@@ -3,10 +3,6 @@ import random
 from typing import List, Dict, Any
 
 logger = logging.getLogger("STOCHASTIX")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - STOCHASTIX - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class StochastixAgent:
     def __init__(self, config: Dict[str, Any] = None):

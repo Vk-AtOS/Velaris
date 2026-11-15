@@ -3,10 +3,6 @@ import random
 from typing import Dict, Any, List
 
 logger = logging.getLogger("TACTICIAN")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - TACTICIAN - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class TacticianAgent:
     def __init__(self, config: Dict[str, Any] = None):

@@ -12,10 +12,6 @@ from velaris.core.access import Caller, authorize_read, current_caller, deployme
 from velaris.intel.paths import agent_dir
 
 logger = logging.getLogger("LEAVE_MANAGEMENT")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - LEAVE_MANAGEMENT - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 _LEAVE_TYPES = {"casual": 12, "sick": 12, "earned": 15, "maternity": 182, "paternity": 15}
 _DB = ""          # tests may point this elsewhere; empty means <VELARIS_DATA>/agents/LEAVE_MANAGEMENT/leaves.db

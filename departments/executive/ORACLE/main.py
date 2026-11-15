@@ -3,10 +3,6 @@ import random
 from typing import Dict, List, Any
 
 logger = logging.getLogger("ORACLE")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - ORACLE - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class OracleAgent:
     def __init__(self, config: Dict[str, Any] = None):

@@ -1,10 +1,6 @@
 import logging
 
 logger = logging.getLogger("CUSTOS")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - CUSTOS - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class CustosAgent:
     def __init__(self, config=None):

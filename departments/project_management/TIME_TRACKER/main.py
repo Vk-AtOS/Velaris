@@ -11,10 +11,6 @@ from velaris.intel.paths import agent_file
 from velaris.intel.paths import agent_dir
 
 logger = logging.getLogger("TIME_TRACKER")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - TIME_TRACKER - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 _WORK_HOURS_PER_DAY = 8.0
 _BILLABLE_TARGET_WEEKLY = 40.0  # hours

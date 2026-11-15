@@ -10,10 +10,6 @@ from typing import Dict, Any, List, Optional
 from velaris.intel.paths import agent_file
 
 logger = logging.getLogger("ACTION_ITEM_EXTRACTOR")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - ACTION_ITEM_EXTRACTOR - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 
 # Relative date resolution keywords
