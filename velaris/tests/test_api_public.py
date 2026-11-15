@@ -134,16 +134,27 @@ def test_a_valid_token_of_another_purpose_gets_the_same_answer(client, world):
 
 
 # ---- careers ----------------------------------------------------------------------------------------------------------------
+def form_version(client, fid):
+    return client.get(f"/careers/forms/{fid}").json()["result"]["consent_version"]
+
+
 def solved(client, fid):
     ch = client.get(f"/careers/challenge/{fid}").json()["result"]["challenge"]
     return {**ch, "n": hf.solve(ch)}
+
+
+def test_apply_refuses_a_stale_or_missing_consent_version(client, world):
+    fid = world["fid"]
+    body = {"answers": ANSWERS, "pow_solution": solved(client, fid)}
+    err(client.post(f"/careers/apply/{fid}", json={**body, "consent_version": "stale"}), 409, "consent_outdated")
+    err(client.post(f"/careers/apply/{fid}", json={**body, "pow_solution": solved(client, fid)}), 409, "consent_outdated")
 
 
 def test_apply_with_proof_of_work_then_status_and_withdraw_by_token(client, world):
     fid, c = world["fid"], world["c"]
     form = client.get(f"/careers/forms/{fid}")
     assert form.status_code == 200 and form.json()["result"]["consent_version"] and "set-cookie" not in form.headers
-    body = {"answers": ANSWERS, "pow_solution": solved(client, fid), "file_name": "cv.pdf",
+    body = {"answers": ANSWERS, "pow_solution": solved(client, fid), "file_name": "cv.pdf", "consent_version": form_version(client, fid),
             "file_base64": base64.b64encode(tiny_pdf("Skills: Python and SQL, 4 years")).decode()}
     err(client.post(f"/careers/apply/{fid}", json={**body, "pow_solution": {"salt": "x"}}), 400, "challenge_failed")
     r = client.post(f"/careers/apply/{fid}", json=body)

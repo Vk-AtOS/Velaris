@@ -42,10 +42,15 @@ def set_consent(s: Dict[str, Any], participant: str, scopes: Any, notice_version
     return s["consents"][participant]
 
 
+INTERVIEW_NOTICE = "v1"      # the notice text shown on the interview page (public_static/public.js NOTICE); bump both together
+
+
 def candidate_consent(token: str, scopes: list, notice_version: str) -> Dict[str, Any]:
     try:
         def go(d: Dict[str, Any]) -> Dict[str, Any]:
             t, s = _open(d, token)
+            if notice_version != INTERVIEW_NOTICE:
+                raise HiringError("consent_outdated", "the interview notice changed; reload the page and read it again")
             c = set_consent(s, t["participant"], scopes, notice_version, now())
             audit(hr.AGENT, "consent.recorded", t["org"], None, session=hid(t["org"], s["id"]), scopes=",".join(c["scopes"]), notice=c["notice_version"])
             return {"scopes": c["scopes"]}

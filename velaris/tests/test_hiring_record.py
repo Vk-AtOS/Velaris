@@ -32,7 +32,7 @@ def env():
 
 
 def consent_all(rec, sess, tok, scopes=("events", "audio", "transcript")):
-    assert gw.candidate_consent(tok, list(scopes), "notice-v1")["status"] == "ok"
+    assert gw.candidate_consent(tok, list(scopes), "v1")["status"] == "ok"
 
 
 def stored_events(sess):
@@ -58,7 +58,7 @@ def test_nothing_is_recorded_without_consent_and_consent_is_per_participant_and_
     assert gw.ingest_event("x" * 30, "join")["status"] == "not_found" and gw.ingest_event(None, "join")["status"] == "not_found"
     s = json.loads((agent_dir("INTERVIEW_RECORD") / "sessions.json").read_text())
     assert tok not in json.dumps(s) and hc.sha(tok) in s["tokens"] and s["sessions"][sess]["org"] == ORG
-    assert s["sessions"][sess]["consents"]["candidate"]["notice_version"] == "notice-v1"
+    assert s["sessions"][sess]["consents"]["candidate"]["notice_version"] == "v1"
 
 
 def test_event_types_are_whitelisted_pastes_carry_size_only(env):

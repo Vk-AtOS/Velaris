@@ -49,12 +49,16 @@ def public_challenge(form_id: str) -> Dict[str, Any]:
 
 
 def public_submit(form_id: str, answers: Dict[str, Any], pow_solution: Dict[str, Any], file_name: Optional[str] = None,
-                  file_bytes: Optional[bytes] = None) -> Dict[str, Any]:
+                  file_bytes: Optional[bytes] = None, consent_version: Optional[str] = None) -> Dict[str, Any]:
+    """`consent_version` is the notice version the applicant was shown (public_form). It must equal the form's CURRENT one:
+    consent given to an older text is not consent to the new one, and a caller that sends none is refused (KAN-64)."""
     try:
         f = _form(form_id)
         org, at = f["org"], now()
         if (why := hf.check_solution(pow_solution, f["id"])):
             raise HiringError("challenge_failed", why)
+        if consent_version != f["consent_version"]:
+            raise HiringError("consent_outdated", "the consent notice changed or was not shown; reload the form and read it again")
         hour = iso(at)[:13]
         clean, errors = hf.validate_answers(f, answers)
         has_file_field = any(x["type"] == "file" for x in f["fields"])

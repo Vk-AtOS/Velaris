@@ -100,7 +100,7 @@
       }
       btn.disabled = true;
       try {
-        const body = { answers };
+        const body = { answers, consent_version: f.consent_version };
         const file = fileField && fileField.files[0];
         if (file) {
           if (file.size > f.file_rules.max_bytes) throw { message: "That file is too large." };

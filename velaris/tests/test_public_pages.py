@@ -16,7 +16,7 @@ from velaris.agentkit.hiring_testkit import as_, tiny_pdf
 from velaris.agents.JOB_POSTINGS import main as jp
 from velaris.agents.JOB_POSTINGS.main import JobPostings
 from velaris.api.public import CSP, PublicSettings, RouteLimit, create_public_app
-from velaris.tests.test_api_public import TOKEN, esign_world, fast_pow, solved, tick, world, err, client  # noqa: F401  (fixtures)
+from velaris.tests.test_api_public import TOKEN, esign_world, fast_pow, form_version, solved, tick, world, err, client  # noqa: F401  (fixtures)
 from velaris.tests.test_hiring_postings import valid_through
 
 PAGES = ["/apply/{f}", "/status/" + TOKEN, "/withdraw/" + TOKEN, "/schedule/" + TOKEN, "/sign/" + TOKEN, "/interview/" + TOKEN]
@@ -148,7 +148,7 @@ def test_a_job_page_without_a_published_form_has_no_apply_redirect(client, world
 def test_apply_page_calls_reject_replay_oversize_and_a_stale_token(client, world):
     fid = world["fid"]
     from velaris.tests.test_hiring_forms import ANSWERS
-    body = {"answers": ANSWERS, "pow_solution": solved(client, fid), "file_name": "cv.pdf",
+    body = {"answers": ANSWERS, "pow_solution": solved(client, fid), "file_name": "cv.pdf", "consent_version": form_version(client, fid),
             "file_base64": base64.b64encode(tiny_pdf("Skills: Python and SQL, 4 years")).decode()}
     first = client.post(f"/careers/apply/{fid}", json=body)
     assert first.status_code == 200, first.text
