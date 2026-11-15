@@ -11,8 +11,9 @@ import logging
 import re
 from typing import Any, Dict, Iterable, List, Optional
 
+from velaris.intel import router
 from velaris.agentkit import biz_common as kit
-from velaris.intel import guard
+from velaris.intel import corrections, guard
 from velaris.intel.llm import LLM, LLMError, extract_json
 
 logger = logging.getLogger("velaris.agentkit.biz_language")
@@ -40,7 +41,8 @@ def complete(llm: Optional[LLM], prompt: str, *, purpose: str, max_tokens: int =
             return kit.not_configured()
         llm = LLM()
     try:
-        done = llm.complete(prompt, max_tokens=max_tokens, temperature=temperature, purpose=purpose)
+        prompt = corrections.with_corrections(prompt, corrections.for_purpose(purpose, prompt[:200])["block"])   # KAN-24
+        done = router.complete("worker", prompt, llm=llm, sensitivity="restricted", max_tokens=max_tokens, temperature=temperature, purpose=purpose)
         if want_json:
             return {"status": "ok", "data": extract_json(done.text), "model": done.model}
         return {"status": "ok", "text": done.text.strip(), "model": done.model}

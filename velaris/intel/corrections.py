@@ -11,6 +11,7 @@ advisory: if Prime cannot be asked, the agent goes on without them (and the fail
 from __future__ import annotations
 
 import logging
+import os
 import re
 from typing import Any, Dict, List, Optional
 
@@ -48,6 +49,16 @@ def fetch(base_url: str, api_key: str, agent: str, action_type: str, query: str 
     except (httpx.HTTPError, ValueError, KeyError, AttributeError, TypeError) as e:
         logger.warning("corrections for %s/%s unavailable: %s", agent, action_type, type(e).__name__)
         return empty
+
+
+def for_purpose(purpose: str, query: str = "") -> Dict[str, Any]:
+    """The corrections for a model call labelled `purpose` ("AGENT.action", or just "agent"; the shared prompt paths of
+    agentkit call this). Empty when Prime is not configured (VELARIS_PRIME_URL and VELARIS_PRIME_API_KEY) or cannot be asked."""
+    url, key = os.environ.get("VELARIS_PRIME_URL", ""), os.environ.get("VELARIS_PRIME_API_KEY", "")
+    if not (url and key and purpose):
+        return {"ids": [], "block": ""}
+    agent, _, action = purpose.partition(".")
+    return fetch(url, key, agent, action or "model", query)
 
 
 def with_corrections(prompt: str, block: str) -> str:

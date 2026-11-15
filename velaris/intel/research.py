@@ -45,6 +45,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Set
 from urllib.parse import urlsplit
 
+from velaris.intel import router
 from velaris.intel import guard, trace, web
 from velaris.intel.llm import LLM, LLMError, cosine, extract_json
 from velaris.intel.research_report import check_claim, findings_body, sources_section, verify_report
@@ -139,7 +140,7 @@ def _plan(run: _Run, max_subquestions: int, scope_note: str) -> List[str]:
     error = ""
     subs: List[str] = []
     try:
-        raw = extract_json(run.llm.complete(prompt, model=run.model, max_tokens=400, temperature=0.2,
+        raw = extract_json(router.complete("planner", prompt, llm=run.llm, model=run.model, sensitivity="internal", max_tokens=400, temperature=0.2,
                                             purpose="research.plan").text)
         subs = _questions(raw.get("sub_questions") if isinstance(raw, dict) else raw, max_subquestions)
     except LLMError as e:
@@ -172,7 +173,7 @@ def _learn(run: _Run, page: web.Page, subq: str, text: str) -> None:
               'Reply with JSON only: {"learnings": [{"claim": "...", "quote": "..."}]}. '
               'If the text does not help, reply {"learnings": []}.')
     try:
-        raw = extract_json(run.llm.complete(prompt, model=run.model, max_tokens=900, temperature=0.0,
+        raw = extract_json(router.complete("worker", prompt, llm=run.llm, model=run.model, sensitivity="internal", max_tokens=900, temperature=0.0,
                                             purpose="research.learnings").text)
     except LLMError as e:
         run.errors.append(f"learnings: {str(e)[:120]}")
@@ -227,7 +228,7 @@ def _not_entailed(run: _Run, pairs: List[tuple]) -> Set[int]:
               "establish it. A claim that adds, changes or assumes anything the quote does not say is not "
               'supported. Reply with JSON only: {"unsupported": [<numbers of the claims that are not supported>]}.')
     try:
-        raw = extract_json(run.llm.complete(prompt, model=run.model, max_tokens=200, temperature=0.0,
+        raw = extract_json(router.complete("classifier", prompt, llm=run.llm, model=run.model, sensitivity="internal", max_tokens=200, temperature=0.0,
                                             purpose="research.entailment").text)
     except LLMError as e:
         run.errors.append(f"entailment: {str(e)[:120]}")
@@ -282,7 +283,7 @@ def _reflect(run: _Run) -> List[str]:
               '{"enough": true, "follow_ups": []}. If something important is missing, reply '
               f'{{"enough": false, "follow_ups": ["..."]}} with at most {FOLLOW_UPS} new search questions '
               "for the gaps. Reply with JSON only.")
-    raw = extract_json(run.llm.complete(prompt, model=run.model, max_tokens=300, temperature=0.2,
+    raw = extract_json(router.complete("planner", prompt, llm=run.llm, model=run.model, sensitivity="internal", max_tokens=300, temperature=0.2,
                                         purpose="research.reflect").text)
     if not isinstance(raw, dict):
         raise LLMError("reflection reply was not a JSON object")
@@ -310,7 +311,7 @@ def _write_report(run: _Run, scope_note: str) -> None:
               "Use '#' headings for structure, no tables, and no list of sources.")
     body, model_written = "", True
     try:
-        draft = run.llm.complete(prompt, model=run.model, max_tokens=1200, temperature=0.2,
+        draft = router.complete("worker", prompt, llm=run.llm, model=run.model, sensitivity="internal", max_tokens=1200, temperature=0.2,
                                  purpose="research.report").text
         evidence: Dict[int, str] = {}
         for x in res.learnings:      # what each source number actually supplied

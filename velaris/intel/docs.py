@@ -42,6 +42,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from defusedxml.ElementTree import fromstring as safe_xml
 
+from velaris.intel import router
 from velaris.core import fieldseal
 from velaris.core.sqlite_util import connect as connect_db
 from velaris.intel import guard, trace
@@ -567,7 +568,7 @@ class DocStore:
                   "not answer the question, say so in one sentence with no number. Add nothing of your own.")
         answer, unsupported, reason = "", [], ""
         try:
-            draft = self.llm.complete(prompt, model=model, max_tokens=700, temperature=0.0, purpose="docs.ask").text
+            draft = router.complete("worker", prompt, llm=self.llm, model=model, sensitivity="restricted", max_tokens=700, temperature=0.0, purpose="docs.ask").text
             # A sentence is kept only if it cites a passage and states no figure that passage lacks.
             answer, unsupported = verify_report(draft, set(shown), shown)
             reason = "" if answer else "the passages found do not support an answer"

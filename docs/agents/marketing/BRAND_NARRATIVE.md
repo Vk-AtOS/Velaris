@@ -37,4 +37,4 @@ The narrative is a draft for a person to approve; the agent stores nothing.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_dept_marketing_stubs.py`
+- **tests:** `velaris/tests/test_corrections.py`, `velaris/tests/test_dept_marketing_stubs.py`

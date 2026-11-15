@@ -5,8 +5,9 @@ import logging
 import os
 from typing import Any, Dict, Optional, Tuple
 
+from velaris.intel import router
 from velaris.agentkit.results import fail
-from velaris.intel import guard
+from velaris.intel import corrections, guard
 from velaris.intel.llm import LLM, LLMError, extract_json
 
 logger = logging.getLogger("velaris.agentkit.models")
@@ -49,7 +50,9 @@ def ask_json(llm: LLM, instruction: str, outside_text: str, *, purpose: str) -> 
     masked, _ = guard.redact(outside_text)
     preamble, fenced = guard.wrap(masked)
     try:
-        reply = llm.complete(f"{instruction}\n\n{preamble}\n{fenced}\n\nReply with JSON only.", purpose=purpose)
+        prompt = corrections.with_corrections(f"{instruction}\n\n{preamble}\n{fenced}\n\nReply with JSON only.",
+                                              corrections.for_purpose(purpose, instruction)["block"])      # what approvers changed before (KAN-24)
+        reply = router.complete("worker", prompt, llm=llm, sensitivity="restricted", purpose=purpose)
         return extract_json(reply.text), None
     except LLMError as e:
         logger.warning("%s: model call failed: %s", purpose, e)

@@ -34,6 +34,7 @@ import uuid
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
+from velaris.intel import router
 from velaris.core import fieldseal
 from velaris.core.sqlite_util import connect as connect_db
 from velaris.intel import guard, trace
@@ -154,7 +155,7 @@ class MemoryStore:
                   "the names). Skip greetings, opinions about the conversation and anything temporary. "
                   'Reply with JSON only: {"facts": ["...", "..."]}')
         try:
-            data = extract_json(self.llm.complete(prompt, max_tokens=700, temperature=0.0,
+            data = extract_json(router.complete("worker", prompt, llm=self.llm, sensitivity="restricted", max_tokens=700, temperature=0.0,
                                                   purpose="memory.extract").text)
             facts = [f.strip() for f in data.get("facts", []) if isinstance(f, str) and len(f.strip()) > 8]
             if facts:
@@ -172,7 +173,7 @@ class MemoryStore:
                   "(give its number). The new fact wins.\n- ADD: it is a separate fact.\n"
                   'Reply with JSON only: {"action": "ADD|UPDATE|NONE", "target": <number or null>}')
         try:
-            d = extract_json(self.llm.complete(prompt, max_tokens=60, temperature=0.0, purpose="memory.decide").text)
+            d = extract_json(router.complete("classifier", prompt, llm=self.llm, sensitivity="restricted", max_tokens=60, temperature=0.0, purpose="memory.decide").text)
             action = str(d.get("action", "")).upper()
             target = d.get("target")
             if action == "UPDATE" and isinstance(target, int) and 0 <= target < len(related):

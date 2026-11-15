@@ -9,6 +9,8 @@ policy or budget) is raised at once, because trying elsewhere would not change i
     whatever the chain says. If nothing in the chain may see it, PolicyRefused.
   * Breaker per provider: closed -> open after `failures` consecutive failures -> after `open_s`
     seconds half-open (one trial call) -> closed on success, open again on failure.
+  * No chain configured for a class: the call goes to the model the caller named, else the default model, as a chain of one
+    (so every caller can use complete() and gains the sensitivity gate, the breaker and the caps without a deployment setting).
   * Caps: at most `max_attempts` calls and `max_seconds` in total per request; reaching either is a
     clear LLMError listing what was tried.
 
@@ -104,9 +106,8 @@ def complete(task_class: str, prompt: str, *, llm: Optional["gateway.LLM"] = Non
              max_seconds: float = 60.0, clock: Callable[[], float] = time.monotonic, **kw) -> "gateway.Completion":
     """Run `prompt` on the first provider of the task class's chain that may see it and answers."""
     llm, breaker = llm or gateway.LLM(), breaker or DEFAULT_BREAKER
-    entries = models or chain(task_class)
-    if not entries:
-        raise LLMError(f"no model chain is configured for task class '{task_class}'")
+    pinned = kw.pop("model", None)                       # a caller that names its model keeps it when no chain is configured
+    entries = models or chain(task_class) or [pinned or gateway.default_model()]
     level = policy.effective(sensitivity)
     allowed = [m for m in entries if policy.permits(m.split(":")[0], level)]
     if not allowed:
