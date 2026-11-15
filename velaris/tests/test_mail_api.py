@@ -1,4 +1,5 @@
 """The /mail HTTP API through the real app: signed requests, identity from the assertion only, structured errors, the whole flow."""
+import base64
 import json
 import secrets
 
