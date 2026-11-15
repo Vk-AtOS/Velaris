@@ -61,7 +61,7 @@ def test_plaintext_database_from_an_older_release_is_sealed_on_next_commit(tmp_p
     assert vault.is_sealed(p.read_bytes()) and b"secret-value" not in p.read_bytes()
 
 
-def test_a_second_process_writing_in_between_is_a_conflict_not_a_lost_update(tmp_path):
+def test_a_second_writer_queues_behind_the_first_and_both_updates_survive(tmp_path):
     p = tmp_path / "hr.db"
     a = ss.connect_sealed(p, "hr:TEST")
     a.execute("CREATE TABLE t(a)")
@@ -69,10 +69,10 @@ def test_a_second_process_writing_in_between_is_a_conflict_not_a_lost_update(tmp
     b = ss.connect_sealed(p, "hr:TEST")
     b.execute("INSERT INTO t VALUES (1)")
     b.commit()
-    a.execute("INSERT INTO t VALUES (2)")
-    with pytest.raises(ss.SealedConflict):
-        a.commit()
-    assert ss.connect_sealed(p, "hr:TEST").execute("SELECT a FROM t").fetchall() == [(1,)]
+    a.execute("INSERT INTO t VALUES (2)")               # a re-reads b's commit first, so nothing is lost
+    a.commit()
+    assert sorted(ss.connect_sealed(p, "hr:TEST").execute("SELECT a FROM t").fetchall()) == [(1,), (2,)]
+    assert b.execute("SELECT count(*) FROM t").fetchone()[0] == 2     # and a plain read sees the newer file
 
 
 def test_newer_schema_is_refused(tmp_path):

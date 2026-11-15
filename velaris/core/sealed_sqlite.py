@@ -8,14 +8,19 @@ cannot be swapped between stores). Every commit (and close) seals the whole imag
 (temp, fsync, rename) under a cross-process lock. A plaintext database is refused (vault.PlaintextRefused) unless the
 one-time migration window of velaris.core.vault is open; then it is sealed as it is opened.
 
+Several processes may write one file (KAN-113, decision D4): the first write statement of a transaction takes the
+cross-process file lock and re-reads the file if another process replaced it since this one loaded it; the lock is held
+until commit/rollback/close, so writers QUEUE (bounded by VELARIS_LOCK_TIMEOUT, then TimeoutError) instead of failing.
+Reads outside a transaction also pick up a newer file first. SealedConflict stays as the safety net for a write the
+statement scan did not recognise: it refuses to overwrite rather than lose an update.
+
 Ceilings, on purpose: the whole image is rewritten per commit, so this is for the small personal-data stores of the HR
-agents (hundreds of KB to a few MB), not for mail or chat; and ONE process writes a file: if another process replaced
-the file since this one loaded it, the commit raises SealedConflict instead of overwriting (no silent lost update).
-Several API workers need the shared database of the Postgres decision (KAN-113 b).
+agents (hundreds of KB to a few MB), not for mail or chat; a long transaction blocks the other writers.
 """
 from __future__ import annotations
 
 import logging
+import re
 import sqlite3
 from pathlib import Path
 from typing import Callable, Dict, Optional, Tuple
@@ -26,6 +31,7 @@ from velaris.core.sqlite_util import SchemaTooNew, _upgrade, adopt_if_agent_file
 from velaris.intel.paths import read_private
 
 logger = logging.getLogger("velaris.sealed_sqlite")
+_WRITE = re.compile(r"\s*(?:INSERT|UPDATE|DELETE|REPLACE|CREATE|DROP|ALTER|VACUUM|BEGIN|WITH|PRAGMA\s+\w+\s*=)", re.I)
 
 
 class SealedConflict(RuntimeError):
@@ -37,6 +43,7 @@ class SealedConnection(sqlite3.Connection):
     _purpose: str
     _synced: object = None
     _stamp: Tuple[int, int] = (0, 0)
+    _holding: bool = False
 
     def _attach(self, path: Path, purpose: str) -> None:
         self._path, self._purpose = path, purpose
@@ -59,10 +66,61 @@ class SealedConnection(sqlite3.Connection):
 
     def _version(self) -> Tuple[int, int, int]:
         """Changes so far: row changes, schema changes (DDL does not count as a row change) and user_version."""
-        return (self.total_changes, self.execute("PRAGMA schema_version").fetchone()[0],
-                self.execute("PRAGMA user_version").fetchone()[0])
+        run = super().execute                          # not self.execute: no write scan, no refresh
+        return (self.total_changes, run("PRAGMA schema_version").fetchone()[0], run("PRAGMA user_version").fetchone()[0])
+
+    def _refresh(self) -> None:
+        """Load the file again if another process replaced it since we last did (only with no local changes pending)."""
+        if self._file_stamp() == self._stamp or (self.in_transaction and not self._holding):
+            return
+        with lock_for(str(self._path) + ".lock"):
+            self.deserialize(vault.open_bytes(read_private(self._path), self._purpose))
+            self._stamp, self._synced = self._file_stamp(), self._version()
+
+    def _before(self, sql: object) -> None:
+        if self._holding:
+            return
+        if isinstance(sql, str) and _WRITE.match(sql):
+            lock_for(str(self._path) + ".lock").acquire()          # queues behind other writers (TimeoutError after the bound)
+            self._holding = True
+        self._refresh()
+
+    def _release(self) -> None:
+        if self._holding:
+            self._holding = False
+            lock_for(str(self._path) + ".lock").release()
+
+    def execute(self, sql, *a):
+        self._before(sql)
+        try:
+            return super().execute(sql, *a)
+        except BaseException:
+            if not self.in_transaction:
+                self._release()
+            raise
+
+    def executemany(self, sql, *a):
+        self._before(sql)
+        try:
+            return super().executemany(sql, *a)
+        except BaseException:
+            if not self.in_transaction:
+                self._release()
+            raise
+
+    def rollback(self) -> None:
+        try:
+            super().rollback()
+        finally:
+            self._release()
 
     def _flush(self) -> None:
+        try:
+            self._flush_locked()
+        finally:
+            self._release()
+
+    def _flush_locked(self) -> None:
         if self._synced == self._version():
             return
         with lock_for(str(self._path) + ".lock"):
@@ -79,12 +137,20 @@ class SealedConnection(sqlite3.Connection):
         out = super().__exit__(exc_type, exc, tb)
         if exc_type is None:
             self._flush()
+        else:
+            self._release()
         return out
 
     def executescript(self, sql: str) -> sqlite3.Cursor:
-        cur = super().executescript(sql)               # DDL commits implicitly
-        self._flush()
-        return cur
+        lock_for(str(self._path) + ".lock").acquire()
+        self._holding = True
+        try:
+            self._refresh()
+            cur = super().executescript(sql)           # DDL commits implicitly
+            self._flush()
+            return cur
+        finally:
+            self._release()
 
     def close(self) -> None:
         try:
