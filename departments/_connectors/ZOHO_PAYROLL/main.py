@@ -1,11 +1,16 @@
 import logging
 import os
+import re
 from typing import Dict, Any, Optional
 
 from velaris.agents.ZOHO_CONNECTOR.main import ZohoConnector
 from velaris.core.access import Caller, authorize_read
 
 logger = logging.getLogger("ZOHO_PAYROLL")
+
+
+# Whole words only: "PT" must not match "OPTIONAL BONUS" or "PF" "SPF REFUND"; a deduction is statutory by its name.
+_STATUTORY = re.compile(r"(?<![A-Z])(EPF|PF|ESI|TDS|PT|PROFESSIONAL TAX)(?![A-Z])")
 
 
 class ZohoPayrollConnector:
@@ -30,7 +35,8 @@ class ZohoPayrollConnector:
         self.org = self.config.get("org")      # Velaris organisation this payroll belongs to; None = single org
 
     def health_check(self) -> Dict[str, Any]:
-        return {"agent": "ZOHO_PAYROLL", "status": "ok"}
+        configured = self.zoho.health_check()["configured"]
+        return {"agent": "ZOHO_PAYROLL", "status": "ok" if configured else "unconfigured", "configured": configured}
 
     def _allow(self, employee_id: str, caller: Optional[Caller]) -> None:
         authorize_read("pay", employee_id, agent="ZOHO_PAYROLL", caller=caller, org=self.org)
@@ -68,7 +74,7 @@ class ZohoPayrollConnector:
         statutory = {}
         for d in deductions:
             name = d.get("name", "").upper()
-            if any(k in name for k in ["EPF", "PF", "ESI", "TDS", "PROFESSIONAL TAX", "PT"]):
+            if _STATUTORY.search(name):
                 statutory[d["name"]] = d.get("amount", 0)
         return {"employee_id": employee_id, "year": year, "month": month, "statutory": statutory}
 
