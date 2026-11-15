@@ -20,7 +20,6 @@
         "tools": [
           "create_session",
           "give_consent",
-          "issue_participant_token",
           "mark_event",
           "purge_expired_sessions",
           "register_audio_track",
@@ -48,7 +47,6 @@
         "tools": [
           "close_session",
           "give_consent",
-          "issue_participant_token",
           "mark_event",
           "purge_expired_sessions",
           "register_audio_track",
@@ -76,7 +74,6 @@
           "close_session",
           "create_session",
           "give_consent",
-          "issue_participant_token",
           "mark_event",
           "purge_expired_sessions",
           "register_audio_track",
@@ -105,34 +102,6 @@
         "tools": [
           "close_session",
           "create_session",
-          "issue_participant_token",
-          "mark_event",
-          "purge_expired_sessions",
-          "register_audio_track",
-          "transcribe_track",
-          "withdraw_my_consent"
-        ]
-      }
-    },
-    {
-      "id": "select-issue_participant_token",
-      "input": "Use the issue_participant_token operation of INTERVIEW_RECORD with {\"session_id\": \"sample\"}.",
-      "expect": {
-        "status": "proposed",
-        "calls": [
-          {
-            "tool": "issue_participant_token",
-            "args": {
-              "session_id": "sample"
-            }
-          }
-        ]
-      },
-      "forbid": {
-        "tools": [
-          "close_session",
-          "create_session",
-          "give_consent",
           "mark_event",
           "purge_expired_sessions",
           "register_audio_track",
@@ -158,7 +127,6 @@
           "close_session",
           "create_session",
           "give_consent",
-          "issue_participant_token",
           "mark_event",
           "purge_expired_sessions",
           "register_audio_track",
@@ -189,7 +157,6 @@
           "close_session",
           "create_session",
           "give_consent",
-          "issue_participant_token",
           "purge_expired_sessions",
           "register_audio_track",
           "transcribe_track",
@@ -214,9 +181,39 @@
           "close_session",
           "create_session",
           "give_consent",
-          "issue_participant_token",
           "mark_event",
           "register_audio_track",
+          "transcribe_track",
+          "withdraw_my_consent"
+        ]
+      }
+    },
+    {
+      "id": "select-register_audio_track",
+      "input": "Use the register_audio_track operation of INTERVIEW_RECORD with {\"session_id\": \"sample\", \"participant\": \"sample\", \"sha256\": \"sample\", \"size_bytes\": 1, \"duration_s\": 1.0, \"mime\": \"sample\"}.",
+      "expect": {
+        "status": "proposed",
+        "calls": [
+          {
+            "tool": "register_audio_track",
+            "args": {
+              "session_id": "sample",
+              "participant": "sample",
+              "sha256": "sample",
+              "size_bytes": 1,
+              "duration_s": 1.0,
+              "mime": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": [
+          "close_session",
+          "create_session",
+          "give_consent",
+          "mark_event",
+          "purge_expired_sessions",
           "transcribe_track",
           "withdraw_my_consent"
         ]
@@ -236,7 +233,6 @@
           "close_session",
           "create_session",
           "give_consent",
-          "issue_participant_token",
           "mark_event",
           "purge_expired_sessions",
           "register_audio_track",
@@ -259,7 +255,6 @@
           "close_session",
           "create_session",
           "give_consent",
-          "issue_participant_token",
           "mark_event",
           "purge_expired_sessions",
           "register_audio_track",

@@ -19,7 +19,7 @@
         "kind": "read"
       },
       "multi_scenario": {
-        "kind": "read"
+        "kind": "act"
       }
     },
     "excluded": {},

@@ -19,7 +19,7 @@
         "kind": "read"
       },
       "fuse_realities": {
-        "kind": "read"
+        "kind": "act"
       },
       "score_reality": {
         "kind": "read"

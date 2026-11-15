@@ -20,7 +20,6 @@
         "tools": [
           "create_form",
           "discard_submission",
-          "issue_candidate_token",
           "process_withdrawal",
           "publish_form",
           "sweep_submissions",
@@ -47,7 +46,6 @@
         "tools": [
           "accept_submission",
           "discard_submission",
-          "issue_candidate_token",
           "process_withdrawal",
           "publish_form",
           "sweep_submissions",
@@ -73,7 +71,6 @@
         "tools": [
           "accept_submission",
           "create_form",
-          "issue_candidate_token",
           "process_withdrawal",
           "publish_form",
           "sweep_submissions",
@@ -100,7 +97,6 @@
           "accept_submission",
           "create_form",
           "discard_submission",
-          "issue_candidate_token",
           "process_withdrawal",
           "publish_form",
           "sweep_submissions",
@@ -118,33 +114,6 @@
             "tool": "get_submission",
             "args": {
               "submission_id": "sample"
-            }
-          }
-        ]
-      },
-      "forbid": {
-        "tools": [
-          "accept_submission",
-          "create_form",
-          "discard_submission",
-          "issue_candidate_token",
-          "process_withdrawal",
-          "publish_form",
-          "sweep_submissions",
-          "unpublish_form"
-        ]
-      }
-    },
-    {
-      "id": "select-issue_candidate_token",
-      "input": "Use the issue_candidate_token operation of SCREENING_FORMS with {\"application_id\": \"sample\"}.",
-      "expect": {
-        "status": "proposed",
-        "calls": [
-          {
-            "tool": "issue_candidate_token",
-            "args": {
-              "application_id": "sample"
             }
           }
         ]
@@ -178,7 +147,6 @@
           "accept_submission",
           "create_form",
           "discard_submission",
-          "issue_candidate_token",
           "process_withdrawal",
           "publish_form",
           "sweep_submissions",
@@ -203,8 +171,32 @@
           "accept_submission",
           "create_form",
           "discard_submission",
-          "issue_candidate_token",
           "process_withdrawal",
+          "publish_form",
+          "sweep_submissions",
+          "unpublish_form"
+        ]
+      }
+    },
+    {
+      "id": "select-process_withdrawal",
+      "input": "Use the process_withdrawal operation of SCREENING_FORMS with {\"application_id\": \"sample\"}.",
+      "expect": {
+        "status": "proposed",
+        "calls": [
+          {
+            "tool": "process_withdrawal",
+            "args": {
+              "application_id": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": [
+          "accept_submission",
+          "create_form",
+          "discard_submission",
           "publish_form",
           "sweep_submissions",
           "unpublish_form"
@@ -225,7 +217,6 @@
           "accept_submission",
           "create_form",
           "discard_submission",
-          "issue_candidate_token",
           "process_withdrawal",
           "publish_form",
           "sweep_submissions",
@@ -247,7 +238,6 @@
           "accept_submission",
           "create_form",
           "discard_submission",
-          "issue_candidate_token",
           "process_withdrawal",
           "publish_form",
           "sweep_submissions",

@@ -20,7 +20,8 @@ from typing import Any, Dict, List, Optional
 from velaris.api.allowlist import METHODS, http_params, rule_for, READ
 
 logger = logging.getLogger("velaris.harness")
-SECRET_PARAM = re.compile(r"(^|_)(secret|password|passcode|passphrase|pin|token|api_?key|private_?key|credential)s?$")
+SECRET_PARAM = re.compile(r"(^|_)((secret|password|passcode|passphrase|pin|api_?key|private_?key|credential|fingerprint|face|voice)s?|token)$")
+SECRET_RETURN = re.compile(r"^(issue|generate|get|reveal|export|mint|derive|create)_.*(secret|token|keypair|private|credential|password|recovery_code)")
 INJECTED = frozenset({"llm", "fetcher", "search_fn", "handler", "handlers", "func", "fn", "sender", "callback", "clock", "registry", "engine"})
 SKIP_METHODS = frozenset({"health_check", "health", "on_event"})
 JSON_TYPES = ("string", "integer", "number", "boolean", "object", "array", "any")
@@ -123,12 +124,16 @@ def build_object(cls: type, value: Any) -> Any:
 
 def exposable(fn: Any) -> Optional[str]:
     """None when a model can call this method; else why not (a required callable or object cannot be written as JSON)."""
+    if SECRET_RETURN.search(getattr(fn, "__name__", "")):
+        return "the method returns a secret, which would pass through the model"
     custom = object_param(fn)
     if custom:
         return f"required parameter '{custom}' is an object of the agent's own class, which JSON cannot carry"
     for p in http_params(fn):
         if p.default is p.empty and (p.name in INJECTED or "Callable" in str(p.annotation)):
             return f"required parameter '{p.name}' is a collaborator or callable, wired by code"
+        if p.annotation is bytes:
+            return f"parameter '{p.name}' is bytes, which JSON cannot carry"
         if SECRET_PARAM.search(p.name):
             return f"parameter '{p.name}' is a secret; it would pass through the model"
     return None

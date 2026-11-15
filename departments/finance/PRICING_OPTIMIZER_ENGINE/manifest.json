@@ -13,13 +13,13 @@
     "status": "deterministic_tool",
     "tools": {
       "optimize": {
-        "kind": "read"
+        "kind": "act"
       },
       "optimize_from_demand": {
         "kind": "read"
       },
       "validate": {
-        "kind": "read"
+        "kind": "act"
       }
     },
     "excluded": {},

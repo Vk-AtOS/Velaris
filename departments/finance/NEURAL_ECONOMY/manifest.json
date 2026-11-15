@@ -16,7 +16,7 @@
     "status": "deterministic_tool",
     "tools": {
       "run": {
-        "kind": "read"
+        "kind": "act"
       }
     },
     "excluded": {},

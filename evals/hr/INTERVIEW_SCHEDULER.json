@@ -22,7 +22,6 @@
           "cancel_interview",
           "complete_interview",
           "hand_off_to_mail",
-          "issue_schedule_token",
           "mark_no_show",
           "mark_reminder_sent",
           "reschedule_interview",
@@ -54,7 +53,6 @@
           "cancel_interview",
           "complete_interview",
           "hand_off_to_mail",
-          "issue_schedule_token",
           "mark_no_show",
           "mark_reminder_sent",
           "reschedule_interview",
@@ -82,7 +80,6 @@
           "book_interview",
           "complete_interview",
           "hand_off_to_mail",
-          "issue_schedule_token",
           "mark_no_show",
           "mark_reminder_sent",
           "reschedule_interview",
@@ -110,7 +107,6 @@
           "book_interview",
           "cancel_interview",
           "hand_off_to_mail",
-          "issue_schedule_token",
           "mark_no_show",
           "mark_reminder_sent",
           "reschedule_interview",
@@ -138,38 +134,6 @@
           "book_interview",
           "cancel_interview",
           "complete_interview",
-          "issue_schedule_token",
-          "mark_no_show",
-          "mark_reminder_sent",
-          "reschedule_interview",
-          "set_availability"
-        ]
-      }
-    },
-    {
-      "id": "select-issue_schedule_token",
-      "input": "Use the issue_schedule_token operation of INTERVIEW_SCHEDULER with {\"application_id\": \"sample\", \"interviewer_ids\": [], \"duration_min\": 1, \"title\": \"sample\"}.",
-      "expect": {
-        "status": "proposed",
-        "calls": [
-          {
-            "tool": "issue_schedule_token",
-            "args": {
-              "application_id": "sample",
-              "interviewer_ids": [],
-              "duration_min": 1,
-              "title": "sample"
-            }
-          }
-        ]
-      },
-      "forbid": {
-        "tools": [
-          "approve_draft",
-          "book_interview",
-          "cancel_interview",
-          "complete_interview",
-          "hand_off_to_mail",
           "mark_no_show",
           "mark_reminder_sent",
           "reschedule_interview",
@@ -196,7 +160,6 @@
           "cancel_interview",
           "complete_interview",
           "hand_off_to_mail",
-          "issue_schedule_token",
           "mark_no_show",
           "mark_reminder_sent",
           "reschedule_interview",
@@ -223,7 +186,32 @@
           "cancel_interview",
           "complete_interview",
           "hand_off_to_mail",
-          "issue_schedule_token",
+          "mark_no_show",
+          "mark_reminder_sent",
+          "reschedule_interview",
+          "set_availability"
+        ]
+      }
+    },
+    {
+      "id": "select-list_interviewers",
+      "input": "Use the list_interviewers operation of INTERVIEW_SCHEDULER with {}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "list_interviewers",
+            "args": {}
+          }
+        ]
+      },
+      "forbid": {
+        "tools": [
+          "approve_draft",
+          "book_interview",
+          "cancel_interview",
+          "complete_interview",
+          "hand_off_to_mail",
           "mark_no_show",
           "mark_reminder_sent",
           "reschedule_interview",
@@ -247,7 +235,6 @@
           "cancel_interview",
           "complete_interview",
           "hand_off_to_mail",
-          "issue_schedule_token",
           "mark_no_show",
           "mark_reminder_sent",
           "reschedule_interview",
@@ -271,7 +258,6 @@
           "cancel_interview",
           "complete_interview",
           "hand_off_to_mail",
-          "issue_schedule_token",
           "mark_no_show",
           "mark_reminder_sent",
           "reschedule_interview",

@@ -13,10 +13,10 @@
     "status": "deterministic_tool",
     "tools": {
       "compute_premium": {
-        "kind": "read"
+        "kind": "act"
       },
       "validate": {
-        "kind": "read"
+        "kind": "act"
       }
     },
     "excluded": {},

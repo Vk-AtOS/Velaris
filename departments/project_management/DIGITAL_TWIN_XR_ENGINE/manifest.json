@@ -16,7 +16,7 @@
         "kind": "act"
       },
       "diff": {
-        "kind": "read"
+        "kind": "act"
       },
       "get_twin": {
         "kind": "read"

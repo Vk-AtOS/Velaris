@@ -13,7 +13,7 @@
     "status": "deterministic_tool",
     "tools": {
       "assess": {
-        "kind": "read"
+        "kind": "act"
       }
     },
     "excluded": {},

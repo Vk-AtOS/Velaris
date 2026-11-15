@@ -24,7 +24,7 @@
         "kind": "act"
       },
       "price_outward_supply": {
-        "kind": "read"
+        "kind": "act"
       },
       "rcm_check": {
         "kind": "read"
@@ -33,7 +33,7 @@
         "kind": "read"
       },
       "validate_invoice": {
-        "kind": "read"
+        "kind": "act"
       }
     },
     "excluded": {},

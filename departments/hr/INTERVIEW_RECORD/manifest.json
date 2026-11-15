@@ -33,9 +33,6 @@
       "give_consent": {
         "kind": "act"
       },
-      "issue_participant_token": {
-        "kind": "act"
-      },
       "list_sessions": {
         "kind": "read"
       },
@@ -58,7 +55,9 @@
         "kind": "act"
       }
     },
-    "excluded": {},
+    "excluded": {
+      "issue_participant_token": "the method returns a secret, which would pass through the model"
+    },
     "reviewed": true
   }
 }

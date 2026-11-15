@@ -19,7 +19,7 @@
         "kind": "read"
       },
       "simple_forecast": {
-        "kind": "read"
+        "kind": "act"
       },
       "trend_projection": {
         "kind": "read"

@@ -33,13 +33,26 @@ READ_PREFIXES = ("get", "list", "find", "search", "read", "load", "lookup", "cou
                  "is_", "has_", "random", "uniform", "choice", "gauss", "sample", "compute", "calc", "score", "estimate",
                  "forecast", "evaluate", "validate", "format", "render", "describe", "summar", "to_", "as_", "copy", "keys",
                  "values", "items", "lower", "upper", "strip", "split", "join", "replace", "startswith", "endswith")
-CONTAINER_CALLS = frozenset({"list", "dict", "set", "sorted", "defaultdict", "Counter", "deque", "str", "int", "float", "tuple",
-                             "OrderedDict", "frozenset", "bytearray"})
 DANGEROUS_CALLS = frozenset({"open", "exec", "eval", "__import__", "setattr", "delattr", "compile", "input", "makedirs"})
 OUTSIDE_PREFIXES = ("velaris.agentkit.state", "velaris.agentkit.infra_store", "velaris.intel.trace", "velaris.mail",
                     "velaris.chat", "velaris.memory", "velaris.control", "velaris.core.vault", "velaris.core.sealed_sqlite",
                     "velaris.core.prime", "velaris.core.filelock", "velaris.core.atlassian_oauth")
-PURE_HELPERS = frozenset({"biz_common", "checks", "results", "conditions", "biz_language"})      # velaris.agentkit modules of plain functions
+# Helpers KNOWN (read in velaris/agentkit/*.py) to return a NEW object, so a local bound to their result may be mutated freely:
+#   imm    the result is immutable (number, string, bool, Decimal, date), whatever the arguments
+#   new    a new container that holds nothing from its arguments
+#   embed  a new dict that holds its arguments (**fields, the error list): fresh only when every argument is fresh too
+# Nothing else in velaris.agentkit is assumed fresh.
+HELPERS = {
+    "velaris.agentkit.results": {"ok": "embed", "fail": "embed", "invalid": "embed", "health": "embed"},
+    "velaris.agentkit.biz_common": {"failed": "embed", "needs_data": "embed", "not_configured": "embed", "money": "imm", "paise": "imm",
+                                    "inr": "imm", "as_date": "imm", "has_term": "imm", "dataclass_errors": "new"},
+    "velaris.agentkit.checks": {"number": "imm", "ident": "imm", "text": "imm", "is_name": "imm", "is_number": "imm", "is_json": "imm",
+                                "new_id": "imm"},
+}
+IMMUTABLE_BUILTINS = frozenset({"len", "int", "float", "str", "bool", "round", "abs", "sum", "isinstance", "repr", "hash", "range"})
+NEW_CONTAINERS = frozenset({"list", "dict", "set", "tuple", "frozenset", "sorted"})     # shallow: fresh only if the arguments are
+STR_METHODS = frozenset({"strip", "lower", "upper", "title", "join", "format", "replace", "split", "isoformat", "startswith", "endswith"})
+FRESH_RECEIVER_METHODS = frozenset({"get", "copy", "items", "keys", "values"})
 OUTSIDE_MODULES = EXTERNAL_MODULES | {"os", "sys", "pathlib", "smtplib", "http", "ftplib", "asyncio", "threading", "multiprocessing"}
 
 
@@ -65,58 +78,166 @@ class Module:
                     f"{n.module}.{a.name}".startswith(OUTSIDE_PREFIXES) for a in n.names)
                 if bad:
                     self.outside.update(a.asname or a.name for a in n.names)
-        self.pure: Set[str] = set()              # local names of agentkit helper modules (or functions from them): their results are fresh values
+        self.helper_modules: Dict[str, str] = {}          # local name -> velaris.agentkit module it names
+        self.helper_funcs: Dict[str, str] = {}            # local name -> "imm" | "new" | "embed"
         for n in ast.walk(self.tree):
             if isinstance(n, ast.ImportFrom) and not n.level and n.module == "velaris.agentkit":
-                self.pure.update(a.asname or a.name for a in n.names if a.name in PURE_HELPERS)
-            elif isinstance(n, ast.ImportFrom) and not n.level and (n.module or "").startswith("velaris.agentkit.") \
-                    and n.module.split(".")[-1] in PURE_HELPERS:
-                self.pure.update(a.asname or a.name for a in n.names)
+                self.helper_modules.update({a.asname or a.name: f"velaris.agentkit.{a.name}" for a in n.names})
+            elif isinstance(n, ast.ImportFrom) and not n.level and n.module in HELPERS:
+                self.helper_funcs.update({a.asname or a.name: HELPERS[n.module][a.name] for a in n.names if a.name in HELPERS[n.module]})
         self.imported = {(a.asname or a.name.split(".")[0]) for n in ast.walk(self.tree)
                          if isinstance(n, (ast.Import, ast.ImportFrom)) for a in n.names}
 
 
-def _returns_fresh(fn: ast.FunctionDef, mod: Module) -> bool:
-    """True when nothing a function returns can be (part of) self or a module-level object: its result is its own."""
-    shared = {t.id for n in mod.tree.body if isinstance(n, ast.Assign) for t in n.targets if isinstance(t, ast.Name)} | {"self"}
-    return not any(isinstance(sub, ast.Name) and sub.id in shared for n in ast.walk(fn) if isinstance(n, ast.Return) and n.value
-                   for sub in ast.walk(n.value))
+class Fresh:
+    """Which names of one function hold values nothing outside the call can see (so mutating them touches nothing shared).
 
+    A name is fresh only if EVERY binding of it is a fresh expression: a literal or comprehension whose parts are fresh, a call of an
+    explicit container/helper list with fresh arguments, or a call of a function of this module whose every return is fresh.
+    Parameters, loop and with-targets, aliases of self.* or of a parameter, and anything bound from a call that is not on the
+    lists are NOT fresh. Doubt means not fresh. `seen` stops recursion (a cycle is not fresh)."""
 
-def _safe_locals(fn: ast.FunctionDef, mod: Module, cls: Optional[ast.ClassDef]) -> Set[str]:
-    """Parameters and locals bound to a fresh builtin container (or to the fresh result of a helper of this module):
-    mutating them touches nothing outside the call."""
-    methods = {n.name: n for n in (cls.body if cls else []) if isinstance(n, ast.FunctionDef)}
-    safe = {a.arg for a in fn.args.args + fn.args.kwonlyargs if a.arg != "self"}
+    def __init__(self, fn: ast.FunctionDef, mod: "Module", cls: Optional[ast.ClassDef], seen: frozenset = frozenset()) -> None:
+        self.mod, self.cls, self.seen = mod, cls, seen | {fn.name}
+        self.methods = {n.name: n for n in (cls.body if cls else []) if isinstance(n, ast.FunctionDef)}
+        self.params = {a.arg for a in fn.args.args + fn.args.kwonlyargs + fn.args.posonlyargs if a.arg != "self"}
+        self.fn = fn
+        binds: Dict[str, list] = {}
 
-    def fresh(v: ast.AST) -> bool:
-        if isinstance(v, (ast.List, ast.Dict, ast.Set, ast.ListComp, ast.DictComp, ast.SetComp, ast.Tuple, ast.Constant,
-                          ast.JoinedStr, ast.GeneratorExp)):
+        def taint(target: ast.AST) -> None:
+            for sub in ast.walk(target):
+                if isinstance(sub, ast.Name):
+                    binds.setdefault(sub.id, []).append(None)
+
+        for n in ast.walk(fn):
+            if isinstance(n, ast.Assign):
+                for t in n.targets:
+                    if isinstance(t, ast.Name):
+                        binds.setdefault(t.id, []).append(n.value)
+                    elif isinstance(t, (ast.Tuple, ast.List)) and isinstance(n.value, (ast.Tuple, ast.List)) and len(t.elts) == len(n.value.elts) \
+                            and all(isinstance(e, ast.Name) for e in t.elts):
+                        for e, v in zip(t.elts, n.value.elts):
+                            binds.setdefault(e.id, []).append(v)
+                    else:
+                        taint(t)
+            elif isinstance(n, ast.AnnAssign) and n.value is not None and isinstance(n.target, ast.Name):
+                binds.setdefault(n.target.id, []).append(n.value)
+            elif isinstance(n, ast.AugAssign) and isinstance(n.target, ast.Name):
+                binds.setdefault(n.target.id, []).append(ast.BinOp(left=ast.Name(id=n.target.id, ctx=ast.Load()), op=n.op, right=n.value))
+            elif isinstance(n, (ast.For, ast.AsyncFor)):
+                taint(n.target)
+            elif isinstance(n, (ast.With, ast.AsyncWith)):
+                for item in n.items:
+                    if item.optional_vars is not None:
+                        taint(item.optional_vars)
+            elif isinstance(n, ast.ExceptHandler) and n.name:
+                binds.setdefault(n.name, []).append(None)
+            elif isinstance(n, ast.NamedExpr):
+                taint(n.target)
+            elif isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and n is not fn:
+                binds.setdefault(n.name, []).append(None)
+            elif isinstance(n, (ast.Import, ast.ImportFrom)):
+                for a in n.names:
+                    binds.setdefault((a.asname or a.name).split(".")[0], []).append(None)
+        for p in self.params:
+            binds.setdefault(p, []).append(None)
+        self.names: Set[str] = set()
+        while True:
+            more = {k for k, v in binds.items() if k not in self.names and all(e is not None and self.expr(e, self.names) for e in v)}
+            if not more:
+                break
+            self.names |= more
+
+    # ── expressions ──
+    def expr(self, e: ast.AST, names: Set[str]) -> bool:
+        if isinstance(e, (ast.Constant, ast.JoinedStr, ast.Compare)):
             return True
-        if not isinstance(v, ast.Call):
-            return False
-        f = v.func
-        return (isinstance(f, ast.Name) and (f.id in CONTAINER_CALLS or (f.id in mod.functions and _returns_fresh(mod.functions[f.id], mod)))
-                ) or (isinstance(f, ast.Attribute) and isinstance(f.value, ast.Name) and f.value.id == "self" and f.attr in methods
-                      and _returns_fresh(methods[f.attr], mod)) or _root(f) in mod.pure
+        if isinstance(e, ast.Name):
+            return e.id in names
+        if isinstance(e, (ast.List, ast.Tuple, ast.Set)):
+            return all(self.expr(x.value if isinstance(x, ast.Starred) else x, names) for x in e.elts)
+        if isinstance(e, ast.Dict):
+            return all(k is not None and self.expr(k, names) and self.expr(v, names) for k, v in zip(e.keys, e.values))
+        if isinstance(e, (ast.ListComp, ast.SetComp, ast.GeneratorExp, ast.DictComp)):
+            inner = set(names)
+            for g in e.generators:
+                if isinstance(g.target, ast.Name) and self.expr(g.iter, inner):
+                    inner.add(g.target.id)
+                elif isinstance(g.target, ast.Name):
+                    inner.discard(g.target.id)
+            parts = [e.key, e.value] if isinstance(e, ast.DictComp) else [e.elt]
+            return all(self.expr(x, inner) for x in parts)
+        if isinstance(e, ast.UnaryOp):
+            return isinstance(e.op, ast.Not) or self.expr(e.operand, names)
+        if isinstance(e, ast.BinOp):
+            return self.expr(e.left, names) and self.expr(e.right, names)
+        if isinstance(e, ast.BoolOp):
+            return all(self.expr(v, names) for v in e.values)
+        if isinstance(e, ast.IfExp):
+            return self.expr(e.body, names) and self.expr(e.orelse, names)
+        if isinstance(e, (ast.Attribute, ast.Subscript)):
+            return self.expr(e.value, names)
+        if isinstance(e, ast.Call):
+            return self.call(e, names)
+        return False
 
-    for n in ast.walk(fn):
-        if isinstance(n, ast.Assign):
-            for t in n.targets:
-                if isinstance(t, ast.Name) and fresh(n.value):
-                    safe.add(t.id)
-                elif isinstance(t, (ast.Tuple, ast.List)) and isinstance(n.value, (ast.Tuple, ast.List)) and len(t.elts) == len(n.value.elts):
-                    safe.update(e.id for e, v in zip(t.elts, n.value.elts) if isinstance(e, ast.Name) and fresh(v))
-        elif isinstance(n, ast.AnnAssign) and n.value is not None and isinstance(n.target, ast.Name) and fresh(n.value):
-            safe.add(n.target.id)
-    return safe
+    def args_fresh(self, c: ast.Call, names: Set[str]) -> bool:
+        return all(self.expr(a.value if isinstance(a, ast.Starred) else a, names) for a in c.args) and all(
+            k.value is not None and self.expr(k.value, names) for k in c.keywords)
+
+    def call(self, c: ast.Call, names: Set[str]) -> bool:
+        f = c.func
+        if isinstance(f, ast.Name):
+            if f.id in IMMUTABLE_BUILTINS:
+                return True
+            if f.id in NEW_CONTAINERS:
+                return self.args_fresh(c, names)
+            if f.id == "deepcopy":
+                return True
+            if f.id in self.mod.helper_funcs:
+                return self.helper(self.mod.helper_funcs[f.id], c, names)
+            return f.id in self.mod.functions and self.returns_fresh(self.mod.functions[f.id], None)
+        if not isinstance(f, ast.Attribute):
+            return False
+        if isinstance(f.value, ast.Name):
+            if f.value.id == "self":
+                return f.attr in self.methods and self.returns_fresh(self.methods[f.attr], self.cls)
+            if f.value.id == "copy" and f.attr == "deepcopy":
+                return True
+            if f.value.id in self.mod.helper_modules:
+                kind = HELPERS.get(self.mod.helper_modules[f.value.id], {}).get(f.attr)
+                return kind is not None and self.helper(kind, c, names)
+        if f.attr in STR_METHODS:
+            return True
+        return f.attr in FRESH_RECEIVER_METHODS and self.expr(f.value, names) and self.args_fresh(c, names)
+
+    def helper(self, kind: str, c: ast.Call, names: Set[str]) -> bool:
+        return kind in ("imm", "new") or self.args_fresh(c, names)
+
+    def returns_fresh(self, fn: ast.FunctionDef, cls: Optional[ast.ClassDef]) -> bool:
+        """Every `return` of fn gives a fresh value (no return at all, or a bare one, is fine). A cycle is not fresh."""
+        if fn.name in self.seen:
+            return False
+        sub = Fresh(fn, self.mod, cls, self.seen)
+        stack, rets = list(fn.body), []
+        while stack:
+            n = stack.pop()
+            if isinstance(n, ast.Return):
+                rets.append(n.value)
+            if not isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)):
+                stack.extend(ast.iter_child_nodes(n))
+        return all(v is None or sub.expr(v, sub.names) for v in rets)
+
+    def mutable_locals(self) -> Set[str]:
+        """Names that may be mutated without touching anything shared: fresh locals and the caller's own parameters."""
+        return self.names | self.params
 
 
 def _acts(fn: ast.FunctionDef, mod: Module, cls: Optional[ast.ClassDef], seen: Set[str]) -> bool:
     if fn.name in seen:
         return True                              # recursion: cannot show it reads
     seen = seen | {fn.name}
-    safe = _safe_locals(fn, mod, cls)
+    safe = Fresh(fn, mod, cls, frozenset(seen)).mutable_locals()
     methods = {n.name: n for n in (cls.body if cls else []) if isinstance(n, ast.FunctionDef)}
     for n in ast.walk(fn):
         targets = n.targets if isinstance(n, (ast.Assign, ast.Delete)) else [n.target] if isinstance(n, (ast.AugAssign, ast.AnnAssign)) else []

@@ -15,7 +15,7 @@
     "status": "deterministic_tool",
     "tools": {
       "check_today": {
-        "kind": "read"
+        "kind": "act"
       },
       "flag_absence_streaks": {
         "kind": "read"

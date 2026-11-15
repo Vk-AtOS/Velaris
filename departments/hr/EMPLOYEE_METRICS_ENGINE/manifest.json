@@ -15,13 +15,13 @@
     "status": "deterministic_tool",
     "tools": {
       "get_employee_profile": {
-        "kind": "read"
+        "kind": "act"
       },
       "get_org_heatmap": {
-        "kind": "read"
+        "kind": "act"
       },
       "get_team_scorecard": {
-        "kind": "read"
+        "kind": "act"
       }
     },
     "excluded": {},

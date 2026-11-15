@@ -36,9 +36,6 @@
       "get_submission": {
         "kind": "read"
       },
-      "issue_candidate_token": {
-        "kind": "act"
-      },
       "list_forms": {
         "kind": "read"
       },
@@ -64,7 +61,9 @@
         "kind": "read"
       }
     },
-    "excluded": {},
+    "excluded": {
+      "issue_candidate_token": "the method returns a secret, which would pass through the model"
+    },
     "reviewed": true
   }
 }

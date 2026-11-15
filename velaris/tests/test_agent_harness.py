@@ -240,6 +240,13 @@ def test_collaborators_and_secrets_never_reach_the_model():
         def login(self, user: str, password: str): ...
         def go(self, llm): ...
         def ok(self, x: int): ...
+    class V:
+        def get_secret(self, name: str): ...
+        def issue_token(self, subject: str): ...
+        def sign(self, message: bytes): ...
+        def acquire(self, tokens: int): ...
+    assert all("secret" in exposable(getattr(V, m)) or "bytes" in exposable(getattr(V, m)) for m in ("get_secret", "issue_token", "sign"))
+    assert exposable(V.acquire) is None                     # a count of rate-limit tokens is not a credential
     assert "secret" in exposable(A.login) and "collaborator" in exposable(A.go) and exposable(A.ok) is None
 
 
@@ -285,3 +292,105 @@ def test_an_object_parameter_is_written_as_json_and_built_by_the_harness():
     assert out.status == "answered" and "328.77" in out.calls[0]["output"]
     bad = Harness.for_agent("BANKING_LOGIC_ENGINE", llm=FakeLLM(lambda p, m: json.dumps({"tool": "apply_interest", "args": {"a": {"balance": 1}}})), models=["fake:m"])
     assert bad.run("x", Caller("u", "o")).status == "invalid"
+
+
+FRESH_SRC = '''
+import copy
+from velaris.agentkit import biz_common as kit
+from velaris.agentkit.results import ok
+SHARED = []
+def identity(x):
+    return x
+def new_list(x):
+    return [1, 2]
+def wrap(x):
+    return [x]
+class A:
+    def __init__(self):
+        self.items = []
+        self.x = []
+    def _state(self):
+        return self._items
+    def _param(self, p):
+        return p
+    def _fresh(self):
+        return [1, 2]
+    def returns_state_then_append(self):
+        s = self._state()
+        s.append(1)
+    def alias_then_append(self):
+        alias = self.x
+        alias.append(1)
+    def param_returned_then_append(self, p):
+        r = self._param(p)
+        r.append(1)
+    def helper_returns_its_argument(self):
+        r = identity(self.items)
+        r.append(1)
+    def module_global_then_append(self):
+        r = SHARED
+        r.append(1)
+    def loop_alias_then_append(self):
+        for r in self.items:
+            r.append(1)
+    def shallow_copy_of_state_then_nested_mutation(self):
+        r = list(self.items)
+        r.append(1)
+    def mutates_then_returns_a_copy(self):
+        self.items.append(1)
+        return list(self.items)
+    def deepcopy_then_append(self):
+        r = copy.deepcopy(self.items)
+        r.append(1)
+        return r
+    def fresh_helper_then_append(self, n):
+        r = self._fresh()
+        r.append(n)
+        return r
+    def module_helper_then_append(self, n):
+        r = new_list(n)
+        r.append(n)
+        return r
+    def module_embeds_param_then_append(self, n):
+        r = wrap(n)
+        r.append(n)
+    def pure_reader(self, values):
+        out = []
+        for v in values:
+            if v > 0:
+                out.append(v * 2)
+        return ok(values=out, total=sum(out))
+    def failed_result(self, values):
+        errors = kit.dataclass_errors(values, ["a"])
+        if not values:
+            errors.append("empty")
+        return kit.failed(errors)
+    def helper_with_live_arg(self):
+        r = kit.failed(self.items)
+        r["errors"].append(1)
+    def unknown_call_then_append(self):
+        r = something_unknown()
+        r.append(1)
+'''
+
+
+@pytest.mark.parametrize("method,kind", [
+    ("returns_state_then_append", "act"),                      # return self._state; the caller mutates live internal state
+    ("alias_then_append", "act"),                              # alias = self.x; alias.append
+    ("param_returned_then_append", "act"),                     # return param
+    ("helper_returns_its_argument", "act"),                    # helper(...) returning its argument
+    ("module_global_then_append", "act"),
+    ("loop_alias_then_append", "act"),
+    ("shallow_copy_of_state_then_nested_mutation", "act"),     # list(self.items) shares the elements
+    ("mutates_then_returns_a_copy", "act"),                    # mutates first: stays act whatever it returns
+    ("unknown_call_then_append", "act"),
+    ("module_embeds_param_then_append", "act"),                # [x] holds the caller's object: not proven fresh
+    ("helper_with_live_arg", "act"),                           # a helper that embeds its (live) argument
+    ("deepcopy_then_append", "read"),
+    ("fresh_helper_then_append", "read"),
+    ("module_helper_then_append", "read"),
+    ("pure_reader", "read"),
+    ("failed_result", "read"),
+])
+def test_freshness_is_proven_never_assumed(method, kind):
+    assert D.read_or_act(FRESH_SRC, "A", method) == kind

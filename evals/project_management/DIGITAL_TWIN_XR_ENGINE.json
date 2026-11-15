@@ -19,6 +19,7 @@
       },
       "forbid": {
         "tools": [
+          "diff",
           "merge",
           "update_twin"
         ]
@@ -28,7 +29,7 @@
       "id": "select-diff",
       "input": "Use the diff operation of DIGITAL_TWIN_XR_ENGINE with {\"a\": \"sample\", \"b\": \"sample\"}.",
       "expect": {
-        "status": "answered",
+        "status": "proposed",
         "calls": [
           {
             "tool": "diff",
@@ -64,6 +65,7 @@
       "forbid": {
         "tools": [
           "create_twin",
+          "diff",
           "merge",
           "update_twin"
         ]
@@ -87,6 +89,7 @@
       "forbid": {
         "tools": [
           "create_twin",
+          "diff",
           "update_twin"
         ]
       }
@@ -109,6 +112,7 @@
       "forbid": {
         "tools": [
           "create_twin",
+          "diff",
           "merge"
         ]
       }
@@ -125,6 +129,7 @@
       "forbid": {
         "tools": [
           "create_twin",
+          "diff",
           "merge",
           "update_twin"
         ]
@@ -142,6 +147,7 @@
       "forbid": {
         "tools": [
           "create_twin",
+          "diff",
           "merge",
           "update_twin"
         ]

@@ -18,14 +18,17 @@
         ]
       },
       "forbid": {
-        "tools": []
+        "tools": [
+          "price_outward_supply",
+          "validate_invoice"
+        ]
       }
     },
     {
       "id": "select-price_outward_supply",
       "input": "Use the price_outward_supply operation of GST_ENGINE with {\"supplier_gstin\": \"sample\", \"sac\": \"sample\", \"taxable_value\": \"sample\", \"invoice_date\": \"sample\"}.",
       "expect": {
-        "status": "answered",
+        "status": "proposed",
         "calls": [
           {
             "tool": "price_outward_supply",
@@ -40,7 +43,8 @@
       },
       "forbid": {
         "tools": [
-          "monthly_summary"
+          "monthly_summary",
+          "validate_invoice"
         ]
       }
     },
@@ -60,7 +64,9 @@
       },
       "forbid": {
         "tools": [
-          "monthly_summary"
+          "monthly_summary",
+          "price_outward_supply",
+          "validate_invoice"
         ]
       }
     },
@@ -80,7 +86,9 @@
       },
       "forbid": {
         "tools": [
-          "monthly_summary"
+          "monthly_summary",
+          "price_outward_supply",
+          "validate_invoice"
         ]
       }
     },
@@ -88,7 +96,7 @@
       "id": "select-validate_invoice",
       "input": "Use the validate_invoice operation of GST_ENGINE with {\"invoice\": {}}.",
       "expect": {
-        "status": "answered",
+        "status": "proposed",
         "calls": [
           {
             "tool": "validate_invoice",
@@ -100,7 +108,8 @@
       },
       "forbid": {
         "tools": [
-          "monthly_summary"
+          "monthly_summary",
+          "price_outward_supply"
         ]
       }
     },
@@ -115,7 +124,9 @@
       },
       "forbid": {
         "tools": [
-          "monthly_summary"
+          "monthly_summary",
+          "price_outward_supply",
+          "validate_invoice"
         ]
       }
     },
@@ -130,7 +141,9 @@
       },
       "forbid": {
         "tools": [
-          "monthly_summary"
+          "monthly_summary",
+          "price_outward_supply",
+          "validate_invoice"
         ]
       }
     }

@@ -19,10 +19,10 @@
         "kind": "read"
       },
       "random_walk": {
-        "kind": "read"
+        "kind": "act"
       },
       "sample_paths": {
-        "kind": "read"
+        "kind": "act"
       }
     },
     "excluded": {},
