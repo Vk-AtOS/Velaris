@@ -26,7 +26,7 @@ class EconovaAgent:
         """
         demand = base_demand * (1 - elasticity * price_change)
         """
-        demand = base_demand * (1 - self.elasticity * price_change)
+        demand = max(0.0, base_demand * (1 - self.elasticity * price_change))      # demand cannot be negative
         logger.debug("Demand projection=%s", demand)
         return demand
 

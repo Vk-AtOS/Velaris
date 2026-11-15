@@ -21,17 +21,19 @@ class EconomicIntelligenceMesh:
     def trend_score(self) -> float:
         if len(self.records) < 2:
             return 0.0
-        vals = [r["value"] for r in self.records]
-        diffs = [vals[i] - vals[i-1] for i in range(1, len(vals))]
-        avg = sum(diffs) / len(diffs)
-        return avg
+        # Differences are taken within ONE indicator; averaging a CPI change with a GDP change means nothing.
+        diffs = []
+        for name in dict.fromkeys(r["name"] for r in self.records):
+            vals = [r["value"] for r in self.records if r["name"] == name]
+            diffs += [vals[i] - vals[i - 1] for i in range(1, len(vals))]
+        return sum(diffs) / len(diffs) if diffs else 0.0
 
     def classify_risk(self) -> str:
         ts = self.trend_score()
         if ts > 5:
             return "OPPORTUNITY"
-        elif ts > 0:
-            return "STABLE"
+        elif ts >= 0:
+            return "STABLE"          # flat (0) is stable, not a risk
         else:
             return "RISK"
 
