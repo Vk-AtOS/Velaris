@@ -7,9 +7,10 @@ from velaris.agentkit.harness_spec import load_json, manifest_path
 from velaris.api import allowlist
 from velaris.api.app import Settings, create_app
 from velaris.backend.engine import backend
+from velaris.core.access import Caller
 from velaris.intel import approvals, tools
 from velaris.intel.llm import FakeLLM
-from velaris.orchestration import autonomy
+from velaris.orchestration import autonomy, identity
 from velaris.tests.test_api_service import KEY, SECRET, send
 
 BODY = {"client": "Acme", "description": "ship the report", "deadline_hours": 24}
@@ -20,7 +21,13 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setenv("VELARIS_DATA", str(tmp_path))
     settings = Settings(secret=SECRET, identity_key=KEY.public_key(), flow_db=str(tmp_path / "flow.db"), org="acme",
                         llm=FakeLLM(lambda p, m: pytest.fail("no model expected")))
-    return TestClient(create_app(settings))
+    # An approver deciding another person's run needs the deployment's directory (SV2-01): the owner's CURRENT roles.
+    roles = {"u1": {"ops_admin", "project_admin"}, "u2": {"flow_approver"}}
+    identity.set_resolver(lambda org, uid: Caller(uid, org, frozenset(roles.get(uid, ()))))
+    try:
+        yield TestClient(create_app(settings))
+    finally:
+        identity.set_resolver(None)
 
 
 def commitments():
