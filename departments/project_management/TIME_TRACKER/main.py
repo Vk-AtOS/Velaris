@@ -6,7 +6,7 @@ billable) adds a manual entry. weekly_utilization(employee_id, week_start) retur
 and per-project hours and utilization against a billable target (config billable_target_weekly,
 default 40). team_utilization(employee_ids, week_start) maps that over employees.
 project_hours_summary(project_id, from_date, to_date) returns hours per contributor.
-State: sqlite database <VELARIS_DATA>/agents/TIME_TRACKER/timelog.db (tables timelogs and
+State: sqlite, encrypted at rest (velaris.core.sealed_sqlite), database <VELARIS_DATA>/agents/TIME_TRACKER/timelog.db (tables timelogs and
 active_timers). Failure: stop_timer with no timer returns {"error": "no_active_timer"}; log rejects
 non-numeric, non-finite, zero, negative or over-24 hours with an error dict; other input is not
 validated, and there is no caller check. The Zoho integration is not implemented here.
@@ -18,7 +18,7 @@ import logging
 import math
 import sqlite3
 
-from velaris.core.sqlite_util import connect as connect_db
+from velaris.core.sealed_sqlite import connect_sealed
 from datetime import datetime, date
 from typing import Dict, Any, List
 from velaris.intel.paths import agent_file
@@ -32,7 +32,7 @@ _MAX_DAY_HOURS = 24.0
 
 
 def _db() -> sqlite3.Connection:
-    conn = connect_db(agent_file("TIME_TRACKER", "timelog.db"))
+    conn = connect_sealed(agent_file("TIME_TRACKER", "timelog.db"), "agent:TIME_TRACKER")
     conn.row_factory = sqlite3.Row
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS timelogs (

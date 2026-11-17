@@ -8,7 +8,7 @@ sensitivity "restricted" (a meeting is personal data: never a free/community pro
 "extractive_summary" and a failed model call keeps it as the summary ("llm_status" says what happened). summarize_from_file(path, meta) loads
 a transcript JSON file first; a missing or invalid file raises OSError or ValueError. get_recent_meetings(limit) and
 get_meeting(id) read back rows; an unknown id returns {"error": "not_found"}.
-State: sqlite at <VELARIS_DATA>/agents/MEETING_SUMMARIZER/meetings.db, one row per summarize() call.
+State: sqlite, encrypted at rest (velaris.core.sealed_sqlite), at <VELARIS_DATA>/agents/MEETING_SUMMARIZER/meetings.db, one row per summarize() call.
 """
 import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
@@ -18,7 +18,7 @@ import json
 import re
 import sqlite3
 
-from velaris.core.sqlite_util import connect as connect_db
+from velaris.core.sealed_sqlite import connect_sealed
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 from velaris.agentkit import biz_language
@@ -50,7 +50,7 @@ _ACTION_SIGNALS = [
 
 
 def _db() -> sqlite3.Connection:
-    conn = connect_db(agent_file("MEETING_SUMMARIZER", "meetings.db"))
+    conn = connect_sealed(agent_file("MEETING_SUMMARIZER", "meetings.db"), "agent:MEETING_SUMMARIZER")
     conn.row_factory = sqlite3.Row
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS meetings (

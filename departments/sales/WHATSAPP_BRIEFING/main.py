@@ -7,7 +7,7 @@ import asyncio
 import concurrent.futures
 import logging
 
-from velaris.core.sqlite_util import connect as connect_db
+from velaris.core.sealed_sqlite import connect_sealed
 from datetime import datetime
 from typing import Dict, Any
 
@@ -21,7 +21,7 @@ class WhatsAppBriefingSystem:
     def __init__(self, config: Dict[str, Any] = None):
         self.config = config or {}
         db_path = self.config.get("db_path") or agent_file("WHATSAPP_BRIEFING", "briefing_data.db")
-        self.db = connect_db(db_path)
+        self.db = connect_sealed(db_path, "agent:WHATSAPP_BRIEFING")
         self._init_db()
 
     def _init_db(self):

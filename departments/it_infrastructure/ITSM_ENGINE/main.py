@@ -45,12 +45,15 @@ TRANSITIONS = {
 
 
 def _mine(tk: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
-    """`tk` if the current caller may see it. With VELARIS_ORG set the store is this deployment's
+    """`tk` if the current caller may see it: opened by them, or they are an infra_admin. With VELARIS_ORG set the store is this deployment's
     organisation only: an unstamped ticket, or a caller of another organisation or none, sees nothing."""
+    who = current_caller()
+    if tk is not None and who is not None and not who.roles & INFRA_ADMINS and tk["history"][0]["by"] != who.id:
+        return None                                    # a member sees the tickets they opened; infra_admin sees all (SV2-10)
     dep = deployment_org()
     if tk is None or dep is None:
         return tk
-    return tk if tk.get("org") == dep and not org_denied(current_caller()) else None
+    return tk if tk.get("org") == dep and not org_denied(who) else None
 
 
 @dataclass
@@ -76,7 +79,7 @@ class ITSMEngine:
 
     def __init__(self) -> None:
         self.name = NAME
-        self._state = JsonState(NAME, "tickets.json")
+        self._state = JsonState(NAME, "tickets.json", encrypted="agent:ITSM_ENGINE")
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": NAME, "status": "ok", "version": "1.0.0"}

@@ -45,5 +45,5 @@ Velaris Advanced Search Engine (Offline)
 ## Called by
 
 - **other agents:** none found
-- **platform modules:** `velaris/agentkit/memsearch.py`, `velaris/api/allowlist.py`, `velaris/intel/tools.py`
-- **tests:** `velaris/tests/test_agents_coverage_b.py`, `velaris/tests/test_intel_tools.py`, `velaris/tests/test_r3_patch_evolution_search_clbpp.py`
+- **platform modules:** `velaris/agentkit/memsearch.py`, `velaris/api/allowlist.py`, `velaris/api/flow_policy.py`, `velaris/intel/tools.py`
+- **tests:** `velaris/tests/test_agents_coverage_b.py`, `velaris/tests/test_api_service.py`, `velaris/tests/test_intel_tools.py`, `velaris/tests/test_r3_patch_evolution_search_clbpp.py`

@@ -16,7 +16,7 @@ sensitivity "restricted" (a meeting is personal data: never a free/community pro
 "extractive_summary" and a failed model call keeps it as the summary ("llm_status" says what happened). summarize_from_file(path, meta) loads
 a transcript JSON file first; a missing or invalid file raises OSError or ValueError. get_recent_meetings(limit) and
 get_meeting(id) read back rows; an unknown id returns {"error": "not_found"}.
-State: sqlite at <VELARIS_DATA>/agents/MEETING_SUMMARIZER/meetings.db, one row per summarize() call.
+State: sqlite, encrypted at rest (velaris.core.sealed_sqlite), at <VELARIS_DATA>/agents/MEETING_SUMMARIZER/meetings.db, one row per summarize() call.
 
 ## Class `MeetingSummarizer`
 
@@ -37,7 +37,7 @@ Optional: pass an LLM callable for richer summaries.
 ## Depends on
 
 - `velaris.agentkit`
-- `velaris.core.sqlite_util`
+- `velaris.core.sealed_sqlite`
 - `velaris.intel.paths`
 
 ## State and configuration

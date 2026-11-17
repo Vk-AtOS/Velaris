@@ -15,7 +15,7 @@ hint such as "oct 15" or "friday" kept as written. Each item is saved and return
 meeting_id}. extract_from_text(text, meeting_id="") splits the text into sentences first. close_item(item_id) marks an
 item closed (an unknown id is not reported). get_open_items(owner=None) lists open items; get_overdue() lists open items
 whose due date is an ISO date before today (a text hint is never overdue). health_check() returns status ok.
-State: sqlite <VELARIS_DATA>/agents/ACTION_ITEM_EXTRACTOR/action_items.db (table action_items). No caller check is made.
+State: sqlite, encrypted at rest (velaris.core.sealed_sqlite), <VELARIS_DATA>/agents/ACTION_ITEM_EXTRACTOR/action_items.db (table action_items). No caller check is made.
 Failure: a segment that is not a dict, or non-text input, raises AttributeError or TypeError; sqlite errors propagate.
 
 ## Class `ActionItemExtractor`
@@ -34,7 +34,7 @@ Creates tasks in local SQLite; ready to integrate with Zoho Projects or Jira.
 
 ## Depends on
 
-- `velaris.core.sqlite_util`
+- `velaris.core.sealed_sqlite`
 - `velaris.intel.paths`
 
 ## State and configuration

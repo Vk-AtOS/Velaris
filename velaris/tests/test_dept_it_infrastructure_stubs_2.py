@@ -537,3 +537,28 @@ def test_infra_rejects_bad_requests():
     assert e.provision({"name": "web"})["status"] == "failed"
     assert e.health_check("infra-unknown", [])["status"] == "unknown_infra"
     assert e.health_check("x", "all fine")["status"] == "invalid_input"
+
+
+def test_itsm_a_member_reads_only_their_own_tickets_and_the_store_is_sealed(tmp_path):
+    """KAN-69 SV2-10: reads listed every ticket of the organisation to any employee, and the file was plain JSON."""
+    e = make("ITSM_ENGINE", "ITSMEngine")
+    run_as("asha", lambda: e.open_ticket(ticket("INC-A"), by="asha", now=0))
+    run_as("ravi", lambda: e.open_ticket(ticket("INC-B"), by="ravi", now=0))
+    def as_(who, roles, fn):
+        with acting_as(Caller(who, "kf", frozenset(roles))):
+            return fn()
+    ids = lambda who, roles=(): as_(who, roles, lambda: [t["ticket_id"] for t in e.list_tickets()])   # noqa: E731
+    assert ids("asha") == ["INC-A"] and ids("ravi") == ["INC-B"]
+    assert sorted(ids("boss", (INFRA_ADMIN,))) == ["INC-A", "INC-B"]
+    assert as_("asha", (), lambda: e.get_ticket("INC-B"))["status"] == "unknown_ticket"
+    assert as_("asha", (), lambda: e.sla_status("INC-B", now=1))["status"] == "unknown_ticket"
+    raw = next((tmp_path / "agents" / "ITSM_ENGINE").glob("tickets.json")).read_bytes()
+    assert raw[:3] == b"VLV" and b"db-prod-1" not in raw
+
+
+def test_meeting_action_item_and_time_stores_are_sealed_at_rest(tmp_path):
+    """KAN-69 SV2-10: these sqlite stores held personal data as plain files."""
+    for name, fn in (("MEETING_SUMMARIZER", "meetings.db"), ("ACTION_ITEM_EXTRACTOR", "action_items.db"), ("TIME_TRACKER", "timelog.db")):
+        c = import_module(f"velaris.agents.{name}.main")._db()
+        c.close()
+        assert (tmp_path / "agents" / name / fn).read_bytes()[:3] == b"VLV", name
