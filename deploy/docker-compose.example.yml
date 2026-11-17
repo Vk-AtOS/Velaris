@@ -59,7 +59,10 @@ services:
       VELARIS_PUBLIC_CORS_ORIGINS: ${VELARIS_PUBLIC_CORS_ORIGINS:-}
     ports:
       - "127.0.0.1:8731:8731"            # loopback only; nginx terminates TLS
-    networks: [internal, edge]
+    # KAN-69 VP-2: the public app (it parses candidate uploads) is NOT on the network of the API, so a compromise of a public
+    # parser cannot reach the API port or the metrics listener (9730). It still shares the data volume and the vault key with the
+    # API on purpose (it writes the sealed records the API reads); splitting those needs a second volume and key (owner decision).
+    networks: [edge]
     healthcheck:
       test: ["CMD", "python", "/app/healthcheck.py", "8731"]     # TCP: the public app has no /health route
       interval: 30s
