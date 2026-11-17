@@ -97,7 +97,7 @@ def test_pad_edit_log_replays_to_any_moment_and_the_chain_detects_tampering(env)
         assert rec.replay_pad(session_id=sess, upto_seq=2)["text"] == "def f(x):\n    return x"
         assert rec.replay_pad(session_id=sess)["text"] == "def f(x):\n    return x!"
     p = agent_dir("INTERVIEW_RECORD") / "events" / f"{sess}.jsonl"
-    assert "VLV1:" in p.read_text()                                                                # events are sealed at rest
+    assert "VLV2:" in p.read_text()                                                                # events are sealed at rest
     lines = [json.dumps(e, sort_keys=True) for e in stored_events(sess)]
     forged = json.loads(lines[1])
     forged["data"]["text"] = "\n    return 0"                                                        # edit history after the fact

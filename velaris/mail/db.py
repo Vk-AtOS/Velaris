@@ -103,13 +103,13 @@ class Database:
             self._conn.execute("CREATE VIRTUAL TABLE IF NOT EXISTS msg_fts USING fts5(subject, body, people)")
         except sqlite3.OperationalError:
             self.fts = False                                      # no FTS5 in this sqlite: bounded scan search
+        self._bind_at_rest()
         self._seal_at_rest()
 
     def _seal_at_rest(self) -> None:
         """Seal message text written before sealing existed and rebuild the search index from blind tokens (once)."""
         if self._conn.execute("SELECT 1 FROM org_settings WHERE org='__sealed_v1__'").fetchone():
             return
-        fieldseal.seal_existing(self._conn, "message", list(SEALED), SEAL, key="id")
         raw = self._conn.cursor()
         raw.row_factory = None
         for tid, norm in raw.execute("SELECT id, subject_norm FROM thread WHERE subject_norm NOT LIKE 'bn1:%'").fetchall():
@@ -117,7 +117,7 @@ class Database:
         if self.fts:
             self._conn.execute("DROP TABLE IF EXISTS msg_fts")
             self._conn.execute("CREATE VIRTUAL TABLE msg_fts USING fts5(subject, body, people)")
-            for r in self._conn.execute("SELECT rowid AS rid, subject, body_text, body_html, from_addr, from_name, to_addrs, cc_addrs, "
+            for r in self._conn.execute("SELECT rowid AS rid, id, subject, body_text, body_html, from_addr, from_name, to_addrs, cc_addrs, "
                                         "bcc_addrs FROM message").fetchall():
                 people = " ".join([r["from_addr"], r["from_name"], *loads(r["to_addrs"], []), *loads(r["cc_addrs"], []),
                                    *loads(r["bcc_addrs"], [])])
@@ -129,6 +129,14 @@ class Database:
         self._conn.commit()
         self._conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
         self._conn.execute("VACUUM")                              # plaintext pages and the old index must not stay in the file
+
+    def _bind_at_rest(self) -> None:
+        """Bind every sealed message column to its row (vlv2, once). Needs the migration window while old vlv1 values exist."""
+        if self._conn.execute("SELECT 1 FROM org_settings WHERE org='__bound_v2__'").fetchone():
+            return
+        fieldseal.seal_existing(self._conn, "message", list(SEALED), SEAL, key="id")
+        self._conn.execute("INSERT INTO org_settings(org, data) VALUES ('__bound_v2__', '{}')")
+        self._conn.commit()
 
     @contextlib.contextmanager
     def tx(self) -> Iterator[sqlite3.Connection]:

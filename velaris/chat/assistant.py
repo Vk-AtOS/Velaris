@@ -228,7 +228,7 @@ class Assistant:
         draft_id = uuid.uuid4().hex
         with svc._write() as db:
             db.execute("INSERT INTO ai_drafts VALUES(?,?,?,?,?,?,?,?,?,?,?)", (draft_id, caller.org, ch["id"], row["topic"],
-                       caller.id, assistant, fieldseal.seal(text, SEAL), "pending", svc.clock(), row["id"], json.dumps(sorted({*authors, caller.id}))))
+                       caller.id, assistant, fieldseal.seal(text, SEAL, fieldseal.bind_for("body", draft_id)), "pending", svc.clock(), row["id"], json.dumps(sorted({*authors, caller.id}))))
             svc._audit("assistant.draft", assistant, caller.org, for_user=caller.id, channel=ch["id"], message=row["id"],
                        draft=draft_id, draft_sha256=sha(text))
             svc._notify([caller.id], {"type": "assistant_draft", "op": "new", "channel_id": ch["id"], "draft_id": draft_id,

@@ -100,6 +100,7 @@ class Store:
                 self.fts = True
             except sqlite3.OperationalError:
                 self.fts = False
+        self._bind_at_rest()
         self._seal_at_rest()
         self._seal_file_names()
         for suffix in ("-wal", "-shm"):
@@ -112,8 +113,6 @@ class Store:
         done = self.one("SELECT 1 FROM settings WHERE org='' AND key='sealed_v1'")
         if done:
             return
-        for table, key in (("messages", "id"), ("edits", "rowid"), ("drafts", "rowid"), ("ai_drafts", "id")):
-            fieldseal.seal_existing(self.db, table, ["body"], SEAL, key=key)
         if self.fts:                                    # the old index holds readable words: replace it
             self.db.execute("DROP TABLE IF EXISTS msg_fts")
             self.db.execute(_FTS)
@@ -123,11 +122,23 @@ class Store:
         self.db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
         self.db.execute("VACUUM")                       # the plaintext pages (rows, old index) must not stay in the file
 
+    BOUND_KEYS = (("messages", "id"), ("edits", ("message_id", "version")), ("drafts", ("user_id", "channel_id", "topic")),
+                  ("ai_drafts", "id"))
+
+    def _bind_at_rest(self) -> None:
+        """Seal message text written before sealing existed and bind every body to its row (vlv2, once). Old vlv1 values
+        and plaintext need the migration window (velaris.core.vault)."""
+        if self.one("SELECT 1 FROM settings WHERE org='' AND key='bound_v2'"):
+            return
+        for table, key in self.BOUND_KEYS:
+            fieldseal.seal_existing(self.db, table, ["body"], SEAL, key=key)
+        self.db.execute("INSERT OR REPLACE INTO settings VALUES('', 'bound_v2', '1')")
+
     def _seal_file_names(self) -> None:
         """Seal file names stored before sealing existed (once). Blobs are sealed when first downloaded in the migration window."""
         if self.one("SELECT 1 FROM settings WHERE org='' AND key='sealed_files_v1'"):
             return
-        fieldseal.seal_existing(self.db, "files", ["name"], "chat:file-name", key="rowid")
+        fieldseal.seal_existing(self.db, "files", ["name"], "chat:file-name", key="rowid", bind=False)
         self.db.execute("INSERT OR REPLACE INTO settings VALUES('', 'sealed_files_v1', '1')")
 
     def _migrate(self) -> None:

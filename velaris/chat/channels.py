@@ -312,7 +312,7 @@ class ChannelsMixin(ChatCore):
             if body.strip():
                 db.execute("INSERT INTO drafts VALUES(?,?,?,?,?) ON CONFLICT(user_id, channel_id, topic) "
                            "DO UPDATE SET body=excluded.body, updated=excluded.updated",
-                           (caller.id, ch["id"], topic, fieldseal.seal(body, SEAL), self.clock()))
+                           (caller.id, ch["id"], topic, fieldseal.seal(body, SEAL, fieldseal.bind_for("body", caller.id, ch["id"], topic)), self.clock()))
             else:
                 db.execute("DELETE FROM drafts WHERE user_id=? AND channel_id=? AND topic=?", (caller.id, ch["id"], topic))
 

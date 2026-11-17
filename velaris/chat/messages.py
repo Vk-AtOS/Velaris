@@ -82,11 +82,12 @@ class MessagesMixin(ChatCore):
             cur = db.execute(
                 "INSERT INTO messages(org, channel_id, topic, sender, body, created_at, reply_to, thread_root, local_id, "
                 "mentions, attachments, ai_assisted, context_authors) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                (caller.org, ch["id"], topic, caller.id, fieldseal.seal(body, SEAL), self.clock(), reply_to,
+                (caller.org, ch["id"], topic, caller.id, "", self.clock(), reply_to,
                  (parent["thread_root"] or parent["id"]) if parent else None, local, json.dumps(mentioned),
                  json.dumps(files), int(ai_assisted),
                  None if context_authors is None else json.dumps(context_authors)))
             mid = cur.lastrowid
+            db.execute("UPDATE messages SET body=? WHERE id=?", (fieldseal.seal(body, SEAL, fieldseal.bind_for("body", mid)), mid))   # bound to its row
             self.store.index(db, mid, body)
             self._audit("message.post", caller.id, caller.org, channel=ch["id"], message=mid, bytes=len(body.encode()),
                         body_sha256=sha(body), ai_assisted=ai_assisted, for_user=on_behalf_of or None)
@@ -136,9 +137,10 @@ class MessagesMixin(ChatCore):
         self._spend(caller)
         with self._write() as db:
             (n,) = db.execute("SELECT COUNT(*) FROM edits WHERE message_id=?", (msg["id"],)).fetchone()
-            db.execute("INSERT INTO edits VALUES(?,?,?,?,?)", (msg["id"], n + 1, fieldseal.seal(msg["body"], SEAL), caller.id, self.clock()))
+            db.execute("INSERT INTO edits VALUES(?,?,?,?,?)", (msg["id"], n + 1, fieldseal.seal(msg["body"], SEAL, fieldseal.bind_for("body", msg["id"], n + 1)),
+                                                              caller.id, self.clock()))
             db.execute("UPDATE messages SET body=?, edited_at=?, mentions=? WHERE id=?",
-                       (fieldseal.seal(body, SEAL), self.clock(), json.dumps(mentioned), msg["id"]))
+                       (fieldseal.seal(body, SEAL, fieldseal.bind_for("body", msg["id"])), self.clock(), json.dumps(mentioned), msg["id"]))
             self.store.index(db, msg["id"], body)
             self._audit("message.edit", caller.id, caller.org, channel=ch["id"], message=msg["id"], version=n + 1,
                         body_sha256=sha(body))
@@ -150,7 +152,7 @@ class MessagesMixin(ChatCore):
         caller = self._enter(caller)
         msg = self._live(caller, message_id)
         self._require(caller, self._channel(caller, msg["channel_id"]), "view")
-        rows = self.store.all("SELECT version, body, editor, edited_at FROM edits WHERE message_id=? ORDER BY version", (msg["id"],))
+        rows = self.store.all("SELECT message_id, version, body, editor, edited_at FROM edits WHERE message_id=? ORDER BY version", (msg["id"],))
         return [{"version": r["version"], "body": r["body"], "editor": r["editor"], "edited_at": r["edited_at"]} for r in rows] \
             + [{"version": len(rows) + 1, "body": msg["body"], "editor": msg["sender"] if not rows else None,
                 "edited_at": msg["edited_at"] or msg["created_at"], "current": True}]

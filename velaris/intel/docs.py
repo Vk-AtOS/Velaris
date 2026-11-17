@@ -457,7 +457,7 @@ class DocStore:
         shas = [hashlib.sha256(f"{p['heading']}\n{p['text']}".encode()).hexdigest() for p in parts]
         known = {}
         for s in set(shas):          # a passage seen before keeps its embedding
-            row = self._db.execute("SELECT embedding FROM chunks WHERE sha256=? LIMIT 1", (s,)).fetchone()
+            row = self._db.execute("SELECT id, embedding FROM chunks WHERE sha256=? LIMIT 1", (s,)).fetchone()
             if row:
                 known[s] = row["embedding"]
         new = [i for i, s in enumerate(shas) if s not in known]
@@ -475,9 +475,11 @@ class DocStore:
                 self._db.execute("UPDATE documents SET invalid_at=? WHERE id=?", (now, old["id"]))
             self._db.execute("INSERT INTO documents VALUES (?,?,?,?,?,?,?,NULL,?)",
                              (doc_id, scope, name, sha, kind, source, now, old["id"] if old else None))
+            cids = [uuid.uuid4().hex for _ in parts]
+            bound = lambda col, i, v: fieldseal.seal(v, SEAL, fieldseal.bind_for(col, cids[i]))     # bound to its chunk row
             self._db.executemany("INSERT INTO chunks VALUES (?,?,?,?,?,?,?,?)", [
-                (uuid.uuid4().hex, doc_id, i, fieldseal.seal(p["heading"], SEAL), fieldseal.seal(p["text"], SEAL), shas[i],
-                 fieldseal.seal(known[shas[i]], SEAL), flags[i])
+                (cids[i], doc_id, i, bound("heading", i, p["heading"]), bound("text", i, p["text"]), shas[i],
+                 bound("embedding", i, known[shas[i]]), flags[i])
                 for i, p in enumerate(parts)])
         out = {"action": "UPDATED" if old else "ADDED", "doc_id": doc_id, "sha256": sha, "format": kind,
                "passages": len(parts), "embedded": len(new), "withheld": sum(flags)}
@@ -521,7 +523,7 @@ class DocStore:
         # ponytail: scans every passage in the scope per query. Fine to a few tens of thousands;
         # beyond that move vectors to pgvector and wording to Postgres full-text (both already run).
         rows = self._db.execute(
-            "SELECT c.heading, c.text, c.sha256, c.embedding, d.name, d.sha256 AS doc_sha FROM chunks c "
+            "SELECT c.id, c.heading, c.text, c.sha256, c.embedding, d.name, d.sha256 AS doc_sha FROM chunks c "
             "JOIN documents d ON d.id = c.doc_id WHERE d.scope=? AND d.invalid_at IS NULL AND c.flagged=0",
             (scope,)).fetchall()
         if not rows:

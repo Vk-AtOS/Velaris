@@ -24,7 +24,7 @@ def test_row_class_unseals_by_column_name_for_key_dict_and_iteration():
     c = sqlite3.connect(":memory:")
     c.row_factory = fieldseal.row_class("p", ("body",))
     c.execute("CREATE TABLE t(id, body)")
-    c.execute("INSERT INTO t VALUES (1, ?)", (fieldseal.seal("secret", "p"),))
+    c.execute("INSERT INTO t VALUES (1, ?)", (fieldseal.seal("secret", "p", fieldseal.bind_for("body", 1)),))
     r = c.execute("SELECT * FROM t").fetchone()
     assert r["body"] == "secret" and r[1] == "secret" and dict(r) == {"id": 1, "body": "secret"} and tuple(r) == (1, "secret")
 
@@ -139,7 +139,7 @@ def test_mail_database_of_an_older_release_is_sealed_and_reindexed_once(tmp_path
     c.close()
     store = maildb.Database(str(path))
     assert b"giraffe" not in path.read_bytes()
-    assert store.one("SELECT subject FROM message WHERE id='x1'")["subject"] == "legacy giraffe subject"
+    assert store.one("SELECT id, subject FROM message WHERE id='x1'")["subject"] == "legacy giraffe subject"
     from velaris.core import fieldseal
     t = " ".join('"' + x + '"' for x in fieldseal.blind_query(["giraffe"], "mail"))
     assert store.one("SELECT rowid FROM msg_fts WHERE msg_fts MATCH ?", (t,)) is not None

@@ -226,7 +226,8 @@ class MemoryStore:
                 self._db.execute(
                     "INSERT INTO memories (id, scope, text, embedding, source, created_at, supersedes, trace_hash) "
                     "VALUES (?,?,?,?,?,?,?,?)",
-                    (new_id, scope, fieldseal.seal(fact, SEAL), fieldseal.seal(json.dumps(vec), SEAL), source, now,
+                    (new_id, scope, fieldseal.seal(fact, SEAL, fieldseal.bind_for("text", new_id)),
+                     fieldseal.seal(json.dumps(vec), SEAL, fieldseal.bind_for("embedding", new_id)), source, now,
                      decision["target"], entry["hash"]))
                 self._db.commit()
             results.append({"action": decision["action"], "text": fact, "id": new_id,
