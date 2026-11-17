@@ -37,3 +37,13 @@ def test_module_level_sqlite_agents_resolve_the_path_at_use():
         src = (ROOT / "departments" / dept / agent / "main.py").read_text()
         # a module-level _DB may only be the empty override sentinel; the real path is resolved when the agent runs
         assert ("_DB =" not in src or '_DB = ""' in src) and ("agent_file(" in src or "agent_dir(" in src), agent
+
+
+def test_a_file_in_the_working_directory_is_never_adopted_into_an_agent_store(tmp_path, monkeypatch):
+    """KAN-69 SV2-14: legacy adoption used to copy <cwd>/<filename> into the agent store."""
+    from velaris.intel import paths
+    cwd = tmp_path / "cwd"
+    cwd.mkdir()
+    (cwd / "memory.db").write_bytes(b"planted")
+    monkeypatch.chdir(cwd)
+    assert cwd / "memory.db" not in paths.legacy_candidates("ANY_AGENT", "memory.db")
