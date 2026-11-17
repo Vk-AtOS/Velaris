@@ -252,6 +252,16 @@ def _send(client, path, body, *, sub="u1", roles=()):
 
 
 def test_api_act_path_returns_202_and_executes_only_after_approval(tmp_path):
+    from velaris.core.access import Caller
+    from velaris.orchestration import identity
+    identity.set_resolver(lambda org, uid: Caller(uid, org, frozenset({"flow_approver"}) if uid == "u2" else frozenset()))   # the deployment's directory
+    try:
+        _act_path(tmp_path)
+    finally:
+        identity.set_resolver(None)
+
+
+def _act_path(tmp_path):
     c = _api(tmp_path)
     forged = _send(c, "/agents/JIRA/create_issue", {"project_key": "ABC", "summary": "T", "approval_id": "x"})
     assert forged.status_code == 400 and CREATED == []                      # no such parameter over HTTP

@@ -138,8 +138,11 @@ def test_turn_limit_model_outage_and_tool_failure():
         raise ValueError("ledger offline")
     llm = scripted(call("post"), FINAL)
     flow = Flow([Tool("post", broken, "post", needs_approval=False)], llm=llm)
-    assert flow.start("x").status == "done"
-    assert "NOT DONE: ValueError: ledger offline" in llm.calls[-1]["prompt"]
+    r = flow.start("x")
+    assert r.status == "done"
+    assert "NOT DONE: ValueError" in llm.calls[-1]["prompt"]
+    assert "ledger offline" not in llm.calls[-1]["prompt"]               # VP-8: the type name only, never the exception text
+    assert "ledger offline" not in json.dumps(flow.history(r.run_id))
 
 
 def test_tool_output_that_reads_like_instructions_is_withheld():

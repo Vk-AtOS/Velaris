@@ -7,7 +7,7 @@ hint such as "oct 15" or "friday" kept as written. Each item is saved and return
 meeting_id}. extract_from_text(text, meeting_id="") splits the text into sentences first. close_item(item_id) marks an
 item closed (an unknown id is not reported). get_open_items(owner=None) lists open items; get_overdue() lists open items
 whose due date is an ISO date before today (a text hint is never overdue). health_check() returns status ok.
-State: sqlite <VELARIS_DATA>/agents/ACTION_ITEM_EXTRACTOR/action_items.db (table action_items). No caller check is made.
+State: sqlite, encrypted at rest (velaris.core.sealed_sqlite), <VELARIS_DATA>/agents/ACTION_ITEM_EXTRACTOR/action_items.db (table action_items). No caller check is made.
 Failure: a segment that is not a dict, or non-text input, raises AttributeError or TypeError; sqlite errors propagate.
 """
 import sys, os
@@ -19,7 +19,7 @@ import re
 import sqlite3
 from datetime import date, datetime, timedelta
 
-from velaris.core.sqlite_util import connect as connect_db
+from velaris.core.sealed_sqlite import connect_sealed
 from typing import Dict, Any, List, Optional
 from velaris.intel.paths import agent_file
 
@@ -40,7 +40,7 @@ _OWNER_PATTERNS = [
 
 
 def _db() -> sqlite3.Connection:
-    conn = connect_db(agent_file("ACTION_ITEM_EXTRACTOR", "action_items.db"))
+    conn = connect_sealed(agent_file("ACTION_ITEM_EXTRACTOR", "action_items.db"), "agent:ACTION_ITEM_EXTRACTOR")
     conn.row_factory = sqlite3.Row
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS action_items (

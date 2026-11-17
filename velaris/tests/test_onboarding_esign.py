@@ -45,15 +45,18 @@ def sign_all(e, sender):
     return ceremony(e, sender, "ravi@example.in", "ravi  KUMAR")          # name match ignores case and spacing
 
 
-def state_path():
-    return Path(os.environ["VELARIS_DATA"]) / "agents" / "ESIGN" / "state.json"
+def requests_now():
+    return dict(Esign().store.state.load()["requests"])
+
+
+def state_text():
+    """What the store holds (opened) plus the raw record files (sealed): a secret must be in neither."""
+    disk = b"".join(p.read_bytes() for p in (Path(os.environ["VELARIS_DATA"]) / "agents" / "ESIGN" / "records").rglob("*.rec"))
+    return json.dumps(requests_now(), default=str) + disk.decode("latin-1")
 
 
 def edit_state(fn):
-    p = state_path()
-    d = json.loads(p.read_text())
-    fn(d["records"]["requests"])
-    p.write_text(json.dumps(d))
+    Esign().store.state.update(lambda d: fn(d["requests"]))
 
 
 def test_full_ceremony_seal_and_verify():
@@ -79,9 +82,9 @@ def test_full_ceremony_seal_and_verify():
 def test_evidence_content_and_privacy():
     e, sender, _, rid = setup()
     sign_all(e, sender)
-    raw = state_path().read_text()
+    raw = state_text()
     assert IP not in raw and UA not in raw                         # only keyed hashes are stored
-    d = json.loads(raw)["records"]["requests"][f"{ORG}:{rid}"]
+    d = requests_now()[f"{ORG}:{rid}"]
     ev = d["signers"][0]["evidence"]
     assert ev["document_sha256"] == d["document_sha256"] and len(ev["ip_hash"]) == 64 and ev["ip_hash"] != ev["user_agent_hash"]
     assert ev["consent_text_version"] == "v1" and ev["auth_methods"] == ["email_token"] and "I intend to be bound" in ev["intent_statement"]
@@ -120,12 +123,12 @@ def test_an_administrator_cannot_sign_for_a_signer():
         r = e.open_signing(rid, "asha@example.in", IP, UA)
         assert r["status"] == "invalid_token"
     real = sender.token_for("asha@example.in")
-    blob = json.dumps(seen, default=str) + state_path().read_text()
+    blob = json.dumps(seen, default=str) + state_text()
     assert real not in blob and "token_sha256" not in json.dumps(seen)       # no method hands out or stores a token
     assert not [t for t in (sender.token_for("asha@example.in"), sender.token_for("ravi@example.in")) if t in json.dumps(seen)]
     with acting_as(HR1):                                           # even holding the admin role AND the right email, no token = no signature
         assert e.sign_document("B" * 43, "asha@example.in", "Asha Raman", IP, UA)["status"] == "invalid_token"
-    view = json.loads(state_path().read_text())["records"]["requests"][f"{ORG}:{rid}"]
+    view = requests_now()[f"{ORG}:{rid}"]
     assert [s["state"] for s in view["signers"]] == ["sent", "sent"] and view["signed_order"] == []
 
 
@@ -189,9 +192,9 @@ def test_otp_flow_and_limits():
     assert e.give_consent(tok, em, IP, UA, "v1")["status"] == "ok"
     out = e.sign_document(tok, em, "Asha Raman", IP, UA)
     assert out["seal"]["status"] == "ok"
-    ev = json.loads(state_path().read_text())["records"]["requests"][f"{ORG}:{rid}"]["signers"][0]["evidence"]
+    ev = requests_now()[f"{ORG}:{rid}"]["signers"][0]["evidence"]
     assert ev["auth_methods"] == ["email_token", "one_time_code"]
-    assert code not in state_path().read_text()
+    assert code not in state_text()
 
 
 def test_otp_expires_locks_and_is_refused_when_not_required():
@@ -284,7 +287,7 @@ def test_non_pdf_document_gets_a_separate_certificate():
         assert v["valid"] is True
         sealed = base64.b64decode(e.get_sealed_document(rid)["sealed_pdf_base64"])
     assert parse_pdf(sealed)["title"] == "Certificate of electronic acceptance"
-    assert json.loads(state_path().read_text())["records"]["requests"][f"{ORG}:{rid}"]["seal"]["evidence_page"] == "separate_file"
+    assert requests_now()[f"{ORG}:{rid}"]["seal"]["evidence_page"] == "separate_file"
 
 
 class GoodSigner:
@@ -413,7 +416,7 @@ def test_organisation_scoping(monkeypatch):
         assert e.get_request(rid)["status"] == "not_found" and e.verify(rid)["status"] == "not_found"
         assert e.list_requests()["requests"] == [] and e.void_request(rid, "x")["status"] == "not_found"
         assert e.get_sealed_document(rid)["status"] == "not_found"
-    assert json.loads(state_path().read_text())["records"]["requests"][f"{ORG}:{rid}"]["org"] == ORG
+    assert requests_now()[f"{ORG}:{rid}"]["org"] == ORG
     monkeypatch.setenv("VELARIS_ORG", "globex")                    # a deployment of another organisation: the token is not honoured
     assert e.open_signing(sender.token_for("asha@example.in"), "asha@example.in", IP, UA)["status"] == "invalid_token"
 

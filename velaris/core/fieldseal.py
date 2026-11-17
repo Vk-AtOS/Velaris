@@ -200,3 +200,14 @@ def seal_existing(conn: sqlite3.Connection, table: str, cols: List[str], purpose
     if failed:
         logger.warning("%s: %d row(s) could not be migrated", table, len(failed))
     return out
+
+
+def row_mac(purpose: str, table: str, *parts: Any) -> str:
+    """A keyed MAC over a row's clear metadata (sizes, hashes, ids that hold no readable text), so a row copied or edited by
+    somebody with write access to the database file no longer verifies. JSON list of the parts: unambiguous."""
+    key = vault.derive_key(f"rowmac:{purpose}:{table}")
+    return hmac.new(key, json.dumps(list(parts), default=str).encode(), hashlib.sha256).hexdigest()[:32]
+
+
+def row_mac_ok(mac: Any, purpose: str, table: str, *parts: Any) -> bool:
+    return isinstance(mac, str) and hmac.compare_digest(mac, row_mac(purpose, table, *parts))

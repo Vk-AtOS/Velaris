@@ -28,8 +28,8 @@ def imports(root: Path = ROOT):
     required, optional = {}, {}
     for path in sorted(root.rglob("*.py")):
         rel = path.relative_to(root)
-        if any(part.startswith(".") for part in rel.parts):
-            continue
+        if any(part.startswith(".") for part in rel.parts) or "tests" in rel.parts:
+            continue                                   # test-only imports belong to requirements-dev.txt
         tree = ast.parse(path.read_text(encoding="utf-8"))
         guarded = {id(x) for t in ast.walk(tree) if isinstance(t, ast.Try) and _catches_import_error(t)
                    for b in t.body for x in ast.walk(b)}
@@ -115,7 +115,17 @@ def test_requirements_lower_bounds_are_satisfied_by_the_pinned_constraints():
         return tuple(int(x) for x in re.findall(r"\d+", v)[:3])
     for m in re.finditer(r"^([A-Za-z0-9_.-]+)>=([^\s#]+)", (root / "requirements.txt").read_text(), re.M):
         name = m.group(1).lower().replace("_", "-")
-        if name == "pytest":
-            continue                                   # tests only, not installed in the image
         assert name in pins, f"{name} is required but not pinned in deploy/constraints.txt"
         assert ver(pins[name]) >= ver(m.group(2)), f"{name}: pinned {pins[name]} is below the lower bound {m.group(2)}"
+
+
+def test_runtime_requirements_hold_no_test_tools_and_dev_requirements_have_them():
+    """KAN-69 SV2-10: the image installs requirements.txt; pytest and pyyaml live in requirements-dev.txt, which CI installs."""
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[2]
+    runtime = (root / "requirements.txt").read_text()
+    assert not [ln for ln in runtime.splitlines() if ln.split("#")[0].strip().lower().startswith(("pytest", "pyyaml"))]
+    dev = (root / "requirements-dev.txt").read_text()
+    assert "-r requirements.txt" in dev and "pytest" in dev
+    assert "requirements-dev.txt" in (root / ".github" / "workflows" / "ci.yml").read_text()
+    assert "grep" not in (root / "deploy" / "Dockerfile").read_text().split("COPY velaris")[0]      # nothing to filter out

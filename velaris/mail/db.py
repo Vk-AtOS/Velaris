@@ -82,6 +82,9 @@ CREATE TABLE IF NOT EXISTS domain(
   PRIMARY KEY(domain, org));
 CREATE UNIQUE INDEX IF NOT EXISTS domain_owner ON domain(domain) WHERE verified=1;
 CREATE TABLE IF NOT EXISTS org_settings(org TEXT PRIMARY KEY, data TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS legal_export(
+  id TEXT PRIMARY KEY, org TEXT NOT NULL, mailbox_id TEXT NOT NULL, requested_by TEXT NOT NULL, reason TEXT NOT NULL,
+  created REAL NOT NULL, state TEXT NOT NULL DEFAULT 'pending', decided_by TEXT NOT NULL DEFAULT '', decided_at REAL, used_at REAL);
 """
 
 
@@ -106,6 +109,7 @@ class Database:
         except sqlite3.OperationalError:
             self.fts = False                                      # no FTS5 in this sqlite: bounded scan search
         self._bind_at_rest()
+        self._bind_attachments()
         self._seal_at_rest()
         self._bind_secrets()
 
@@ -132,6 +136,23 @@ class Database:
         self._conn.commit()
         self._conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
         self._conn.execute("VACUUM")                              # plaintext pages and the old index must not stay in the file
+
+    @staticmethod
+    def att_mac(pk: str, org: str, a: Any) -> str:
+        """MAC of an attachment's metadata bound to its message: moving the row to another message or editing it breaks it."""
+        return fieldseal.row_mac(SEAL, "attachment", pk, org, a["sha256"], a["name"], a["content_type"], int(a["size"]), a["content_id"], int(a["inline"]))
+
+    def _bind_attachments(self) -> None:
+        """Bind attachment rows (KAN-167). Rows of older releases are bound only inside the vault migration window; outside it
+        they stay unbound and are not served (a row nobody can vouch for is treated like a tampered one)."""
+        if "bind" not in {r[1] for r in self._conn.execute("PRAGMA table_info(attachment)")}:
+            self._conn.execute("ALTER TABLE attachment ADD COLUMN bind TEXT")
+        if vault.plaintext_allowed():
+            raw = self._conn.cursor()
+            raw.row_factory = sqlite3.Row
+            for a in raw.execute("SELECT rowid AS rid, * FROM attachment WHERE bind IS NULL").fetchall():
+                self._conn.execute("UPDATE attachment SET bind=? WHERE rowid=?", (self.att_mac(a["message_pk"], a["org"], a), a["rid"]))
+        self._conn.commit()
 
     def _bind_secrets(self) -> None:
         """Every connector account owns its vault secret: `account.secret_name` is UNIQUE (so two accounts, or two concurrent

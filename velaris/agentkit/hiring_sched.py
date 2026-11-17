@@ -15,6 +15,7 @@ import secrets
 from typing import Any, Dict, List, Optional
 
 from velaris.agentkit import hiring_slots as sl
+from velaris.agentkit.recdoc import RecDoc
 from velaris.agentkit.hiring_common import DAY, HiringError, application_known, audit, bad, hid, new_id, now, sha, store
 
 AGENT = "INTERVIEW_SCHEDULER"
@@ -23,8 +24,13 @@ REMINDERS = (("T-24h", 24 * 3600), ("T-1h", 3600))
 MAX_TOKEN_DAYS = 30
 
 
+COLLECTIONS = ("interviewers", "bookings", "drafts", "tokens", "reminders_sent", "rounds")
+
+
 def st() -> Any:
-    return store(AGENT, "scheduler.json", {"interviewers": {}, "bookings": {}, "drafts": {}, "tokens": {}, "reminders_sent": {}, "rounds": {}})
+    """One sealed file per interviewer, booking, draft, token, round and reminder; a booking, its token and its draft change in one
+    transaction (KAN-64). The old scheduler.json is folded into records on first use."""
+    return RecDoc(AGENT, f"hiring:{AGENT}", COLLECTIONS, legacy=("scheduler.json", {c: {} for c in COLLECTIONS}))
 
 
 def key(org: str, ident: str) -> str:

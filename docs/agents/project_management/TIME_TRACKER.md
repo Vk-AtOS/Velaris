@@ -14,7 +14,7 @@ billable) adds a manual entry. weekly_utilization(employee_id, week_start) retur
 and per-project hours and utilization against a billable target (config billable_target_weekly,
 default 40). team_utilization(employee_ids, week_start) maps that over employees.
 project_hours_summary(project_id, from_date, to_date) returns hours per contributor.
-State: sqlite database <VELARIS_DATA>/agents/TIME_TRACKER/timelog.db (tables timelogs and
+State: sqlite, encrypted at rest (velaris.core.sealed_sqlite), database <VELARIS_DATA>/agents/TIME_TRACKER/timelog.db (tables timelogs and
 active_timers). Failure: stop_timer with no timer returns {"error": "no_active_timer"}; log rejects
 non-numeric, non-finite, zero, negative or over-24 hours with an error dict; other input is not
 validated, and there is no caller check. The Zoho integration is not implemented here.
@@ -36,7 +36,7 @@ Integrates with Zoho Projects time logs when configured.
 
 ## Depends on
 
-- `velaris.core.sqlite_util`
+- `velaris.core.sealed_sqlite`
 - `velaris.intel.paths`
 
 ## State and configuration
@@ -47,4 +47,4 @@ Integrates with Zoho Projects time logs when configured.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_kan106_business_agents.py`, `velaris/tests/test_kan94_pm_agents.py`, `velaris/tests/test_no_state_in_source_tree.py`
+- **tests:** `velaris/tests/test_dept_it_infrastructure_stubs_2.py`, `velaris/tests/test_kan106_business_agents.py`, `velaris/tests/test_kan94_pm_agents.py`, `velaris/tests/test_no_state_in_source_tree.py`

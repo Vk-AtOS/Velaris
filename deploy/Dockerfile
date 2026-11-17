@@ -15,8 +15,7 @@ RUN groupadd --system --gid 10001 velaris \
 WORKDIR /app
 # Dependencies first (layer cache). Versions are pinned by deploy/constraints.txt.
 COPY requirements.txt deploy/constraints.txt /app/deploy/
-RUN grep -v '^pytest' /app/deploy/requirements.txt > /tmp/runtime.txt \
- && pip install -r /tmp/runtime.txt -c /app/deploy/constraints.txt && rm /tmp/runtime.txt
+RUN pip install -r /app/deploy/requirements.txt -c /app/deploy/constraints.txt
 
 COPY --chown=root:root velaris /app/velaris
 COPY --chown=root:root departments /app/departments

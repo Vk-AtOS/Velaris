@@ -18,10 +18,11 @@ from velaris.api.allowlist import ACT, READ, Rule
 from velaris.api.app import Settings, create_app
 from velaris.api.auth import make_assertion, sign
 from velaris.backend.engine import BackendEngine
-from velaris.core.access import authorize_read, current_caller
+from velaris.core.access import Caller, authorize_read, current_caller
 from velaris.core.prime import PrimeGate
 from velaris.intel import trace
 from velaris.intel.llm import FakeLLM
+from velaris.orchestration import identity
 
 SECRET = b"s" * 32
 KEY = Ed25519PrivateKey.generate()
@@ -178,7 +179,16 @@ def test_allowlist_private_and_parameters(tmp_path):
     assert methods["book"]["signature"] == "(room, by)" and listing["failed"] == ["BROKEN"]
 
 
-def test_consequential_call_waits_for_a_second_person(tmp_path):
+@pytest.fixture
+def directory():
+    """The deployment's identity lookup: user id -> roles now (a missing id is a person who is gone)."""
+    now = {"u1": set(), "u2": {"flow_approver"}}
+    identity.set_resolver(lambda org, uid: Caller(uid, org, frozenset(now[uid])) if uid in now else None)
+    yield now
+    identity.set_resolver(None)
+
+
+def test_consequential_call_waits_for_a_second_person(tmp_path, directory):
     c = app_client(tmp_path)
     assert send(c, "POST", "/agents/DEMO/book", {"room": "A", "by": "boss"}).status_code == 403
     r = send(c, "POST", "/agents/DEMO/book", {"room": "A"})
@@ -296,3 +306,72 @@ def test_identity_public_key_can_come_from_the_environment_as_pem(monkeypatch, t
     monkeypatch.delenv("VELARIS_IDENTITY_PUBLIC_KEY_PEM")
     with pytest.raises(ValueError, match="VELARIS_IDENTITY_PUBLIC_KEY"):
         Settings.from_env()                                                   # neither: refuses to start
+
+
+def test_an_approver_moves_another_persons_run_as_that_person_is_now(tmp_path, monkeypatch, directory):
+    """KAN-69 SV2-01 stale roles: the run's saved roles were read back as authority; the owner's CURRENT roles decide, and a
+    person who is gone, or whose identity cannot be looked up, cannot have their run executed by somebody else."""
+    seen = []
+    monkeypatch.setattr(DemoAgent, "act_roles", lambda self, room: seen.append(sorted(current_caller().roles)) or {"ok": 1}, raising=False)
+    monkeypatch.setitem(allowlist.METHODS["DEMO"], "act_roles", Rule(ACT))
+    c = app_client(tmp_path)
+
+    def start():
+        r = send(c, "POST", "/agents/DEMO/act_roles", {"room": "C"}, roles=["hr_admin"]).json()["run"]
+        return r["run_id"], r["pending"]["call_hash"]
+
+    def decide(rid, h):
+        return send(c, "POST", f"/flows/{rid}/decide", {"call_hash": h, "approve": True}, sub="u2", roles=["flow_approver"])
+
+    rid, h = start()
+    directory.pop("u1")                                                   # the owner left
+    gone = decide(rid, h)
+    assert gone.status_code == 403 and gone.json()["error"]["code"] == "owner_unverified" and seen == []
+    identity.set_resolver(None)                                           # no lookup at all: cannot verify, refuse
+    assert decide(rid, h).status_code == 403 and seen == []
+    identity.set_resolver(lambda org, uid: Caller(uid, org, frozenset()))     # the owner was demoted since the start
+    assert decide(rid, h).json()["status"] == "done" and seen == [[]]      # ran with no hr_admin
+
+
+def test_network_steps_wait_for_a_person_unless_the_task_already_holds_what_they_send():
+    """KAN-69 SV2-01: injected text must not carry data out through a URL, a search query or a research question."""
+    from velaris.api.flow_policy import permit_for
+    task = "summarise https://docs.example.com/guide?page=2 and https://münchen.example/a for me, then search for quarterly report template"
+    permit = permit_for(task, lambda n: False)
+    page, search, research = "ADVANCED_SEARCH_ENGINE.read_page", "ADVANCED_SEARCH_ENGINE.web_search", "AUTONOMOUS_RESEARCH_ENGINE.research"
+    assert permit(page, {"url": "https://docs.example.com/guide?page=2"}) == "allow"
+    assert permit(page, {"url": "HTTPS://Docs.Example.com:443/guide?page=2#top"}) == "allow"      # same URL, normalised
+    assert permit(page, {"url": "https://xn--mnchen-3ya.example/a"}) == "allow"                     # punycode of the task's host
+    for bad in ("https://evil.test/?d=payslip+text",                                              # a host the task did not name
+                "https://notdocs.example.com/guide?page=2", "https://docs.example.com.attacker.net/guide?page=2",   # look-alike hosts
+                "https://docs.example.com@attacker.net/guide?page=2", "https://attacker.net/https://docs.example.com/guide?page=2",
+                "https://docs.example.com/?d=salary+4200",                                          # task's host, another query
+                "https://docs.example.com/guide", "https://docs.example.com/guide?page=2&d=x",     # path/query differ
+                "https://xn--mnchen-3ya.example/b", "https://mu\u0300nchen.example/a", "ftp://docs.example.com/guide?page=2"):
+        assert permit(page, {"url": bad}) == "approve", bad
+    assert permit(page, {"url": "https://docs.example.com/guide?page=2", "x": ["//evil.test/a"]}) == "approve"   # nested
+    assert permit(page, {}) == "approve" and permit(page, {"url": "no url here"}) == "approve"       # read_page without a URL
+    assert permit(search, {"query": "quarterly report   TEMPLATE"}) == "allow"                       # the task's own words
+    assert permit(search, {"query": "payslip of asha rao net 4200"}) == "approve"                  # built from retrieved data
+    assert permit(search, {"query": "quarterly report template asha.rao@example.com"}) == "approve"
+    assert permit(research, {"question": "what is asha's salary"}) == "approve"
+    assert permit("DEMO.whoami", {"note": "https://evil.test/x"}) == "allow"                         # not a network tool
+    assert permit_for("x", lambda n: True)(page, {}) == "approve"                                    # the tool's own rule still applies
+
+
+def test_dot_segments_in_a_path_are_refused_and_no_route_reads_identity_from_the_query(tmp_path):
+    """KAN-69 VP-6 / VP-5 (Velaris halves): '.' and '..' (also percent-encoded) never reach a route; and who the caller is
+    comes only from the signed assertion, never from an org / user_id / as_user query parameter."""
+    from velaris.api.auth import AuthError, Verifier
+    v = Verifier(SECRET, KEY.public_key())
+    for path in ("/flows/./verify", "/agents/%2e%2e/x", "/mail/mailboxes/../export?a=1"):
+        nonce = secrets.token_urlsafe(16)
+        ident = make_assertion(KEY, sub="u1", org="acme", roles=(), employee_id=None, nonce=nonce)
+        with pytest.raises(AuthError) as e:
+            v.verify("GET", path, {k.lower(): x for k, x in sign(SECRET, "GET", path, b"", ident, nonce=nonce).items()}, b"")
+        assert e.value.code == "bad_path"
+    import pathlib
+    import re
+    src = "\n".join(p.read_text() for p in pathlib.Path(__file__).parents[1].rglob("*.py") if "tests" not in p.parts)
+    assert not re.findall(r"query_params(?:\.get\(|\[)\s*[\"'](?:org|org_id|user_id|as_user|caller|employee_id)[\"']", src)
+

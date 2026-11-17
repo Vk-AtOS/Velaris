@@ -8,8 +8,7 @@ uvicorn>=0.29          # python -m velaris.api
 pypdf>=5.0           # velaris.intel.docs: PDF resumes and documents (HIRING resume parsing needs it; CI failed without it, KAN-201)
 cryptography>=41.0.0   # velaris.api.auth (Ed25519 identity assertions); test_intel_web_fetch; VIGILIS
 
-# Tests.
-pytest>=7.0
+# Tests and CI tools are in requirements-dev.txt, never in the image.
 
 # Optional: imported only where used; without the package the feature says so and the rest works.
 # Kept out of the install list on purpose (velaris/tests/test_requirements.py checks this file).

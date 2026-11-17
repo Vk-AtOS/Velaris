@@ -24,7 +24,8 @@ import os
 import tempfile
 from typing import Any, Callable, Dict, Iterator, List, Optional
 
-from velaris.agentkit.hiring_common import DAY, HiringError, bad, digest, now, parse_date, store
+from velaris.agentkit.hiring_common import DAY, HiringError, bad, digest, now, parse_date
+from velaris.agentkit.recdoc import RecDoc
 from velaris.core import vault
 from velaris.agentkit.state import append_line, last_line, read_lines
 from velaris.intel.paths import agent_dir, private_dir
@@ -42,7 +43,8 @@ Transcriber = Callable[[str, str], Dict[str, Any]]
 
 
 def st() -> Any:
-    return store(AGENT, "sessions.json", {"sessions": {}, "tokens": {}})
+    """Sessions and their tokens, one sealed file each; a session and its tokens change in one transaction (KAN-64)."""
+    return RecDoc(AGENT, f"hiring:{AGENT}", ("sessions", "tokens"), legacy=("sessions.json", {"sessions": {}, "tokens": {}}))
 
 
 def _events_path(session_id: str) -> Any:

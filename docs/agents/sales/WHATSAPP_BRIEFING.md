@@ -31,7 +31,7 @@ Ported from VKatOS whatsapp_briefing.
 
 ## Depends on
 
-- `velaris.core.sqlite_util`
+- `velaris.core.sealed_sqlite`
 - `velaris.intel.paths`
 
 ## State and configuration
