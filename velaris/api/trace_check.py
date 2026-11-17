@@ -36,11 +36,6 @@ FULL_EVERY_S = 24 * 3600
 _EMPTY = {"offset": 0, "prev": GENESIS, "entries": 0, "mac": "", "full_at": 0.0, "pass_at": 0.0, "marks": {}}
 
 
-def _hash(prev: str, ts: Any, actor: str, action: str, payload: Any) -> str:
-    body = json.dumps([prev, ts, actor, action, payload], sort_keys=True, separators=(",", ":"), default=str)
-    return hashlib.sha256(body.encode()).hexdigest()
-
-
 def _prefix_mac(path: Path, length: int) -> str:
     try:
         h = hmac.new(vault.derive_key("trace-checkpoint"), digestmod=hashlib.sha256)
@@ -107,8 +102,8 @@ def verify_incremental(max_entries: int = MAX_ENTRIES, full: bool = False, now: 
                     break
                 try:
                     e = json.loads(raw)
-                    ok = e.get("prev") == prev and e.get("hash") == _hash(prev, e["ts"], e["actor"], e["action"], e["payload"])
-                except (ValueError, KeyError, TypeError, AttributeError):
+                    ok = trace.entry_ok(e, prev) and not (wanted and covered + done + 1 > max(wanted) and not trace.is_keyed(e))
+                except (ValueError, KeyError, TypeError, AttributeError, trace.TraceHeadError):
                     ok = False
                 if not ok:
                     cp.save(dict(_EMPTY))
