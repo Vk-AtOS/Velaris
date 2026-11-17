@@ -34,4 +34,4 @@ non-numeric values raise TypeError; nothing is caught.
 
 - **other agents:** none found
 - **platform modules:** `velaris/api/allowlist.py`
-- **tests:** `velaris/tests/test_polaris.py`
+- **tests:** `velaris/tests/test_eval_chain.py`, `velaris/tests/test_polaris.py`
