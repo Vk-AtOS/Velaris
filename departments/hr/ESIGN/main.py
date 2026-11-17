@@ -44,6 +44,7 @@ MAX_DOC = 5 * 1024 * 1024
 FILE_SEAL = "hr:ESIGN:file"            # purpose of the document and sealed-PDF encryption
 OUTBOX_SEAL = "hr:ESIGN:outbox"       # purpose of the outbox encryption; an operator's relay reads it with state.read_lines(path, encrypted=OUTBOX_SEAL)
 MAX_FAILS, MAX_OTP_TRIES, OTP_MINUTES, MAX_REMINDERS = 10, 5, 10, 3
+LOCK_MINUTES = 30      # a locked signer is unlocked this long after the last wrong attempt, or at once by a new signing code
 _PENDING = ("sent", "viewed", "consented")
 
 
@@ -215,7 +216,7 @@ class Esign:
                     continue
                 token = secrets.token_urlsafe(32)
                 self.store.update("requests", r["id"], who.org, lambda x, sid=s["id"], t=token: [
-                    y.update(token_sha256=sha256_hex(t.encode()), last_notified_at=iso(now), reminders=y["reminders"] + 1)
+                    y.update(token_sha256=sha256_hex(t.encode()), last_notified_at=iso(now), reminders=y["reminders"] + 1, failed=0)
                     for y in x["signers"] if y["id"] == sid])
                 d = self._deliver("reminder", s["email"], f"Reminder: {r['title']}", self._invite_body(r, s, token), r["id"], s["id"])
                 sent.append({"request": r["id"], "signer": s["id"], "delivery": d})
@@ -298,10 +299,13 @@ class Esign:
             s = next(x for x in r["signers"] if x["id"] == sid)
             if r["status"] != "sent" or ctx["now"] > parse_iso(r["expires_at"]):
                 raise Refused(fail("not_open", f"the request is {r['status']}" if r["status"] != "sent" else "the request has expired"))
+            if s["failed"] >= MAX_FAILS and ctx["now"] - parse_iso(s.get("failed_at") or iso(ctx["now"])) > timedelta(minutes=LOCK_MINUTES):
+                s["failed"] = 0                        # the lock decays: someone holding a leaked link cannot lock the signer out for good
             if s["failed"] >= MAX_FAILS:
-                raise Refused(fail("locked", "too many wrong attempts; ask for a new signing code"))
+                raise Refused(fail("locked", "too many wrong attempts; ask for a new signing code or try again later"))
             if not isinstance(email, str) or not hmac.compare_digest(email.strip().lower().encode(), s["email"].encode()):   # bytes: non-ASCII is a mismatch, not a TypeError
                 s["failed"] += 1                       # returned (not raised) so the counter is saved
+                s["failed_at"] = iso(ctx["now"])
                 self._trace_step(req_id, sid, org, "identity_mismatch", s["state"], must=False)
                 return fail("identity_mismatch", "the e-mail does not belong to this signing code")
             if s["state"] not in need:

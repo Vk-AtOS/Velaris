@@ -142,6 +142,24 @@ def test_token_belongs_to_one_signer_and_needs_their_email():
     assert e.open_signing(tok_b, "ravi@example.in", IP, UA)["status"] == "ok"
 
 
+def test_a_signer_locked_by_a_leaked_link_is_unlocked_by_time_or_by_a_new_code():
+    """KAN-64: the failed counter never reset, so anyone with the link could lock the signer out for good."""
+    e, sender, clock, rid = setup()
+    tok = sender.token_for("asha@example.in")
+    for _ in range(12):
+        e.open_signing(tok, "ravi@example.in", IP, UA)
+    assert e.open_signing(tok, "asha@example.in", IP, UA)["status"] == "locked"
+    clock.advance(minutes=31)
+    assert e.open_signing(tok, "asha@example.in", IP, UA)["status"] == "ok"             # the lock decayed
+    for _ in range(12):
+        e.open_signing(tok, "ravi@example.in", IP, UA)
+    assert e.open_signing(tok, "asha@example.in", IP, UA)["status"] == "locked"
+    clock.advance(hours=49)                                                                # a reminder issues a new code and clears it
+    with acting_as(HR1):
+        assert e.send_reminders()["status"] == "ok"
+    assert e.open_signing(sender.token_for("asha@example.in"), "asha@example.in", IP, UA)["status"] == "ok"
+
+
 def test_ceremony_order_and_name_check():
     e, sender, _, rid = setup()
     tok, em = sender.token_for("asha@example.in"), "asha@example.in"
