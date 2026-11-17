@@ -1,0 +1,4 @@
+# Development and CI only (the image installs requirements.txt alone).
+-r requirements.txt
+pytest>=7.0
+pyyaml            # deploy manifests are parsed by velaris/tests/test_deploy_packaging.py
