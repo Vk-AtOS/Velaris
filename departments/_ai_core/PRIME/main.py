@@ -32,7 +32,7 @@ from velaris.agentkit.results import fail, invalid
 from velaris.agentkit.state import JsonState
 from velaris.agents.ENGINE.main import VelarisEngine
 from velaris.core.access import GOVERNANCE_ADMINS, check_caller, has_role
-from velaris.intel import trace
+from velaris.intel import approvals
 
 logger = logging.getLogger("PRIME")
 NAME = "PRIME"
@@ -120,10 +120,13 @@ class VelarisPrime:
         if not has_role(caller, GOVERNANCE_ADMINS):
             err = authz.delegation_error(self._grants.load().get("grants", {}).values(), g, start)
             if err:
-                trace.append(NAME, "prime.grant.refused", {"grantor": caller.id, "principal": principal, "reason": err})
+                approvals.audit("PRIME", "refused", request_id=g["id"], by=caller.id, decision="deny", note=err,
+                                trace_actor=NAME, trace_action="prime.grant.refused", grantor=caller.id, principal=principal, reason=err)
                 return fail("denied", err)
         try:
-            trace.append(NAME, "prime.grant", {k: v for k, v in g.items() if k not in ("revoked_at", "revoked_by")})
+            approvals.audit("PRIME", "granted", request_id=g["id"], subject=g, by=caller.id, decision="allow",
+                            trace_actor=NAME, trace_action="prime.grant", **{k: v for k, v in g.items() if k not in ("revoked_at", "revoked_by", "id")},
+                            id=g["id"])
         except OSError as e:
             logger.warning("PRIME: grant not recorded in the trace, so not stored: %s", e)
             return fail("audit_failed", "the grant could not be recorded, so it was not stored")
@@ -152,7 +155,8 @@ class VelarisPrime:
             return {"status": "ok", "grant_id": grant_id, "revoked_at": when}
         result = self._grants.update(change)
         if result["status"] == "ok":
-            trace.append(NAME, "prime.revoke", {"grant_id": grant_id, "by": by})
+            approvals.audit("PRIME", "revoked", request_id=grant_id, by=by, decision="revoke", trace_actor=NAME,
+                            trace_action="prime.revoke", grant_id=grant_id)
         return result
 
     def grants(self, principal: Optional[str] = None, live_only: bool = False) -> List[Dict[str, Any]]:
@@ -185,7 +189,8 @@ class VelarisPrime:
                    "currency": (context or {}).get("currency") if isinstance(context, dict) else None,
                    "task_id": str(task_id) if task_id is not None else None, "task_digest": digest}
         try:
-            trace.append(str(request["principal"] or "unknown"), "prime.request", request)
+            approvals.audit("PRIME", "requested", request_id=task_id or "", subject=digest, by=str(request["principal"] or ""),
+                            trace_actor=str(request["principal"] or "unknown"), trace_action="prime.request", **request)
             try:
                 decision = authz.authorize(principal, action, resource, context,
                                            grants=self._grants.load().get("grants", {}).values(), now=when)
@@ -193,7 +198,9 @@ class VelarisPrime:
                 logger.warning("PRIME: authorisation check failed: %s", e)
                 decision = {"decision": authz.DENY, "reason": "the check failed; refusing", "grant_id": None,
                             "approver": None, "notify": None}
-            entry = trace.append(NAME, "prime.decision", {**request, **decision})
+            entry = approvals.audit("PRIME", "decided", request_id=task_id or "", subject=digest, by=str(request["principal"] or ""),
+                                    decision=decision["decision"], trace_actor=NAME, trace_action="prime.decision",
+                                    **{**request, **{k: v for k, v in decision.items() if k != "decision"}})
         except OSError as e:
             logger.warning("PRIME: decision could not be recorded: %s", e)
             return {"decision": authz.DENY, "reason": "the decision could not be recorded; refusing",

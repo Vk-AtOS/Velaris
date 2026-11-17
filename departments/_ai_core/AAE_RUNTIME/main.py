@@ -27,7 +27,7 @@ from velaris.agentkit.results import fail, health, invalid, ok
 from velaris.agentkit.state import JsonState
 from velaris.agents.AAE_POLICY.main import AAE_POLICYAgent
 from velaris.core.access import GOVERNANCE_ADMINS, SECURITY_ADMINS, check_caller
-from velaris.intel import trace
+from velaris.intel import approvals
 
 NAME = "AAE_RUNTIME"
 logger = logging.getLogger(NAME)
@@ -78,7 +78,9 @@ class AAE_RUNTIMEAgent:
             if request is None or request["digest"] != digest:
                 return fail("no_request", "approve an action someone requested, exactly as requested", action=aid)
             if request["requested_by"] == caller.id:
-                trace.append(NAME, "approval.refused", {"action": aid, "type": atype, "caller": caller.id})
+                approvals.audit("AAE_RUNTIME", "refused", request_id=aid, by=caller.id, decision="reject",
+                                note="the requester cannot approve their own action", trace_actor=NAME,
+                                trace_action="approval.refused", action=aid, type=atype, caller=caller.id)
                 return fail("denied", "the person who requested an action cannot approve it", action=aid)
             approved_by, requested_by = caller.id, request["requested_by"]
         else:
@@ -114,6 +116,12 @@ class AAE_RUNTIMEAgent:
         if refused:
             return fail("needs_approval", reason, action=aid, requested_by=None)
         request = {"requested_by": caller.id, "digest": digest, "at": time.time()}
+        try:      # record first: a request that cannot be recorded is not stored
+            approvals.audit("AAE_RUNTIME", "requested", request_id=aid, subject=digest, by=caller.id, decision="needs_approval",
+                            note=reason, action=aid, type=atype)
+        except (OSError, ValueError, TypeError) as e:
+            logger.warning("AAE_RUNTIME: request %s not recorded, so not stored: %s", aid, e)
+            return fail("audit_failed", "the request could not be recorded", action=aid)
         self._state.update(lambda data: data.setdefault("requests", {}).update({aid: request}))
         return fail("needs_approval", reason, action=aid, requested_by=caller.id)
 
@@ -127,8 +135,9 @@ class AAE_RUNTIMEAgent:
             if outcome == "done":
                 data.setdefault("requests", {}).pop(aid, None)
         self._state.update(record)
-        trace.append(NAME, f"action.{outcome}", {"action": aid, "type": atype, "approved_by": approved_by,
-                                                 "requested_by": requested_by})
+        approvals.audit("AAE_RUNTIME", "executed", request_id=aid, subject=digest, by=approved_by or requested_by or "",
+                        decision=outcome, trace_actor=NAME, trace_action=f"action.{outcome}", action=aid, type=atype,
+                        approved_by=approved_by, requested_by=requested_by)
         return response
 
     def clear_stuck(self, action_id):
@@ -147,8 +156,8 @@ class AAE_RUNTIMEAgent:
         self._state.update(lambda d: cleared.append(d["journal"].pop(action_id)) if d["journal"].get(action_id, {}).get("outcome") == "in_progress" else None)
         if not cleared:
             return fail("not_stuck", "that action id is not in progress", action=action_id)
-        trace.append(NAME, "action.cleared", {"action": action_id, "type": cleared[0].get("type"), "by": caller.id,
-                                              "started_at": cleared[0].get("at")})
+        approvals.audit("AAE_RUNTIME", "cleared", request_id=action_id, by=caller.id, decision="cleared", trace_actor=NAME,
+                        trace_action="action.cleared", action=action_id, type=cleared[0].get("type"), started_at=cleared[0].get("at"))
         return ok(action=action_id, cleared=True)
 
     def history(self, action_id):

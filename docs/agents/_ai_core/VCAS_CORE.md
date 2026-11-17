@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `real`
-- **Source:** `departments/_ai_core/VCAS_CORE/main.py` (93 lines)
+- **Source:** `departments/_ai_core/VCAS_CORE/main.py` (99 lines)
 
 ## Purpose
 
@@ -48,5 +48,5 @@ restart (handlers must be registered again on the new autopilot instance).
 ## Called by
 
 - **other agents:** `ASEL_EXECUTOR`, `VCAS_AUTOPILOT`, `VCAS_SUPERVISOR`
-- **platform modules:** `velaris/agentkit/aicore_b_authz.py`
-- **tests:** `velaris/tests/test_aicore_a_asel.py`, `velaris/tests/test_aicore_b_prime_vcas.py`, `velaris/tests/test_kan95_core.py`, `velaris/tests/test_layer19_vcas.py`
+- **platform modules:** `velaris/agentkit/aicore_b_authz.py`, `velaris/intel/approvals.py`
+- **tests:** `velaris/tests/test_aicore_a_asel.py`, `velaris/tests/test_aicore_b_prime_vcas.py`, `velaris/tests/test_approval_audit.py`, `velaris/tests/test_kan95_core.py`, `velaris/tests/test_layer19_vcas.py`

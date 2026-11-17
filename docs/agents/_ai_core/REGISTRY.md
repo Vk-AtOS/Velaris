@@ -44,5 +44,5 @@ Provides dynamic agent class loading.
 ## Called by
 
 - **other agents:** `CONVERGENCE_BRIDGE`, `ENGINE`, `PRIME`
-- **platform modules:** none found
+- **platform modules:** `velaris/backend/engine.py`
 - **tests:** `velaris/tests/test_alias_layers.py`, `velaris/tests/test_kan87_aicore_guards.py`, `velaris/tests/test_kan95_core.py`, `velaris/tests/test_manifests_health.py`, `velaris/tests/test_registry.py`, `velaris/tests/test_system_integration.py`

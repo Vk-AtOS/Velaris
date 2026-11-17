@@ -76,7 +76,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
-from velaris.intel import catalogue, guard, router, trace, usage
+from velaris.intel import approvals, catalogue, guard, router, trace, usage
 from velaris.intel.errors import BudgetExceeded, PolicyRefused
 from velaris.intel.llm import LLM, Completion, LLMError, extract_json
 
@@ -213,9 +213,11 @@ class Flow:
         events.append(event)
         if kind in ("start", "decision", "final", "stop", "gate") or body.get("verdict") == "approve":
             # anchor the moments that matter in the global trace, so cutting the tail off a run is detectable
-            trace.append("flow", kind, {"run_id": run_id, "seq": seq, "event_hash": h,
-                                        **{k: body[k] for k in ("tool", "verdict", "approve", "by", "call_hash",
-                                                                "reason") if k in body}})
+            approvals.audit("FLOW", kind, request_id=run_id, by=body.get("by", ""), trace_actor="flow", trace_action=kind,
+                            decision=("approve" if body["approve"] else "reject") if "approve" in body else body.get("verdict"),
+                            subject=body.get("call_hash"),
+                            run_id=run_id, seq=seq, event_hash=h,
+                            **{k: body[k] for k in ("tool", "verdict", "approve", "call_hash", "reason") if k in body})
         return event
 
     def verify(self, run_id: str) -> Dict[str, Any]:
