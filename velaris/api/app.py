@@ -41,6 +41,7 @@ from velaris.api.atlassian_api import mount_atlassian
 from velaris.api.allowlist import ACT, READ, catalog, prepare, rule_for, tool_params
 from velaris.api.auth import AuthError, Verifier, load_public_key
 from velaris.api import brain_api, providers_api
+from velaris.api.flow_policy import permit_for
 from velaris.api.background import interval, lifespan
 from velaris.api.observability import CountingLLM, Metrics, current_request_id, install as install_observability
 from velaris.chat.api import chat_router
@@ -238,7 +239,7 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
             logger.warning("%s.%s failed in a flow: %s", agent, method, type(e).__name__)
             raise RuntimeError("the agent call failed") from e
 
-    def flow_for(owner: Caller, names: List[str]) -> Flow:
+    def flow_for(owner: Caller, names: List[str], task: str = "") -> Flow:
         tools = []
         for name in names:
             agent, _, method = name.partition(".")
@@ -250,7 +251,8 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
                               tool_params(fn, rule), needs_approval=rule.kind == ACT,
                               idempotent=rule.kind == READ))
         # every limit of flow.default_limits() is on (VELARIS_FLOW_*); a run that hits one is handed on, not dropped
-        return Flow(tools, llm=llm, gate=settings.gate, path=settings.flow_db,
+        needs = {t.name: t.needs_approval for t in tools}
+        return Flow(tools, llm=llm, gate=settings.gate, path=settings.flow_db, permit=permit_for(task, lambda n: needs.get(n, True)),
                     escalate=lambda info: record_escalation(owner, "flows", "a flow_approver", info))
 
     def owned_run(run_id: str, caller: Caller, *, deciding: bool = False) -> Tuple[Caller, Flow]:
@@ -267,7 +269,7 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
             raise ApiError(404, "unknown_run", "no such run")
         if owner.id == caller.id:            # the owner moves their own run: roles revoked since it started do not carry over
             owner = Caller(id=owner.id, org=owner.org, roles=owner.roles & caller.roles, employee_id=owner.employee_id)
-        return owner, flow_for(owner, events[0]["tools"])
+        return owner, flow_for(owner, events[0]["tools"], events[0].get("task", ""))
 
     # ── endpoints ────────────────────────────────────────────────────────────
     @app.get("/health")
@@ -350,7 +352,7 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
         if undeclared:
             raise ApiError(403, "not_allowed", f"not callable over HTTP: {sorted(undeclared)[:10]}")
         record(caller, "flow.start", {"tools": sorted(names)})
-        flow = flow_for(caller, sorted(set(names)))
+        flow = flow_for(caller, sorted(set(names)), task)
         run = await in_thread(partial(flow.start, task, actor=caller.id, meta={"caller": _who(caller)}))
         record(caller, "flow.state", {"run_id": run.run_id, "status": run.status})
         return _jsonable(run.to_dict())
