@@ -11,11 +11,13 @@ about a real model. Scores are published labelled with the model name; a run wit
 from __future__ import annotations
 
 import json
+import os
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Mapping, Optional
 
 from velaris.agentkit.harness import Harness, Outcome
 from velaris.core.access import Caller
+from velaris.intel import providers
 from velaris.intel.llm import FakeLLM
 
 NUMBER = re.compile(r"(?<![\w.])\d[\d,]*(?:\.\d+)?")
@@ -80,3 +82,36 @@ def run_evalset(harness: Harness, data: Dict[str, Any], *, model: Optional[str] 
     passed = sum(r["passed"] for r in results)
     return {"agent": harness.agent, "model": model or "fake:oracle", "cases": len(results), "passed": passed,
             "rate": round(passed / len(results), 3), "results": results}
+
+
+# ── a real model: the provider chain comes from the environment, so only the key is missing ─────────────────────────
+KEY_ENV = {"anthropic": "ANTHROPIC_API_KEY", "bedrock": "AWS_BEARER_TOKEN_BEDROCK"}     # built-in providers (velaris.intel.llm)
+CHAIN_ENV = "VELARIS_EVAL_MODELS"
+
+
+def model_chain(arg: Optional[str], env: Mapping[str, str] = os.environ) -> List[str]:
+    """The ordered "provider:model" chain to score against: `arg` (comma separated), else VELARIS_EVAL_MODELS, else [] (offline).
+    Each entry is a built-in (anthropic, bedrock, ollama) or a provider registered in velaris.intel.providers."""
+    raw = arg if arg is not None else env.get(CHAIN_ENV, "")
+    return [m.strip() for m in raw.split(",") if m.strip()]
+
+
+def preflight(chain: List[str], env: Mapping[str, str] = os.environ) -> List[str]:
+    """What is missing before a real run can start, as short sentences naming the SETTING (never a value). Empty: ready."""
+    problems = []
+    for model in chain:
+        provider, _, name = model.partition(":")
+        if not name:
+            problems.append(f"{model!r} is not provider:model")
+        elif provider in KEY_ENV:
+            if not env.get(KEY_ENV[provider]):
+                problems.append(f"{model}: set {KEY_ENV[provider]}")
+        elif provider == "ollama" or provider == "fake":
+            continue                       # a local server: reachability is found out on the first call, not guessed here
+        else:
+            rec = providers.get(provider)
+            if rec is None or not rec.enabled:
+                problems.append(f"{model}: provider {provider!r} is not registered or is disabled (velaris.intel.providers)")
+            elif rec.kind != "ollama" and not rec.has_key:
+                problems.append(f"{model}: provider {provider!r} has no API key")
+    return problems

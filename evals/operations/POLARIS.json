@@ -4,14 +4,14 @@
   "cases": [
     {
       "id": "select-best_trajectory",
-      "input": "Use the best_trajectory operation of POLARIS with {\"strategies\": {}}.",
+      "input": "Use the best_trajectory operation of POLARIS with {\"strategies\": []}.",
       "expect": {
         "status": "answered",
         "calls": [
           {
             "tool": "best_trajectory",
             "args": {
-              "strategies": {}
+              "strategies": []
             }
           }
         ]
@@ -40,14 +40,14 @@
     },
     {
       "id": "select-rank_long_term",
-      "input": "Use the rank_long_term operation of POLARIS with {\"strategies\": {}}.",
+      "input": "Use the rank_long_term operation of POLARIS with {\"strategies\": []}.",
       "expect": {
         "status": "answered",
         "calls": [
           {
             "tool": "rank_long_term",
             "args": {
-              "strategies": {}
+              "strategies": []
             }
           }
         ]

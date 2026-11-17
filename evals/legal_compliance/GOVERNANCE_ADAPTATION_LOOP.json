@@ -23,14 +23,14 @@
     },
     {
       "id": "select-record",
-      "input": "Use the record operation of GOVERNANCE_ADAPTATION_LOOP with {\"outcomes\": {}}.",
+      "input": "Use the record operation of GOVERNANCE_ADAPTATION_LOOP with {\"outcomes\": []}.",
       "expect": {
         "status": "proposed",
         "calls": [
           {
             "tool": "record",
             "args": {
-              "outcomes": {}
+              "outcomes": []
             }
           }
         ]

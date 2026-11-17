@@ -4,7 +4,7 @@
   "cases": [
     {
       "id": "select-define",
-      "input": "Use the define operation of EACPE_PROTOCOL with {\"protocol\": \"sample\", \"steps\": {}}.",
+      "input": "Use the define operation of EACPE_PROTOCOL with {\"protocol\": \"sample\", \"steps\": []}.",
       "expect": {
         "status": "proposed",
         "calls": [
@@ -12,7 +12,7 @@
             "tool": "define",
             "args": {
               "protocol": "sample",
-              "steps": {}
+              "steps": []
             }
           }
         ]

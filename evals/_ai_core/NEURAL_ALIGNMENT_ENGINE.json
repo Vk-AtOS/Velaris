@@ -24,14 +24,14 @@
     },
     {
       "id": "select-set_objectives",
-      "input": "Use the set_objectives operation of NEURAL_ALIGNMENT_ENGINE with {\"objectives\": {}}.",
+      "input": "Use the set_objectives operation of NEURAL_ALIGNMENT_ENGINE with {\"objectives\": []}.",
       "expect": {
         "status": "proposed",
         "calls": [
           {
             "tool": "set_objectives",
             "args": {
-              "objectives": {}
+              "objectives": []
             }
           }
         ]

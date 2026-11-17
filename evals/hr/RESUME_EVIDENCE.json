@@ -24,14 +24,14 @@
     },
     {
       "id": "select-bias_audit",
-      "input": "Use the bias_audit operation of RESUME_EVIDENCE with {\"records\": {}, \"stages\": []}.",
+      "input": "Use the bias_audit operation of RESUME_EVIDENCE with {\"records\": [], \"stages\": []}.",
       "expect": {
         "status": "answered",
         "calls": [
           {
             "tool": "bias_audit",
             "args": {
-              "records": {},
+              "records": [],
               "stages": []
             }
           }

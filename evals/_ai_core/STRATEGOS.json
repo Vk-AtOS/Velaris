@@ -22,14 +22,14 @@
     },
     {
       "id": "select-pick_best",
-      "input": "Use the pick_best operation of STRATEGOS with {\"strategies\": {}}.",
+      "input": "Use the pick_best operation of STRATEGOS with {\"strategies\": []}.",
       "expect": {
         "status": "answered",
         "calls": [
           {
             "tool": "pick_best",
             "args": {
-              "strategies": {}
+              "strategies": []
             }
           }
         ]
@@ -40,14 +40,14 @@
     },
     {
       "id": "select-rank_strategies",
-      "input": "Use the rank_strategies operation of STRATEGOS with {\"strategies\": {}}.",
+      "input": "Use the rank_strategies operation of STRATEGOS with {\"strategies\": []}.",
       "expect": {
         "status": "answered",
         "calls": [
           {
             "tool": "rank_strategies",
             "args": {
-              "strategies": {}
+              "strategies": []
             }
           }
         ]

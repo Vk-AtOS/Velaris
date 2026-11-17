@@ -26,7 +26,7 @@
     },
     {
       "id": "select-ingest",
-      "input": "Use the ingest operation of STREAM_PROCESSOR with {\"stream\": \"sample\", \"events\": {}}.",
+      "input": "Use the ingest operation of STREAM_PROCESSOR with {\"stream\": \"sample\", \"events\": []}.",
       "expect": {
         "status": "proposed",
         "calls": [
@@ -34,7 +34,7 @@
             "tool": "ingest",
             "args": {
               "stream": "sample",
-              "events": {}
+              "events": []
             }
           }
         ]
