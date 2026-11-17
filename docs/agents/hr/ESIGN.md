@@ -2,7 +2,7 @@
 
 - **Department:** `hr`
 - **Status (static inventory):** `real`
-- **Source:** `departments/hr/ESIGN/main.py` (555 lines)
+- **Source:** `departments/hr/ESIGN/main.py` (559 lines)
 
 ## Purpose
 

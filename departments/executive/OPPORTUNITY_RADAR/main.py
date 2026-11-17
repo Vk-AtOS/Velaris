@@ -45,14 +45,19 @@ class OpportunityRadarAgent:
         seen: Dict[str, str] = data["seen"]
         now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         new: List[Dict[str, Any]] = []
+        known, untracked = 0, 0
         for r in got["results"]:
             r["keywords_matched"] = [k for k in keywords if kit.has_term(k, f"{r['title']} {r['snippet']}")]
             r["first_seen"] = seen.get(r["url"], now)
-            if r["url"] not in seen and len(seen) < MAX_SEEN:
+            if r["url"] in seen:
+                known += 1
+            elif len(seen) < MAX_SEEN:
                 seen[r["url"]] = now
                 new.append(r)
+            else:
+                untracked += 1                  # the table is full: returned, but neither saved nor counted as seen before
         if new:
             self._state.save(data)
-        return {"status": got["status"], "new": new, "seen_before": len(got["results"]) - len(new),
+        return {"status": got["status"], "new": new, "seen_before": known, "untracked": untracked,
                 "results": got["results"], "queries": got["queries"], "search_errors": got["search_errors"],
                 "note": "Search results as returned, with their URLs. Whether any is worth pursuing is a human call."}

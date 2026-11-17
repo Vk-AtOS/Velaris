@@ -255,7 +255,7 @@ def test_a_user_cannot_hold_unlimited_queues_or_long_polls():
         hub.poll(ids[0], "alice", -1)                          # the oldest was evicted
     other = hub.register("bob", "acme")                        # another user is not affected
     assert hub.queues() == ev.MAX_QUEUES_PER_USER + 1
-    started, outcome = threading.Barrier(ev.MAX_POLLS_PER_USER + 1), []
+    started = threading.Barrier(ev.MAX_POLLS_PER_USER + 1)
 
     def wait():
         started.wait()

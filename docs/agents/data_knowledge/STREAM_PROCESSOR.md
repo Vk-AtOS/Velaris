@@ -2,7 +2,7 @@
 
 - **Department:** `data_knowledge`
 - **Status (static inventory):** `real`
-- **Source:** `departments/data_knowledge/STREAM_PROCESSOR/main.py` (97 lines)
+- **Source:** `departments/data_knowledge/STREAM_PROCESSOR/main.py` (102 lines)
 
 ## Purpose
 
@@ -41,4 +41,4 @@ a closed window's result never changes. Aggregates survive restarts.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_dept_data_knowledge_stubs.py`, `velaris/tests/test_layer9_compute.py`
+- **tests:** `velaris/tests/test_dept_data_knowledge_stubs.py`, `velaris/tests/test_kan93_rest.py`, `velaris/tests/test_layer9_compute.py`

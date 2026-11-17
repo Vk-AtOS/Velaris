@@ -2,7 +2,7 @@
 
 - **Department:** `executive`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/executive/OPPORTUNITY_RADAR/main.py` (59 lines)
+- **Source:** `departments/executive/OPPORTUNITY_RADAR/main.py` (64 lines)
 
 ## Purpose
 
@@ -37,4 +37,4 @@ State: <VELARIS_DATA>/agents/OPPORTUNITY_RADAR/seen.json (owner-only).
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_dept_executive_stubs.py`
+- **tests:** `velaris/tests/test_dept_executive_stubs.py`, `velaris/tests/test_kan93_rest.py`

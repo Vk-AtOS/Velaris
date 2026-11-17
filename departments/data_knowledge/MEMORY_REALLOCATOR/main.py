@@ -60,6 +60,7 @@ class MEMORY_REALLOCATORAgent:
         if minimums > total_mb:
             scale = total_mb / minimums
             plan = {n: round(c["min_mb"] * scale, 3) for n, c in consumers.items()}
+            self._state.update(lambda d: d.__setitem__("last_plan", {"total_mb": total_mb, "plan": plan, "overcommitted": True}))
             return ok(plan=plan, total_mb=total_mb, unallocated_mb=0.0, overcommitted=True)
         alloc = {n: float(c["min_mb"]) for n, c in consumers.items()}
         cap = {n: math.inf if c["demand_mb"] is None else float(c["demand_mb"]) for n, c in consumers.items()}
