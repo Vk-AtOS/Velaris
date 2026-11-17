@@ -558,7 +558,7 @@ Design: `docs/design/central_brain.md`.
   exception-class fix of KAN-35) and a test pins it. Defect 11: `velaris/intel/approvals.audit()` writes every request,
   decision, execution, refusal and revocation of Flow, VCAS_CORE/VCAS_AUTOPILOT, AAE_RUNTIME, the PRIME agent and
   HUMAN_APPROVAL_WORKFLOW with one payload shape; `approvals.trail()` reads it back. The five still have their own state.
-* **Allowlist for the ten departments that had none** (`allowlist.NOTES` holds the security note of every new row). Added: 63
+* **Allowlist for the ten departments that had none** (`allowlist.NOTES` holds the security note of every new row). Added: 64
   READ rows (client_success LOGISTA; executive INSIGHTA ORACLE PROBABILIS REALMEX STOCHASTIX; marketing ARTESIA CREATIVA
   CREATIVE_HOLODECK IMAGINA; operations FABRICA FLUXOR GENEFLOW OPERATUS OPTIMA POLARIS; project_management SIMULON TACTICIAN;
   sales AMPLIFEX ATTRACTA AUTONOMOUS_SALES_NAVIGATOR COHORTUS CONVERTA DOMAIN_ADVISOR RETENTA TARGETA; security AUDITOR PRAETOR
