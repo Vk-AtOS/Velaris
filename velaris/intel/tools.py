@@ -44,7 +44,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from velaris.api.allowlist import ACT, READ, http_params, prepare, rule_for
 from velaris.core.access import AccessDenied, Caller, org_denied
 from velaris.intel import trace
-from velaris.intel.flow import Tool
+from velaris.intel.flow import Tool, Warned
 
 logger = logging.getLogger("velaris.intel.tools")
 SIDE_EFFECTS = ("none", "internal", "external")
@@ -459,10 +459,15 @@ def flow_tool(tool: ToolSpec, run: Callable[..., Any], *, needs_approval: Any = 
             raise ValueError("; ".join(problems))
         result = run(**args)
         problems = validate_output(tool, result)
-        if problems:
+        if not problems:
+            return result
+        if tool.side_effects == "none":          # a read: nothing happened, so a failed step is safe to retry
             trace.append("tools", "invalid_output", {"tool": tool.name, "problems": problems[:3]})
             raise ToolOutputError("; ".join(problems))
-        return result
+        # An action that ran stays executed: failing it would invite a retry and repeat the side effect.
+        trace.append("tools", "output_mismatch", {"tool": tool.name, "problems": problems[:3], "executed": True})
+        return Warned("[the action ran; its result did not fit the declared shape and is withheld]",
+                      "output_mismatch: " + "; ".join(problems))
     need = (tool.side_effects != "none") if needs_approval is None else needs_approval
     return Tool(tool.name, checked, tool.description, _prompt_params(tool), needs_approval=need,
                 idempotent=tool.side_effects == "none")

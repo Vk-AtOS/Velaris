@@ -130,6 +130,15 @@ class Tool:
 
 
 @dataclass
+class Warned:
+    """What a tool returns when it RAN but something about the result is off (e.g. it does not fit its declared output
+    shape). The step is recorded as executed (ok) with `output` as its result and `warning` beside it: an executed action is
+    never turned into a failure, because a failure invites a retry and a retry would repeat the side effect."""
+    output: str
+    warning: str
+
+
+@dataclass
 class Result:
     run_id: str
     status: str                  # done | waiting_approval | stopped | model_error (resume() retries)
@@ -286,8 +295,11 @@ class Flow:
         if self.max_repeat and sum(e["kind"] == "call" and e["call_hash"] == h for e in events) >= self.max_repeat - 1:
             return self._stop(run_id, events, "loop_detected")      # the same step again and again: the model is stuck
         spent, self._spent = self._spent, {}
-        self._append(run_id, events, "call", {"tool": tool.name, "args": args, "verdict": self._verdict(tool, args),
-                                              "call_hash": h, **spent})
+        again = not tool.idempotent and any(                 # an executed step is never run a second time
+            e["kind"] == "result" and e.get("executed") and events[e["call_seq"]].get("call_hash") == h for e in events)
+        self._append(run_id, events, "call", {"tool": tool.name, "args": args, "call_hash": h, **spent,
+                                              "verdict": "deny" if again else self._verdict(tool, args),
+                                              **({"duplicate": True} if again else {})})
 
     def _stop(self, run_id: str, events: List[Dict[str, Any]], reason: str) -> None:
         """End the run and hand it on once: `escalate(info)` is called, and what happened is part of the stop event."""
@@ -343,8 +355,12 @@ class Flow:
     def _execute(self, run_id: str, events: List[Dict[str, Any]], call: Dict[str, Any]) -> None:
         self._append(run_id, events, "exec", {"call_seq": call["seq"]})      # written BEFORE the side effect
         started = time.monotonic()      # not self._clock: the Atlassian approval gate runs this method on a stand-in object
+        executed, warning = False, ""
         try:
             out, ok = self.tools[call["tool"]].fn(**call["args"]), True
+            executed = True             # the tool returned: whatever it does has happened (a raise leaves this unknown)
+            if isinstance(out, Warned):
+                out, warning = out.output, out.warning[:300]
             out = out if isinstance(out, str) else json.dumps(out, default=str, ensure_ascii=False)
         except Exception as e:  # a tool failure is information for the model, not a crash of the run
             out, ok = f"{type(e).__name__}: {e}", False
@@ -353,7 +369,8 @@ class Flow:
         if flagged:
             out = "[the tool's output was withheld because it read like instructions, not data]"
         self._append(run_id, events, "result", {"call_seq": call["seq"], "ok": ok, "output": out,
-                                                "flagged": flagged, "sec": time.monotonic() - started})
+                                                "flagged": flagged, "executed": executed, "sec": time.monotonic() - started,
+                                                **({"warning": warning} if warning else {})})
 
     def _advance(self, run_id: str) -> Result:
         events = self.history(run_id)
@@ -375,7 +392,8 @@ class Flow:
                 if call["verdict"] == "deny" or call["tool"] not in self.tools:
                     self._append(run_id, events, "result", {
                         "call_seq": call["seq"], "ok": False, "flagged": False,
-                        "output": "not permitted by policy" if call["verdict"] == "deny" else "tool no longer available"})
+                        "output": ("this exact step already ran in this run and was not repeated" if call.get("duplicate")
+                                   else "not permitted by policy") if call["verdict"] == "deny" else "tool no longer available"})
                     continue
                 if started and not self.tools[call["tool"]].idempotent and (
                         not decision or decision["seq"] < started["seq"]):

@@ -133,3 +133,56 @@ def test_a_flow_tool_refuses_a_result_that_breaks_its_schema(registry):
     bad = tools.flow_tool(spec, lambda **a: {"x": 1})
     with pytest.raises(tools.ToolOutputError):
         bad.fn(monthly_burn=1.0)
+
+
+# ── an executed action is never turned into a failure (a failure invites a retry, a retry repeats the side effect) ──
+from velaris.intel.flow import Flow     # noqa: E402
+
+
+@pytest.fixture
+def _data(tmp_path, monkeypatch):
+    monkeypatch.setenv("VELARIS_DATA", str(tmp_path))
+
+
+def _spec(name, side_effects, kind):
+    return tools.ToolSpec(f"X.{name}", "X", name, {"type": "object", "properties": {}, "required": []},
+                          side_effects=side_effects, kind=kind, output={"type": "number"})
+
+
+def _model(*calls):
+    it = iter([json.dumps({"tool": c, "args": {}}) for c in calls] + [json.dumps({"final": "ok"})])
+    return FakeLLM(lambda p, m: next(it))
+
+
+def _results(flow, run_id):
+    return [e for e in flow.history(run_id) if e["kind"] == "result"]
+
+
+def test_an_act_tool_with_a_wrong_shape_is_recorded_executed_with_a_warning_and_ran_once(_data):
+    ran = []
+    act = tools.flow_tool(_spec("send", "external", "act"), lambda **a: ran.append(1) or "a string, not a number",
+                          needs_approval=False)
+    flow = Flow([act], llm=_model("X.send"), permit=lambda t, a: "allow")
+    r = flow.start("do it")
+    res = _results(flow, r.run_id)
+    assert r.status == "done" and ran == [1]
+    assert res[0]["ok"] is True and res[0]["executed"] is True and res[0]["warning"].startswith("output_mismatch")
+    assert "a string, not a number" not in res[0]["output"]            # the unfit result is withheld
+
+
+def test_a_read_with_a_wrong_shape_fails_and_may_be_tried_again(_data):
+    ran = []
+    read = tools.flow_tool(_spec("peek", "none", "read"), lambda **a: ran.append(1) or "wrong")
+    flow = Flow([read], llm=_model("X.peek", "X.peek"), permit=lambda t, a: "allow", max_repeat=0)
+    r = flow.start("look twice")
+    res = _results(flow, r.run_id)
+    assert [x["ok"] for x in res] == [False, False] and ran == [1, 1] and not any(x["executed"] for x in res)
+
+
+def test_a_model_loop_does_not_call_an_executed_act_tool_again(_data):
+    ran = []
+    act = tools.flow_tool(_spec("send", "external", "act"), lambda **a: ran.append(1) or 1.0, needs_approval=False)
+    flow = Flow([act], llm=_model("X.send", "X.send"), permit=lambda t, a: "allow", max_repeat=0)
+    r = flow.start("send it")
+    res = _results(flow, r.run_id)
+    assert ran == [1] and len(res) == 2 and "already ran" in res[1]["output"] and res[1]["ok"] is False
