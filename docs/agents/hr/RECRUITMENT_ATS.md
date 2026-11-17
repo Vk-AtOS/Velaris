@@ -53,4 +53,4 @@ Ported from VKatOS recruitment_tracker.
 
 - **other agents:** none found
 - **platform modules:** `velaris/core/backfill_org.py`
-- **tests:** `velaris/tests/test_hr_data_legacy.py`, `velaris/tests/test_kan107_sealed_sqlite.py`, `velaris/tests/test_no_state_in_source_tree.py`
+- **tests:** `velaris/tests/test_hr_data_legacy.py`, `velaris/tests/test_kan107_sealed_sqlite.py`, `velaris/tests/test_manifests_health.py`, `velaris/tests/test_no_state_in_source_tree.py`
