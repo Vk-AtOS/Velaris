@@ -1,7 +1,23 @@
 {
   "name": "DOMAIN_MASTERY",
   "version": "0.1.0",
-  "domain": "sales",
   "description": "DOMAIN_MASTERY: how the company actually performs in each sales vertical.",
-  "entrypoint": "main.py:DOMAIN_MASTERYAgent"
+  "entrypoint": "main.py:DOMAIN_MASTERYAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "DOMAIN_MASTERY: how the company actually performs in each sales vertical.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/sales/DOMAIN_MASTERY.json",
+    "wave": "KAN-42",
+    "status": "deterministic_tool",
+    "tools": {
+      "assess": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "sales"
 }

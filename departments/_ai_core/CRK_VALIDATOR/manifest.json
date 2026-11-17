@@ -5,5 +5,21 @@
   "description": "CRK validator: checks every step of an argument against fixed rules and names the first that fails.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:CRK_VALIDATORAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "CRK validator: checks every step of an argument against fixed rules and names the first that fails.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/CRK_VALIDATOR.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "validate": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

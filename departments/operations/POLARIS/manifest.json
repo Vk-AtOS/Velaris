@@ -5,5 +5,27 @@
   "description": "Public methods: compute_score, rank_long_term, best_trajectory (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:PolarisAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Polaris: long-term weighted scoring of strategies.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/operations/POLARIS.json",
+    "wave": "KAN-41",
+    "status": "deterministic_tool",
+    "tools": {
+      "best_trajectory": {
+        "kind": "read"
+      },
+      "compute_score": {
+        "kind": "read"
+      },
+      "rank_long_term": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

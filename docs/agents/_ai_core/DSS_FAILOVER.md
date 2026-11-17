@@ -1,7 +1,7 @@
 # DSS_FAILOVER
 
 - **Department:** `_ai_core`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/_ai_core/DSS_FAILOVER/main.py` (63 lines)
 
 ## Purpose

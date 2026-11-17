@@ -1,0 +1,51 @@
+{
+  "schema": 1,
+  "agent": "RESOURCE_OPTIMIZER",
+  "cases": [
+    {
+      "id": "select-profile",
+      "input": "Use the profile operation of RESOURCE_OPTIMIZER with {}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "profile",
+            "args": {}
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-recommend",
+      "input": "Use the recommend operation of RESOURCE_OPTIMIZER with {}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "recommend",
+            "args": {}
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

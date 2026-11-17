@@ -1,7 +1,29 @@
 {
   "name": "BANKING_LOGIC_ENGINE",
   "version": "0.1.0",
-  "domain": "finance",
   "description": "BANKING_LOGIC_ENGINE: arithmetic on one bank account.",
-  "entrypoint": "main.py:BankingLogicEngine"
+  "entrypoint": "main.py:BankingLogicEngine",
+  "harness": {
+    "schema": 1,
+    "purpose": "BANKING_LOGIC_ENGINE: arithmetic on one bank account.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/finance/BANKING_LOGIC_ENGINE.json",
+    "wave": "KAN-38",
+    "status": "deterministic_tool",
+    "tools": {
+      "apply_interest": {
+        "kind": "read"
+      },
+      "process_transaction": {
+        "kind": "read"
+      },
+      "validate": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "finance"
 }

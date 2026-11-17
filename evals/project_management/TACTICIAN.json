@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "agent": "TACTICIAN",
+  "cases": [
+    {
+      "id": "select-recommend_adjustments",
+      "input": "Use the recommend_adjustments operation of TACTICIAN with {\"plan\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "recommend_adjustments",
+            "args": {
+              "plan": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-simulate_plan",
+      "input": "Use the simulate_plan operation of TACTICIAN with {\"plan\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "simulate_plan",
+            "args": {
+              "plan": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

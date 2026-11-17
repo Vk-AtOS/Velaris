@@ -4,5 +4,24 @@
   "domain": "connectors",
   "entrypoint": "main.py:ZohoConnector",
   "description": "OAuth2 base connector for all Zoho APIs — handles token refresh automatically. All Zoho agents inherit from or compose this.",
-  "hitl_required": false
+  "hitl_required": false,
+  "harness": {
+    "schema": 1,
+    "purpose": "Zoho connector: OAuth2 base client that other Zoho agents use to call Zoho REST APIs.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_connectors/ZOHO_CONNECTOR.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "get": {
+        "kind": "act"
+      },
+      "post": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

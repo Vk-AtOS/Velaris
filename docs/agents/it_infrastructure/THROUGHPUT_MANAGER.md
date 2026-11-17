@@ -1,7 +1,7 @@
 # THROUGHPUT_MANAGER
 
 - **Department:** `it_infrastructure`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/it_infrastructure/THROUGHPUT_MANAGER/main.py` (79 lines)
 
 ## Purpose

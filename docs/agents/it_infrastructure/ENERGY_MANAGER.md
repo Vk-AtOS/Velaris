@@ -1,7 +1,7 @@
 # ENERGY_MANAGER
 
 - **Department:** `it_infrastructure`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/it_infrastructure/ENERGY_MANAGER/main.py` (72 lines)
 
 ## Purpose

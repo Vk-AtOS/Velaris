@@ -5,5 +5,72 @@
   "description": "Employee master: candidate-to-employee conversion only through a proposed-then-approved act by two different HR administrators (consent carried over, purpose changed, lawful basis flagged for a lawyer), change history with who and why, offboarding checklist and access-revocation task list (tasks only, no system is changed), data-subject export and erasure honouring a dated retention registry (statutory periods are unverified, so those classes are held and flagged needs_review).",
   "entrypoint": "main.py:EmployeeRecords",
   "hitl_required": true,
-  "tags": ["employee", "hr", "dpdp", "retention", "offboarding"]
+  "tags": [
+    "employee",
+    "hr",
+    "dpdp",
+    "retention",
+    "offboarding"
+  ],
+  "harness": {
+    "schema": 1,
+    "purpose": "EMPLOYEE_RECORDS: the employee master, joining and leaving, and the data subject's export and erasure.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/hr/EMPLOYEE_RECORDS.json",
+    "wave": "KAN-37",
+    "status": "deterministic_tool",
+    "tools": {
+      "approve_conversion": {
+        "kind": "act"
+      },
+      "change_record": {
+        "kind": "act"
+      },
+      "complete_exit_task": {
+        "kind": "act"
+      },
+      "employee_history": {
+        "kind": "read"
+      },
+      "erase_subject": {
+        "kind": "act"
+      },
+      "exit_status": {
+        "kind": "read"
+      },
+      "export_subject": {
+        "kind": "read"
+      },
+      "finalise_exit": {
+        "kind": "act"
+      },
+      "get_employee": {
+        "kind": "read"
+      },
+      "list_employees": {
+        "kind": "read"
+      },
+      "propose_conversion": {
+        "kind": "act"
+      },
+      "reject_conversion": {
+        "kind": "act"
+      },
+      "retention_status": {
+        "kind": "read"
+      },
+      "retention_table": {
+        "kind": "read"
+      },
+      "start_exit": {
+        "kind": "act"
+      },
+      "workforce_aggregate": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

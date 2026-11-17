@@ -1,7 +1,26 @@
 {
   "name": "HR_TALENT_ENGINE",
   "version": "0.1.0",
-  "domain": "hr",
-  "description": "HR_TALENT_ENGINE: evidence that a candidate has the skills a role asks for. For a human.",
-  "entrypoint": "main.py:HRTalentEngine"
+  "description": "HR_TALENT_ENGINE: evidence that a candidate has the skills a role asks for.",
+  "entrypoint": "main.py:HRTalentEngine",
+  "harness": {
+    "schema": 1,
+    "purpose": "HR_TALENT_ENGINE: evidence that a candidate has the skills a role asks for.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/hr/HR_TALENT_ENGINE.json",
+    "wave": "KAN-37",
+    "status": "deterministic_tool",
+    "tools": {
+      "evaluate": {
+        "kind": "act"
+      },
+      "validate": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "hr"
 }

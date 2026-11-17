@@ -5,5 +5,89 @@
   "description": "Applicant tracking core: requisitions with structured must/nice skills and an approval, candidates with a mandatory DPDP consent record (purpose, notice version, retention date), contact data stored apart from evaluation data, applications and pipeline stages with allowed transitions, a human-only decision log, duplicate review (no auto-merge), candidate export and erasure, and a retention sweep that lists what is due (a person approves each deletion). Ledger entries hold hashes only. It never ranks, scores or decides about a person.",
   "entrypoint": "main.py:AtsCore",
   "hitl_required": true,
-  "tags": ["hiring", "ats", "recruitment", "dpdp"]
+  "tags": [
+    "hiring",
+    "ats",
+    "recruitment",
+    "dpdp"
+  ],
+  "harness": {
+    "schema": 1,
+    "purpose": "ATS_CORE: requisitions, candidates, applications, pipeline, decision log, duplicates, erasure.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/hr/ATS_CORE.json",
+    "wave": "KAN-37",
+    "status": "deterministic_tool",
+    "tools": {
+      "add_application": {
+        "kind": "act"
+      },
+      "add_candidate": {
+        "kind": "act"
+      },
+      "aggregate_counts": {
+        "kind": "read"
+      },
+      "approve_requisition": {
+        "kind": "act"
+      },
+      "candidate_contact": {
+        "kind": "read"
+      },
+      "candidate_summary": {
+        "kind": "read"
+      },
+      "close_requisition": {
+        "kind": "act"
+      },
+      "create_requisition": {
+        "kind": "act"
+      },
+      "decision_log": {
+        "kind": "read"
+      },
+      "duplicate_review": {
+        "kind": "read"
+      },
+      "erase_candidates": {
+        "kind": "act"
+      },
+      "export_candidate": {
+        "kind": "read"
+      },
+      "get_application": {
+        "kind": "read"
+      },
+      "get_requisition": {
+        "kind": "read"
+      },
+      "list_requisitions": {
+        "kind": "read"
+      },
+      "move_stage": {
+        "kind": "act"
+      },
+      "open_requisition": {
+        "kind": "act"
+      },
+      "pipeline": {
+        "kind": "read"
+      },
+      "record_offer_outcome": {
+        "kind": "act"
+      },
+      "resolve_duplicate": {
+        "kind": "act"
+      },
+      "retention_due": {
+        "kind": "read"
+      },
+      "withdraw_consent": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

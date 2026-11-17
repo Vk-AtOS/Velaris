@@ -1,7 +1,7 @@
 # CSM_LINKER
 
 - **Department:** `_ai_core`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/_ai_core/CSM_LINKER/main.py` (88 lines)
 
 ## Purpose

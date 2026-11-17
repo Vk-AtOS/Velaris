@@ -5,5 +5,21 @@
   "description": "MPC_CORE: clean every source's record (MPC_PREPROC), then merge them (MPC_FUSION).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:MPC_COREAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "MPC_CORE: clean every source's record (MPC_PREPROC), then merge them (MPC_FUSION).",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/MPC_CORE.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "run": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "agent": "CCSF_FUSION",
+  "cases": [
+    {
+      "id": "select-fuse",
+      "input": "Use the fuse operation of CCSF_FUSION with {\"sources\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "fuse",
+            "args": {
+              "sources": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

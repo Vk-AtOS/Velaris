@@ -1,7 +1,26 @@
 {
   "name": "CREATIVE_HOLODECK",
   "version": "0.1.0",
-  "domain": "marketing",
   "description": "Creative holodeck: composes a one-sentence scene description from four fixed word lists (rule-based, not generative).",
-  "entrypoint": "main.py:CreativeHolodeck"
+  "entrypoint": "main.py:CreativeHolodeck",
+  "harness": {
+    "schema": 1,
+    "purpose": "Creative holodeck: composes a one-sentence scene description from four fixed word lists (rule-based, not generative).",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/marketing/CREATIVE_HOLODECK.json",
+    "wave": "KAN-42",
+    "status": "deterministic_tool",
+    "tools": {
+      "compose": {
+        "kind": "read"
+      },
+      "random_scene": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "marketing"
 }

@@ -5,5 +5,24 @@
   "description": "MRF_REFLECT: turns an evaluation's failures into revision instructions, and optionally has a model apply them.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:MRF_REFLECTAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "MRF_REFLECT: turns an evaluation's failures into revision instructions, and optionally has a model apply them.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/MRF_REFLECT.json",
+    "wave": "KAN-44",
+    "status": "model_driven",
+    "tools": {
+      "reflect": {
+        "kind": "read"
+      },
+      "revise": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

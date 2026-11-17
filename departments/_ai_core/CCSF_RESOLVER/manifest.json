@@ -5,5 +5,21 @@
   "description": "CCSF resolver: settles conflicting field values by a declared strategy per field.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:CCSF_RESOLVERAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "CCSF resolver: settles conflicting field values by a declared strategy per field.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/CCSF_RESOLVER.json",
+    "wave": "KAN-43",
+    "status": "deterministic_tool",
+    "tools": {
+      "resolve": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

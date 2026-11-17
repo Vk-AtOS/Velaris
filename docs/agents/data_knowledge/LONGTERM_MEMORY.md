@@ -39,5 +39,5 @@ blocked text is not stored). Both need an authenticated caller whose organisatio
 ## Called by
 
 - **other agents:** `LOCAL_MEMORY_STORE`, `SHORTTERM_MEMORY`
-- **platform modules:** `velaris/api/allowlist.py`
+- **platform modules:** `velaris/api/allowlist.py`, `velaris/orchestration/autonomy.py`
 - **tests:** `velaris/tests/test_memory_substrate.py`, `velaris/tests/test_no_state_in_source_tree.py`, `velaris/tests/test_r3_memory_dna.py`

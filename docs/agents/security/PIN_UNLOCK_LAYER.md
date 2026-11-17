@@ -1,7 +1,7 @@
 # PIN_UNLOCK_LAYER
 
 - **Department:** `security`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/security/PIN_UNLOCK_LAYER/main.py` (79 lines)
 
 ## Purpose

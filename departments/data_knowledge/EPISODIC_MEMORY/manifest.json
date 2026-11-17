@@ -3,5 +3,27 @@
   "version": "0.1.0",
   "author": "Velaris",
   "description": "A durable, time-ordered log of what happened.",
-  "entrypoint": "main.py:EPISODIC_MEMORYAgent"
+  "entrypoint": "main.py:EPISODIC_MEMORYAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "EPISODIC_MEMORY: a durable, time-ordered log of what happened.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/data_knowledge/EPISODIC_MEMORY.json",
+    "wave": "KAN-35",
+    "status": "mixed",
+    "tools": {
+      "consolidate": {
+        "kind": "act"
+      },
+      "list_episodes": {
+        "kind": "read"
+      },
+      "record": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

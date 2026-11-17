@@ -1,7 +1,23 @@
 {
   "name": "VELOCITY_LOOP",
   "version": "0.1.0",
-  "domain": "operations",
   "description": "VELOCITY_LOOP: where one piece of work lost its time.",
-  "entrypoint": "main.py:VelocityLoop"
+  "entrypoint": "main.py:VelocityLoop",
+  "harness": {
+    "schema": 1,
+    "purpose": "VELOCITY_LOOP: where one piece of work lost its time.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/operations/VELOCITY_LOOP.json",
+    "wave": "KAN-41",
+    "status": "deterministic_tool",
+    "tools": {
+      "accelerate": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "operations"
 }

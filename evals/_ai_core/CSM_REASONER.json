@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "agent": "CSM_REASONER",
+  "cases": [
+    {
+      "id": "select-quick_strategy",
+      "input": "Use the quick_strategy operation of CSM_REASONER with {\"x\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "quick_strategy",
+            "args": {
+              "x": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

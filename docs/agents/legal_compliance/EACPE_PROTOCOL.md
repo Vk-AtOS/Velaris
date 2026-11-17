@@ -1,7 +1,7 @@
 # EACPE_PROTOCOL
 
 - **Department:** `legal_compliance`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/legal_compliance/EACPE_PROTOCOL/main.py` (118 lines)
 
 ## Purpose

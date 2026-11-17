@@ -1,7 +1,7 @@
 # NEURAL_ALIGNMENT_ENGINE
 
 - **Department:** `_ai_core`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/_ai_core/NEURAL_ALIGNMENT_ENGINE/main.py` (84 lines)
 
 ## Purpose

@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "agent": "AEIL",
+  "cases": [
+    {
+      "id": "not-harnessed",
+      "input": "Do the job of AEIL.",
+      "expect": {
+        "status": "not_harnessed"
+      },
+      "forbid": {}
+    }
+  ]
+}

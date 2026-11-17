@@ -1,0 +1,74 @@
+{
+  "schema": 1,
+  "agent": "SAFETY_PERIMETER",
+  "cases": [
+    {
+      "id": "select-can_execute",
+      "input": "Use the can_execute operation of SAFETY_PERIMETER with {\"jurisdiction_code\": \"sample\", \"syscall_name\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "can_execute",
+            "args": {
+              "jurisdiction_code": "sample",
+              "syscall_name": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-check_jurisdiction",
+      "input": "Use the check_jurisdiction operation of SAFETY_PERIMETER with {\"code\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "check_jurisdiction",
+            "args": {
+              "code": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-check_syscall",
+      "input": "Use the check_syscall operation of SAFETY_PERIMETER with {\"call_name\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "check_syscall",
+            "args": {
+              "call_name": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

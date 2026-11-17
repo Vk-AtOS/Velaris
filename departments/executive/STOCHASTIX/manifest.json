@@ -5,5 +5,27 @@
   "description": "Public methods: random_walk, sample_paths, expected_final (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:StochastixAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Stochastix: random-walk simulation helper for scenario analysis.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/executive/STOCHASTIX.json",
+    "wave": "KAN-36",
+    "status": "deterministic_tool",
+    "tools": {
+      "expected_final": {
+        "kind": "read"
+      },
+      "random_walk": {
+        "kind": "act"
+      },
+      "sample_paths": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

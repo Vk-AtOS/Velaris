@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "agent": "FSCL",
+  "cases": [
+    {
+      "id": "not-harnessed",
+      "input": "Do the job of FSCL.",
+      "expect": {
+        "status": "not_harnessed"
+      },
+      "forbid": {}
+    }
+  ]
+}

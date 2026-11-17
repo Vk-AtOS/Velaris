@@ -5,5 +5,24 @@
   "description": "Public methods: compute_path, sequence_steps (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:NavarchAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Navarch: finds the cheapest path through a weighted graph and passes step lists through.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/NAVARCH.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "compute_path": {
+        "kind": "read"
+      },
+      "sequence_steps": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

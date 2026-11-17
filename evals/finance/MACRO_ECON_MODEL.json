@@ -1,0 +1,71 @@
+{
+  "schema": 1,
+  "agent": "MACRO_ECON_MODEL",
+  "cases": [
+    {
+      "id": "select-compute_index",
+      "input": "Use the compute_index operation of MACRO_ECON_MODEL with {\"m\": {\"country\": \"sample\", \"gdp\": 1.0, \"inflation\": 1.0, \"unemployment\": 1.0, \"interest_rate\": 1.0, \"fiscal_deficit\": 1.0, \"currency_strength\": 1.0}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "compute_index",
+            "args": {
+              "m": {
+                "country": "sample",
+                "gdp": 1.0,
+                "inflation": 1.0,
+                "unemployment": 1.0,
+                "interest_rate": 1.0,
+                "fiscal_deficit": 1.0,
+                "currency_strength": 1.0
+              }
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-validate",
+      "input": "Use the validate operation of MACRO_ECON_MODEL with {\"m\": {\"country\": \"sample\", \"gdp\": 1.0, \"inflation\": 1.0, \"unemployment\": 1.0, \"interest_rate\": 1.0, \"fiscal_deficit\": 1.0, \"currency_strength\": 1.0}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "validate",
+            "args": {
+              "m": {
+                "country": "sample",
+                "gdp": 1.0,
+                "inflation": 1.0,
+                "unemployment": 1.0,
+                "interest_rate": 1.0,
+                "fiscal_deficit": 1.0,
+                "currency_strength": 1.0
+              }
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

@@ -1,7 +1,29 @@
 {
   "name": "MEMORY_REALLOCATOR",
   "version": "0.1.0",
-  "domain": "data_knowledge",
   "description": "MEMORY_REALLOCATOR: divide a RAM budget among declared consumers.",
-  "entrypoint": "main.py:MEMORY_REALLOCATORAgent"
+  "entrypoint": "main.py:MEMORY_REALLOCATORAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "MEMORY_REALLOCATOR: divide a RAM budget among declared consumers.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/data_knowledge/MEMORY_REALLOCATOR.json",
+    "wave": "KAN-42",
+    "status": "deterministic_tool",
+    "tools": {
+      "reallocate": {
+        "kind": "act"
+      },
+      "remove_consumer": {
+        "kind": "act"
+      },
+      "set_consumer": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "data_knowledge"
 }

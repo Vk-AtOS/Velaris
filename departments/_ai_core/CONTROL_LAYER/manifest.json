@@ -5,5 +5,33 @@
   "description": "CONTROL_LAYER: narrow, scripted work in files, a terminal or a browser, logged and mostly reversible.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:CONTROL_LAYERAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "CONTROL_LAYER: narrow, scripted work in files, a terminal or a browser, logged and mostly reversible.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/CONTROL_LAYER.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "list_tasks": {
+        "kind": "read"
+      },
+      "run_report": {
+        "kind": "read"
+      },
+      "run_state": {
+        "kind": "read"
+      },
+      "start_run": {
+        "kind": "act"
+      },
+      "undo": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

@@ -1,7 +1,7 @@
 # OFFLINE_EXECUTION_ENGINE
 
 - **Department:** `it_infrastructure`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/it_infrastructure/OFFLINE_EXECUTION_ENGINE/main.py` (81 lines)
 
 ## Purpose

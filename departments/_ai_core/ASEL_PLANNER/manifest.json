@@ -5,5 +5,21 @@
   "description": "ASEL planner: schedules a set of dependent tasks (critical path method).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:ASEL_PLANNERAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "ASEL planner: schedules a set of dependent tasks (critical path method).",
+    "sensitivity": "internal",
+    "task_class": "planner",
+    "eval": "evals/_ai_core/ASEL_PLANNER.json",
+    "wave": "KAN-43",
+    "status": "deterministic_tool",
+    "tools": {
+      "plan": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

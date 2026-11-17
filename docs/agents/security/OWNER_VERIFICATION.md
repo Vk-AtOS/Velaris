@@ -1,7 +1,7 @@
 # OWNER_VERIFICATION
 
 - **Department:** `security`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/security/OWNER_VERIFICATION/main.py` (75 lines)
 
 ## Purpose

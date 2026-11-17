@@ -4,5 +4,30 @@
   "domain": "hr",
   "entrypoint": "main.py:EmployeeOnboardingAgent",
   "description": "Velaris BOS agent for Knackforge Ported from VKatOS client_onboarding, adapted for employees (IT setup, HR docs, 30/60/90 day plan).",
-  "hitl_required": false
+  "hitl_required": false,
+  "harness": {
+    "schema": 1,
+    "purpose": "EMPLOYEE_ONBOARDING — Velaris BOS agent for Knackforge Ported from VKatOS client_onboarding, adapted for employees (IT setup, HR docs, 30/60/90 day plan).",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/hr/EMPLOYEE_ONBOARDING.json",
+    "wave": "KAN-37",
+    "status": "deterministic_tool",
+    "tools": {
+      "complete_step": {
+        "kind": "act"
+      },
+      "get_overdue": {
+        "kind": "act"
+      },
+      "onboard_employee": {
+        "kind": "act"
+      },
+      "progress_report": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

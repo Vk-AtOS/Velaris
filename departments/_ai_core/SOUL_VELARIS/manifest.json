@@ -5,5 +5,30 @@
   "description": "The company's charter for its agents, and the check of an action against it.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:Soul",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "SOUL_VELARIS: the company's charter for its agents, and the check of an action against it.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/SOUL_VELARIS.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "check": {
+        "kind": "act"
+      },
+      "get_intent": {
+        "kind": "act"
+      },
+      "history": {
+        "kind": "act"
+      },
+      "set_charter": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

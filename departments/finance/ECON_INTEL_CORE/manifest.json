@@ -1,7 +1,32 @@
 {
   "name": "ECON_INTEL_CORE",
   "version": "0.1.0",
-  "domain": "finance",
   "description": "ECON_INTEL_CORE: a sourced register of economic indicators, plus cited research.",
-  "entrypoint": "main.py:ECON_INTEL_COREAgent"
+  "entrypoint": "main.py:ECON_INTEL_COREAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "ECON_INTEL_CORE: a sourced register of economic indicators, plus cited research.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/finance/ECON_INTEL_CORE.json",
+    "wave": "KAN-38",
+    "status": "mixed",
+    "tools": {
+      "record_indicator": {
+        "kind": "act"
+      },
+      "research": {
+        "kind": "read"
+      },
+      "series": {
+        "kind": "read"
+      },
+      "summary": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "finance"
 }

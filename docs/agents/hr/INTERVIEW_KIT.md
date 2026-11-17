@@ -1,7 +1,7 @@
 # INTERVIEW_KIT
 
 - **Department:** `hr`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/hr/INTERVIEW_KIT/main.py` (269 lines)
 
 ## Purpose

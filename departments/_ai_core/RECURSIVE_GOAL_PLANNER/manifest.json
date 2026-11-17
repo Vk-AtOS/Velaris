@@ -5,5 +5,24 @@
   "description": "RECURSIVE_GOAL_PLANNER: flattens a nested goal into a dependency-ordered task list.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:RecursiveGoalPlanner",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "RECURSIVE_GOAL_PLANNER: flattens a nested goal into a dependency-ordered task list.",
+    "sensitivity": "internal",
+    "task_class": "planner",
+    "eval": "evals/_ai_core/RECURSIVE_GOAL_PLANNER.json",
+    "wave": "KAN-44",
+    "status": "mixed",
+    "tools": {
+      "decompose": {
+        "kind": "act"
+      },
+      "recurse": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

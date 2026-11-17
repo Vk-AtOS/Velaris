@@ -3,5 +3,24 @@
   "version": "0.1.0",
   "author": "Velaris",
   "description": "Public methods: record, last (the module has no docstring).",
-  "entrypoint": "main.py:OVERSIGHT_MONITORAgent"
+  "entrypoint": "main.py:OVERSIGHT_MONITORAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "Oversight monitor: a minimal in-memory log of oversight entries (stub-level).",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/security/OVERSIGHT_MONITOR.json",
+    "wave": "KAN-40",
+    "status": "deterministic_tool",
+    "tools": {
+      "last": {
+        "kind": "read"
+      },
+      "record": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

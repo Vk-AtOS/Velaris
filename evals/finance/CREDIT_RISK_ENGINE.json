@@ -1,0 +1,71 @@
+{
+  "schema": 1,
+  "agent": "CREDIT_RISK_ENGINE",
+  "cases": [
+    {
+      "id": "select-compute_risk",
+      "input": "Use the compute_risk operation of CREDIT_RISK_ENGINE with {\"b\": {\"borrower_id\": \"sample\", \"income\": 1.0, \"liabilities\": 1.0, \"credit_history_years\": 1, \"delinquency_count\": 1, \"loan_amount\": 1.0, \"loan_type\": \"sample\"}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "compute_risk",
+            "args": {
+              "b": {
+                "borrower_id": "sample",
+                "income": 1.0,
+                "liabilities": 1.0,
+                "credit_history_years": 1,
+                "delinquency_count": 1,
+                "loan_amount": 1.0,
+                "loan_type": "sample"
+              }
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-validate",
+      "input": "Use the validate operation of CREDIT_RISK_ENGINE with {\"b\": {\"borrower_id\": \"sample\", \"income\": 1.0, \"liabilities\": 1.0, \"credit_history_years\": 1, \"delinquency_count\": 1, \"loan_amount\": 1.0, \"loan_type\": \"sample\"}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "validate",
+            "args": {
+              "b": {
+                "borrower_id": "sample",
+                "income": 1.0,
+                "liabilities": 1.0,
+                "credit_history_years": 1,
+                "delinquency_count": 1,
+                "loan_amount": 1.0,
+                "loan_type": "sample"
+              }
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

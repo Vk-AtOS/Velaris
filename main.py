@@ -4,16 +4,21 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from velaris.agents.inventory import format_inventory  # noqa: E402  (needs the path line above)
+from velaris.agents.inventory import format_harness, format_inventory  # noqa: E402  (needs the path line above)
 from velaris.backend.engine import backend  # noqa: E402
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Velaris entry point")
     parser.add_argument("--inventory", action="store_true",
                         help="print per-department counts of real / rule-based / not-implemented agents")
+    parser.add_argument("--harness", action="store_true",
+                        help="print per-department counts of agents by harness class (deterministic_tool / model_driven / mixed / not_harnessed)")
     args = parser.parse_args()
     if args.inventory:
         print(format_inventory())
+        sys.exit(0)
+    if args.harness:
+        print(format_harness())
         sys.exit(0)
 
     status = backend.status()

@@ -5,5 +5,21 @@
   "description": "Behaviour shaping: forces a proposed set of settings inside declared limits.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:BehaviorShapingNetwork",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Behaviour shaping: forces a proposed set of settings inside declared limits.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/BEHAVIOR_SHAPING_NETWORK.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "shape": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

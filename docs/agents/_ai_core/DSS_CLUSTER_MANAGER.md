@@ -1,7 +1,7 @@
 # DSS_CLUSTER_MANAGER
 
 - **Department:** `_ai_core`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/_ai_core/DSS_CLUSTER_MANAGER/main.py` (74 lines)
 
 ## Purpose

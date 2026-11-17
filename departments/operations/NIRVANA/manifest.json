@@ -1,7 +1,20 @@
 {
   "name": "NIRVANA",
   "version": "0.1.0",
-  "domain": "operations",
-  "description": "Alias agent NIRVANA: fronts SELF_CORRECTION_ENGINE, SANITY_VERIFIER, FAILOVER_ROUTER. See velaris.agentkit.alias.",
-  "entrypoint": "main.py:NIRVANAAgent"
+  "description": "Alias agent NIRVANA: fronts SELF_CORRECTION_ENGINE, SANITY_VERIFIER, FAILOVER_ROUTER.",
+  "entrypoint": "main.py:NIRVANAAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "Alias agent NIRVANA: fronts SELF_CORRECTION_ENGINE, SANITY_VERIFIER, FAILOVER_ROUTER.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/operations/NIRVANA.json",
+    "wave": "KAN-41",
+    "status": "not_harnessed",
+    "reason_code": "stub",
+    "reason": "the agent is a stub (inventory: not_implemented); a harness around it would claim a capability that is not there",
+    "tools": {},
+    "reviewed": true
+  },
+  "domain": "operations"
 }

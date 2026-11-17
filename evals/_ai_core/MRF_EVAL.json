@@ -1,0 +1,38 @@
+{
+  "schema": 1,
+  "agent": "MRF_EVAL",
+  "cases": [
+    {
+      "id": "select-evaluate",
+      "input": "Use the evaluate operation of MRF_EVAL with {\"output\": \"sample\", \"rubric\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "evaluate",
+            "args": {
+              "output": "sample",
+              "rubric": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

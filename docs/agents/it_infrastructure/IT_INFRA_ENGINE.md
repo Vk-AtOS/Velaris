@@ -1,7 +1,7 @@
 # IT_INFRA_ENGINE
 
 - **Department:** `it_infrastructure`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/it_infrastructure/IT_INFRA_ENGINE/main.py` (129 lines)
 
 ## Purpose

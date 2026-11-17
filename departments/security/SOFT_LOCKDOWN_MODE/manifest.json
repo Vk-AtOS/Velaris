@@ -1,7 +1,35 @@
 {
   "name": "SOFT_LOCKDOWN_MODE",
   "version": "0.1.0",
-  "domain": "security",
   "description": "Soft lockdown mode: a persistent on/off switch that blocks a fixed list of high-risk actions while on.",
-  "entrypoint": "main.py:SoftLockdownMode"
+  "entrypoint": "main.py:SoftLockdownMode",
+  "harness": {
+    "schema": 1,
+    "purpose": "Soft lockdown mode: a persistent on/off switch that blocks a fixed list of high-risk actions while on.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/security/SOFT_LOCKDOWN_MODE.json",
+    "wave": "KAN-40",
+    "status": "deterministic_tool",
+    "tools": {
+      "attempt": {
+        "kind": "act"
+      },
+      "disable": {
+        "kind": "act"
+      },
+      "enable": {
+        "kind": "act"
+      },
+      "get_logs": {
+        "kind": "read"
+      },
+      "is_enabled": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "security"
 }

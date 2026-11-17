@@ -3,5 +3,24 @@
   "version": "0.1.0",
   "author": "Velaris",
   "description": "Public methods: set, get (the module has no docstring).",
-  "entrypoint": "main.py:OFFLINE_REGISTRYAgent"
+  "entrypoint": "main.py:OFFLINE_REGISTRYAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "Offline registry: a small key/value store in one local JSON file, usable without any network.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/it_infrastructure/OFFLINE_REGISTRY.json",
+    "wave": "KAN-39",
+    "status": "deterministic_tool",
+    "tools": {
+      "get": {
+        "kind": "read"
+      },
+      "set": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

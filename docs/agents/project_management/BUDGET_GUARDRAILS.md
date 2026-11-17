@@ -1,7 +1,7 @@
 # BUDGET_GUARDRAILS
 
 - **Department:** `project_management`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/project_management/BUDGET_GUARDRAILS/main.py` (117 lines)
 
 ## Purpose

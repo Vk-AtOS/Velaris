@@ -5,5 +5,27 @@
   "description": "Simple routing mesh for agent messages.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:NeuralMesh",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Neural mesh: a message queue between agents, backed by MEMORY_FABRIC.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/NEURAL_MESH.json",
+    "wave": "KAN-43",
+    "status": "deterministic_tool",
+    "tools": {
+      "broadcast": {
+        "kind": "act"
+      },
+      "receive": {
+        "kind": "act"
+      },
+      "route": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

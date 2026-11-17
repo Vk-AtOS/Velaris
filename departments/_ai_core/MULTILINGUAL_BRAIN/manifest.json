@@ -5,5 +5,27 @@
   "description": "Public methods: register_language, translate, languages",
   "owner": "Velaris Core",
   "entrypoint": "main.py:MultilingualBrain",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Multilingual brain: word-for-word offline translation from registered dictionaries.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/MULTILINGUAL_BRAIN.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "languages": {
+        "kind": "read"
+      },
+      "register_language": {
+        "kind": "act"
+      },
+      "translate": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

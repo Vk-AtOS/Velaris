@@ -1,7 +1,7 @@
 # INTER_AGENT_COHESION
 
 - **Department:** `_ai_core`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/_ai_core/INTER_AGENT_COHESION/main.py` (71 lines)
 
 ## Purpose

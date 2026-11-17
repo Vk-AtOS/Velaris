@@ -1,7 +1,29 @@
 {
   "name": "OFFLINE_EXECUTION_ENGINE",
   "version": "0.1.0",
-  "domain": "it_infrastructure",
   "description": "OFFLINE_EXECUTION_ENGINE: a durable, replay-safe journal of local command runs.",
-  "entrypoint": "main.py:OfflineExecutionEngine"
+  "entrypoint": "main.py:OfflineExecutionEngine",
+  "harness": {
+    "schema": 1,
+    "purpose": "OFFLINE_EXECUTION_ENGINE: a durable, replay-safe journal of local command runs.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/it_infrastructure/OFFLINE_EXECUTION_ENGINE.json",
+    "wave": "KAN-39",
+    "status": "deterministic_tool",
+    "tools": {
+      "execute": {
+        "kind": "act"
+      },
+      "get": {
+        "kind": "act"
+      },
+      "history": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "it_infrastructure"
 }

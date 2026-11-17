@@ -1,0 +1,92 @@
+{
+  "schema": 1,
+  "agent": "RISKON",
+  "cases": [
+    {
+      "id": "select-compare_risk",
+      "input": "Use the compare_risk operation of RISKON with {\"a\": {}, \"b\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "compare_risk",
+            "args": {
+              "a": {},
+              "b": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-exposure",
+      "input": "Use the exposure operation of RISKON with {\"assets\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "exposure",
+            "args": {
+              "assets": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-risk_score",
+      "input": "Use the risk_score operation of RISKON with {\"data\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "risk_score",
+            "args": {
+              "data": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-volatility",
+      "input": "Use the volatility operation of RISKON with {\"values\": []}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "volatility",
+            "args": {
+              "values": []
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

@@ -5,5 +5,21 @@
   "description": "Watch the web for new mentions of the things the caller is looking for.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:OpportunityRadarAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "OPPORTUNITY_RADAR: watch the web for new mentions of the things the caller is looking for.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/executive/OPPORTUNITY_RADAR.json",
+    "wave": "KAN-36",
+    "status": "deterministic_tool",
+    "tools": {
+      "run": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

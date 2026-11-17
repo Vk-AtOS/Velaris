@@ -5,5 +5,21 @@
   "description": "UIE_REASONER: decides what should happen next with an interpreted request.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:UIEReasonerAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "UIE_REASONER: decides what should happen next with an interpreted request.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/UIE_REASONER.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "reason": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

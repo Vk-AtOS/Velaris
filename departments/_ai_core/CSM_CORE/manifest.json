@@ -5,5 +5,27 @@
   "description": "CSM core: a register of numeric goals, reviewed with the other CSM agents.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:CSMCoreAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "CSM core: a register of numeric goals, reviewed with the other CSM agents.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/CSM_CORE.json",
+    "wave": "KAN-43",
+    "status": "deterministic_tool",
+    "tools": {
+      "goals": {
+        "kind": "read"
+      },
+      "review": {
+        "kind": "act"
+      },
+      "set_goal": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

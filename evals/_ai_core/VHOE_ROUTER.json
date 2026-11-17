@@ -1,0 +1,38 @@
+{
+  "schema": 1,
+  "agent": "VHOE_ROUTER",
+  "cases": [
+    {
+      "id": "select-route",
+      "input": "Use the route operation of VHOE_ROUTER with {\"item\": {}, \"workers\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "route",
+            "args": {
+              "item": {},
+              "workers": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

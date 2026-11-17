@@ -5,5 +5,30 @@
   "description": "Public methods: record_transaction, get_balance, reconcile, find_transactions (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:LedgeronAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Ledgeron: a small in-memory ledger of transactions per account, exact to the paisa.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/finance/LEDGERON.json",
+    "wave": "KAN-38",
+    "status": "deterministic_tool",
+    "tools": {
+      "find_transactions": {
+        "kind": "read"
+      },
+      "get_balance": {
+        "kind": "read"
+      },
+      "reconcile": {
+        "kind": "read"
+      },
+      "record_transaction": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

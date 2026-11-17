@@ -1,7 +1,7 @@
 # CLBPP_OVERLOAD_MONITOR
 
 - **Department:** `_ai_core`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/_ai_core/CLBPP_OVERLOAD_MONITOR/main.py` (64 lines)
 
 ## Purpose

@@ -1,7 +1,7 @@
 # EPISODIC_MEMORY
 
 - **Department:** `data_knowledge`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/data_knowledge/EPISODIC_MEMORY/main.py` (98 lines)
 
 ## Purpose
@@ -44,4 +44,4 @@ themselves are never edited or deleted; only the oldest fall off after MAX_EPISO
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_dept_data_knowledge_stubs.py`, `velaris/tests/test_memory_substrate.py`, `velaris/tests/test_r3_memory_dna.py`
+- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_dept_data_knowledge_stubs.py`, `velaris/tests/test_memory_substrate.py`, `velaris/tests/test_r3_memory_dna.py`

@@ -1,0 +1,75 @@
+{
+  "schema": 1,
+  "agent": "VIRALYTICA",
+  "cases": [
+    {
+      "id": "select-propagation_curve",
+      "input": "Use the propagation_curve operation of VIRALYTICA with {\"initial\": 1, \"periods\": 1}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "propagation_curve",
+            "args": {
+              "initial": 1,
+              "periods": 1
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-shareability_score",
+      "input": "Use the shareability_score operation of VIRALYTICA with {\"signals\": []}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "shareability_score",
+            "args": {
+              "signals": []
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-virality_coefficient",
+      "input": "Use the virality_coefficient operation of VIRALYTICA with {\"shares\": 1, \"views\": 1}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "virality_coefficient",
+            "args": {
+              "shares": 1,
+              "views": 1
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

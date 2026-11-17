@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "agent": "PROBABILIS",
+  "cases": [
+    {
+      "id": "select-bernoulli",
+      "input": "Use the bernoulli operation of PROBABILIS with {\"p\": 1.0}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "bernoulli",
+            "args": {
+              "p": 1.0
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-distribution_mean",
+      "input": "Use the distribution_mean operation of PROBABILIS with {\"values\": []}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "distribution_mean",
+            "args": {
+              "values": []
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

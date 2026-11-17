@@ -5,5 +5,24 @@
   "description": "ACF router: sends a signal to a destination by declared rules.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:ACFRouterAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "ACF router: sends a signal to a destination by declared rules.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/ACF_ROUTER.json",
+    "wave": "KAN-43",
+    "status": "deterministic_tool",
+    "tools": {
+      "route": {
+        "kind": "act"
+      },
+      "set_rules": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

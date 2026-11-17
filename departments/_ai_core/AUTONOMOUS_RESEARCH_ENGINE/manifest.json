@@ -5,5 +5,26 @@
   "description": "Public methods: register_source, add_document, query, research, summarize",
   "owner": "Velaris Core",
   "entrypoint": "main.py:AutonomousResearchEngine",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Autonomous research engine: ranks documents in registered in-memory sources by keyword match, and delegates live-web research to velaris.intel.research.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/AUTONOMOUS_RESEARCH_ENGINE.json",
+    "wave": "KAN-44",
+    "status": "model_driven",
+    "tools": {
+      "research": {
+        "kind": "read"
+      }
+    },
+    "excluded": {
+      "add_document": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "query": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "register_source": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "summarize": "not in the HTTP allowlist (velaris/api/allowlist.py)"
+    },
+    "reviewed": true
+  }
 }

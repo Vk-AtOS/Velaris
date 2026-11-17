@@ -3,5 +3,27 @@
   "version": "1.0.0",
   "author": "Velaris",
   "description": "Ask the same question N times and measure how far the answers agree.",
-  "entrypoint": "main.py:SELF_CONSISTENCYAgent"
+  "entrypoint": "main.py:SELF_CONSISTENCYAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "SELF_CONSISTENCY: ask the same question N times and measure how far the answers agree.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/SELF_CONSISTENCY.json",
+    "wave": "KAN-44",
+    "status": "model_driven",
+    "tools": {
+      "agreement": {
+        "kind": "read"
+      },
+      "check": {
+        "kind": "read"
+      },
+      "sample": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

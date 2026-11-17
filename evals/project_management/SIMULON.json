@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "agent": "SIMULON",
+  "cases": [
+    {
+      "id": "select-run_linear",
+      "input": "Use the run_linear operation of SIMULON with {\"start\": 1.0, \"step\": 1.0}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "run_linear",
+            "args": {
+              "start": 1.0,
+              "step": 1.0
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-scenario",
+      "input": "Use the scenario operation of SIMULON with {\"name\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "scenario",
+            "args": {
+              "name": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

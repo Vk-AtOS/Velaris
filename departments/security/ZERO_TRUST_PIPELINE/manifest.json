@@ -3,5 +3,36 @@
   "version": "0.1.0",
   "author": "Velaris",
   "description": "Every request is checked for identity, device, context and policy; the default is deny.",
-  "entrypoint": "main.py:ZERO_TRUST_PIPELINEAgent"
+  "entrypoint": "main.py:ZERO_TRUST_PIPELINEAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "ZERO_TRUST_PIPELINE: every request is checked for identity, device, context and policy; the default is deny.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/security/ZERO_TRUST_PIPELINE.json",
+    "wave": "KAN-40",
+    "status": "deterministic_tool",
+    "tools": {
+      "add_policy": {
+        "kind": "act"
+      },
+      "enroll": {
+        "kind": "act"
+      },
+      "evaluate": {
+        "kind": "act"
+      },
+      "remove_policy": {
+        "kind": "act"
+      },
+      "revoke": {
+        "kind": "act"
+      }
+    },
+    "excluded": {
+      "issue_token": "the method returns a secret, which would pass through the model",
+      "verify": "parameter 'token' is a secret; it would pass through the model"
+    },
+    "reviewed": true
+  }
 }

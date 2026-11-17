@@ -5,5 +5,24 @@
   "description": "Public methods: set_preset, transform",
   "owner": "Velaris Core",
   "entrypoint": "main.py:LyraEngine",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "LYRA: output personality engine that applies a fixed style preset to text.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/LYRA.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "set_preset": {
+        "kind": "act"
+      },
+      "transform": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

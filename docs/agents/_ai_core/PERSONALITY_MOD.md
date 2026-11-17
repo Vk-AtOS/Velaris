@@ -1,7 +1,7 @@
 # PERSONALITY_MOD
 
 - **Department:** `_ai_core`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/_ai_core/PERSONALITY_MOD/main.py` (81 lines)
 
 ## Purpose

@@ -3,5 +3,33 @@
   "version": "0.1.0",
   "author": "Velaris",
   "description": "A versioned policy store with a deterministic decision that names its rule.",
-  "entrypoint": "main.py:POLICY_CONTROLLERAgent"
+  "entrypoint": "main.py:POLICY_CONTROLLERAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "POLICY_CONTROLLER: a versioned policy store with a deterministic decision that names its rule.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/legal_compliance/POLICY_CONTROLLER.json",
+    "wave": "KAN-42",
+    "status": "deterministic_tool",
+    "tools": {
+      "evaluate": {
+        "kind": "read"
+      },
+      "get_policy": {
+        "kind": "read"
+      },
+      "history": {
+        "kind": "read"
+      },
+      "put_policy": {
+        "kind": "act"
+      },
+      "retire": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

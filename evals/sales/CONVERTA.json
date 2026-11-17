@@ -1,0 +1,75 @@
+{
+  "schema": 1,
+  "agent": "CONVERTA",
+  "cases": [
+    {
+      "id": "select-conversion_rate",
+      "input": "Use the conversion_rate operation of CONVERTA with {\"visits\": 1, \"conversions\": 1}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "conversion_rate",
+            "args": {
+              "visits": 1,
+              "conversions": 1
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-funnel_leakage",
+      "input": "Use the funnel_leakage operation of CONVERTA with {\"stages\": []}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "funnel_leakage",
+            "args": {
+              "stages": []
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-optimization_score",
+      "input": "Use the optimization_score operation of CONVERTA with {\"rate\": 1.0, \"leakage\": 1.0}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "optimization_score",
+            "args": {
+              "rate": 1.0,
+              "leakage": 1.0
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

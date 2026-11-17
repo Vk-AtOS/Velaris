@@ -1,7 +1,20 @@
 {
   "name": "SANDE",
   "version": "0.1.0",
-  "domain": "operations",
-  "description": "Alias agent SANDE: fronts LOCAL_ACCELERATOR, LOCAL_AUTONOMY_CORE, LOCAL_REGISTRY_CACHE, LOCAL_ROUTER, LOCAL_MEMORY_STORE. See velaris.agentkit.alias.",
-  "entrypoint": "main.py:SANDEAgent"
+  "description": "Alias agent SANDE: fronts LOCAL_ACCELERATOR, LOCAL_AUTONOMY_CORE, LOCAL_REGISTRY_CACHE, LOCAL_ROUTER, LOCAL_MEMORY_STORE.",
+  "entrypoint": "main.py:SANDEAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "Alias agent SANDE: fronts LOCAL_ACCELERATOR, LOCAL_AUTONOMY_CORE, LOCAL_REGISTRY_CACHE, LOCAL_ROUTER, LOCAL_MEMORY_STORE.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/operations/SANDE.json",
+    "wave": "KAN-41",
+    "status": "not_harnessed",
+    "reason_code": "stub",
+    "reason": "the agent is a stub (inventory: not_implemented); a harness around it would claim a capability that is not there",
+    "tools": {},
+    "reviewed": true
+  },
+  "domain": "operations"
 }

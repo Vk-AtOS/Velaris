@@ -1,7 +1,7 @@
 # CCSF_CORE
 
 - **Department:** `_ai_core`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/_ai_core/CCSF_CORE/main.py` (60 lines)
 
 ## Purpose

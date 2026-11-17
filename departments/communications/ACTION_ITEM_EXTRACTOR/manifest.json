@@ -11,5 +11,33 @@
     "tasks",
     "extraction",
     "nlp"
-  ]
+  ],
+  "harness": {
+    "schema": 1,
+    "purpose": "Action item extractor: finds action items in meeting text with fixed regex patterns and stores them (no LLM).",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/communications/ACTION_ITEM_EXTRACTOR.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "close_item": {
+        "kind": "act"
+      },
+      "extract_from_segments": {
+        "kind": "act"
+      },
+      "extract_from_text": {
+        "kind": "act"
+      },
+      "get_open_items": {
+        "kind": "act"
+      },
+      "get_overdue": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

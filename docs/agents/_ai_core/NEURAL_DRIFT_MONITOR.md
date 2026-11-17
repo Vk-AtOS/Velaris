@@ -1,7 +1,7 @@
 # NEURAL_DRIFT_MONITOR
 
 - **Department:** `_ai_core`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/_ai_core/NEURAL_DRIFT_MONITOR/main.py` (79 lines)
 
 ## Purpose

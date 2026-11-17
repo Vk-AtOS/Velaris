@@ -5,5 +5,73 @@
   "description": "Offer letters from safe templates: CTC breakdown with arithmetic (statutory amounts read from PAYROLL_ENGINE, unverified = needs_review), two-person approval chain, versions, expiry, accept/decline recording, HTML and PDF output. Sends nothing itself.",
   "entrypoint": "main.py:OfferLetters",
   "hitl_required": true,
-  "tags": ["offer", "hr", "recruitment", "compensation", "pdf"]
+  "tags": [
+    "offer",
+    "hr",
+    "recruitment",
+    "compensation",
+    "pdf"
+  ],
+  "harness": {
+    "schema": 1,
+    "purpose": "OFFER_LETTERS: generate, approve, version, send, expire and record the outcome of an offer letter.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/hr/OFFER_LETTERS.json",
+    "wave": "KAN-37",
+    "status": "deterministic_tool",
+    "tools": {
+      "add_template": {
+        "kind": "act"
+      },
+      "approve": {
+        "kind": "act"
+      },
+      "compensation_preview": {
+        "kind": "read"
+      },
+      "create_offer": {
+        "kind": "act"
+      },
+      "expire_due": {
+        "kind": "act"
+      },
+      "get_offer": {
+        "kind": "read"
+      },
+      "list_offers": {
+        "kind": "read"
+      },
+      "list_templates": {
+        "kind": "read"
+      },
+      "record_response": {
+        "kind": "act"
+      },
+      "reject": {
+        "kind": "act"
+      },
+      "render_offer": {
+        "kind": "read"
+      },
+      "revise_offer": {
+        "kind": "act"
+      },
+      "send_offer": {
+        "kind": "act"
+      },
+      "submit_for_approval": {
+        "kind": "act"
+      },
+      "withdraw_offer": {
+        "kind": "act"
+      }
+    },
+    "excluded": {
+      "dsr_erase": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "dsr_export": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "get_offer_status": "not in the HTTP allowlist (velaris/api/allowlist.py)"
+    },
+    "reviewed": true
+  }
 }

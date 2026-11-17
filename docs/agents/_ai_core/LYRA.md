@@ -40,4 +40,4 @@ Controls:
 
 - **other agents:** `LYRA_VOICE_ENGINE`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_agents_coverage_b.py`, `velaris/tests/test_agents_coverage_c.py`, `velaris/tests/test_kan89_aicore.py`, `velaris/tests/test_r3_voice_sim_lang.py`
+- **tests:** `velaris/tests/test_agents_coverage_b.py`, `velaris/tests/test_agents_coverage_c.py`, `velaris/tests/test_kan89_aicore.py`, `velaris/tests/test_manifests_health.py`, `velaris/tests/test_r3_voice_sim_lang.py`

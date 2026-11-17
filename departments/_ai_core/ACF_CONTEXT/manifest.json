@@ -5,5 +5,21 @@
   "description": "ACF context: wraps a raw input in a screened envelope before anything acts on it.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:ACFContextAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "ACF context: wraps a raw input in a screened envelope before anything acts on it.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/ACF_CONTEXT.json",
+    "wave": "KAN-43",
+    "status": "deterministic_tool",
+    "tools": {
+      "contextualize": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

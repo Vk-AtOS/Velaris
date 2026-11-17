@@ -5,5 +5,27 @@
   "description": "Public methods: expand_concept, novelty_score, idea_mix (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:CreativaAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Creativa: template-based idea helpers for marketing (no generative model is used).",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/marketing/CREATIVA.json",
+    "wave": "KAN-42",
+    "status": "deterministic_tool",
+    "tools": {
+      "expand_concept": {
+        "kind": "read"
+      },
+      "idea_mix": {
+        "kind": "read"
+      },
+      "novelty_score": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

@@ -1,7 +1,7 @@
 # ITSM_ENGINE
 
 - **Department:** `it_infrastructure`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/it_infrastructure/ITSM_ENGINE/main.py` (223 lines)
 
 ## Purpose

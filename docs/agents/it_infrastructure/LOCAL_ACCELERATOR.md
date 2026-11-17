@@ -1,7 +1,7 @@
 # LOCAL_ACCELERATOR
 
 - **Department:** `it_infrastructure`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/it_infrastructure/LOCAL_ACCELERATOR/main.py` (93 lines)
 
 ## Purpose

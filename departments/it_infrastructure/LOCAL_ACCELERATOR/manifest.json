@@ -1,7 +1,31 @@
 {
   "name": "LOCAL_ACCELERATOR",
   "version": "0.1.0",
-  "domain": "it_infrastructure",
   "description": "LOCAL_ACCELERATOR: an on-disk result cache that makes repeated work instant.",
-  "entrypoint": "main.py:LOCAL_ACCELERATORAgent"
+  "entrypoint": "main.py:LOCAL_ACCELERATORAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "LOCAL_ACCELERATOR: an on-disk result cache that makes repeated work instant.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/it_infrastructure/LOCAL_ACCELERATOR.json",
+    "wave": "KAN-39",
+    "status": "deterministic_tool",
+    "tools": {
+      "get": {
+        "kind": "act"
+      },
+      "put": {
+        "kind": "act"
+      },
+      "stats": {
+        "kind": "read"
+      }
+    },
+    "excluded": {
+      "compute": "required parameter 'fn' is a collaborator or callable, wired by code"
+    },
+    "reviewed": true
+  },
+  "domain": "it_infrastructure"
 }

@@ -1,7 +1,7 @@
 # COMPUTE_KERNEL
 
 - **Department:** `it_infrastructure`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/it_infrastructure/COMPUTE_KERNEL/main.py` (94 lines)
 
 ## Purpose

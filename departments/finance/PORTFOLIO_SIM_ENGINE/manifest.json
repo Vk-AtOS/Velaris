@@ -1,7 +1,26 @@
 {
   "name": "PORTFOLIO_SIM_ENGINE",
   "version": "0.1.0",
-  "domain": "finance",
   "description": "Portfolio simulation engine: computes expected return, volatility, Sharpe ratio and risk tier for a weighted portfolio.",
-  "entrypoint": "main.py:PortfolioSimEngine"
+  "entrypoint": "main.py:PortfolioSimEngine",
+  "harness": {
+    "schema": 1,
+    "purpose": "Portfolio simulation engine: computes expected return, volatility, Sharpe ratio and risk tier for a weighted portfolio.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/finance/PORTFOLIO_SIM_ENGINE.json",
+    "wave": "KAN-38",
+    "status": "deterministic_tool",
+    "tools": {
+      "simulate": {
+        "kind": "read"
+      },
+      "validate": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "finance"
 }

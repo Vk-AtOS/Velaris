@@ -1,7 +1,7 @@
 # INTERVIEW_RECORD
 
 - **Department:** `hr`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/hr/INTERVIEW_RECORD/main.py` (225 lines)
 
 ## Purpose

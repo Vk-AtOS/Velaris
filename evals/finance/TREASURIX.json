@@ -1,0 +1,100 @@
+{
+  "schema": 1,
+  "agent": "TREASURIX",
+  "cases": [
+    {
+      "id": "select-project_cashflow",
+      "input": "Use the project_cashflow operation of TREASURIX with {\"inflows\": [], \"outflows\": []}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "project_cashflow",
+            "args": {
+              "inflows": [],
+              "outflows": []
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-reserve_ratio",
+      "input": "Use the reserve_ratio operation of TREASURIX with {\"liquid_assets\": 1.0, \"short_term_liabilities\": 1.0}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "reserve_ratio",
+            "args": {
+              "liquid_assets": 1.0,
+              "short_term_liabilities": 1.0
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-runway_months",
+      "input": "Use the runway_months operation of TREASURIX with {\"monthly_burn\": 1.0}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "runway_months",
+            "args": {
+              "monthly_burn": 1.0
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "hand-runway-quotes-the-tool",
+      "input": "How many months of runway do we have with 90000 in reserves and a burn of 15000 a month?",
+      "execute": true,
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "runway_months",
+            "args": {
+              "monthly_burn": 15000,
+              "reserves": 90000
+            },
+            "verdict": "ran"
+          }
+        ],
+        "answer_contains": [
+          "6"
+        ],
+        "grounded_numbers": true
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

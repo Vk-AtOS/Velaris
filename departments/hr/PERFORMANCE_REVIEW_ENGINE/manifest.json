@@ -11,5 +11,45 @@
     "360-review",
     "calibration",
     "hr"
-  ]
+  ],
+  "harness": {
+    "schema": 1,
+    "purpose": "Performance review engine: OKRs, 360 reviews (self, peer, manager) and calibration, with a suggested rating.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/hr/PERFORMANCE_REVIEW_ENGINE.json",
+    "wave": "KAN-37",
+    "status": "deterministic_tool",
+    "tools": {
+      "calibrate": {
+        "kind": "act"
+      },
+      "dsr_erase": {
+        "kind": "act"
+      },
+      "dsr_export": {
+        "kind": "act"
+      },
+      "get_360_summary": {
+        "kind": "act"
+      },
+      "get_calibration_report": {
+        "kind": "act"
+      },
+      "get_okrs": {
+        "kind": "act"
+      },
+      "set_okr": {
+        "kind": "act"
+      },
+      "submit_review": {
+        "kind": "act"
+      },
+      "update_okr_progress": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

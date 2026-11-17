@@ -4,5 +4,30 @@
   "domain": "connectors",
   "entrypoint": "main.py:ZohoPayrollConnector",
   "description": "Zoho Payroll connector (India) — pulls payslips, salary components, EPF/ESI/TDS statutory deductions, YTD summaries, and CTC.",
-  "hitl_required": false
+  "hitl_required": false,
+  "harness": {
+    "schema": 1,
+    "purpose": "Zoho Payroll connector: reads one employee's payslip, YTD summary, statutory deductions and cost to company from the Zoho Payroll (India) API.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/_connectors/ZOHO_PAYROLL.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "get_cost_to_company": {
+        "kind": "read"
+      },
+      "get_payslip": {
+        "kind": "read"
+      },
+      "get_statutory_deductions": {
+        "kind": "read"
+      },
+      "get_ytd_summary": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

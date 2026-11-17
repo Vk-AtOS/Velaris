@@ -1,7 +1,7 @@
 # SCREENING_FORMS
 
 - **Department:** `hr`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/hr/SCREENING_FORMS/main.py` (238 lines)
 
 ## Purpose

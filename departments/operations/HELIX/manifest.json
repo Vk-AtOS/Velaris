@@ -5,5 +5,27 @@
   "description": "Public methods: generate_signature, store_genome, verify_genome (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:HelixAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Helix: stores and verifies SHA-256 signatures of \"genome\" data.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/operations/HELIX.json",
+    "wave": "KAN-41",
+    "status": "deterministic_tool",
+    "tools": {
+      "generate_signature": {
+        "kind": "read"
+      },
+      "store_genome": {
+        "kind": "act"
+      },
+      "verify_genome": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

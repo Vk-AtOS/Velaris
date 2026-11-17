@@ -1,7 +1,23 @@
 {
   "name": "DOMAIN_SCOUT",
   "version": "0.1.0",
-  "domain": "sales",
   "description": "DOMAIN_SCOUT: find public sources about a sales vertical the company is considering.",
-  "entrypoint": "main.py:DOMAIN_SCOUTAgent"
+  "entrypoint": "main.py:DOMAIN_SCOUTAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "DOMAIN_SCOUT: find public sources about a sales vertical the company is considering.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/sales/DOMAIN_SCOUT.json",
+    "wave": "KAN-42",
+    "status": "deterministic_tool",
+    "tools": {
+      "scout": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "sales"
 }

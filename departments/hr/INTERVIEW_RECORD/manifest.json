@@ -5,5 +5,59 @@
   "description": "The replayable record of an interview, gated by each participant's consent: join/leave events, paste events (size only), an append-only edit log of a shared coding/text pad that can be replayed to any moment, tab-visibility events if the client reports them, one audio track per participant referenced by SHA-256, an optional local transcriber hook (faster-whisper is not installed: reports not_configured), and an evidence view for a human reviewer. It computes no AI-likelihood, cheating or authenticity score, and no threshold: those signals are not reliable enough to act on.",
   "entrypoint": "main.py:InterviewRecord",
   "hitl_required": true,
-  "tags": ["hiring", "interview", "evidence", "consent", "replay"]
+  "tags": [
+    "hiring",
+    "interview",
+    "evidence",
+    "consent",
+    "replay"
+  ],
+  "harness": {
+    "schema": 1,
+    "purpose": "INTERVIEW_RECORD: a consent-gated, replayable record of an interview for a human reviewer.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/hr/INTERVIEW_RECORD.json",
+    "wave": "KAN-37",
+    "status": "deterministic_tool",
+    "tools": {
+      "close_session": {
+        "kind": "act"
+      },
+      "create_session": {
+        "kind": "act"
+      },
+      "evidence_view": {
+        "kind": "read"
+      },
+      "give_consent": {
+        "kind": "act"
+      },
+      "list_sessions": {
+        "kind": "read"
+      },
+      "mark_event": {
+        "kind": "act"
+      },
+      "purge_expired_sessions": {
+        "kind": "act"
+      },
+      "register_audio_track": {
+        "kind": "act"
+      },
+      "replay_pad": {
+        "kind": "read"
+      },
+      "transcribe_track": {
+        "kind": "act"
+      },
+      "withdraw_my_consent": {
+        "kind": "act"
+      }
+    },
+    "excluded": {
+      "issue_participant_token": "the method returns a secret, which would pass through the model"
+    },
+    "reviewed": true
+  }
 }

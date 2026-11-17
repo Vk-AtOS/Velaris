@@ -1,7 +1,26 @@
 {
   "name": "VMRK",
   "version": "0.1.0",
-  "domain": "marketing",
   "description": "VMRK: signs and verifies messages with an HMAC-SHA256 key.",
-  "entrypoint": "main.py:VMRK"
+  "entrypoint": "main.py:VMRK",
+  "harness": {
+    "schema": 1,
+    "purpose": "VMRK: signs and verifies messages with an HMAC-SHA256 key.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/marketing/VMRK.json",
+    "wave": "KAN-42",
+    "status": "deterministic_tool",
+    "tools": {
+      "sign": {
+        "kind": "read"
+      },
+      "verify": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "marketing"
 }

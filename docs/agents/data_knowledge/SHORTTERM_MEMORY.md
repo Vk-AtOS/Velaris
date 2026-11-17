@@ -1,7 +1,7 @@
 # SHORTTERM_MEMORY
 
 - **Department:** `data_knowledge`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/data_knowledge/SHORTTERM_MEMORY/main.py` (75 lines)
 
 ## Purpose

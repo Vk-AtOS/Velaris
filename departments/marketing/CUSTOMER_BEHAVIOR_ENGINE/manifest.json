@@ -1,7 +1,26 @@
 {
   "name": "CUSTOMER_BEHAVIOR_ENGINE",
   "version": "0.1.0",
-  "domain": "marketing",
   "description": "CUSTOMER_BEHAVIOR_ENGINE: descriptive metrics and a rule-based segment for one customer account.",
-  "entrypoint": "main.py:CustomerBehaviorEngine"
+  "entrypoint": "main.py:CustomerBehaviorEngine",
+  "harness": {
+    "schema": 1,
+    "purpose": "CUSTOMER_BEHAVIOR_ENGINE: descriptive metrics and a rule-based segment for one customer account.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/marketing/CUSTOMER_BEHAVIOR_ENGINE.json",
+    "wave": "KAN-42",
+    "status": "deterministic_tool",
+    "tools": {
+      "analyze": {
+        "kind": "act"
+      },
+      "validate": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "marketing"
 }

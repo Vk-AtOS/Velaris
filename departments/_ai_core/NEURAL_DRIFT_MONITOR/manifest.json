@@ -5,5 +5,24 @@
   "description": "Has a numeric measure moved away from its baseline?",
   "owner": "Velaris Core",
   "entrypoint": "main.py:NeuralDriftMonitorAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "NEURAL_DRIFT_MONITOR: has a numeric measure moved away from its baseline?",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/NEURAL_DRIFT_MONITOR.json",
+    "wave": "KAN-43",
+    "status": "deterministic_tool",
+    "tools": {
+      "run": {
+        "kind": "act"
+      },
+      "set_baseline": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

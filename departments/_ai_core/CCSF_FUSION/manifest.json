@@ -5,5 +5,21 @@
   "description": "CCSF fusion: merges snapshots of one entity reported by any number of systems.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:CCSF_FUSIONAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "CCSF fusion: merges snapshots of one entity reported by any number of systems.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/CCSF_FUSION.json",
+    "wave": "KAN-43",
+    "status": "deterministic_tool",
+    "tools": {
+      "fuse": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

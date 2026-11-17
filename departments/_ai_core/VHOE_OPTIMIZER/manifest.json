@@ -5,5 +5,21 @@
   "description": "VHOE_OPTIMIZER: assigns a whole queue of work to a pool of workers.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:VHOE_OPTIMIZERAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "VHOE_OPTIMIZER: assigns a whole queue of work to a pool of workers.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/VHOE_OPTIMIZER.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "optimize": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

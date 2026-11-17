@@ -1,7 +1,38 @@
 {
   "name": "BUSINESS_OPS_ENGINE",
   "version": "0.1.0",
-  "domain": "operations",
   "description": "Business ops engine: a minimal in-memory task list and KPI table.",
-  "entrypoint": "main.py:BusinessOpsEngine"
+  "entrypoint": "main.py:BusinessOpsEngine",
+  "harness": {
+    "schema": 1,
+    "purpose": "Business ops engine: a minimal in-memory task list and KPI table.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/operations/BUSINESS_OPS_ENGINE.json",
+    "wave": "KAN-41",
+    "status": "deterministic_tool",
+    "tools": {
+      "add_task": {
+        "kind": "act"
+      },
+      "complete_task": {
+        "kind": "act"
+      },
+      "get_kpi": {
+        "kind": "read"
+      },
+      "list_tasks": {
+        "kind": "read"
+      },
+      "set_kpi": {
+        "kind": "act"
+      },
+      "summarize": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "operations"
 }

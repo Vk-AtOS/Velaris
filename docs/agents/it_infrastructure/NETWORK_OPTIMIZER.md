@@ -1,7 +1,7 @@
 # NETWORK_OPTIMIZER
 
 - **Department:** `it_infrastructure`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/it_infrastructure/NETWORK_OPTIMIZER/main.py` (84 lines)
 
 ## Purpose

@@ -1,7 +1,7 @@
 # AGENT_LIFECYCLE_MANAGER
 
 - **Department:** `_ai_core`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/_ai_core/AGENT_LIFECYCLE_MANAGER/main.py` (75 lines)
 
 ## Purpose

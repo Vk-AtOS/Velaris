@@ -5,5 +5,30 @@
   "description": "Agent lifecycle manager.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:LifecycleManager",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Agent lifecycle manager: the state machine for every agent's operational state.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/AGENT_LIFECYCLE_MANAGER.json",
+    "wave": "KAN-43",
+    "status": "deterministic_tool",
+    "tools": {
+      "get_state": {
+        "kind": "read"
+      },
+      "history": {
+        "kind": "read"
+      },
+      "list_agents": {
+        "kind": "read"
+      },
+      "set_state": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "agent": "DECISION_COLLAPSE_ENGINE",
+  "cases": [
+    {
+      "id": "select-collapse",
+      "input": "Use the collapse operation of DECISION_COLLAPSE_ENGINE with {\"hyper\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "collapse",
+            "args": {
+              "hyper": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

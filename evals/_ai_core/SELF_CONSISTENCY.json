@@ -1,0 +1,73 @@
+{
+  "schema": 1,
+  "agent": "SELF_CONSISTENCY",
+  "cases": [
+    {
+      "id": "select-agreement",
+      "input": "Use the agreement operation of SELF_CONSISTENCY with {\"answers\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "agreement",
+            "args": {
+              "answers": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-check",
+      "input": "Use the check operation of SELF_CONSISTENCY with {\"identity\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "check",
+            "args": {
+              "identity": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-sample",
+      "input": "Use the sample operation of SELF_CONSISTENCY with {\"question\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "sample",
+            "args": {
+              "question": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

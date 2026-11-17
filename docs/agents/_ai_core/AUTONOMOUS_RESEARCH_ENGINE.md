@@ -48,5 +48,5 @@ Velaris Autonomous Research Engine (Offline)
 ## Called by
 
 - **other agents:** none found
-- **platform modules:** `velaris/agentkit/memsearch.py`, `velaris/api/allowlist.py`
+- **platform modules:** `velaris/agentkit/memsearch.py`, `velaris/api/allowlist.py`, `velaris/intel/tools.py`
 - **tests:** `velaris/tests/test_agents_coverage_a.py`, `velaris/tests/test_r3_patch_evolution_search_clbpp.py`

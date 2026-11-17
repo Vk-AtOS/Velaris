@@ -1,7 +1,7 @@
 # LOCAL_MEMORY_STORE
 
 - **Department:** `data_knowledge`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/data_knowledge/LOCAL_MEMORY_STORE/main.py` (55 lines)
 
 ## Purpose

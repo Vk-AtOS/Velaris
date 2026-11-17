@@ -5,5 +5,24 @@
   "description": "Public methods: distribute_load, next_available_slot (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:SchedulonAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Schedulon: greedy load distribution across workers and least-loaded worker lookup.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/SCHEDULON.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "distribute_load": {
+        "kind": "act"
+      },
+      "next_available_slot": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

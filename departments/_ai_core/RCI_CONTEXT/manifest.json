@@ -5,5 +5,24 @@
   "description": "RCI_CONTEXT: builds a bounded \"current context\" from a stream of events.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:RCI_CONTEXTAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "RCI_CONTEXT: builds a bounded \"current context\" from a stream of events.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/RCI_CONTEXT.json",
+    "wave": "KAN-43",
+    "status": "deterministic_tool",
+    "tools": {
+      "build": {
+        "kind": "act"
+      },
+      "snapshot": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

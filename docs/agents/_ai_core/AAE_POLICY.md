@@ -1,7 +1,7 @@
 # AAE_POLICY
 
 - **Department:** `_ai_core`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/_ai_core/AAE_POLICY/main.py` (106 lines)
 
 ## Purpose

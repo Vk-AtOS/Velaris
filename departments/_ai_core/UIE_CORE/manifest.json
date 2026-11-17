@@ -5,5 +5,21 @@
   "description": "UIE_CORE: a raw message in, a decision about the next step out.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:UIECoreAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "UIE_CORE: a raw message in, a decision about the next step out.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/UIE_CORE.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "understand": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

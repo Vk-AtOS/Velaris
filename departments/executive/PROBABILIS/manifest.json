@@ -5,5 +5,26 @@
   "description": "Public methods: bernoulli, monte_carlo, distribution_mean (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:ProbabilisAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Probabilis: small random-sampling helpers (Bernoulli trials, Monte Carlo, mean).",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/executive/PROBABILIS.json",
+    "wave": "KAN-36",
+    "status": "deterministic_tool",
+    "tools": {
+      "bernoulli": {
+        "kind": "read"
+      },
+      "distribution_mean": {
+        "kind": "read"
+      }
+    },
+    "excluded": {
+      "monte_carlo": "required parameter 'func' is a collaborator or callable, wired by code"
+    },
+    "reviewed": true
+  }
 }

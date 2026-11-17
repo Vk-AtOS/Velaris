@@ -5,5 +5,30 @@
   "description": "Public methods: normalize_schema, schema_hash, store_schema, compare_schema (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:ChromosAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Chromos: detects schema changes by hashing a canonical JSON form of each schema.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/data_knowledge/CHROMOS.json",
+    "wave": "KAN-42",
+    "status": "deterministic_tool",
+    "tools": {
+      "compare_schema": {
+        "kind": "read"
+      },
+      "normalize_schema": {
+        "kind": "read"
+      },
+      "schema_hash": {
+        "kind": "read"
+      },
+      "store_schema": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

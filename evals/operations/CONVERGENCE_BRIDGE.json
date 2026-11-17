@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "agent": "CONVERGENCE_BRIDGE",
+  "cases": [
+    {
+      "id": "not-harnessed",
+      "input": "Do the job of CONVERGENCE_BRIDGE.",
+      "expect": {
+        "status": "not_harnessed"
+      },
+      "forbid": {}
+    }
+  ]
+}

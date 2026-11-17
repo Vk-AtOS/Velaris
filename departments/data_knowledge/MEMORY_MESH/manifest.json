@@ -3,5 +3,36 @@
   "version": "0.1.0",
   "author": "Velaris",
   "description": "Which memory node serves which scope, and recall across several scopes.",
-  "entrypoint": "main.py:MEMORY_MESHAgent"
+  "entrypoint": "main.py:MEMORY_MESHAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "MEMORY_MESH: which memory node serves which scope, and recall across several scopes.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/data_knowledge/MEMORY_MESH.json",
+    "wave": "KAN-42",
+    "status": "mixed",
+    "tools": {
+      "heartbeat": {
+        "kind": "act"
+      },
+      "nodes": {
+        "kind": "act"
+      },
+      "recall_across": {
+        "kind": "act"
+      },
+      "register_node": {
+        "kind": "act"
+      },
+      "remove_node": {
+        "kind": "act"
+      },
+      "route": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

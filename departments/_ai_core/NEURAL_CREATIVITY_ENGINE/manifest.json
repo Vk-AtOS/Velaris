@@ -5,5 +5,27 @@
   "description": "Public methods: add_to_pool, generate, pool_list",
   "owner": "Velaris Core",
   "entrypoint": "main.py:NeuralCreativityEngine",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Neural creativity engine: a rule-based random combiner of idea pools; it is not an ML model.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/NEURAL_CREATIVITY_ENGINE.json",
+    "wave": "KAN-43",
+    "status": "deterministic_tool",
+    "tools": {
+      "add_to_pool": {
+        "kind": "act"
+      },
+      "generate": {
+        "kind": "read"
+      },
+      "pool_list": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

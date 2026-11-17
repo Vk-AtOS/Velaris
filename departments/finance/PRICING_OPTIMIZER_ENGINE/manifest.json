@@ -1,7 +1,29 @@
 {
   "name": "PRICING_OPTIMIZER_ENGINE",
   "version": "0.1.0",
-  "domain": "finance",
   "description": "PRICING_OPTIMIZER_ENGINE: profit-maximising price, by two stated methods.",
-  "entrypoint": "main.py:PricingOptimizerEngine"
+  "entrypoint": "main.py:PricingOptimizerEngine",
+  "harness": {
+    "schema": 1,
+    "purpose": "PRICING_OPTIMIZER_ENGINE: profit-maximising price, by two stated methods.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/finance/PRICING_OPTIMIZER_ENGINE.json",
+    "wave": "KAN-38",
+    "status": "deterministic_tool",
+    "tools": {
+      "optimize": {
+        "kind": "act"
+      },
+      "optimize_from_demand": {
+        "kind": "read"
+      },
+      "validate": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "finance"
 }

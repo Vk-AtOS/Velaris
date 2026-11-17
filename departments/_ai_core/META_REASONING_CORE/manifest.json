@@ -5,5 +5,24 @@
   "description": "META_REASONING_CORE: draft, check against a rubric, revise, re-check; keep the best attempt.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:META_REASONING_COREAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "META_REASONING_CORE: draft, check against a rubric, revise, re-check; keep the best attempt.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/META_REASONING_CORE.json",
+    "wave": "KAN-44",
+    "status": "mixed",
+    "tools": {
+      "pick_best": {
+        "kind": "read"
+      },
+      "solve": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

@@ -12,5 +12,27 @@
     "local",
     "privacy",
     "call"
-  ]
+  ],
+  "harness": {
+    "schema": 1,
+    "purpose": "Call transcriber: local speech-to-text of audio files with OpenAI Whisper or faster-whisper.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/communications/CALL_TRANSCRIBER.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "transcribe": {
+        "kind": "act"
+      },
+      "transcribe_and_save": {
+        "kind": "act"
+      },
+      "transcribe_to_text": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

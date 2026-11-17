@@ -1,7 +1,29 @@
 {
   "name": "IT_INFRA_ENGINE",
   "version": "0.1.0",
-  "domain": "it_infrastructure",
   "description": "IT_INFRA_ENGINE: validate an infrastructure request, plan it, and judge reported VM health.",
-  "entrypoint": "main.py:ITInfraEngine"
+  "entrypoint": "main.py:ITInfraEngine",
+  "harness": {
+    "schema": 1,
+    "purpose": "IT_INFRA_ENGINE: validate an infrastructure request, plan it, and judge reported VM health.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/it_infrastructure/IT_INFRA_ENGINE.json",
+    "wave": "KAN-39",
+    "status": "deterministic_tool",
+    "tools": {
+      "get_plan": {
+        "kind": "read"
+      },
+      "provision": {
+        "kind": "act"
+      },
+      "validate_config": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "it_infrastructure"
 }

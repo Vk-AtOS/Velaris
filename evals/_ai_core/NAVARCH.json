@@ -1,0 +1,57 @@
+{
+  "schema": 1,
+  "agent": "NAVARCH",
+  "cases": [
+    {
+      "id": "select-compute_path",
+      "input": "Use the compute_path operation of NAVARCH with {\"graph\": {}, \"start\": \"sample\", \"goal\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "compute_path",
+            "args": {
+              "graph": {},
+              "start": "sample",
+              "goal": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-sequence_steps",
+      "input": "Use the sequence_steps operation of NAVARCH with {\"steps\": []}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "sequence_steps",
+            "args": {
+              "steps": []
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

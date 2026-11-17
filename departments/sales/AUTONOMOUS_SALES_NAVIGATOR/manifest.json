@@ -1,7 +1,35 @@
 {
   "name": "AUTONOMOUS_SALES_NAVIGATOR",
   "version": "0.1.0",
-  "domain": "sales",
   "description": "Autonomous sales navigator: weighted lead scoring (fixed formula, no learning).",
-  "entrypoint": "main.py:AutonomousSalesNavigator"
+  "entrypoint": "main.py:AutonomousSalesNavigator",
+  "harness": {
+    "schema": 1,
+    "purpose": "Autonomous sales navigator: weighted lead scoring (fixed formula, no learning).",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/sales/AUTONOMOUS_SALES_NAVIGATOR.json",
+    "wave": "KAN-42",
+    "status": "deterministic_tool",
+    "tools": {
+      "add_lead": {
+        "kind": "act"
+      },
+      "predict_close_probability": {
+        "kind": "read"
+      },
+      "score_lead": {
+        "kind": "read"
+      },
+      "suggest_strategy": {
+        "kind": "read"
+      },
+      "top_leads": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "sales"
 }

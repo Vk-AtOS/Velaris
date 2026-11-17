@@ -1,7 +1,7 @@
 # AUTO_LEARN_CORE
 
 - **Department:** `_ai_core`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/_ai_core/AUTO_LEARN_CORE/main.py` (78 lines)
 
 ## Purpose

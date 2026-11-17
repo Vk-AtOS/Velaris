@@ -1,7 +1,32 @@
 {
   "name": "COGNITIVE_INTENT_FIREWALL",
   "version": "0.1.0",
-  "domain": "security",
   "description": "Cognitive intent firewall: keyword classification of text, plus a prompt-injection scan of untrusted content.",
-  "entrypoint": "main.py:CognitiveIntentFirewall"
+  "entrypoint": "main.py:CognitiveIntentFirewall",
+  "harness": {
+    "schema": 1,
+    "purpose": "Cognitive intent firewall: keyword classification of text, plus a prompt-injection scan of untrusted content.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/security/COGNITIVE_INTENT_FIREWALL.json",
+    "wave": "KAN-40",
+    "status": "deterministic_tool",
+    "tools": {
+      "add_rule": {
+        "kind": "act"
+      },
+      "classify": {
+        "kind": "act"
+      },
+      "evaluate_rules": {
+        "kind": "act"
+      },
+      "scan_untrusted": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "security"
 }

@@ -1,0 +1,76 @@
+{
+  "schema": 1,
+  "agent": "FINANCIAL_AI_ENGINE",
+  "cases": [
+    {
+      "id": "select-compute_growth",
+      "input": "Use the compute_growth operation of FINANCIAL_AI_ENGINE with {\"previous\": 1.0, \"current\": 1.0}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "compute_growth",
+            "args": {
+              "previous": 1.0,
+              "current": 1.0
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-financial_health",
+      "input": "Use the financial_health operation of FINANCIAL_AI_ENGINE with {\"revenue\": 1.0, \"expenses\": 1.0, \"debt\": 1.0}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "financial_health",
+            "args": {
+              "revenue": 1.0,
+              "expenses": 1.0,
+              "debt": 1.0
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-forecast_linear",
+      "input": "Use the forecast_linear operation of FINANCIAL_AI_ENGINE with {\"data\": []}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "forecast_linear",
+            "args": {
+              "data": []
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

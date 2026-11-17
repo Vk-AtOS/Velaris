@@ -1,7 +1,7 @@
 # ALK_EVO
 
 - **Department:** `_ai_core`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/_ai_core/ALK_EVO/main.py` (96 lines)
 
 ## Purpose

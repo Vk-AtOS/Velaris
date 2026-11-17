@@ -1,7 +1,7 @@
 # GLOBAL_STATE_MAP
 
 - **Department:** `data_knowledge`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/data_knowledge/GLOBAL_STATE_MAP/main.py` (97 lines)
 
 ## Purpose

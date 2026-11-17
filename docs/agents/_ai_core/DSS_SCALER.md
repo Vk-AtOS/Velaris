@@ -1,7 +1,7 @@
 # DSS_SCALER
 
 - **Department:** `_ai_core`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/_ai_core/DSS_SCALER/main.py` (67 lines)
 
 ## Purpose

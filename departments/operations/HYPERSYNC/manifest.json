@@ -1,7 +1,20 @@
 {
   "name": "HYPERSYNC",
   "version": "0.1.0",
-  "domain": "operations",
-  "description": "Alias agent HYPERSYNC: fronts COHERENCE_SYNC_CORE, CSG_STATEALIGN. See velaris.agentkit.alias.",
-  "entrypoint": "main.py:HYPERSYNCAgent"
+  "description": "Alias agent HYPERSYNC: fronts COHERENCE_SYNC_CORE, CSG_STATEALIGN.",
+  "entrypoint": "main.py:HYPERSYNCAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "Alias agent HYPERSYNC: fronts COHERENCE_SYNC_CORE, CSG_STATEALIGN.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/operations/HYPERSYNC.json",
+    "wave": "KAN-41",
+    "status": "not_harnessed",
+    "reason_code": "stub",
+    "reason": "the agent is a stub (inventory: not_implemented); a harness around it would claim a capability that is not there",
+    "tools": {},
+    "reviewed": true
+  },
+  "domain": "operations"
 }

@@ -5,5 +5,27 @@
   "description": "Public methods: market_sensitivity, demand_projection, macro_index (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:EconovaAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Econova: elasticity-based market sensitivity, demand projection and macro index (simple arithmetic).",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/finance/ECONOVA.json",
+    "wave": "KAN-38",
+    "status": "deterministic_tool",
+    "tools": {
+      "demand_projection": {
+        "kind": "read"
+      },
+      "macro_index": {
+        "kind": "read"
+      },
+      "market_sensitivity": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

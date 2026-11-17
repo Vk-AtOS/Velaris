@@ -5,5 +5,21 @@
   "description": "VCAS_SUPERVISOR: says whether a task may run, by asking PRIME.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:VCASSupervisorAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "VCAS_SUPERVISOR: says whether a task may run, by asking PRIME.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/VCAS_SUPERVISOR.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "approve": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

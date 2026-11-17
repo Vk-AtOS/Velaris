@@ -1,7 +1,36 @@
 {
   "name": "ITSM_ENGINE",
   "version": "0.1.0",
-  "domain": "it_infrastructure",
   "description": "ITSM_ENGINE: an IT ticket and incident store with priority, SLA clocks and an audit trail.",
-  "entrypoint": "main.py:ITSMEngine"
+  "entrypoint": "main.py:ITSMEngine",
+  "harness": {
+    "schema": 1,
+    "purpose": "ITSM_ENGINE: an IT ticket and incident store with priority, SLA clocks and an audit trail.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/it_infrastructure/ITSM_ENGINE.json",
+    "wave": "KAN-39",
+    "status": "deterministic_tool",
+    "tools": {
+      "get_ticket": {
+        "kind": "read"
+      },
+      "list_tickets": {
+        "kind": "read"
+      },
+      "sla_status": {
+        "kind": "read"
+      },
+      "transition": {
+        "kind": "act"
+      }
+    },
+    "excluded": {
+      "assess": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "open_ticket": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "validate": "not in the HTTP allowlist (velaris/api/allowlist.py)"
+    },
+    "reviewed": true
+  },
+  "domain": "it_infrastructure"
 }

@@ -5,5 +5,27 @@
   "description": "Public methods: detect_trend, behavioral_shift, consistency_score (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:InsightaAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Insighta: simple statistics over number series for executive reporting (formulas only, no model).",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/executive/INSIGHTA.json",
+    "wave": "KAN-35",
+    "status": "deterministic_tool",
+    "tools": {
+      "behavioral_shift": {
+        "kind": "read"
+      },
+      "consistency_score": {
+        "kind": "read"
+      },
+      "detect_trend": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

@@ -5,5 +5,38 @@
   "description": "GST for an IT services company in Tamil Nadu: place of supply, CGST+SGST vs IGST, export of services, GSTIN checksum, invoice validation, e-invoice applicability, GSTR-1/3B style monthly data. Dated registry with primary sources.",
   "entrypoint": "main.py:GstEngine",
   "hitl_required": true,
-  "tags": ["tax", "gst", "india", "finance"]
+  "tags": [
+    "tax",
+    "gst",
+    "india",
+    "finance"
+  ],
+  "harness": {
+    "schema": 1,
+    "purpose": "GST_ENGINE: GST on outward supplies of services by an IT services company registered in Tamil Nadu.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/finance/GST_ENGINE.json",
+    "wave": "KAN-38",
+    "status": "deterministic_tool",
+    "tools": {
+      "monthly_summary": {
+        "kind": "act"
+      },
+      "price_outward_supply": {
+        "kind": "act"
+      },
+      "rcm_check": {
+        "kind": "read"
+      },
+      "validate_gstin": {
+        "kind": "read"
+      },
+      "validate_invoice": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

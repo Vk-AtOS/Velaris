@@ -3,5 +3,27 @@
   "version": "0.1.0",
   "author": "Velaris",
   "description": "Velaris inspecting its own installation.",
-  "entrypoint": "main.py:SELF_AUDITAgent"
+  "entrypoint": "main.py:SELF_AUDITAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "SELF_AUDIT: Velaris inspecting its own installation.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/security/SELF_AUDIT.json",
+    "wave": "KAN-40",
+    "status": "deterministic_tool",
+    "tools": {
+      "audit": {
+        "kind": "act"
+      },
+      "snapshot": {
+        "kind": "read"
+      },
+      "update": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

@@ -1,7 +1,32 @@
 {
   "name": "LOCAL_MEMORY_STORE",
   "version": "0.1.0",
-  "domain": "data_knowledge",
   "description": "LOCAL_MEMORY_STORE: a small key-value store on this machine's disk.",
-  "entrypoint": "main.py:LocalMemoryStore"
+  "entrypoint": "main.py:LocalMemoryStore",
+  "harness": {
+    "schema": 1,
+    "purpose": "LOCAL_MEMORY_STORE: a small key-value store on this machine's disk.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/data_knowledge/LOCAL_MEMORY_STORE.json",
+    "wave": "KAN-42",
+    "status": "deterministic_tool",
+    "tools": {
+      "delete": {
+        "kind": "act"
+      },
+      "get": {
+        "kind": "act"
+      },
+      "keys": {
+        "kind": "act"
+      },
+      "put": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "data_knowledge"
 }

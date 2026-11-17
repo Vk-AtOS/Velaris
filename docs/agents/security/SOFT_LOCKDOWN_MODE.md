@@ -1,7 +1,7 @@
 # SOFT_LOCKDOWN_MODE
 
 - **Department:** `security`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/security/SOFT_LOCKDOWN_MODE/main.py` (76 lines)
 
 ## Purpose

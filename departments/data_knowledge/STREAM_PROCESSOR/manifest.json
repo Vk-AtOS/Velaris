@@ -1,7 +1,29 @@
 {
   "name": "STREAM_PROCESSOR",
   "version": "0.1.0",
-  "domain": "data_knowledge",
   "description": "STREAM_PROCESSOR: tumbling-window aggregation over event streams.",
-  "entrypoint": "main.py:STREAM_PROCESSORAgent"
+  "entrypoint": "main.py:STREAM_PROCESSORAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "STREAM_PROCESSOR: tumbling-window aggregation over event streams.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/data_knowledge/STREAM_PROCESSOR.json",
+    "wave": "KAN-42",
+    "status": "deterministic_tool",
+    "tools": {
+      "define": {
+        "kind": "act"
+      },
+      "ingest": {
+        "kind": "act"
+      },
+      "results": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "data_knowledge"
 }

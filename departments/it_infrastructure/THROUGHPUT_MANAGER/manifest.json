@@ -1,7 +1,29 @@
 {
   "name": "THROUGHPUT_MANAGER",
   "version": "0.1.0",
-  "domain": "it_infrastructure",
   "description": "THROUGHPUT_MANAGER: token-bucket rate limits.",
-  "entrypoint": "main.py:THROUGHPUT_MANAGERAgent"
+  "entrypoint": "main.py:THROUGHPUT_MANAGERAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "THROUGHPUT_MANAGER: token-bucket rate limits.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/it_infrastructure/THROUGHPUT_MANAGER.json",
+    "wave": "KAN-39",
+    "status": "deterministic_tool",
+    "tools": {
+      "acquire": {
+        "kind": "act"
+      },
+      "set_limit": {
+        "kind": "act"
+      },
+      "stats": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "it_infrastructure"
 }

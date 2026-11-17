@@ -1,7 +1,23 @@
 {
   "name": "COMPETITIVE_SCANNER",
   "version": "0.1.0",
-  "domain": "executive",
   "description": "COMPETITIVE_SCANNER: read competitors' public pages and report what changed.",
-  "entrypoint": "main.py:COMPETITIVE_SCANNERAgent"
+  "entrypoint": "main.py:COMPETITIVE_SCANNERAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "COMPETITIVE_SCANNER: read competitors' public pages and report what changed.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/executive/COMPETITIVE_SCANNER.json",
+    "wave": "KAN-36",
+    "status": "deterministic_tool",
+    "tools": {
+      "scan": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "executive"
 }

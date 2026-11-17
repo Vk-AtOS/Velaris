@@ -1,7 +1,32 @@
 {
   "name": "LATENCY_CONTROLLER",
   "version": "0.1.0",
-  "domain": "it_infrastructure",
   "description": "LATENCY_CONTROLLER: keep an operation inside its latency objective.",
-  "entrypoint": "main.py:LATENCY_CONTROLLERAgent"
+  "entrypoint": "main.py:LATENCY_CONTROLLERAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "LATENCY_CONTROLLER: keep an operation inside its latency objective.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/it_infrastructure/LATENCY_CONTROLLER.json",
+    "wave": "KAN-39",
+    "status": "deterministic_tool",
+    "tools": {
+      "control": {
+        "kind": "act"
+      },
+      "record": {
+        "kind": "act"
+      },
+      "set_slo": {
+        "kind": "act"
+      },
+      "stats": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "it_infrastructure"
 }

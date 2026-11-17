@@ -5,5 +5,27 @@
   "description": "Public methods: record_snapshot, detect_drift, summarize_change (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:OverwatchAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Overwatch: compares metric snapshots against a recorded baseline to flag drift.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/security/OVERWATCH.json",
+    "wave": "KAN-40",
+    "status": "deterministic_tool",
+    "tools": {
+      "detect_drift": {
+        "kind": "read"
+      },
+      "record_snapshot": {
+        "kind": "act"
+      },
+      "summarize_change": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

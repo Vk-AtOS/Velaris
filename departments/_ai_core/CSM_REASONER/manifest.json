@@ -5,5 +5,21 @@
   "description": "CSM reasoner: a quick read of where a goal stands and what posture to take.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:CSMReasonerAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "CSM reasoner: a quick read of where a goal stands and what posture to take.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/CSM_REASONER.json",
+    "wave": "KAN-43",
+    "status": "deterministic_tool",
+    "tools": {
+      "quick_strategy": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

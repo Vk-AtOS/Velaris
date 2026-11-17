@@ -1,7 +1,26 @@
 {
   "name": "EACPE_PROTOCOL",
   "version": "0.1.0",
-  "domain": "legal_compliance",
   "description": "EACPE_PROTOCOL: did a case follow its required procedure?",
-  "entrypoint": "main.py:EACPE_PROTOCOLAgent"
+  "entrypoint": "main.py:EACPE_PROTOCOLAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "EACPE_PROTOCOL: did a case follow its required procedure?",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/legal_compliance/EACPE_PROTOCOL.json",
+    "wave": "KAN-42",
+    "status": "deterministic_tool",
+    "tools": {
+      "define": {
+        "kind": "act"
+      },
+      "evaluate_protocol": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "legal_compliance"
 }

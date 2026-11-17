@@ -1,7 +1,7 @@
 # STREAM_PROCESSOR
 
 - **Department:** `data_knowledge`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/data_knowledge/STREAM_PROCESSOR/main.py` (97 lines)
 
 ## Purpose

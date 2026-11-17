@@ -5,5 +5,21 @@
   "description": "VPSE_CORE: projects a series forward and shows what each scenario does to every future period.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:VPSE_COREAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "VPSE_CORE: projects a series forward and shows what each scenario does to every future period.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/VPSE_CORE.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "project": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

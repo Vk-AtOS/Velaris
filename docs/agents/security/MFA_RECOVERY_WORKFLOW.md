@@ -1,7 +1,7 @@
 # MFA_RECOVERY_WORKFLOW
 
 - **Department:** `security`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/security/MFA_RECOVERY_WORKFLOW/main.py` (123 lines)
 
 ## Purpose

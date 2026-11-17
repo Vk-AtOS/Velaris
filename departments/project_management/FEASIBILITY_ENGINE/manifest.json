@@ -1,7 +1,23 @@
 {
   "name": "FEASIBILITY_ENGINE",
   "version": "0.1.0",
-  "domain": "project_management",
   "description": "FEASIBILITY_ENGINE: a scored feasibility checklist where every criterion shows its evidence.",
-  "entrypoint": "main.py:FEASIBILITY_ENGINEAgent"
+  "entrypoint": "main.py:FEASIBILITY_ENGINEAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "FEASIBILITY_ENGINE: a scored feasibility checklist where every criterion shows its evidence.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/project_management/FEASIBILITY_ENGINE.json",
+    "wave": "KAN-36",
+    "status": "deterministic_tool",
+    "tools": {
+      "assess": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "project_management"
 }

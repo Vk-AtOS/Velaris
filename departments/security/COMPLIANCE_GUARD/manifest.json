@@ -1,7 +1,32 @@
 {
   "name": "COMPLIANCE_GUARD",
   "version": "0.1.0",
-  "domain": "security",
   "description": "Compliance guard: checks an action dict against registered required-field and forbidden-field rules.",
-  "entrypoint": "main.py:ComplianceGuard"
+  "entrypoint": "main.py:ComplianceGuard",
+  "harness": {
+    "schema": 1,
+    "purpose": "Compliance guard: checks an action dict against registered required-field and forbidden-field rules.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/security/COMPLIANCE_GUARD.json",
+    "wave": "KAN-40",
+    "status": "deterministic_tool",
+    "tools": {
+      "add_rule": {
+        "kind": "act"
+      },
+      "evaluate": {
+        "kind": "read"
+      },
+      "list_rules": {
+        "kind": "read"
+      },
+      "remove_rule": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "security"
 }

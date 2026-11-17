@@ -1,7 +1,26 @@
 {
   "name": "INSURANCE_POLICY_ENGINE",
   "version": "0.1.0",
-  "domain": "finance",
   "description": "INSURANCE_POLICY_ENGINE: underwriting clauses and premium from a supplied rate table.",
-  "entrypoint": "main.py:InsurancePolicyEngine"
+  "entrypoint": "main.py:InsurancePolicyEngine",
+  "harness": {
+    "schema": 1,
+    "purpose": "INSURANCE_POLICY_ENGINE: underwriting clauses and premium from a supplied rate table.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/finance/INSURANCE_POLICY_ENGINE.json",
+    "wave": "KAN-38",
+    "status": "deterministic_tool",
+    "tools": {
+      "compute_premium": {
+        "kind": "act"
+      },
+      "validate": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "finance"
 }

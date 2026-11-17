@@ -1,7 +1,32 @@
 {
   "name": "AUTONOMOUS_MARKETING_ENGINE",
   "version": "0.1.0",
-  "domain": "marketing",
   "description": "Autonomous marketing engine: templated campaign plans and an audience score from measured numbers (no model, no sending).",
-  "entrypoint": "main.py:AutonomousMarketingEngine"
+  "entrypoint": "main.py:AutonomousMarketingEngine",
+  "harness": {
+    "schema": 1,
+    "purpose": "Autonomous marketing engine: templated campaign plans and an audience score from measured numbers (no model, no sending).",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/marketing/AUTONOMOUS_MARKETING_ENGINE.json",
+    "wave": "KAN-42",
+    "status": "deterministic_tool",
+    "tools": {
+      "generate_campaign": {
+        "kind": "act"
+      },
+      "get_history": {
+        "kind": "read"
+      },
+      "score_audience": {
+        "kind": "read"
+      },
+      "suggest_channels": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "marketing"
 }
