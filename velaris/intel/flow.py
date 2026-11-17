@@ -256,12 +256,10 @@ class Flow:
         """One model turn: append `final`, `call` (with the code's verdict) or `invalid`."""
         prompt, started = self._prompt(events), self._clock()
         try:
-            if self.route:
-                out = router.complete(self.route, prompt, llm=self.llm, sensitivity=self.sensitivity, models=self.models,
-                                      max_tokens=800, temperature=0.0, purpose="flow.step")
-            else:
-                out = self.llm.complete(prompt, model=self.model, max_tokens=800, temperature=0.0, purpose="flow.step",
-                                        sensitivity=self.sensitivity)
+            # always through the router: sensitivity gate, fallback chain, breaker and caps apply to every Flow, routed or not
+            # (no chain configured for the class = the named or default model as a chain of one)
+            out = router.complete(self.route or "planner", prompt, llm=self.llm, sensitivity=self.sensitivity, models=self.models,
+                                  max_tokens=800, temperature=0.0, purpose="flow.step", **({"model": self.model} if self.model else {}))
         except (PolicyRefused, BudgetExceeded) as e:      # asking again cannot change this: stop and hand it on
             return self._stop(run_id, events, "budget_exceeded" if isinstance(e, BudgetExceeded) else "policy_refused")
         except LLMError as e:      # not terminal: resume() asks the model again (up to max_model_errors)

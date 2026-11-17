@@ -180,3 +180,17 @@ def test_limits_come_from_the_environment_and_zero_turns_one_off(monkeypatch):
     assert make(script(FINAL), max_repeat=7).max_repeat == 7            # an explicit argument wins over the environment
     monkeypatch.setenv("VELARIS_FLOW_MAX_COST", "0")
     assert make(script(FINAL)).max_cost is None
+
+
+def test_an_unrouted_flow_still_goes_through_the_router_gate(tmp_path, monkeypatch):
+    """KAN-16/27: a Flow with no `route` used to call the model directly, so no sensitivity gate or breaker applied."""
+    import json as _json
+    from velaris.intel import router
+    from velaris.intel.flow import Flow
+    from velaris.intel.llm import FakeLLM
+    monkeypatch.setenv("VELARIS_DATA", str(tmp_path))
+    seen = []
+    monkeypatch.setattr(router, "complete", lambda *a, **k: seen.append((a[0], k.get("sensitivity"))) or FakeLLM(
+        lambda p, m: _json.dumps({"final": "ok"})).complete("x"))
+    r = Flow([], llm=FakeLLM(lambda p, m: "{}"), sensitivity="internal").start("hi")
+    assert r.status == "done" and seen == [("planner", "internal")]
