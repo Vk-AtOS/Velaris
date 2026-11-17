@@ -41,3 +41,29 @@ def test_a_method_without_an_allowlist_row_is_never_offered_or_run_by_an_orchest
     except tools.ToolError:
         return
     raise AssertionError("runner accepted a tool with no allowlist row")
+
+
+def test_a_manifest_never_lowers_a_registry_sensitivity():
+    """Security review: an allowlisted spec is restricted unless on the reviewed list; a harness-only spec may take the
+    manifest level but never below the department/code floor."""
+    tools.clear()
+    harness_tools.register_all(backend)
+    for s in tools.list_tools():
+        if s.allowlisted:
+            assert s.sensitivity == tools.AGENT_SENSITIVITY.get(s.agent, "restricted"), s.name
+        elif s.department in ("hr", "finance", "legal_compliance", "security"):
+            assert s.sensitivity == "restricted", s.name
+        else:
+            assert tools.LEVEL_RANK[s.sensitivity] >= tools.LEVEL_RANK["internal"], s.name
+    # a manifest that says "internal" for an HR agent still registers restricted
+    hr = next(s for s in tools.list_tools() if s.department == "hr")
+    tools._manifest_level.cache_clear()
+    orig = tools._manifest_level
+    tools._manifest_level = lambda agent, department: "internal"
+    try:
+        fn = getattr(backend.agent_class(hr.agent), hr.method)
+        assert tools.sensitivity_of(hr.agent, "hr", fn, allowlisted=False) == "restricted"
+        assert tools.sensitivity_of("LEAVE_MANAGEMENT", "hr", fn, allowlisted=True) == "restricted"
+        assert tools.sensitivity_of("X", "operations", fn, allowlisted=True) == "restricted"      # allowlisted ignores the manifest
+    finally:
+        tools._manifest_level = orig

@@ -46,6 +46,7 @@ from velaris.intel.flow import Tool
 logger = logging.getLogger("velaris.intel.tools")
 SIDE_EFFECTS = ("none", "internal", "external")
 LEVELS = ("public", "internal", "restricted")
+LEVEL_RANK = {"public": 0, "internal": 1, "restricted": 2}
 # Agents whose output holds nothing about people or money. Everything else is restricted (fail closed).
 AGENT_SENSITIVITY: Dict[str, str] = {
     "AUTONOMOUS_RESEARCH_ENGINE": "public", "ADVANCED_SEARCH_ENGINE": "public",
@@ -213,11 +214,26 @@ def _manifest_level(agent: str, department: str) -> Optional[str]:
     return entry.get("sensitivity") if isinstance(entry, dict) and entry.get("sensitivity") in LEVELS else None
 
 
-def sensitivity_of(agent: str, department: str = "") -> str:
-    """The level of the data a tool of this agent touches. The short reviewed list (AGENT_SENSITIVITY) is an explicit
-    per-agent decision and wins; else the agent's reviewed harness entry (never below its department floor); else
-    restricted. The harness's own model calls always use the manifest level, so this never lowers what the harness does."""
-    return AGENT_SENSITIVITY.get(agent) or (_manifest_level(agent, department) if department else None) or "restricted"
+def sensitivity_of(agent: str, department: str = "", fn: Any = None, *, allowlisted: bool = True) -> str:
+    """The level of the data a tool touches. FAIL CLOSED: an allowlisted spec (the only kind orchestrators, the brain
+    and Flows route and classify with) is restricted unless the agent is on the short reviewed list AGENT_SENSITIVITY;
+    a manifest never lowers it. A harness-only spec (no allowlist row; the harness never uses this field for its own
+    model calls, it uses the manifest level) may take the manifest level, but never below the department/code floor
+    (harness_derive.min_sensitivity: hr, finance, legal, security, or code that checks callers or seals data)."""
+    base = AGENT_SENSITIVITY.get(agent, "restricted")
+    if allowlisted or not department:
+        return base
+    level = _manifest_level(agent, department)
+    if level is None:
+        return base
+    from velaris.agentkit.harness_derive import min_sensitivity, source_of     # deferred: it imports this module
+    module = inspect.getmodule(fn)
+    try:
+        floor = min_sensitivity(department, source_of(module)) if module else "restricted"
+    except OSError as e:                                  # source unreadable: no floor can be proven, so restricted
+        logger.debug("no source for %s: %s", agent, type(e).__name__)
+        floor = "restricted"
+    return max(level, floor, key=LEVEL_RANK.__getitem__)
 
 
 def derive_spec(agent: str, method: str, fn: Any, department: str, *, kind: str = ACT) -> ToolSpec:
@@ -226,7 +242,7 @@ def derive_spec(agent: str, method: str, fn: Any, department: str, *, kind: str 
     rule = rule_for(agent, method)
     kind = rule.kind if rule else (READ if kind == READ else ACT)
     return ToolSpec(name=f"{agent}.{method}", agent=agent, method=method, params=input_schema(fn, rule),
-                    side_effects=side_effects_of(method, kind), sensitivity=sensitivity_of(agent, department),
+                    side_effects=side_effects_of(method, kind), sensitivity=sensitivity_of(agent, department, fn, allowlisted=rule is not None),
                     department=department, description=_first_line(fn) or f"{agent}.{method}", kind=kind,
                     required_roles=tuple(sorted(rule.roles or ())) if rule else (),
                     actor_param=rule.actor if rule else None, allowlisted=rule is not None)

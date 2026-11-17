@@ -17,10 +17,12 @@ The model only PROPOSES a step as JSON; code disposes (the rule of epic KAN-4):
 from __future__ import annotations
 
 import hashlib
+import inspect
 import json
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
+from velaris.agentkit.harness_derive import RANK, min_sensitivity, source_of
 from velaris.agentkit.harness_spec import load_json, manifest_path
 from velaris.agentkit.harness_tools import build_object, specs_for
 from velaris.api.allowlist import READ, prepare, rule_for
@@ -118,6 +120,9 @@ class Harness:
             raise LookupError(f"{agent} has no harness entry in its manifest")
         specs = []
         if entry.get("status") != "not_harnessed":
+            module = inspect.getmodule(engine.agent_class(agent))     # a manifest can raise the level, never lower it below the code floor
+            floor = min_sensitivity(department, source_of(module)) if module else "restricted"
+            entry = {**entry, "sensitivity": max(entry["sensitivity"], floor, key=RANK.__getitem__)}
             specs = specs_for(agent, engine.agent_class(agent), entry, department)
         return cls(agent, entry, specs, department, engine, **kw)
 

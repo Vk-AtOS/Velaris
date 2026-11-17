@@ -106,7 +106,7 @@ class DepartmentOrchestrator:
 
     # ── running ──────────────────────────────────────────────────────────────
     def _flow(self, caller: Caller, specs: List[tools.ToolSpec]) -> Flow:
-        level = max((s.sensitivity for s in specs), key=LEVEL_RANK.get, default="internal")
+        level = max((s.sensitivity for s in specs), key=LEVEL_RANK.get, default="restricted")
         lim = self.limits
         return Flow([tools.flow_tool(s, tools.runner(self.engine, s, caller)) for s in specs], llm=self.llm,
                     instructions=self.instructions(), permit=autonomy.permit, max_turns=lim.max_turns, path=self.flow_path,
