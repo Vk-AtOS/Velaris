@@ -30,7 +30,7 @@ from velaris.core.access import AccessDenied, Caller
 from velaris.intel import guard, router, trace
 from velaris.intel.errors import LLMError, PolicyRefused
 from velaris.intel.flow import call_hash
-from velaris.intel.tools import ToolSpec, dataclass_params, validate
+from velaris.intel.tools import ToolOutputError, ToolSpec, dataclass_params, validate, validate_output
 from velaris.intel.llm import LLM, extract_json
 
 MAX_OUTPUT_CHARS = 4000
@@ -168,6 +168,10 @@ class Harness:
             if param in run_args:
                 run_args = {**run_args, param: build_object(cls, run_args[param])}
         out = self.engine.run(self.agent, spec.method, run_args, caller=caller)
+        problems = validate_output(spec, out)          # a result that does not fit its declared shape is a failed step, never data
+        if problems:
+            self._trace("call.bad_output", {"tool": spec.method, "problems": problems})
+            raise ToolOutputError("; ".join(problems))
         return out if isinstance(out, str) else json.dumps(out, default=str, ensure_ascii=False)
 
     def _trace(self, action: str, payload: Dict[str, Any]) -> None:
