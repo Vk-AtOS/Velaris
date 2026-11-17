@@ -194,3 +194,24 @@ def test_an_unrouted_flow_still_goes_through_the_router_gate(tmp_path, monkeypat
         lambda p, m: _json.dumps({"final": "ok"})).complete("x"))
     r = Flow([], llm=FakeLLM(lambda p, m: "{}"), sensitivity="internal").start("hi")
     assert r.status == "done" and seen == [("planner", "internal")]
+
+
+def test_model_spend_is_metered_to_the_organisation_and_agent(tmp_path, monkeypatch):
+    """Defect 7: usage_context had no caller, so every flow's spend was attributed to the purpose prefix 'flow'."""
+    import json as _json
+    from velaris.agentkit.harness import Harness
+    from velaris.backend.engine import backend
+    from velaris.brain.brain import Brain
+    from velaris.core.access import Caller
+    from velaris.intel import router, usage
+    from velaris.intel.flow import Flow
+    from velaris.intel.llm import FakeLLM
+    monkeypatch.setenv("VELARIS_DATA", str(tmp_path))
+    seen = []
+    done = FakeLLM(lambda p, m: _json.dumps({"final": "ok"})).complete("x")
+    monkeypatch.setattr(router, "complete", lambda *a, **k: seen.append(dict(usage._ctx.get())) or done)
+    Flow([], llm=FakeLLM(lambda p, m: "{}"), usage_agent="orchestrator.hr").start("hi", meta={"caller": {"org": "acme"}})
+    Harness.for_agent("TREASURIX", engine=backend, llm=FakeLLM(lambda p, m: "{}")).run("runway?", Caller("u", "acme", frozenset()))
+    Brain({}, llm=FakeLLM(lambda p, m: "{}"))._ask("plan", "acme")
+    assert seen == [{"org": "acme", "agent": "orchestrator.hr"}, {"org": "acme", "agent": "TREASURIX"},
+                    {"org": "acme", "agent": "brain"}]

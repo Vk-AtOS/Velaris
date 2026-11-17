@@ -188,7 +188,8 @@ class Flow:
                  max_invalid: Optional[int] = None, max_model_errors: Optional[int] = None, meter: Callable[[str, Completion], float] = model_cost,
                  escalate: Optional[Callable[[Dict[str, Any]], Any]] = None, route: Optional[str] = None,
                  models: Optional[List[str]] = None, sensitivity: Optional[str] = None,
-                 clock: Callable[[], float] = time.monotonic) -> None:
+                 clock: Callable[[], float] = time.monotonic, usage_agent: str = "flow") -> None:
+        self.usage_agent = usage_agent            # what the model spend of this flow is metered to (usage.usage_context)
         self.tools = {t.name: t for t in tools}
         self.llm, self.model, self.instructions = llm or LLM(), model, instructions
         self.permit, self.gate = permit, gate
@@ -258,8 +259,11 @@ class Flow:
         try:
             # always through the router: sensitivity gate, fallback chain, breaker and caps apply to every Flow, routed or not
             # (no chain configured for the class = the named or default model as a chain of one)
-            out = router.complete(self.route or "planner", prompt, llm=self.llm, sensitivity=self.sensitivity, models=self.models,
-                                  max_tokens=800, temperature=0.0, purpose="flow.step", **({"model": self.model} if self.model else {}))
+            org = ((events[0].get("meta") or {}).get("caller") or {}).get("org")      # spend goes to the run's organisation and agent
+            with usage.usage_context(org=org, agent=self.usage_agent):
+                out = router.complete(self.route or "planner", prompt, llm=self.llm, sensitivity=self.sensitivity,
+                                      models=self.models, max_tokens=800, temperature=0.0, purpose="flow.step",
+                                      **({"model": self.model} if self.model else {}))
         except (PolicyRefused, BudgetExceeded) as e:      # asking again cannot change this: stop and hand it on
             return self._stop(run_id, events, "budget_exceeded" if isinstance(e, BudgetExceeded) else "policy_refused")
         except LLMError as e:      # not terminal: resume() asks the model again (up to max_model_errors)

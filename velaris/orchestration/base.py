@@ -131,7 +131,7 @@ class DepartmentOrchestrator:
                     instructions=self.instructions(), permit=autonomy.permit, max_turns=lim.max_turns, path=self.flow_path,
                     gate=self.gate, max_cost=lim.max_cost, max_seconds=lim.max_seconds, max_repeat=lim.max_repeat,
                     max_invalid=lim.max_invalid, max_model_errors=lim.max_model_errors, route=self.route,
-                    models=self.models, sensitivity=level, escalate=lambda info: self._escalate(caller, info),
+                    models=self.models, sensitivity=level, usage_agent=f"orchestrator.{self.department}", escalate=lambda info: self._escalate(caller, info),
                     clock=self._clock, **({"meter": self._meter} if self._meter else {}))
 
     def _escalate(self, caller: Caller, info: Dict[str, Any]) -> None:
