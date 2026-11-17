@@ -88,11 +88,19 @@ An eval set must exist for every agent (for a not_harnessed agent it holds one c
 `python3.11 main.py --harness` prints the counts per department; `velaris.agents.inventory.harness_inventory()` gives the lists.
 Inventory also counts state kept through `velaris.agentkit.state` as real (KAN-63).
 
-## Tool registry (E3) and the adapter
+## Tool registry and the harness (one ToolSpec, one derivation)
 
-`velaris/agentkit/harness_tools.py` is the only file that knows how a tool is described. `ToolSpec` has the field names of E3's
-registry (`name, agent, method, params, side_effects, sensitivity, department`). Until `velaris/intel/tools.py` exists the adapter derives
-specs from the class signature and annotations; switching is a change in `specs_for` and `candidate_methods` only.
+There is ONE `ToolSpec` (`velaris/intel/tools.py`: JSON-schema `params`, `side_effects` none/internal/external, `kind` read/act,
+`sensitivity`, `allowlisted`) and ONE derivation of it (`tools.derive_spec`). `velaris/agentkit/harness_tools.py` keeps only the
+harness's own rules (which methods are exposable at all, objects built from JSON) and `register_all(engine)`, which derives the spec
+of every method a manifest entry exposes through that function and registers it. The allowlist row is the READ/ACT truth wherever
+there is one; for a method without a row the manifest kind is used, and the manifest was generated from the strict read proof
+(`harness_derive.read_or_act`), which tests re-derive. A method without a row is `allowlisted=False`: the harness may use it
+(reads run, acts are only proposed) but no department orchestrator offers it and `tools.runner` refuses it.
+
+Sensitivity: an allowlisted spec is `restricted` unless the agent is on `tools.AGENT_SENSITIVITY`; a manifest never lowers it. A
+harness-only spec may take the manifest level but never below `harness_derive.min_sensitivity` (department/code floor); the
+harness applies the same floor at runtime. The eval runner takes a provider chain from `VELARIS_EVAL_MODELS` (see KAN-45).
 
 ## Working a wave
 

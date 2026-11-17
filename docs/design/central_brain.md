@@ -199,3 +199,9 @@ The honest limit of the example today: payroll agents expose reads only in the
 allowlist and the project-management department has no allowlisted method, so
 the finance and project steps end as "no tool, escalated" until those methods
 are reviewed into `allowlist.py`.
+
+## HTTP
+
+`POST /brain {"goal"}` plans and runs the goal; `GET /brain/{run_id}` moves it on after an approval. Roles come from the signed
+assertion; a run belongs to its owner alone (the `/flows` rule). Code: `velaris/api/brain_api.py`.
+
