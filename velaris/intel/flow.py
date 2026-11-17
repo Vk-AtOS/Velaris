@@ -347,7 +347,7 @@ class Flow:
             out, ok = self.tools[call["tool"]].fn(**call["args"]), True
             out = out if isinstance(out, str) else json.dumps(out, default=str, ensure_ascii=False)
         except Exception as e:  # a tool failure is information for the model, not a crash of the run
-            out, ok = f"{type(e).__name__}: {e}", False
+            out, ok = type(e).__name__, False      # the type only: the text can hold data or internals (VP-8)
         out = out[:MAX_OUTPUT_CHARS]
         flagged = guard.scan(out, source=f"flow.tool.{call['tool']}").blocked
         if flagged:
