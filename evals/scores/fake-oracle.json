@@ -2161,10 +2161,10 @@
    "status": "deterministic_tool"
   },
   "OPS_REPORT": {
-   "cases": 7,
+   "cases": 4,
    "department": "operations",
    "failed": [],
-   "passed": 7,
+   "passed": 4,
    "rate": 1.0,
    "ready": false,
    "status": "deterministic_tool"
@@ -2269,10 +2269,10 @@
    "status": "deterministic_tool"
   },
   "PIPELINE_MONITOR": {
-   "cases": 5,
+   "cases": 3,
    "department": "operations",
    "failed": [],
-   "passed": 5,
+   "passed": 3,
    "rate": 1.0,
    "ready": false,
    "status": "deterministic_tool"
@@ -2665,10 +2665,10 @@
    "status": "deterministic_tool"
   },
   "SLA_MONITOR": {
-   "cases": 6,
+   "cases": 4,
    "department": "operations",
    "failed": [],
-   "passed": 6,
+   "passed": 4,
    "rate": 1.0,
    "ready": false,
    "status": "deterministic_tool"
@@ -2701,10 +2701,10 @@
    "status": "deterministic_tool"
   },
   "SPRINT_PLANNER": {
-   "cases": 8,
+   "cases": 5,
    "department": "project_management",
    "failed": [],
-   "passed": 8,
+   "passed": 5,
    "rate": 1.0,
    "ready": false,
    "status": "deterministic_tool"

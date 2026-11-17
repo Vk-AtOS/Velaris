@@ -102,6 +102,13 @@ Sensitivity: an allowlisted spec is `restricted` unless the agent is on `tools.A
 harness-only spec may take the manifest level but never below `harness_derive.min_sensitivity` (department/code floor); the
 harness applies the same floor at runtime. The eval runner takes a provider chain from `VELARIS_EVAL_MODELS` (see KAN-45).
 
+## Output schemas
+
+`ToolSpec.output` is the JSON schema of what a method returns (annotation, else what its `return` statements prove, else `{}`).
+The harness checks a READ result against it before the model sees it: a mismatch is a failed step (`NOT DONE`, verdict `failed`, the
+message names types, never the value). The harness never runs an ACT tool, so the strict check only ever covers reads; in Flow an
+action that ran stays executed with a warning (see docs/orchestrators.md section 10).
+
 ## Working a wave
 
 ```

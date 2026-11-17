@@ -578,3 +578,36 @@ Design: `docs/design/central_brain.md`.
 * **Evals.** `tools/eval_runner.py` offline: 1,360 cases over all agents, 100% with the fake oracle (not LLM-readiness). A real run:
   `VELARIS_EVAL_MODELS=anthropic:claude-sonnet-4-6 python3.11 tools/eval_runner.py` (add the key; `--check` says what is missing).
 
+
+## 10. After the R5 orchestration pass (the open code-read defects, ACT rows, output schemas)
+
+* **Output schemas (KAN-29).** `ToolSpec.output` is the JSON schema of the result: the return annotation, else the type that every
+  `return` of the method proves (helpers such as `fail(...)` are followed two levels), else `{}` (nothing provable; about a tenth of
+  the 1,021 registered tools). `Harness._execute` and `tools.flow_tool` validate the raw result. A READ that returns a wrong shape is a
+  failed step (safe to retry). An action that RAN is never turned into a failure: Flow records it `ok`, `executed: true`, with a
+  `warning`, withholds the unfit value, and refuses to run the same non-idempotent call again in that run.
+* **ACT rows (KAN-31).** Eight, all in `allowlist.METHODS` with `ACT_NOTES` (security note each), role `project_admin` /
+  `ops_admin` or `governance_admin`, flow approval by a second person (Prime when configured), autonomy class `unclassified`
+  (approval, never auto): SPRINT_PLANNER create_sprint, add_task, update_task_status; SLA_MONITOR add_commitment, resolve;
+  OPS_REPORT add_blocker, resolve_blocker; PIPELINE_MONITOR log_stage. SKIPPED, and why: every hr method that touches a person
+  (PERFORMANCE_REVIEW_ENGINE, RECRUITMENT_ATS, EMPLOYEE_ONBOARDING: personal data); all of security, legal_compliance and the
+  `_ai_core` policy/grant/lockdown agents (access, policy or irreversible changes: an owner decision); finance LEDGERON and
+  anything that moves money; SPRINT_PLANNER.close_sprint (no reopen: irreversible in effect); TIME_TRACKER (a person's hours);
+  every agent whose state lives in the instance (lost between engine calls); WHATSAPP_BRIEFING.send_briefing and every method that
+  sends; the pure calculators (their READ rows exist or need a proof, not an ACT row). The read methods of the four agents
+  (get_sprint_board, dashboard, generate_report...) are not yet in the table: the harness's read proof does not cover sqlite reads.
+* **Defect 6** closed: Flow (no `route`) and the corrections eval go through `router.complete` with a sensitivity; the guard test
+  exempts only the gateway, the router and the metering wrapper. **Defect 7** closed: `usage_context` is set by Flow (org from the run,
+  agent `orchestrator.<department>`), the harness (the agent) and the brain.
+* **Defect 10** closed: `velaris.orchestration.handlers` is the one process registry (filled by the deployment at start-up) that
+  VCAS_AUTOPILOT and AAE_RUNTIME consult after their own instance. **Defect 12** closed: AetherOS Prime (`core/prime.py`) is
+  canonical (runtime path, per-org limits, hard maxima, expiry, revocation chain); with `VELARIS_PRIME_URL` and
+  `VELARIS_PRIME_API_KEY` set the PRIME agent makes no grants and turns every allow into needs_approval. **Defect 15** closed:
+  `PRIME.execute` dispatches through `BackendEngine.run` as the caller.
+* **Defect 13** closed: `orchestration.inbox.deliver` reads an inbox for an agent that defines `on_message`; EOF_GATEWAY refuses
+  at 1,000 untaken messages. No agent defines `on_message` yet, so today nothing is consumed (the messages stay queued).
+* **Defect 14** closed by deleting `AgentRouter.publish` (looked at the module, no receivers, no callers).
+* **Defect 16** closed and **17** answered: ORCHESTRIX is a thin face of `agentkit.graph.order` (the brain already orders with it, so
+  wiring a second sort in would duplicate it). MCFE_ROUTER, BUSINESS_OPS_ENGINE, HUMAN_APPROVAL_WORKFLOW, CONVERGENCE_BRIDGE keep
+  their names; their manifests say what they do and the inventory counts them as what they are. **Defect 18** was already closed by
+  the brain (`/brain`: dependency-ordered steps, each run by a department orchestrator with approvals).

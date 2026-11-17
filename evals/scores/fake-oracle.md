@@ -15,8 +15,8 @@ Offline scores prove the harness and the eval format only; no agent is LLM-ready
 | it_infrastructure | 26 | 26 | 139 | 139 | 100.0% | 0 | - |
 | legal_compliance | 7 | 7 | 39 | 39 | 100.0% | 0 | - |
 | marketing | 11 | 11 | 46 | 46 | 100.0% | 0 | - |
-| operations | 25 | 20 | 100 | 100 | 100.0% | 0 | - |
-| project_management | 14 | 13 | 70 | 70 | 100.0% | 0 | - |
+| operations | 25 | 20 | 93 | 93 | 100.0% | 0 | - |
+| project_management | 14 | 13 | 67 | 67 | 100.0% | 0 | - |
 | sales | 13 | 13 | 46 | 46 | 100.0% | 0 | - |
 | security | 29 | 25 | 137 | 137 | 100.0% | 0 | - |
 | supply_chain | 6 | 6 | 24 | 24 | 100.0% | 0 | - |
