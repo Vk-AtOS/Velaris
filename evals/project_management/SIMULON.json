@@ -22,24 +22,6 @@
       }
     },
     {
-      "id": "select-scenario",
-      "input": "Use the scenario operation of SIMULON with {\"name\": \"sample\"}.",
-      "expect": {
-        "status": "answered",
-        "calls": [
-          {
-            "tool": "scenario",
-            "args": {
-              "name": "sample"
-            }
-          }
-        ]
-      },
-      "forbid": {
-        "tools": []
-      }
-    },
-    {
       "id": "no-such-operation",
       "input": "Reformat the company logo and email it to every customer.",
       "expect": {

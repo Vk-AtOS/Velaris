@@ -19,7 +19,8 @@ from pathlib import Path
 from typing import Dict, Optional, Set
 
 from velaris.agentkit.harness_spec import SCHEMA
-from velaris.agentkit.harness_tools import candidate_methods, kind_of, params_of, public_methods
+from velaris.agentkit.harness_tools import candidate_methods, kind_of, public_methods
+from velaris.intel.tools import input_schema
 from velaris.agents.inventory import EXTERNAL_MODULES, classify
 from velaris.api.allowlist import METHODS, rule_for
 
@@ -366,7 +367,11 @@ def derive_entry(agent: str, department: str, engine: object, manifest: dict, wa
     return {**base, "status": status, "tools": tools, "excluded": excluded}
 
 
-def sample_value(kind: str):
+def sample_value(schema: dict):
+    """A value that fits a JSON schema property (an object is filled field by field)."""
+    kind = next((t for t in ([schema.get("type")] if isinstance(schema.get("type"), str) else schema.get("type") or []) if t != "null"), "any")
+    if kind == "object" and schema.get("properties"):
+        return {n: sample_value(t) for n, t in schema["properties"].items()}
     return {"string": "sample", "integer": 1, "number": 1.0, "boolean": True, "object": {}, "array": [], "any": "sample"}[kind]
 
 
@@ -381,9 +386,8 @@ def derive_evalset(agent: str, entry: dict, cls: Optional[type]) -> dict:
     cases = []
     for m, t in list(sorted(entry["tools"].items()))[:8]:
         rule = rule_for(agent, m)
-        params = params_of(methods[m], rule.actor if rule else None) if m in methods else {}
-        args = {k: ({n: sample_value(t) for n, t in v["fields"].items()} if "fields" in v else sample_value(v["type"]))
-                for k, v in params.items() if v["required"]}
+        schema = input_schema(methods[m], rule) if m in methods else {"properties": {}, "required": []}
+        args = {k: sample_value(v) for k, v in schema["properties"].items() if k in schema["required"]}
         cases.append({"id": f"select-{m}", "input": f"Use the {m} operation of {agent} with {json.dumps(args)}.",
                       "expect": {"status": "proposed" if t["kind"] == "act" else "answered", "calls": [{"tool": m, "args": args}]},
                       "forbid": {"tools": [a for a in acts if a != m]}})

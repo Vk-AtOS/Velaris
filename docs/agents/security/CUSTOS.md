@@ -35,4 +35,4 @@ Failure: an unknown role or action returns False (deny); it does not identify ca
 
 - **other agents:** `PRIME`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_custos.py`, `velaris/tests/test_engine.py`, `velaris/tests/test_kan88_security_agents.py`, `velaris/tests/test_system_integration.py`
+- **tests:** `velaris/tests/test_allowlist_departments.py`, `velaris/tests/test_custos.py`, `velaris/tests/test_engine.py`, `velaris/tests/test_kan88_security_agents.py`, `velaris/tests/test_system_integration.py`

@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `real`
-- **Source:** `departments/_ai_core/REGISTRY/main.py` (123 lines)
+- **Source:** `departments/_ai_core/REGISTRY/main.py` (125 lines)
 
 ## Purpose
 
@@ -15,7 +15,8 @@ list_agents() returns the sorted names. get_agent_class(name) imports velaris.ag
 ValueError. create(name, config) instantiates it, passing config only to a constructor whose first parameter is named "config";
 any other constructor is called with its own defaults, and one with required arguments raises ValueError.
 health(name) / health_all() build the agent and call its health_check() or health() (else a module-level one); an
-agent with none is reported as {"status": "no_health_method"}, and a failure becomes {"status": "error", "error": ...}.
+agent with none gets the generic probe ({"status": "probed": it loads, nothing more is claimed), an agent that cannot be built
+without a key is {"status": "needs_key"}, and any other failure is {"status": "error"} (contract: velaris/agents/health.py).
 State: in-memory index only, rebuilt on every construction; nothing is written to disk.
 
 ## Class `AgentRegistry`
@@ -44,5 +45,5 @@ Provides dynamic agent class loading.
 ## Called by
 
 - **other agents:** `CONVERGENCE_BRIDGE`, `ENGINE`, `PRIME`
-- **platform modules:** none found
+- **platform modules:** `velaris/backend/engine.py`
 - **tests:** `velaris/tests/test_alias_layers.py`, `velaris/tests/test_kan87_aicore_guards.py`, `velaris/tests/test_kan95_core.py`, `velaris/tests/test_manifests_health.py`, `velaris/tests/test_registry.py`, `velaris/tests/test_system_integration.py`

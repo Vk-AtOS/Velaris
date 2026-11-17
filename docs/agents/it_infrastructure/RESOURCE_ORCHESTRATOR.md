@@ -37,4 +37,4 @@ restart, so capacity held by a crashed owner stays held until release().
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_dept_it_infrastructure_stubs.py`, `velaris/tests/test_kan90_infra.py`, `velaris/tests/test_layer8_gro.py`
+- **tests:** `velaris/tests/test_dept_it_infrastructure_stubs.py`, `velaris/tests/test_engine_construction.py`, `velaris/tests/test_kan90_infra.py`, `velaris/tests/test_layer8_gro.py`

@@ -34,5 +34,5 @@ non-numeric plan values raise.
 ## Called by
 
 - **other agents:** none found
-- **platform modules:** none found
+- **platform modules:** `velaris/api/allowlist.py`
 - **tests:** `velaris/tests/test_kan94_pm_agents.py`, `velaris/tests/test_tactician.py`

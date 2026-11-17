@@ -1,5 +1,6 @@
 """KAN-35/45: the generic agent harness, its safety properties, the eval format and the scorer. No real model is used."""
 import json
+from typing import Dict, Optional
 
 import pytest
 
@@ -8,7 +9,8 @@ from velaris.agentkit import harness_spec as S
 from velaris.agentkit.harness import Harness
 from velaris.agentkit.harness_check import check_agent
 from velaris.agentkit.harness_eval import fake_model, run_evalset, score_case
-from velaris.agentkit.harness_tools import ToolSpec, json_type, params_of, specs_for, type_ok
+from velaris.agentkit.harness_tools import specs_for
+from velaris.intel.tools import ToolSpec, input_schema, validate
 from velaris.backend.engine import backend
 from velaris.core.access import Caller
 from velaris.intel.flow import call_hash
@@ -16,8 +18,12 @@ from velaris.intel.llm import FakeLLM
 
 ENTRY = {"schema": 1, "status": "mixed", "purpose": "test agent", "sensitivity": "internal", "task_class": "worker",
          "tools": {"look": {"kind": "read"}, "change": {"kind": "act"}}}
-SPECS = [ToolSpec("T.look", "T", "look", {"n": {"type": "integer", "required": True}}, "none", "internal", "x", "look at n"),
-         ToolSpec("T.change", "T", "change", {"v": {"type": "string", "required": True}}, "state", "internal", "x", "change v")]
+def _schema(**props):
+    return {"type": "object", "properties": {k: {"type": t} for k, t in props.items()}, "required": list(props)}
+
+
+SPECS = [ToolSpec("T.look", "T", "look", _schema(n="integer"), "none", "internal", "x", "look at n", kind="read", allowlisted=False),
+         ToolSpec("T.change", "T", "change", _schema(v="string"), "internal", "internal", "x", "change v", allowlisted=False)]
 
 
 class StubEngine:
@@ -105,10 +111,12 @@ def test_not_harnessed_agent_refuses_and_names_the_reason():
 
 
 def test_schema_types():
-    assert json_type("Dict[str, float]") == "object" and json_type("Optional[int]") == "integer" and json_type("float") == "number"
-    assert json_type(list) == "array" and json_type(bool) == "boolean" and json_type(str) == "string"
-    assert type_ok("integer", 3) and not type_ok("integer", True) and not type_ok("integer", "3") and type_ok("number", 3)
-    assert params_of(backend.agent_class("TREASURIX").runway_months)["monthly_burn"] == {"type": "number", "required": True}
+    def f(a: Dict[str, float], b: Optional[int], c: float, d: list, e: bool, g: str, h): ...
+    props = input_schema(f)["properties"]
+    assert [props[k].get("type") for k in "abcdegh"] == ["object", ["integer", "null"], "number", "array", "boolean", "string", None]
+    t = ToolSpec("T.f", "T", "f", _schema(i="integer", n="number"), "none", kind="read")
+    assert validate(t, {"i": 3, "n": 3}) == [] and validate(t, {"i": True, "n": 3}) and validate(t, {"i": "3", "n": 3})
+    assert input_schema(backend.agent_class("TREASURIX").runway_months)["properties"]["monthly_burn"] == {"type": "number"}
 
 
 def test_read_or_act_is_fail_closed():
@@ -225,7 +233,7 @@ def test_the_mixed_reference_proposes_its_writes_and_runs_its_reads():
 
 
 def test_collaborators_and_secrets_never_reach_the_model():
-    assert "llm" not in params_of(backend.agent_class("STRATEGIC_INTEL").run)
+    assert "llm" not in input_schema(backend.agent_class("STRATEGIC_INTEL").run)["properties"]
     from velaris.agentkit.harness_tools import exposable
 
     class A:

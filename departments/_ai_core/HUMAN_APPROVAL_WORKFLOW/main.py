@@ -9,13 +9,17 @@ requester/approver argument is missing, empty or names someone other than the ca
 or when the caller would decide their own request.
 """
 import copy
+import logging
 import uuid
 from typing import Dict, Optional
 
 from velaris.agentkit.checks import ident
 from velaris.core.access import check_caller
+from velaris.intel import approvals
 
 NAME = "HUMAN_APPROVAL_WORKFLOW"
+logger = logging.getLogger(NAME)
+
 
 class HumanApproval:
     def __init__(self):
@@ -28,6 +32,8 @@ class HumanApproval:
         if refused:
             return ""
         req_id = str(uuid.uuid4())
+        if not self._audit("requested", req_id, caller.id, "needs_approval", {"action": action, "requester": caller.id}):
+            return ""
         self.requests[req_id] = {
             "requester": caller.id,
             "action": action,
@@ -35,6 +41,16 @@ class HumanApproval:
             "status": "PENDING"
         }
         return req_id
+
+    @staticmethod
+    def _audit(event: str, req_id: str, by: str, decision: str, subject, note: str = "") -> bool:
+        """The shared approval trail (velaris.intel.approvals); False when it cannot be written (fail closed)."""
+        try:
+            approvals.audit("HUMAN_APPROVAL_WORKFLOW", event, request_id=req_id, subject=subject, by=by, decision=decision, note=note)
+            return True
+        except (OSError, ValueError, TypeError) as e:
+            logger.warning("HUMAN_APPROVAL_WORKFLOW: %s of %s not recorded: %s", event, req_id, e)
+            return False
 
     def _decider(self, req_id: str, approver: str) -> Optional[str]:
         """The caller's id if they may decide this pending request, else None."""
@@ -50,12 +66,16 @@ class HumanApproval:
         who = self._decider(req_id, approver)
         if who is None:
             return False
+        if not self._audit("decided", req_id, who, "approve", self.requests[req_id]["action"]):
+            return False             # an approval that cannot be recorded does not happen
         self.requests[req_id].update(status="APPROVED", approver=who)
         return True
 
     def reject(self, req_id: str, approver: str, reason: str) -> bool:
         who = self._decider(req_id, approver)
         if who is None:
+            return False
+        if not self._audit("decided", req_id, who, "reject", self.requests[req_id]["action"], str(reason)):
             return False
         self.requests[req_id].update(status="REJECTED", approver=who, reason=reason)
         return True

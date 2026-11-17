@@ -41,4 +41,4 @@ does not guess a design life and there is no composite score.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_dept_supply_chain_stubs.py`, `velaris/tests/test_kan85_70_finance_supply.py`
+- **tests:** `velaris/tests/test_allowlist_departments.py`, `velaris/tests/test_dept_supply_chain_stubs.py`, `velaris/tests/test_kan85_70_finance_supply.py`

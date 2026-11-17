@@ -538,3 +538,43 @@ department orchestrators, executive absence, identity lookup) and `brain/`.
 ORCHESTRIX, the VCAS/EOF/ACF/ASEL/MCFE/VHOE families and the other approval
 mechanisms (defects 6 to 18) are unchanged and still unused by the new layer.
 Design: `docs/design/central_brain.md`.
+
+## 9. After the R4 orchestration pass (KAN-27 follow-ups)
+
+* **One tool type.** `intel/tools.ToolSpec` and `derive_spec` are the only spec and derivation; the harness registers what it
+  derives (`harness_tools.register_all`). See `docs/design/agent_harness.md`.
+* **Protections on by default.** Every `Flow` takes its limits from `flow.default_limits()`: `VELARIS_FLOW_MAX_TURNS` (12),
+  `_MAX_COST` (USD 0.50), `_MAX_SECONDS` (120 active seconds), `_MAX_REPEAT` (3), `_MAX_INVALID` (3), `_MAX_MODEL_ERRORS` (3);
+  `0` switches one off, a malformed value keeps the default, an explicit constructor argument wins. This covers `/flows`, chat,
+  mail, control and the orchestrators alike. Behaviour for existing callers: calls chosen by code (`Flow.call`, mail, chat
+  confirmations) make no model turn, so nothing changes for them; a model-driven run now stops (`stop` event, reason
+  `cost_cap`, `time_cap`, `loop_detected`, `too_many_invalid`, `model_unavailable`) where it used to run to 12 turns, and
+  `resume()` no longer retries a model outage without bound. `/flows` hands a stopped run to the escalation queue
+  (`orchestration.base.record_escalation`, department `flows`). The ControlFlow subclass keeps its own kill flag and loop key.
+* **The brain over HTTP.** `POST /brain {"goal"}` and `GET /brain/{run_id}` (`velaris/api/brain_api.py`): signed caller, the
+  organisation check, owner-only runs (404 for anybody else, as `/flows`), traced without the goal text.
+* **Defects 8, 9, 11 closed.** `BackendEngine.run` gives a constructor a config only when its first parameter is named `config`
+  (92 agents were built with `{}`); AAE_POLICY is built with `autonomy.to_aae_rules()`; RECURSIVE_GOAL_PLANNER resolves (the
+  exception-class fix of KAN-35) and a test pins it. Defect 11: `velaris/intel/approvals.audit()` writes every request,
+  decision, execution, refusal and revocation of Flow, VCAS_CORE/VCAS_AUTOPILOT, AAE_RUNTIME, the PRIME agent and
+  HUMAN_APPROVAL_WORKFLOW with one payload shape; `approvals.trail()` reads it back. The five still have their own state.
+* **Allowlist for the ten departments that had none** (`allowlist.NOTES` holds the security note of every new row). Added: 64
+  READ rows (client_success LOGISTA; executive INSIGHTA ORACLE PROBABILIS REALMEX STOCHASTIX; marketing ARTESIA CREATIVA
+  CREATIVE_HOLODECK IMAGINA; operations FABRICA FLUXOR GENEFLOW OPERATUS OPTIMA POLARIS; project_management SIMULON TACTICIAN;
+  sales AMPLIFEX ATTRACTA AUTONOMOUS_SALES_NAVIGATOR COHORTUS CONVERTA DOMAIN_ADVISOR RETENTA TARGETA; security AUDITOR PRAETOR
+  SAFETY_PERIMETER, which need `security_admin`). Rule: only methods that are pure functions of their arguments and proven read.
+  No ACT row. NOT exposed, and why: every ACT method (no approval semantics reviewed); agents that keep data or state the
+  engine's fresh instance would lose (communications: all four; BUDGET_GUARDRAILS, CALL_RECORDER, SELF_AUDIT, ZERO_TRUST_PIPELINE,
+  COMPLIANCE_GUARD, SIGNED_AUDIT_CHAIN, the lockdown modes, ARGUS, CUSTOS, THREAT_DETECTION_MESH, LEGAL_INTELLIGENCE_ENGINE,
+  BUSINESS_OPS_ENGINE, MULTI_TENANT_ENGINE ...); agents that check the caller themselves or touch policy
+  (POLICY_CONTROLLER, GOVERNANCE_KERNEL: an owner decision on who in legal may read policy decisions); methods that take an object
+  of the agent's own class, which the HTTP path cannot build (MACHINE_LIFECYCLE_ENGINE.validate, SUPPLY_CHAIN_ENGINE.validate and
+  the other supply_chain engines); cryptographic helpers (VMRK.sign, HELIX); VIRALYTICA.propagation_curve (unbounded `periods`);
+  outside effects (CONNECTOR_LAYER.request); model-driven agents (STRATEGIC_INTEL, ADAPTIVE_BRANDING, WORKFLOW_ANALYST). Agents
+  with partial rows list their other methods as `excluded` in their harness manifest (the table is the truth).
+* **Health contract** (`velaris/agents/health.py`): `HealthCheck` protocol, statuses ok / degraded / unconfigured /
+  no_models_configured / needs_key / probed / error. The 50 agents without a method report `probed` (loads; no claim it works);
+  the 6 that need `VELARIS_VAULT_KEY` report `needs_key`. No agent file was edited.
+* **Evals.** `tools/eval_runner.py` offline: 1,360 cases over all agents, 100% with the fake oracle (not LLM-readiness). A real run:
+  `VELARIS_EVAL_MODELS=anthropic:claude-sonnet-4-6 python3.11 tools/eval_runner.py` (add the key; `--check` says what is missing).
+

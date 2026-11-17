@@ -27,7 +27,7 @@ from velaris.agentkit.checks import ident, is_json
 from velaris.agentkit.results import fail, health, invalid
 from velaris.agentkit.state import JsonState
 from velaris.agents.VCAS_SUPERVISOR.main import task_error
-from velaris.intel import trace
+from velaris.intel import approvals
 
 logger = logging.getLogger("VCAS_AUTOPILOT")
 NAME = "VCAS_AUTOPILOT"
@@ -93,6 +93,7 @@ class VCASAutopilotAgent:
             run = {"state": "failed", "error": f"{type(e).__name__}: {e}"[:300]}
         run.update(action=task["action"], finished=time.time())
         self._runs.update(lambda s: s["runs"].__setitem__(task_id, run))
-        trace.append(NAME, "run", {"task_id": task_id, "action": task["action"], "state": run["state"]})
+        approvals.audit("VCAS_AUTOPILOT", "executed", request_id=task_id, by=str(task.get("principal") or ""), decision=run["state"],
+                        trace_actor=NAME, trace_action="run", task_id=task_id, action=task["action"], state=run["state"])
         return {**base, "executed": run["state"] == "done", "status": "ok" if run["state"] == "done" else "failed",
                 "run": run}

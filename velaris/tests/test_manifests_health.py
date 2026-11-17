@@ -41,12 +41,30 @@ def test_default_health_is_honest():
         def health_check():
             return {"status": "degraded"}
 
-    assert default_health("A", A(), object())["status"] == "no_health_method"
+    assert default_health("A", A(), object())["status"] == "probed"
     assert default_health("B", B(), object())["status"] == "ok"
     assert default_health("A", A(), M)["status"] == "degraded"
 
 
 def test_health_all_never_reports_ok_for_agent_without_method():
     h = AgentRegistry().health_all()
-    assert h["LYRA"]["status"] == "no_health_method"
+    assert h["LYRA"]["status"] == "probed" and h["LYRA"]["public_methods"] > 0
     assert not any(v.get("status") == "no_health_check" for v in h.values())
+
+
+def test_the_health_contract_names_needs_key_and_probed_apart_from_error(monkeypatch):
+    from velaris.agents.health import STATUSES, HealthCheck, build_failure
+    from velaris.core.vault import VaultKeyError
+    monkeypatch.delenv("VELARIS_VAULT_KEY", raising=False)
+    monkeypatch.delenv("VELARIS_VAULT_KEY_FILE", raising=False)
+    h = AgentRegistry().health_all()
+    assert {n for n, v in h.items() if v["status"] == "needs_key"} >= {"EMPLOYEE_RECORDS", "LEAVE_MANAGEMENT", "RECRUITMENT_ATS"}
+    assert h["LEAVE_MANAGEMENT"]["needs"] == ["VELARIS_VAULT_KEY or VELARIS_VAULT_KEY_FILE"]      # names, never a value
+    assert not any(v["status"] in ("error", "no_health_method") for v in h.values())
+    assert all(v["status"] in STATUSES or v["status"] == "unknown" for v in h.values())
+    assert build_failure("X", ValueError("boom"))["status"] == "error" and build_failure("X", VaultKeyError("k"))["status"] == "needs_key"
+
+    class Mine:
+        def health_check(self):
+            return {"status": "ok"}
+    assert isinstance(Mine(), HealthCheck) and not isinstance(object(), HealthCheck)

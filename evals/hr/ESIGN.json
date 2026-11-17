@@ -4,7 +4,7 @@
   "cases": [
     {
       "id": "select-create_request",
-      "input": "Use the create_request operation of ESIGN with {\"title\": \"sample\", \"document_base64\": \"sample\", \"signers\": {}}.",
+      "input": "Use the create_request operation of ESIGN with {\"title\": \"sample\", \"document_base64\": \"sample\", \"signers\": []}.",
       "expect": {
         "status": "proposed",
         "calls": [
@@ -13,7 +13,7 @@
             "args": {
               "title": "sample",
               "document_base64": "sample",
-              "signers": {}
+              "signers": []
             }
           }
         ]

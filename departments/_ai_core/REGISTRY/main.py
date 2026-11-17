@@ -9,7 +9,8 @@ list_agents() returns the sorted names. get_agent_class(name) imports velaris.ag
 ValueError. create(name, config) instantiates it, passing config only to a constructor whose first parameter is named "config";
 any other constructor is called with its own defaults, and one with required arguments raises ValueError.
 health(name) / health_all() build the agent and call its health_check() or health() (else a module-level one); an
-agent with none is reported as {"status": "no_health_method"}, and a failure becomes {"status": "error", "error": ...}.
+agent with none gets the generic probe ({"status": "probed": it loads, nothing more is claimed), an agent that cannot be built
+without a key is {"status": "needs_key"}, and any other failure is {"status": "error"} (contract: velaris/agents/health.py).
 State: in-memory index only, rebuilt on every construction; nothing is written to disk.
 """
 import inspect
@@ -19,7 +20,7 @@ import logging
 from typing import Dict, Any, List, Type
 
 from velaris.agents import department_dirs
-from velaris.agents.health import default_health
+from velaris.agents.health import build_failure, default_health
 
 logger = logging.getLogger("REGISTRY")
 
@@ -105,17 +106,18 @@ class AgentRegistry:
 
     def health(self, agent_name: str) -> Dict[str, Any]:
         """Health of one agent: its instance health_check()/health(), else a module-level health_check()/health(),
-        else {"status": "no_health_method"} (never a fabricated "ok"). Construction failure is reported as an error."""
+        else the generic probe (never a fabricated "ok"). A build failure is needs_key (missing master key) or error."""
         try:
             inst = self.create(agent_name)
         except Exception as e:
-            logger.warning("health: cannot build %s: %s", agent_name, e)
-            return {"agent": agent_name, "status": "error", "error": str(e)}
+            state = build_failure(agent_name, e)
+            (logger.info if state["status"] == "needs_key" else logger.warning)("health: cannot build %s: %s", agent_name, e)
+            return state
         try:
             return default_health(agent_name, inst, importlib.import_module(type(inst).__module__))
         except Exception as e:
             logger.warning("health of %s failed: %s", agent_name, e)
-            return {"agent": agent_name, "status": "error", "error": str(e)}
+            return build_failure(agent_name, e)
 
     def health_all(self) -> Dict[str, Any]:
         return {name: self.health(name) for name in self.list_agents()}

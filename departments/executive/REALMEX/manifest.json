@@ -18,14 +18,13 @@
       "extract_dimensions": {
         "kind": "read"
       },
-      "fuse_realities": {
-        "kind": "act"
-      },
       "score_reality": {
         "kind": "read"
       }
     },
-    "excluded": {},
+    "excluded": {
+      "fuse_realities": "not in the HTTP allowlist (velaris/api/allowlist.py)"
+    },
     "reviewed": true
   }
 }

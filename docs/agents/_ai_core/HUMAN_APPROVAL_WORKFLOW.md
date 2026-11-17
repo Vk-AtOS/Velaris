@@ -1,8 +1,8 @@
 # HUMAN_APPROVAL_WORKFLOW
 
 - **Department:** `_ai_core`
-- **Status (static inventory):** `rule_based`
-- **Source:** `departments/_ai_core/HUMAN_APPROVAL_WORKFLOW/main.py` (67 lines)
+- **Status (static inventory):** `real`
+- **Source:** `departments/_ai_core/HUMAN_APPROVAL_WORKFLOW/main.py` (87 lines)
 
 ## Purpose
 
@@ -26,6 +26,7 @@ or when the caller would decide their own request.
 
 - `velaris.agentkit.checks`
 - `velaris.core.access`
+- `velaris.intel`
 
 ## State and configuration
 
@@ -34,5 +35,5 @@ or when the caller would decide their own request.
 ## Called by
 
 - **other agents:** none found
-- **platform modules:** none found
-- **tests:** `velaris/tests/test_kan104_unauthenticated_writes.py`, `velaris/tests/test_security_review_fixes.py`, `velaris/tests/test_security_review_round2.py`
+- **platform modules:** `velaris/intel/approvals.py`
+- **tests:** `velaris/tests/test_approval_audit.py`, `velaris/tests/test_kan104_unauthenticated_writes.py`, `velaris/tests/test_security_review_fixes.py`, `velaris/tests/test_security_review_round2.py`

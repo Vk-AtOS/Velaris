@@ -4,14 +4,14 @@
   "cases": [
     {
       "id": "select-pipeline",
-      "input": "Use the pipeline operation of ENGINE with {\"steps\": {}}.",
+      "input": "Use the pipeline operation of ENGINE with {\"steps\": []}.",
       "expect": {
         "status": "proposed",
         "calls": [
           {
             "tool": "pipeline",
             "args": {
-              "steps": {}
+              "steps": []
             }
           }
         ]

@@ -32,4 +32,4 @@ caller check.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_agent_paths.py`, `velaris/tests/test_kan106_business_agents.py`, `velaris/tests/test_kan94_sales_marketing.py`, `velaris/tests/test_private_files.py`
+- **tests:** `velaris/tests/test_agent_paths.py`, `velaris/tests/test_allowlist_departments.py`, `velaris/tests/test_kan106_business_agents.py`, `velaris/tests/test_kan94_sales_marketing.py`, `velaris/tests/test_private_files.py`

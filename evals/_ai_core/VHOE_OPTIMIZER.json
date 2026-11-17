@@ -4,15 +4,15 @@
   "cases": [
     {
       "id": "select-optimize",
-      "input": "Use the optimize operation of VHOE_OPTIMIZER with {\"items\": {}, \"workers\": {}}.",
+      "input": "Use the optimize operation of VHOE_OPTIMIZER with {\"items\": [], \"workers\": []}.",
       "expect": {
         "status": "proposed",
         "calls": [
           {
             "tool": "optimize",
             "args": {
-              "items": {},
-              "workers": {}
+              "items": [],
+              "workers": []
             }
           }
         ]

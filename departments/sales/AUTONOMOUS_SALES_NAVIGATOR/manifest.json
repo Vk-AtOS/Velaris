@@ -12,9 +12,6 @@
     "wave": "KAN-42",
     "status": "deterministic_tool",
     "tools": {
-      "add_lead": {
-        "kind": "act"
-      },
       "predict_close_probability": {
         "kind": "read"
       },
@@ -23,12 +20,12 @@
       },
       "suggest_strategy": {
         "kind": "read"
-      },
-      "top_leads": {
-        "kind": "read"
       }
     },
-    "excluded": {},
+    "excluded": {
+      "add_lead": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "top_leads": "not in the HTTP allowlist (velaris/api/allowlist.py)"
+    },
     "reviewed": true
   },
   "domain": "sales"

@@ -4,14 +4,14 @@
   "cases": [
     {
       "id": "select-analyse",
-      "input": "Use the analyse operation of WORKFLOW_ANALYST with {\"export\": {}}.",
+      "input": "Use the analyse operation of WORKFLOW_ANALYST with {\"export\": \"sample\"}.",
       "expect": {
         "status": "answered",
         "calls": [
           {
             "tool": "analyse",
             "args": {
-              "export": {}
+              "export": "sample"
             }
           }
         ]
@@ -22,15 +22,15 @@
     },
     {
       "id": "select-compare",
-      "input": "Use the compare operation of WORKFLOW_ANALYST with {\"export\": {}, \"events\": {}}.",
+      "input": "Use the compare operation of WORKFLOW_ANALYST with {\"export\": \"sample\", \"events\": []}.",
       "expect": {
         "status": "answered",
         "calls": [
           {
             "tool": "compare",
             "args": {
-              "export": {},
-              "events": {}
+              "export": "sample",
+              "events": []
             }
           }
         ]
@@ -41,14 +41,14 @@
     },
     {
       "id": "select-discover",
-      "input": "Use the discover operation of WORKFLOW_ANALYST with {\"events\": {}}.",
+      "input": "Use the discover operation of WORKFLOW_ANALYST with {\"events\": []}.",
       "expect": {
         "status": "answered",
         "calls": [
           {
             "tool": "discover",
             "args": {
-              "events": {}
+              "events": []
             }
           }
         ]

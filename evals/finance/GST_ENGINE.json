@@ -4,14 +4,14 @@
   "cases": [
     {
       "id": "select-monthly_summary",
-      "input": "Use the monthly_summary operation of GST_ENGINE with {\"supplies\": {}, \"period\": \"sample\"}.",
+      "input": "Use the monthly_summary operation of GST_ENGINE with {\"supplies\": [], \"period\": \"sample\"}.",
       "expect": {
         "status": "proposed",
         "calls": [
           {
             "tool": "monthly_summary",
             "args": {
-              "supplies": {},
+              "supplies": [],
               "period": "sample"
             }
           }

@@ -4,15 +4,15 @@
   "cases": [
     {
       "id": "select-plan",
-      "input": "Use the plan operation of VHOE_CORE with {\"items\": {}, \"workers\": {}}.",
+      "input": "Use the plan operation of VHOE_CORE with {\"items\": [], \"workers\": []}.",
       "expect": {
         "status": "proposed",
         "calls": [
           {
             "tool": "plan",
             "args": {
-              "items": {},
-              "workers": {}
+              "items": [],
+              "workers": []
             }
           }
         ]

@@ -15,15 +15,13 @@
     "wave": "KAN-41",
     "status": "deterministic_tool",
     "tools": {
-      "execute_workflow": {
-        "kind": "act"
-      },
       "validate_inputs": {
         "kind": "read"
       }
     },
     "excluded": {
-      "register": "required parameter 'handler' is a collaborator or callable, wired by code"
+      "register": "required parameter 'handler' is a collaborator or callable, wired by code",
+      "execute_workflow": "not in the HTTP allowlist (velaris/api/allowlist.py)"
     },
     "reviewed": true
   }

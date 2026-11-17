@@ -27,14 +27,14 @@
     },
     {
       "id": "select-extract_from_segments",
-      "input": "Use the extract_from_segments operation of ACTION_ITEM_EXTRACTOR with {\"segments\": {}}.",
+      "input": "Use the extract_from_segments operation of ACTION_ITEM_EXTRACTOR with {\"segments\": []}.",
       "expect": {
         "status": "proposed",
         "calls": [
           {
             "tool": "extract_from_segments",
             "args": {
-              "segments": {}
+              "segments": []
             }
           }
         ]

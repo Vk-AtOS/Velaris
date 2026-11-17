@@ -32,5 +32,5 @@ finite numbers of zero or more; choose_route ignores costs that are not finite n
 ## Called by
 
 - **other agents:** none found
-- **platform modules:** none found
+- **platform modules:** `velaris/api/allowlist.py`
 - **tests:** `velaris/tests/test_kan85_70_finance_supply.py`, `velaris/tests/test_logista.py`

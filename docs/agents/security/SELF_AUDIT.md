@@ -49,4 +49,4 @@ finding of its own to the same record. snapshot() returns both.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_dept_security_stubs.py`, `velaris/tests/test_kan104_unauthenticated_writes.py`, `velaris/tests/test_layer3_selfidentity.py`
+- **tests:** `velaris/tests/test_allowlist_departments.py`, `velaris/tests/test_dept_security_stubs.py`, `velaris/tests/test_kan104_unauthenticated_writes.py`, `velaris/tests/test_layer3_selfidentity.py`

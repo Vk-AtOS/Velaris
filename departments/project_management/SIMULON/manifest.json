@@ -17,13 +17,11 @@
     "tools": {
       "run_linear": {
         "kind": "read"
-      },
-      "scenario": {
-        "kind": "read"
       }
     },
     "excluded": {
-      "run_dynamic": "required parameter 'func' is a collaborator or callable, wired by code"
+      "run_dynamic": "required parameter 'func' is a collaborator or callable, wired by code",
+      "scenario": "not in the HTTP allowlist (velaris/api/allowlist.py)"
     },
     "reviewed": true
   }

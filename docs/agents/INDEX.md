@@ -75,7 +75,7 @@
 | [FSCL](_ai_core/FSCL.md) | not_implemented | Alias agent FSCL: fronts SOUL_VELARIS, PRIME, ENGINE. See velaris.agentkit.alias. |
 | [GCK](_ai_core/GCK.md) | not_implemented | Alias agent GCK: fronts GLOBAL_STATE_MAP. See velaris.agentkit.alias. |
 | [HFAL](_ai_core/HFAL.md) | real | HFAL (Human-Friendly Auth Layer): issues PIN-backed session tokens that expire, and validates them. |
-| [HUMAN_APPROVAL_WORKFLOW](_ai_core/HUMAN_APPROVAL_WORKFLOW.md) | rule_based | HUMAN_APPROVAL_WORKFLOW: an in-memory approval request book. |
+| [HUMAN_APPROVAL_WORKFLOW](_ai_core/HUMAN_APPROVAL_WORKFLOW.md) | real | HUMAN_APPROVAL_WORKFLOW: an in-memory approval request book. |
 | [HYPERSTATE_SYNTHESIZER](_ai_core/HYPERSTATE_SYNTHESIZER.md) | rule_based | HYPERSTATE_SYNTHESIZER: merges several partial state snapshots into one, reporting conflicts. |
 | [HYPER_REASONER](_ai_core/HYPER_REASONER.md) | rule_based | HYPER_REASONER: structural validation of a decision graph before anything is planned from it. |
 | [INTENT_SYNTHESIZER](_ai_core/INTENT_SYNTHESIZER.md) | real | INTENT_SYNTHESIZER: turns a loosely worded idea into a structured intent that can be planned. |

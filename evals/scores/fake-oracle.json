@@ -334,10 +334,10 @@
    "status": "model_driven"
   },
   "AUTONOMOUS_SALES_NAVIGATOR": {
-   "cases": 7,
+   "cases": 4,
    "department": "sales",
    "failed": [],
-   "passed": 7,
+   "passed": 4,
    "rate": 1.0,
    "ready": false,
    "status": "deterministic_tool"
@@ -595,10 +595,10 @@
    "status": "deterministic_tool"
   },
   "COHORTUS": {
-   "cases": 4,
+   "cases": 2,
    "department": "sales",
    "failed": [],
-   "passed": 4,
+   "passed": 2,
    "rate": 1.0,
    "ready": false,
    "status": "deterministic_tool"
@@ -1342,10 +1342,10 @@
    "status": "not_harnessed"
   },
   "GENEFLOW": {
-   "cases": 4,
+   "cases": 2,
    "department": "operations",
    "failed": [],
-   "passed": 4,
+   "passed": 2,
    "rate": 1.0,
    "ready": false,
    "status": "deterministic_tool"
@@ -1702,10 +1702,10 @@
    "status": "deterministic_tool"
   },
   "LOGISTA": {
-   "cases": 4,
+   "cases": 2,
    "department": "client_success",
    "failed": [],
-   "passed": 4,
+   "passed": 2,
    "rate": 1.0,
    "ready": false,
    "status": "deterministic_tool"
@@ -1738,10 +1738,10 @@
    "status": "deterministic_tool"
   },
   "LYRA_VOICE_ENGINE": {
-   "cases": 8,
+   "cases": 9,
    "department": "_ai_core",
    "failed": [],
-   "passed": 8,
+   "passed": 9,
    "rate": 1.0,
    "ready": false,
    "status": "deterministic_tool"
@@ -2143,10 +2143,10 @@
    "status": "deterministic_tool"
   },
   "OPERATUS": {
-   "cases": 4,
+   "cases": 2,
    "department": "operations",
    "failed": [],
-   "passed": 4,
+   "passed": 2,
    "rate": 1.0,
    "ready": false,
    "status": "deterministic_tool"
@@ -2179,10 +2179,10 @@
    "status": "deterministic_tool"
   },
   "ORACLE": {
-   "cases": 4,
+   "cases": 2,
    "department": "executive",
    "failed": [],
-   "passed": 4,
+   "passed": 2,
    "rate": 1.0,
    "ready": false,
    "status": "deterministic_tool"
@@ -2395,10 +2395,10 @@
    "status": "deterministic_tool"
   },
   "REALMEX": {
-   "cases": 5,
+   "cases": 3,
    "department": "executive",
    "failed": [],
-   "passed": 5,
+   "passed": 3,
    "rate": 1.0,
    "ready": false,
    "status": "deterministic_tool"
@@ -2647,10 +2647,10 @@
    "status": "deterministic_tool"
   },
   "SIMULON": {
-   "cases": 3,
+   "cases": 2,
    "department": "project_management",
    "failed": [],
-   "passed": 3,
+   "passed": 2,
    "rate": 1.0,
    "ready": false,
    "status": "deterministic_tool"
@@ -2710,10 +2710,10 @@
    "status": "deterministic_tool"
   },
   "STOCHASTIX": {
-   "cases": 5,
+   "cases": 2,
    "department": "executive",
    "failed": [],
-   "passed": 5,
+   "passed": 2,
    "rate": 1.0,
    "ready": false,
    "status": "deterministic_tool"

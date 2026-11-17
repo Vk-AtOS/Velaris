@@ -33,5 +33,5 @@ non-numeric values raise TypeError; nothing is caught.
 ## Called by
 
 - **other agents:** none found
-- **platform modules:** none found
-- **tests:** `velaris/tests/test_polaris.py`
+- **platform modules:** `velaris/api/allowlist.py`
+- **tests:** `velaris/tests/test_eval_chain.py`, `velaris/tests/test_polaris.py`

@@ -11,6 +11,8 @@
                                     (with Prime: asks Prime about a waiting step)
   POST /flows/{run_id}/decide       {"call_hash", "approve", "note"}: local mode only
   GET  /flows/{run_id}/verify       the run's own hash chain
+  POST /brain                       {"goal"}: the central brain plans it and the departments run it (as the caller)
+  GET  /brain/{run_id}              the brain run's state, moved on after an approval (owner only)
   GET  /trace/verify                the global trace's hash chain (counts only)
 
 Errors are {"error": {"code", "message"}}; messages are written here, never exception text.
@@ -38,7 +40,7 @@ from fastapi.responses import JSONResponse, Response
 from velaris.api.atlassian_api import mount_atlassian
 from velaris.api.allowlist import ACT, READ, catalog, prepare, rule_for, tool_params
 from velaris.api.auth import AuthError, Verifier, load_public_key
-from velaris.api import providers_api
+from velaris.api import brain_api, providers_api
 from velaris.api.background import interval, lifespan
 from velaris.api.observability import CountingLLM, Metrics, current_request_id, install as install_observability
 from velaris.chat.api import chat_router
@@ -54,6 +56,7 @@ from velaris.intel.flow import Flow, FlowError, Tool
 from velaris.intel.llm import LLM
 from velaris.intel.paths import data_dir
 from velaris.mail.api import mount_mail
+from velaris.orchestration.base import record_escalation
 
 logger = logging.getLogger("velaris.api")
 
@@ -246,7 +249,9 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
             tools.append(Tool(name, partial(run_tool, agent, method, owner), (fn.__doc__ or name).strip()[:300],
                               tool_params(fn, rule), needs_approval=rule.kind == ACT,
                               idempotent=rule.kind == READ))
-        return Flow(tools, llm=llm, gate=settings.gate, path=settings.flow_db)
+        # every limit of flow.default_limits() is on (VELARIS_FLOW_*); a run that hits one is handed on, not dropped
+        return Flow(tools, llm=llm, gate=settings.gate, path=settings.flow_db,
+                    escalate=lambda info: record_escalation(owner, "flows", "a flow_approver", info))
 
     def owned_run(run_id: str, caller: Caller, *, deciding: bool = False) -> Tuple[Caller, Flow]:
         """The run's owner and a flow to move it, if `caller` may see it; else 404."""
@@ -430,6 +435,8 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
     app.state.metrics, app.state.gauges = metrics, gauges
     mount_control(app, authed=authed, record=record, in_thread=in_thread, api_error=ApiError, llm=llm,
                   gate=settings.gate, flow_path=settings.flow_db)       # control layer: /control/... (velaris/control)
+    brain_api.mount(app, authed=authed, record=record, in_thread=in_thread, api_error=ApiError, llm=llm, engine=engine,
+                    gate=settings.gate, flow_path=settings.flow_db)                  # the central brain: /brain (KAN-32)
     providers_api.mount(app, authed=authed, record=record, in_thread=in_thread, api_error=ApiError)   # /providers (KAN-18)
     mail = mount_mail(app, settings, authed, record, in_thread)    # company email: /mail/... (velaris/mail)
     mount_atlassian(app, authed, record, in_thread)                # per-user Atlassian OAuth: /integrations/atlassian/...

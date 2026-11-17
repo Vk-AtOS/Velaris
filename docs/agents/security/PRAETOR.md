@@ -30,5 +30,5 @@ learned model. Keeps no state. Non-numeric values raise.
 ## Called by
 
 - **other agents:** `PRIME`
-- **platform modules:** none found
+- **platform modules:** `velaris/api/allowlist.py`
 - **tests:** `velaris/tests/test_praetor.py`, `velaris/tests/test_system_integration.py`
