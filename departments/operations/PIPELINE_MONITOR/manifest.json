@@ -11,20 +11,17 @@
     "sensitivity": "internal",
     "task_class": "worker",
     "eval": "evals/operations/PIPELINE_MONITOR.json",
-    "wave": "KAN-41",
+    "wave": "KAN-31",
     "status": "deterministic_tool",
     "tools": {
-      "dashboard": {
-        "kind": "act"
-      },
       "log_stage": {
-        "kind": "act"
-      },
-      "morning_briefing": {
         "kind": "act"
       }
     },
-    "excluded": {},
+    "excluded": {
+      "dashboard": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "morning_briefing": "not in the HTTP allowlist (velaris/api/allowlist.py)"
+    },
     "reviewed": true
   }
 }

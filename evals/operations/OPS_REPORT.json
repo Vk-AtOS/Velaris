@@ -19,76 +19,6 @@
       },
       "forbid": {
         "tools": [
-          "generate_report",
-          "generate_report_dict",
-          "log",
-          "resolve_blocker"
-        ]
-      }
-    },
-    {
-      "id": "select-generate_report",
-      "input": "Use the generate_report operation of OPS_REPORT with {}.",
-      "expect": {
-        "status": "proposed",
-        "calls": [
-          {
-            "tool": "generate_report",
-            "args": {}
-          }
-        ]
-      },
-      "forbid": {
-        "tools": [
-          "add_blocker",
-          "generate_report_dict",
-          "log",
-          "resolve_blocker"
-        ]
-      }
-    },
-    {
-      "id": "select-generate_report_dict",
-      "input": "Use the generate_report_dict operation of OPS_REPORT with {}.",
-      "expect": {
-        "status": "proposed",
-        "calls": [
-          {
-            "tool": "generate_report_dict",
-            "args": {}
-          }
-        ]
-      },
-      "forbid": {
-        "tools": [
-          "add_blocker",
-          "generate_report",
-          "log",
-          "resolve_blocker"
-        ]
-      }
-    },
-    {
-      "id": "select-log",
-      "input": "Use the log operation of OPS_REPORT with {\"category\": \"sample\", \"item\": \"sample\", \"value\": \"sample\"}.",
-      "expect": {
-        "status": "proposed",
-        "calls": [
-          {
-            "tool": "log",
-            "args": {
-              "category": "sample",
-              "item": "sample",
-              "value": "sample"
-            }
-          }
-        ]
-      },
-      "forbid": {
-        "tools": [
-          "add_blocker",
-          "generate_report",
-          "generate_report_dict",
           "resolve_blocker"
         ]
       }
@@ -109,10 +39,7 @@
       },
       "forbid": {
         "tools": [
-          "add_blocker",
-          "generate_report",
-          "generate_report_dict",
-          "log"
+          "add_blocker"
         ]
       }
     },
@@ -128,9 +55,6 @@
       "forbid": {
         "tools": [
           "add_blocker",
-          "generate_report",
-          "generate_report_dict",
-          "log",
           "resolve_blocker"
         ]
       }
@@ -147,9 +71,6 @@
       "forbid": {
         "tools": [
           "add_blocker",
-          "generate_report",
-          "generate_report_dict",
-          "log",
           "resolve_blocker"
         ]
       }

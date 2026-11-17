@@ -52,6 +52,8 @@ _DEC = frozenset({"hiring_manager", "hr_admin"})
 _HIR = frozenset({"recruiter", "hiring_manager", "hr_admin"})
 _PAN = frozenset({"recruiter", "hiring_manager", "interviewer", "hr_admin"})
 _ADM = frozenset({"hr_admin"})
+_PM = frozenset({"project_admin", "governance_admin"})       # project_management ACT rows (role names: owner decision, KAN-204)
+_OPS = frozenset({"ops_admin", "governance_admin"})          # operations ACT rows
 
 NOTES: Dict[str, str] = {}      # "AGENT.method" -> why exposing it is safe (every row of the departments added in KAN-31 follow-up has one)
 _PURE = ("pure function of its arguments: keeps no data, makes no outside call, uses no model, so it can show the caller "
@@ -60,6 +62,19 @@ _BOUNDED = ("pure function of its arguments and a random draw; the agent clamps 
             "bounded; keeps no data, no outside call")
 _SEC = ("pure check over the arguments (nothing stored is read); limited to security staff because the department is "
         "restricted and the result tells how the platform's checks think")
+
+
+ACT_NOTES: Dict[str, str] = {}   # "AGENT.method" -> why this ACT row is safe with a person in the loop (KAN-31 ACT pass)
+_ACT_BASE = ("changes one row of the agent's own durable store (sqlite under VELARIS_DATA, one deployment = one organisation); "
+             "reversible by a later call; no money, no personal data beyond a name typed by the requester, no outside call; ")
+
+
+def _act(agent: str, note: str, *methods: str, roles: FrozenSet[str]) -> Dict[str, Rule]:
+    """ACT rules: the call becomes a flow step that waits for a person (Prime when configured), needs `roles`, and is
+    classified `unclassified` by the autonomy table (approval; never auto). Each carries its security note (ACT_NOTES)."""
+    for m in methods:
+        ACT_NOTES[f"{agent}.{m}"] = _ACT_BASE + note
+    return {m: Rule(ACT, roles=roles) for m in methods}
 
 
 def _calc(agent: str, note: str, *methods: str, roles: Optional[FrozenSet[str]] = None) -> Dict[str, Rule]:
@@ -283,6 +298,14 @@ METHODS: Dict[str, Dict[str, Rule]] = {
     # security): ONLY methods that are pure functions of their arguments, proven read by agentkit.harness_derive. An
     # agent that keeps data (JsonState, files, instance state the engine's fresh instance would lose), calls out, asks
     # a model, checks the caller itself, or takes an object of its own class is NOT listed (see docs/orchestrators.md).
+    # ACT rows (second KAN-31 pass): only the operational records of project_management and operations. See docs/orchestrators.md section 10
+    # for what was NOT given an ACT row and why.
+    "SPRINT_PLANNER": _act("SPRINT_PLANNER", "a sprint or task is planning data, not a commitment to anyone outside",
+                           "create_sprint", "add_task", "update_task_status", roles=_PM),
+    "SLA_MONITOR": _act("SLA_MONITOR", "an SLA commitment is a tracking row; nothing is sent to the client", "add_commitment", "resolve",
+                        roles=_OPS),
+    "OPS_REPORT": _act("OPS_REPORT", "a blocker is an internal note", "add_blocker", "resolve_blocker", roles=_OPS),
+    "PIPELINE_MONITOR": _act("PIPELINE_MONITOR", "a stage duration is an internal measurement", "log_stage", roles=_OPS),
     "LOGISTA": _calc("LOGISTA", _PURE, "choose_route"),
     "INSIGHTA": _calc("INSIGHTA", _PURE, "behavioral_shift", "consistency_score", "detect_trend"),
     "ORACLE": _calc("ORACLE", _BOUNDED, "forecast"),

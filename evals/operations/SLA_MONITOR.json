@@ -20,48 +20,6 @@
       },
       "forbid": {
         "tools": [
-          "check_breaches",
-          "dashboard",
-          "resolve"
-        ]
-      }
-    },
-    {
-      "id": "select-check_breaches",
-      "input": "Use the check_breaches operation of SLA_MONITOR with {}.",
-      "expect": {
-        "status": "proposed",
-        "calls": [
-          {
-            "tool": "check_breaches",
-            "args": {}
-          }
-        ]
-      },
-      "forbid": {
-        "tools": [
-          "add_commitment",
-          "dashboard",
-          "resolve"
-        ]
-      }
-    },
-    {
-      "id": "select-dashboard",
-      "input": "Use the dashboard operation of SLA_MONITOR with {}.",
-      "expect": {
-        "status": "proposed",
-        "calls": [
-          {
-            "tool": "dashboard",
-            "args": {}
-          }
-        ]
-      },
-      "forbid": {
-        "tools": [
-          "add_commitment",
-          "check_breaches",
           "resolve"
         ]
       }
@@ -82,9 +40,7 @@
       },
       "forbid": {
         "tools": [
-          "add_commitment",
-          "check_breaches",
-          "dashboard"
+          "add_commitment"
         ]
       }
     },
@@ -100,8 +56,6 @@
       "forbid": {
         "tools": [
           "add_commitment",
-          "check_breaches",
-          "dashboard",
           "resolve"
         ]
       }
@@ -118,8 +72,6 @@
       "forbid": {
         "tools": [
           "add_commitment",
-          "check_breaches",
-          "dashboard",
           "resolve"
         ]
       }

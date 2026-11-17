@@ -44,5 +44,5 @@ Standalone: no Zoho or Jira sync exists in this agent.
 ## Called by
 
 - **other agents:** none found
-- **platform modules:** none found
+- **platform modules:** `velaris/api/allowlist.py`
 - **tests:** `velaris/tests/test_kan106_business_agents.py`, `velaris/tests/test_kan94_pm_agents.py`, `velaris/tests/test_no_state_in_source_tree.py`
