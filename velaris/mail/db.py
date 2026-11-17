@@ -8,6 +8,7 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import json
+import logging
 import sqlite3
 
 from velaris.core import fieldseal
@@ -20,6 +21,7 @@ from velaris.core import vault
 from velaris.intel.paths import data_dir, open_private, private_dir, write_private
 from velaris.mail.common import MailError
 
+logger = logging.getLogger("velaris.mail.db")
 SEAL = "mail"       # purpose of the column-level encryption (velaris.core.fieldseal)
 SEALED = ("subject", "snippet", "body_text", "body_html", "headers", "from_addr", "from_name", "to_addrs", "cc_addrs", "bcc_addrs")
 SCHEMA = """
@@ -64,7 +66,7 @@ CREATE TABLE IF NOT EXISTS rule(
   position INTEGER NOT NULL, conditions TEXT NOT NULL, actions TEXT NOT NULL, created_by TEXT NOT NULL, created REAL NOT NULL);
 CREATE TABLE IF NOT EXISTS account(
   id TEXT PRIMARY KEY, mailbox_id TEXT NOT NULL, org TEXT NOT NULL, config TEXT NOT NULL, state TEXT NOT NULL DEFAULT '{}',
-  created_by TEXT NOT NULL, created REAL NOT NULL);
+  created_by TEXT NOT NULL, created REAL NOT NULL, secret_name TEXT);
 CREATE TABLE IF NOT EXISTS submission(
   id TEXT PRIMARY KEY, org TEXT NOT NULL, mailbox_id TEXT NOT NULL, draft_id TEXT NOT NULL, actor_id TEXT NOT NULL,
   on_behalf_of TEXT NOT NULL, grant_id TEXT NOT NULL DEFAULT '', origin TEXT NOT NULL, state TEXT NOT NULL,
@@ -105,6 +107,7 @@ class Database:
             self.fts = False                                      # no FTS5 in this sqlite: bounded scan search
         self._bind_at_rest()
         self._seal_at_rest()
+        self._bind_secrets()
 
     def _seal_at_rest(self) -> None:
         """Seal message text written before sealing existed and rebuild the search index from blind tokens (once)."""
@@ -129,6 +132,24 @@ class Database:
         self._conn.commit()
         self._conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
         self._conn.execute("VACUUM")                              # plaintext pages and the old index must not stay in the file
+
+    def _bind_secrets(self) -> None:
+        """Every connector account owns its vault secret: `account.secret_name` is UNIQUE (so two accounts, or two concurrent
+        requests, cannot claim one secret) and must be namespaced mail.<org>.<mailbox>.<name>. Accounts of older releases
+        keep a legacy name only inside the migration window (first claimant wins); outside it they stay unbound and sync
+        refuses them until the account is created again."""
+        if "secret_name" not in {r[1] for r in self._conn.execute("PRAGMA table_info(account)")}:
+            self._conn.execute("ALTER TABLE account ADD COLUMN secret_name TEXT")
+        self._conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS account_secret ON account(secret_name) WHERE secret_name IS NOT NULL")
+        for a in self._conn.execute("SELECT id, mailbox_id, org, config FROM account WHERE secret_name IS NULL").fetchall():
+            name = loads(a["config"], {}).get("secret_name")
+            if not isinstance(name, str) or not (name.startswith(f"mail.{a['org']}.{a['mailbox_id']}.") or vault.plaintext_allowed()):
+                continue
+            try:
+                self._conn.execute("UPDATE account SET secret_name=? WHERE id=?", (name, a["id"]))
+            except sqlite3.IntegrityError:
+                logger.warning("account %s shares its secret with another account: left unbound", a["id"])
+        self._conn.commit()
 
     def _bind_at_rest(self) -> None:
         """Bind every sealed message column to its row (vlv2, once). Needs the migration window while old vlv1 values exist."""

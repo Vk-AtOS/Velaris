@@ -41,7 +41,7 @@ def env(tmp_path, monkeypatch):
     e.out.local_delivery = e.inb.deliver_local
     e.llm = FakeLLM(lambda p, m: "A short summary.")
     e.imap = FakeImap({"INBOX": {"validity": 1, "msgs": {1: (raw_mail(mid="remote1@x", subject="from the server"), False)}}})
-    mail_api.configure(MailDeps(e.store, e.out, e.inb, lambda cfg: e.imap, lambda n: PASSWORD if n == "mail.alice" else None, e.llm))
+    mail_api.configure(MailDeps(e.store, e.out, e.inb, lambda cfg: e.imap, lambda n: PASSWORD if n.endswith(".alice") else None, e.llm))
     settings = Settings(secret=SECRET, identity_key=KEY.public_key(), flow_db=str(tmp_path / "flow.db"), org="acme", llm=e.llm)
     e.client = TestClient(create_app(settings, engine=object()))
     yield e
@@ -227,7 +227,7 @@ def test_rules_settings_aliases_delegates_quota_hold_over_http(env):
 def test_connector_endpoints_and_sync(env):
     ids = setup_world(env)
     mb = ids["alice"]
-    cfg = {"imap_host": "imap.example.com", "username": "alice@example.com", "secret_name": "mail.alice"}
+    cfg = {"imap_host": "imap.example.com", "username": "alice@example.com", "secret_name": f"mail.acme.{mb}.alice"}
     assert call(env, "POST", f"/mail/mailboxes/{mb}/sync").json()["error"]["code"] == "no_account"
     assert call(env, "POST", f"/mail/mailboxes/{mb}/accounts", cfg, who=ALICE).status_code == 403
     assert call(env, "POST", f"/mail/mailboxes/{mb}/accounts", {**cfg, "imap_host": "127.0.0.1"}, who=ADMIN).json()["error"]["code"] == "bad_host"
