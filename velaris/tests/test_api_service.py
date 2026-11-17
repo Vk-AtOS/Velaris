@@ -18,10 +18,11 @@ from velaris.api.allowlist import ACT, READ, Rule
 from velaris.api.app import Settings, create_app
 from velaris.api.auth import make_assertion, sign
 from velaris.backend.engine import BackendEngine
-from velaris.core.access import authorize_read, current_caller
+from velaris.core.access import Caller, authorize_read, current_caller
 from velaris.core.prime import PrimeGate
 from velaris.intel import trace
 from velaris.intel.llm import FakeLLM
+from velaris.orchestration import identity
 
 SECRET = b"s" * 32
 KEY = Ed25519PrivateKey.generate()
@@ -178,7 +179,16 @@ def test_allowlist_private_and_parameters(tmp_path):
     assert methods["book"]["signature"] == "(room, by)" and listing["failed"] == ["BROKEN"]
 
 
-def test_consequential_call_waits_for_a_second_person(tmp_path):
+@pytest.fixture
+def directory():
+    """The deployment's identity lookup: user id -> roles now (a missing id is a person who is gone)."""
+    now = {"u1": set(), "u2": {"flow_approver"}}
+    identity.set_resolver(lambda org, uid: Caller(uid, org, frozenset(now[uid])) if uid in now else None)
+    yield now
+    identity.set_resolver(None)
+
+
+def test_consequential_call_waits_for_a_second_person(tmp_path, directory):
     c = app_client(tmp_path)
     assert send(c, "POST", "/agents/DEMO/book", {"room": "A", "by": "boss"}).status_code == 403
     r = send(c, "POST", "/agents/DEMO/book", {"room": "A"})
@@ -296,3 +306,41 @@ def test_identity_public_key_can_come_from_the_environment_as_pem(monkeypatch, t
     monkeypatch.delenv("VELARIS_IDENTITY_PUBLIC_KEY_PEM")
     with pytest.raises(ValueError, match="VELARIS_IDENTITY_PUBLIC_KEY"):
         Settings.from_env()                                                   # neither: refuses to start
+
+
+def test_an_approver_moves_another_persons_run_as_that_person_is_now(tmp_path, monkeypatch, directory):
+    """KAN-69 SV2-01 stale roles: the run's saved roles were read back as authority; the owner's CURRENT roles decide, and a
+    person who is gone, or whose identity cannot be looked up, cannot have their run executed by somebody else."""
+    seen = []
+    monkeypatch.setattr(DemoAgent, "act_roles", lambda self, room: seen.append(sorted(current_caller().roles)) or {"ok": 1}, raising=False)
+    monkeypatch.setitem(allowlist.METHODS["DEMO"], "act_roles", Rule(ACT))
+    c = app_client(tmp_path)
+
+    def start():
+        r = send(c, "POST", "/agents/DEMO/act_roles", {"room": "C"}, roles=["hr_admin"]).json()["run"]
+        return r["run_id"], r["pending"]["call_hash"]
+
+    def decide(rid, h):
+        return send(c, "POST", f"/flows/{rid}/decide", {"call_hash": h, "approve": True}, sub="u2", roles=["flow_approver"])
+
+    rid, h = start()
+    directory.pop("u1")                                                   # the owner left
+    gone = decide(rid, h)
+    assert gone.status_code == 403 and gone.json()["error"]["code"] == "owner_unverified" and seen == []
+    identity.set_resolver(None)                                           # no lookup at all: cannot verify, refuse
+    assert decide(rid, h).status_code == 403 and seen == []
+    identity.set_resolver(lambda org, uid: Caller(uid, org, frozenset()))     # the owner was demoted since the start
+    assert decide(rid, h).json()["status"] == "done" and seen == [[]]      # ran with no hr_admin
+
+
+def test_network_steps_that_name_something_the_task_did_not_wait_for_a_person():
+    """KAN-69 SV2-01: injected text must not carry data out through the URL of a READ tool."""
+    from velaris.api.flow_policy import permit_for
+    permit = permit_for("summarise https://docs.example.com/guide?page=2 for me", lambda n: False)
+    t = "ADVANCED_SEARCH_ENGINE.read_page"
+    assert permit(t, {"url": "https://docs.example.com/guide?page=2"}) == "allow"
+    assert permit(t, {"url": "https://evil.test/?d=payslip+text"}) == "approve"       # a host the task did not name
+    assert permit(t, {"url": "https://docs.example.com/?d=salary+4200"}) == "approve"   # the task's host, a query it did not
+    assert permit(t, {"url": "https://docs.example.com/guide?page=2", "x": ["//evil.test/a"]}) == "approve"   # nested
+    assert permit("DEMO.whoami", {"note": "https://evil.test/x"}) == "allow"           # not a network tool
+    assert permit_for("x", lambda n: True)(t, {}) == "approve"                           # the tool's own rule still applies

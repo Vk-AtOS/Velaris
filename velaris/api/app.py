@@ -57,6 +57,7 @@ from velaris.intel.flow import Flow, FlowError, Tool
 from velaris.intel.llm import LLM
 from velaris.intel.paths import data_dir
 from velaris.mail.api import mount_mail
+from velaris.orchestration import identity
 from velaris.orchestration.base import record_escalation
 
 logger = logging.getLogger("velaris.api")
@@ -267,8 +268,10 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
         approver = deciding and settings.gate is None and bool(caller.roles & FLOW_APPROVERS)
         if owner.id != caller.id and not approver:
             raise ApiError(404, "unknown_run", "no such run")
-        if owner.id == caller.id:            # the owner moves their own run: roles revoked since it started do not carry over
-            owner = Caller(id=owner.id, org=owner.org, roles=owner.roles & caller.roles, employee_id=owner.employee_id)
+        try:       # the saved roles are an upper bound; the owner's CURRENT roles decide (shared lookup, fails closed)
+            owner = identity.current_owner(owner, caller)
+        except AccessDenied as e:
+            raise ApiError(403, "owner_unverified", str(e)) from None
         return owner, flow_for(owner, events[0]["tools"], events[0].get("task", ""))
 
     # ── endpoints ────────────────────────────────────────────────────────────
