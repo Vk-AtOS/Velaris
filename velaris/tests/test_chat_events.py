@@ -81,7 +81,7 @@ def test_snapshot_plus_events_cover_every_message_exactly_once_under_concurrency
         time.sleep(0.002)
     t.join()
     assert len(regs) > 3
-    for r in regs:
+    for r in regs[-5:]:                                                          # a user keeps at most MAX_QUEUES_PER_USER queues
         last = r["snapshot"]["channels"][0]["last_message_id"]
         got = [e["message"]["id"] for e in s.events(BOB, r["queue_id"], -1, 0) if e["type"] == "message"]
         assert got == [i for i in sent if i > last], (last, got[:5])            # none lost, none twice, in order
@@ -241,3 +241,32 @@ def test_sse_framing():
     data = text.split("data: ", 1)[1].rstrip("\n")
     assert "\n" not in data and json.loads(data)["message"]["body"] == "line1\nline2\r\nline3"
     assert sse_frame({"id": 1, "type": "a\nb: injected"}).decode().splitlines()[1] == "event: a b: injected"
+
+
+def test_a_user_cannot_hold_unlimited_queues_or_long_polls():
+    """KAN-69 SV2-07: every long poll holds a worker thread and every queue holds memory; both are capped per user."""
+    import threading
+    from velaris.chat import events as ev
+    hub = ev.Hub()
+    ids = [hub.register("alice", "acme") for _ in range(ev.MAX_QUEUES_PER_USER + 3)]
+    assert hub.queues() == ev.MAX_QUEUES_PER_USER
+    live = ids[-1]
+    with pytest.raises(ev.BadQueue):
+        hub.poll(ids[0], "alice", -1)                          # the oldest was evicted
+    other = hub.register("bob", "acme")                        # another user is not affected
+    assert hub.queues() == ev.MAX_QUEUES_PER_USER + 1
+    started, outcome = threading.Barrier(ev.MAX_POLLS_PER_USER + 1), []
+
+    def wait():
+        started.wait()
+        hub.poll(live, "alice", -1, timeout=0.6)
+    ts = [threading.Thread(target=wait) for _ in range(ev.MAX_POLLS_PER_USER)]
+    [t.start() for t in ts]
+    started.wait()
+    import time
+    time.sleep(0.2)
+    with pytest.raises(ev.TooManyPolls):
+        hub.poll(live, "alice", -1, timeout=0.5)
+    assert hub.poll(other, "bob", -1, timeout=0.01) == []     # bob can poll
+    [t.join() for t in ts]
+    assert hub.poll(live, "alice", -1, timeout=0.01) == []    # slots are released

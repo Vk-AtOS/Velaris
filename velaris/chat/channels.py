@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 
 from velaris.chat.core import ChatCore, sha
 from velaris.chat.errors import ChatError
-from velaris.chat.events import BadQueue
+from velaris.chat.events import BadQueue, TooManyPolls
 from velaris.chat.policy import ROLES, is_assistant
 from velaris.core.access import Caller
 from velaris.chat.store import SEAL
@@ -256,6 +256,8 @@ class ChannelsMixin(ChatCore):
                                  acknowledged)
         except BadQueue:
             raise ChatError(410, "bad_queue", "the queue is unknown or expired: register again") from None
+        except TooManyPolls:
+            raise ChatError(429, "too_many_polls", "too many requests waiting for events: close one and retry") from None
 
     def drop_queue(self, caller: Caller, queue_id: Any) -> bool:
         caller = self._enter(caller)
