@@ -43,6 +43,7 @@ import base64
 import binascii
 import asyncio
 import hashlib
+import ipaddress
 import json
 import logging
 import os
@@ -163,12 +164,27 @@ _STATUS = {"not_found": 404, "invalid_token": 404, "invalid_input": 400, "challe
 _REASON_SAFE = {400, 403, 409, 410, 429}
 
 
+def _from_trusted_proxy(peer: str) -> bool:
+    """X-Forwarded-For is believed only when the TCP peer is the proxy: an address in VELARIS_PUBLIC_TRUSTED_PROXIES (CIDRs,
+    comma separated) or, by default, a loopback or private address. A client that reaches the app directly from a public
+    address could otherwise write any "last entry" and pick its own rate-limit key (KAN-64)."""
+    try:
+        ip = ipaddress.ip_address(peer)
+    except ValueError:
+        return False
+    listed = [x.strip() for x in os.environ.get("VELARIS_PUBLIC_TRUSTED_PROXIES", "").split(",") if x.strip()]
+    if listed:
+        return any(ip in ipaddress.ip_network(n, strict=False) for n in listed)
+    return ip.is_loopback or ip.is_private
+
+
 def _client_ip(request: Request, trust_proxy: bool) -> str:
-    if trust_proxy:
+    peer = request.client.host if request.client else "unknown"
+    if trust_proxy and _from_trusted_proxy(peer):
         last = request.headers.get("x-forwarded-for", "").split(",")[-1].strip()
         if re.fullmatch(r"[0-9A-Fa-f:.]{3,45}", last):
             return last
-    return request.client.host if request.client else "unknown"
+    return peer
 
 
 def _same_origin(request: Request, allowed: Tuple[str, ...]) -> bool:
