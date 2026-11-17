@@ -337,3 +337,18 @@ def test_ics_text_fields_cannot_inject_lines():
                        organizer=("Org", "o@x.com"), attendees=[("Eve\rATTENDEE:mailto:evil@x.com\r\nBEGIN:VALARM", "a@x.com\r\nX-EVIL:1", "REQ-PARTICIPANT")])
     assert not any(line.startswith(("X-EVIL", "BEGIN:VALARM", "ATTENDEE;CN=\"Eve\rATTENDEE")) for line in ics.splitlines())
     assert "\r" not in ics.replace("\r\n", "")
+
+
+def test_a_candidate_who_keeps_rescheduling_cannot_grow_the_state(env):
+    """KAN-64: every pick added a history entry and an invitation draft to the shared 1 MiB scheduler file."""
+    ats, sch, rid, apps, c = env
+    with as_(c["rec"]):
+        tok = sch.issue_schedule_token(application_id=apps[0], interviewer_ids=["iv-a"], duration_min=60, title="Round 1", days=3)["token"]
+    starts = hs.public_slots(tok)["starts"][:2]
+    for i in range(hs.MAX_HISTORY + 30):
+        assert hs.public_pick(tok, starts[i % 2])["status"] == "ok"
+    with as_(c["rec"]):
+        drafts = sch.list_drafts()["drafts"]
+    state = hs.st().load()
+    (booking,) = state["bookings"].values()
+    assert len(booking["history"]) == hs.MAX_HISTORY and len([x for x in drafts if x["kind"] == "reschedule"]) == 1

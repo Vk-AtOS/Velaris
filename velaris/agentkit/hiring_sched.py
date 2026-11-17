@@ -62,6 +62,9 @@ def make_ics(b: Dict[str, Any], method: str, panel: List[Dict[str, Any]], org: s
                         organizer=(org_["name"], org_["email"]), attendees=people)
 
 
+MAX_HISTORY = 50      # events kept per booking (the newest): a candidate who keeps rescheduling cannot grow the shared state file
+
+
 def draft(d: Dict[str, Any], b: Dict[str, Any], kind: str, panel: List[Dict[str, Any]], by: str, at: float) -> Dict[str, Any]:
     """An invitation e-mail as a DRAFT (nothing is sent; a person approves, the mail layer sends)."""
     when = sl.datetime.fromtimestamp(b["start"], sl.IST).strftime("%A %d %B %Y, %H:%M IST")
@@ -75,6 +78,8 @@ def draft(d: Dict[str, Any], b: Dict[str, Any], kind: str, panel: List[Dict[str,
           "subject": f"{'Cancelled: ' if kind == 'cancel' else ''}{b['title']} on {when}", "body": body,
           "ics": make_ics(b, method, panel, b["org"], at) if kind in ("invite", "reschedule", "cancel") else None,
           "placeholders": [PLACEHOLDER_NAME, PLACEHOLDER_EMAIL, "{schedule_link}"], "sent": False}
+    for k in [k for k, x in d["drafts"].items() if x["booking_id"] == b["id"] and x["kind"] == kind and x["status"] == "draft" and not x["sent"]]:
+        del d["drafts"][k]                   # a newer unsent draft of the same kind replaces the older one: a rescheduling loop cannot grow the file
     d["drafts"][dr["id"]] = dr
     return dr
 
@@ -177,7 +182,7 @@ def create_booking(d: Dict[str, Any], org: str, by: str, application_id: str, id
              "status": "confirmed", "created_by": by, "created_at": at, "history": []}
         d["bookings"][bid] = b
         kind = "invite"
-    b["history"].append({"at": at, "by": by, "event": kind, "start": start})
+    b["history"] = (b["history"] + [{"at": at, "by": by, "event": kind, "start": start}])[-MAX_HISTORY:]
     dr = draft(d, b, kind, panel, by, at)
     return {"booking": b, "draft_id": dr["id"]}
 
@@ -262,7 +267,7 @@ def public_cancel(token: str) -> Dict[str, Any]:
                 raise HiringError("not_found", "nothing to cancel on this link")
             b = d["bookings"][t["booking_id"]]
             b.update(status="cancelled", sequence=b["sequence"] + 1)
-            b["history"].append({"at": at, "by": "candidate-token", "event": "cancel"})
+            b["history"] = (b["history"] + [{"at": at, "by": "candidate-token", "event": "cancel"}])[-MAX_HISTORY:]
             draft(d, b, "cancel", panel_for(d, t["org"], t["interviewers"]), "candidate-token", at)
             audit(AGENT, "booking.cancelled", t["org"], None, booking=hid(t["org"], b["id"]), by_candidate=True)
             t["booking_id"] = None
