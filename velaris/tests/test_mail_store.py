@@ -250,3 +250,14 @@ def test_vacation_and_signature_validation():
         store.set_mailbox_settings(ALICE, mb["id"], {"vacation": {"enabled": True, "body": "x", "window_days": 99}})
     out = store.set_mailbox_settings(ALICE, mb["id"], {"vacation": {"enabled": True, "body": "away", "window_days": 3}})
     assert out["vacation"]["window_days"] == 3
+
+
+def test_mail_admin_cannot_export_someone_elses_mailbox():
+    """KAN-69 SV2-02: export returns every message of a mailbox; a mail_admin who is not its owner must not get it."""
+    store, _, _, _, _, boxes = make_world()
+    mb = boxes["alice"]
+    put(store, mb, mid="adm@x", subject="private subject")
+    with pytest.raises(MailError) as e:
+        store.export_mailbox(ADMIN, mb["id"])
+    assert e.value.status == 403
+    assert store.export_mailbox(ALICE, mb["id"])["messages"]            # the owner still can
