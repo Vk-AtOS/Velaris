@@ -19,15 +19,8 @@ Office files are read with zipfile + defusedxml. PDF needs `pypdf` (text PDFs; s
 """
 from __future__ import annotations
 
-import contextlib
-import contextvars
-import csv
-import hashlib
-import io
-import json
-import logging
-import math
-import posixpath
+import contextlib, contextvars, csv
+import hashlib, io, json, logging, math, posixpath
 import re
 import sqlite3
 
@@ -87,13 +80,13 @@ _OVERRIDE: contextvars.ContextVar = contextvars.ContextVar("docs_limits", defaul
 
 
 def _lim(name: str) -> int:
-    """A size limit: the module's, or the tighter one of an enclosing `limits(...)` (a public upload is not a library file)."""
+    """A size limit: the module's, or the tighter one of an enclosing `limits(...)`."""
     return _OVERRIDE.get().get(name, globals()[name])
 
 
 @contextlib.contextmanager
 def limits(**tighter: int) -> Iterator[None]:
-    """Lower MAX_BYTES / MAX_MEMBER / MAX_UNPACKED / MAX_PDF_PAGES for the conversions inside the block (never raise them)."""
+    """Lower MAX_BYTES / MAX_MEMBER / MAX_UNPACKED / MAX_PDF_PAGES inside the block (never raise them)."""
     new = {k: min(v, globals()[k]) for k, v in tighter.items() if k in ("MAX_BYTES", "MAX_MEMBER", "MAX_UNPACKED", "MAX_PDF_PAGES")}
     token = _OVERRIDE.set({**_OVERRIDE.get(), **new})
     try:
