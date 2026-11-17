@@ -1,5 +1,11 @@
 """PRIME: the Velaris controller, and the one place that decides what an agent or person may do.
 
+AetherOS Prime (velaris.core.prime, the approval gate of every flow) is the canonical authority: it is on the runtime path and holds
+the per-organisation limits, hard maxima, expiry and the revocation audit chain. This agent is the LOCAL fallback for deployments
+without Prime. Once VELARIS_PRIME_URL and VELARIS_PRIME_API_KEY are set it DELEGATES: it makes no grants, and a decision that
+would be "allow" is "needs_approval" (so execute() runs nothing), because a local grant never reaches Prime and must not be able
+to do what Prime has not approved.
+
 Two jobs.
 1. Authorisation (written fresh for Velaris after the shape of AetherOS Prime):
    authorize(principal, action, resource, context) -> allow / needs_approval / deny
@@ -32,6 +38,7 @@ from velaris.agentkit.results import fail, invalid
 from velaris.agentkit.state import JsonState
 from velaris.agents.ENGINE.main import VelarisEngine
 from velaris.core.access import GOVERNANCE_ADMINS, check_caller, has_role
+from velaris.core.prime import prime_configured
 from velaris.intel import approvals
 
 logger = logging.getLogger("PRIME")
@@ -100,6 +107,8 @@ class VelarisPrime:
 
         `resources` must be given for a grant covering agent.execute; otherwise it defaults to ["**"]
         (every resource; "*" alone matches one path segment)."""
+        if prime_configured():
+            return fail("delegated_to_prime", "this deployment uses AetherOS Prime: grants are made there, not here")
         start = time.time() if now is None else now
         seconds = number(valid_for_seconds)
         if seconds is None or number(start) is None:
@@ -198,6 +207,9 @@ class VelarisPrime:
                 logger.warning("PRIME: authorisation check failed: %s", e)
                 decision = {"decision": authz.DENY, "reason": "the check failed; refusing", "grant_id": None,
                             "approver": None, "notify": None}
+            if decision["decision"] == authz.ALLOW and prime_configured():      # delegate: only Prime may allow
+                decision = {**decision, "decision": authz.NEEDS_APPROVAL,
+                            "reason": "decisions are made in AetherOS Prime; submit this as a flow step"}
             entry = approvals.audit("PRIME", "decided", request_id=task_id or "", subject=digest, by=str(request["principal"] or ""),
                                     decision=decision["decision"], trace_actor=NAME, trace_action="prime.decision",
                                     **{**request, **{k: v for k, v in decision.items() if k != "decision"}})

@@ -152,6 +152,13 @@ class PrimeReadAuthoriser:
         return True, reason or "allowed by the authorisation service"
 
 
+def prime_configured(env: Optional[Dict[str, str]] = None) -> bool:
+    """True when this deployment is connected to AetherOS Prime (both settings present): Prime is then the only place where
+    grants are made and allow-decisions come from. A half-set pair is not configured (gate_from_env refuses it loudly)."""
+    env = os.environ if env is None else env
+    return bool(env.get("VELARIS_PRIME_URL") and env.get("VELARIS_PRIME_API_KEY"))
+
+
 def gate_from_env(env: Optional[Dict[str, str]] = None) -> Optional[PrimeGate]:
     """PrimeGate when VELARIS_PRIME_URL and VELARIS_PRIME_API_KEY are set; None (local decisions) otherwise."""
     env = os.environ if env is None else env

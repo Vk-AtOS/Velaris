@@ -56,4 +56,4 @@ Integrity    baseline(paths) records the SHA-256 of files (by default every
 
 - **other agents:** `ENGINE`, `PRIME`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_b_eof.py`, `velaris/tests/test_aicore_b_prime_vcas.py`, `velaris/tests/test_dept_security_stubs.py`, `velaris/tests/test_engine.py`, `velaris/tests/test_kan104_unauthenticated_writes.py`, `velaris/tests/test_loader_and_fail_closed.py`, `velaris/tests/test_registry.py`, `velaris/tests/test_security_review_fixes.py`, `velaris/tests/test_system_integration.py`, `velaris/tests/test_vigilis.py`
+- **tests:** `velaris/tests/test_aicore_b_eof.py`, `velaris/tests/test_aicore_b_prime_vcas.py`, `velaris/tests/test_dept_security_stubs.py`, `velaris/tests/test_engine.py`, `velaris/tests/test_kan104_unauthenticated_writes.py`, `velaris/tests/test_loader_and_fail_closed.py`, `velaris/tests/test_prime_delegation.py`, `velaris/tests/test_registry.py`, `velaris/tests/test_security_review_fixes.py`, `velaris/tests/test_system_integration.py`, `velaris/tests/test_vigilis.py`
