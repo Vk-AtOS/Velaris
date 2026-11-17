@@ -44,4 +44,4 @@ Ported from VKatOS ops_report.
 
 - **other agents:** none found
 - **platform modules:** `velaris/api/allowlist.py`
-- **tests:** `velaris/tests/test_kan106_business_agents.py`, `velaris/tests/test_no_state_in_source_tree.py`
+- **tests:** `velaris/tests/test_act_rows.py`, `velaris/tests/test_kan106_business_agents.py`, `velaris/tests/test_no_state_in_source_tree.py`

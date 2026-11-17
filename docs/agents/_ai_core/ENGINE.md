@@ -44,5 +44,5 @@ Provides:
 ## Called by
 
 - **other agents:** `CORE_CONVERGENCE`, `FSCL`, `PRIME`
-- **platform modules:** `velaris/backend/engine.py`
+- **platform modules:** `velaris/backend/engine.py`, `velaris/orchestration/handlers.py`
 - **tests:** `velaris/tests/test_engine.py`, `velaris/tests/test_kan106_intake_guards.py`, `velaris/tests/test_kan87_aicore_guards.py`, `velaris/tests/test_system_integration.py`

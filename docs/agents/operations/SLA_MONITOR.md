@@ -42,4 +42,4 @@ Ported from VKatOS sla_monitor.
 
 - **other agents:** none found
 - **platform modules:** `velaris/api/allowlist.py`
-- **tests:** `velaris/tests/test_kan113_sqlite_versions.py`, `velaris/tests/test_no_state_in_source_tree.py`, `velaris/tests/test_r3_ops.py`
+- **tests:** `velaris/tests/test_act_rows.py`, `velaris/tests/test_kan113_sqlite_versions.py`, `velaris/tests/test_no_state_in_source_tree.py`, `velaris/tests/test_r3_ops.py`

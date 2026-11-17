@@ -34,4 +34,4 @@ liabilities are 0. Plain formulas, no forecasting. Keeps no state beyond the sta
 
 - **other agents:** none found
 - **platform modules:** `velaris/agentkit/harness.py`, `velaris/api/allowlist.py`, `velaris/api/app.py`, `velaris/intel/tools.py`
-- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_autonomy.py`, `velaris/tests/test_intel_tools.py`, `velaris/tests/test_tool_output.py`, `velaris/tests/test_treasurix.py`
+- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_autonomy.py`, `velaris/tests/test_flow_limits.py`, `velaris/tests/test_intel_tools.py`, `velaris/tests/test_tool_output.py`, `velaris/tests/test_treasurix.py`
