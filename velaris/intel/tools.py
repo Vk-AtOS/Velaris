@@ -16,20 +16,29 @@ Fail closed, in the direction of more human involvement:
   * sensitivity is "restricted" unless the agent is on the short, reviewed list in AGENT_SENSITIVITY;
   * a tool with side effects always needs approval in the flow it is bound to (see flow_tool).
 
+ONE ToolSpec and ONE derivation (`derive_spec`). The agent harness (velaris.agentkit.harness_tools) derives the
+spec of every agent method it may expose through the same function and registers it here (`register_harness`);
+the allowlist row is the READ/ACT truth wherever there is one. A spec whose method has no allowlist row is
+`allowlisted=False`: the harness may use it (reads only run, acts are only proposed), but no orchestrator offers it
+and `runner` refuses it, because HTTP would refuse it too.
+
 Public interface (other modules import these names; they do not change): ToolSpec, register, get, list_tools
 (also exported as `list`), clear, plus validate, to_openai, to_anthropic, register_allowlist, flow_tool.
 """
 from __future__ import annotations
 
 import builtins
+import dataclasses
 import inspect
 import logging
+import re
 import threading
 import typing
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from velaris.api.allowlist import ACT, READ, Rule, http_params, prepare, rule_for
+from velaris.api.allowlist import ACT, READ, http_params, prepare, rule_for
 from velaris.core.access import AccessDenied, Caller, org_denied
 from velaris.intel import trace
 from velaris.intel.flow import Tool
@@ -43,6 +52,9 @@ AGENT_SENSITIVITY: Dict[str, str] = {
     "TREASURIX": "internal", "FISCALIS": "internal", "MODEL_COUNCIL": "internal", "DOCUMENT_LIBRARY": "internal",
     "CONTROL_LAYER": "internal", "ITSM_ENGINE": "internal", "JIRA": "internal", "CONFLUENCE": "internal",
 }
+# collaborators wired by code, never chosen by a model
+INJECTED = frozenset({"llm", "fetcher", "search_fn", "handler", "handlers", "func", "fn", "sender", "callback", "clock",
+                      "registry", "engine"})
 _EXTERNAL_WORDS = ("send", "publish", "post", "hand_off", "notify", "indexing", "email", "mail")
 _JSON_TYPES = {str: "string", int: "integer", float: "number", bool: "boolean", list: "array", dict: "object"}
 
@@ -64,6 +76,7 @@ class ToolSpec:
     kind: str = ACT                         # the allowlist's read / act
     required_roles: Tuple[str, ...] = ()    # roles the allowlist rule asks for (information; enforced by the rule)
     actor_param: Optional[str] = None       # parameter the code fills with the caller (never shown to a model)
+    allowlisted: bool = True                # False: no row in velaris.api.allowlist; only the harness may use it
 
     def __post_init__(self) -> None:
         if self.side_effects not in SIDE_EFFECTS or self.sensitivity not in LEVELS:
@@ -111,9 +124,21 @@ def clear() -> None:
 
 
 # ── schema from a method's signature ─────────────────────────────────────────
+_TEXT_TYPES = ((r"dict|mapping", "object"), (r"list|sequence|tuple|set\b|iterable", "array"), (r"\bbool", "boolean"),
+               (r"\bfloat|decimal", "number"), (r"\bint\b|^int", "integer"), (r"\bstr\b|^str", "string"))
+
+
+def _text_schema(tp: Any) -> Dict[str, Any]:
+    """The schema of an annotation that could not be resolved (a string): judged by its text, {} when unclear."""
+    t = (getattr(tp, "__name__", None) if isinstance(tp, type) else str(tp)).lower()
+    return next(({"type": kind} for pattern, kind in _TEXT_TYPES if re.search(pattern, t)), {})
+
+
 def _schema(tp: Any) -> Dict[str, Any]:
     if tp is inspect.Parameter.empty or tp is typing.Any:
         return {}
+    if isinstance(tp, str):
+        return _text_schema(tp)
     origin, args = typing.get_origin(tp), typing.get_args(tp)
     if origin is typing.Union:
         non_null = [a for a in args if a is not type(None)]
@@ -125,44 +150,91 @@ def _schema(tp: Any) -> Dict[str, Any]:
         return {"type": "array", "items": _schema(args[0])} if args else {"type": "array"}
     if origin in (dict, typing.Dict):
         return {"type": "object"}
-    return {"type": _JSON_TYPES[tp]} if tp in _JSON_TYPES else {}
+    if tp in _JSON_TYPES:
+        return {"type": _JSON_TYPES[tp]}
+    return _text_schema(tp) if isinstance(tp, type) else {}
 
 
 def _first_line(obj: Any) -> str:
     return (inspect.getdoc(obj) or "").strip().split("\n")[0][:300]
 
 
-def input_schema(fn: Any, rule: Rule) -> Dict[str, Any]:
-    """JSON schema of the arguments a model may send: the method's parameters without the actor parameter."""
+def _hints(fn: Any) -> Dict[str, Any]:
     try:
-        hints = typing.get_type_hints(fn)
-    except (NameError, TypeError):
-        hints = {}
-    props, required = {}, []
+        return typing.get_type_hints(fn)
+    except (NameError, TypeError) as e:     # a forward reference that cannot be resolved: judged by the text instead
+        logger.debug("type hints of %s unresolved: %s", getattr(fn, "__name__", fn), type(e).__name__)
+        return {}
+
+
+def dataclass_params(fn: Any) -> Dict[str, type]:
+    """Parameters annotated with a dataclass: the model writes them as a JSON object and the harness builds the instance."""
+    hints = _hints(fn)
+    return {p.name: hints[p.name] for p in http_params(fn)
+            if isinstance(hints.get(p.name), type) and dataclasses.is_dataclass(hints[p.name])}
+
+
+def input_schema(fn: Any, actor: Any = None) -> Dict[str, Any]:
+    """JSON schema of the arguments a model may send: the method's parameters, without the actor parameter code fills in
+    and without collaborators (llm, callables) code wires. `actor` is the name or an allowlist Rule."""
+    actor = getattr(actor, "actor", actor)
+    hints, objects, props, required = _hints(fn), dataclass_params(fn), {}, []
     for p in http_params(fn):
-        if p.name == rule.actor:
+        if p.name == actor or p.name in INJECTED or "Callable" in str(p.annotation):
             continue
-        props[p.name] = _schema(hints.get(p.name, p.annotation))
+        prop = _schema(hints.get(p.name, p.annotation))
+        if p.name in objects:
+            fields = [f for f in dataclasses.fields(objects[p.name]) if f.init]
+            prop = {"type": "object", "properties": {f.name: _schema(f.type) for f in fields},
+                    "required": [f.name for f in fields if f.default is dataclasses.MISSING
+                                 and f.default_factory is dataclasses.MISSING], "additionalProperties": False}
+        if p.default is not p.empty and isinstance(p.default, (str, int, float, bool, type(None))):
+            prop = {**prop, "default": p.default}
+        props[p.name] = prop
         if p.default is p.empty:
             required.append(p.name)
     return {"type": "object", "properties": props, "required": required, "additionalProperties": False}
 
 
-def side_effects_of(method: str, rule: Rule) -> str:
-    if rule.kind == READ:
+def side_effects_of(method: str, kind: str) -> str:
+    if kind == READ:
         return "none"
     return "external" if any(w in method.lower() for w in _EXTERNAL_WORDS) else "internal"
 
 
+@lru_cache(maxsize=None)
+def _manifest_level(agent: str, department: str) -> Optional[str]:
+    from velaris.agentkit.harness_spec import load_json, manifest_path      # a leaf module; deferred, it reads files
+    try:
+        entry = load_json(manifest_path(department, agent)).get("harness")
+    except ValueError as e:                  # no manifest (a test double) or unreadable: the fail-closed default applies
+        logger.debug("no harness level for %s: %s", agent, type(e).__name__)
+        return None
+    return entry.get("sensitivity") if isinstance(entry, dict) and entry.get("sensitivity") in LEVELS else None
+
+
+def sensitivity_of(agent: str, department: str = "") -> str:
+    """The level of the data a tool of this agent touches. The short reviewed list (AGENT_SENSITIVITY) is an explicit
+    per-agent decision and wins; else the agent's reviewed harness entry (never below its department floor); else
+    restricted. The harness's own model calls always use the manifest level, so this never lowers what the harness does."""
+    return AGENT_SENSITIVITY.get(agent) or (_manifest_level(agent, department) if department else None) or "restricted"
+
+
+def derive_spec(agent: str, method: str, fn: Any, department: str, *, kind: str = ACT) -> ToolSpec:
+    """THE derivation of a ToolSpec from an agent method. The allowlist row, where there is one, decides READ or ACT
+    (and the actor parameter); `kind` is only used for a method the table does not cover, and anything but READ is ACT."""
+    rule = rule_for(agent, method)
+    kind = rule.kind if rule else (READ if kind == READ else ACT)
+    return ToolSpec(name=f"{agent}.{method}", agent=agent, method=method, params=input_schema(fn, rule),
+                    side_effects=side_effects_of(method, kind), sensitivity=sensitivity_of(agent, department),
+                    department=department, description=_first_line(fn) or f"{agent}.{method}", kind=kind,
+                    required_roles=tuple(sorted(rule.roles or ())) if rule else (),
+                    actor_param=rule.actor if rule else None, allowlisted=rule is not None)
+
+
 def spec_for(agent: str, method: str, fn: Any, department: str) -> Optional[ToolSpec]:
     """The ToolSpec of one allowlisted method, or None when the allowlist does not declare it."""
-    rule = rule_for(agent, method)
-    if rule is None:
-        return None
-    return ToolSpec(name=f"{agent}.{method}", agent=agent, method=method, params=input_schema(fn, rule),
-                    side_effects=side_effects_of(method, rule), sensitivity=AGENT_SENSITIVITY.get(agent, "restricted"),
-                    department=department, description=_first_line(fn) or f"{agent}.{method}", kind=rule.kind,
-                    required_roles=tuple(sorted(rule.roles or ())), actor_param=rule.actor)
+    return derive_spec(agent, method, fn, department) if rule_for(agent, method) is not None else None
 
 
 def register_allowlist(engine: Any) -> int:
@@ -252,6 +324,9 @@ def flow_tool(tool: ToolSpec, run: Callable[..., Any], *, needs_approval: Any = 
 def runner(engine: Any, tool: ToolSpec, caller: Caller) -> Callable[..., Any]:
     """`run(**args)` for flow_tool(): the allowlist's checks (roles, scope, actor, own) and then BackendEngine.run, as
     `caller`. A refusal is an AccessDenied; any other failure becomes a plain sentence (no internals reach the model)."""
+    if not tool.allowlisted:
+        raise ToolError(f"{tool.name} has no allowlist row: only the harness may use it")
+
     def run(**kwargs: Any) -> Any:
         why = org_denied(caller)
         if why:

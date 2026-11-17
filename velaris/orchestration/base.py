@@ -87,8 +87,8 @@ class DepartmentOrchestrator:
         return self._engine
 
     def tool_specs(self) -> List[tools.ToolSpec]:
-        """Every registry tool of this department."""
-        return tools.list(self.department)
+        """Every registry tool of this department that HTTP could call too (a method without an allowlist row is the harness's)."""
+        return [s for s in tools.list(self.department) if s.allowlisted]
 
     def offered(self, caller: Caller, names: Optional[List[str]] = None) -> List[tools.ToolSpec]:
         return [s for s in self.tool_specs()

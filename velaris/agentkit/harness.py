@@ -22,12 +22,13 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from velaris.agentkit.harness_spec import load_json, manifest_path
-from velaris.agentkit.harness_tools import ToolSpec, build_object, dataclass_params, specs_for, type_ok
+from velaris.agentkit.harness_tools import build_object, specs_for
 from velaris.api.allowlist import READ, prepare, rule_for
 from velaris.core.access import AccessDenied, Caller
 from velaris.intel import guard, router, trace
 from velaris.intel.errors import LLMError, PolicyRefused
 from velaris.intel.flow import call_hash
+from velaris.intel.tools import ToolSpec, dataclass_params, validate
 from velaris.intel.llm import LLM, extract_json
 
 MAX_OUTPUT_CHARS = 4000
@@ -82,12 +83,19 @@ def _digest(args: Dict[str, Any]) -> str:
     return hashlib.sha256(json.dumps(args, sort_keys=True, default=str).encode()).hexdigest()[:16]
 
 
+def _type_text(prop: Dict[str, Any]) -> str:
+    t = prop.get("type", "any")
+    t = "|".join(t) if isinstance(t, list) else t
+    return t + ("{" + ", ".join(f"{n}: {_type_text(v)}" for n, v in prop["properties"].items()) + "}" if prop.get("properties") else "")
+
+
 def render_tools(specs: List[ToolSpec]) -> str:
     lines = []
     for s in specs:
-        ps = ", ".join(f"{k}: {v['type']}{'{' + ', '.join(f'{n}: {t}' for n, t in v['fields'].items()) + '}' if 'fields' in v else ''}"
-                       f"{'' if v['required'] else ' = ' + json.dumps(v.get('default'))}" for k, v in s.params.items())
-        lines.append(f"- {s.method}({ps}) [{'read' if s.side_effects == 'none' else 'act'}]: {s.doc or s.method}")
+        need = s.params.get("required", [])
+        ps = ", ".join(f"{k}: {_type_text(v)}{'' if k in need else ' = ' + json.dumps(v.get('default'))}"
+                       for k, v in s.params.get("properties", {}).items())
+        lines.append(f"- {s.method}({ps}) [{'read' if s.side_effects == 'none' else 'act'}]: {s.description or s.method}")
     return "\n".join(lines)
 
 
@@ -133,11 +141,9 @@ class Harness:
         args = step.get("args", {})
         if not isinstance(args, dict):
             return None, None, "args must be a JSON object"
-        unknown = sorted(set(args) - set(spec.params))
-        missing = sorted(k for k, v in spec.params.items() if v["required"] and k not in args)
-        wrong = sorted(k for k, v in args.items() if k in spec.params and not type_ok(spec.params[k]["type"], v))
-        if unknown or missing or wrong:
-            return None, None, f"{name} takes {sorted(spec.params)}; unknown {unknown}, missing {missing}, wrong type {wrong}"
+        problems = validate(spec, args)
+        if problems:
+            return None, None, f"{name} takes {sorted(spec.params['properties'])}: " + "; ".join(problems)
         try:
             for param, cls in dataclass_params(getattr(self.engine.agent_class(self.agent), spec.method)).items():
                 if param in args:
@@ -208,7 +214,7 @@ class Harness:
                     return out
                 continue
             bad = 0
-            kind = READ if spec.side_effects == "none" else "act"
+            kind = READ if spec.kind == READ else "act"
             call = {"tool": spec.method, "args": args, "kind": kind}
             if kind != READ:
                 call["verdict"] = "proposed"
