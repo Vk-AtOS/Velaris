@@ -146,3 +146,37 @@ def test_injection_in_a_tool_result_cannot_widen_what_the_run_may_do():
     ev = f.history(r.run_id)
     assert any(e["kind"] == "invalid" and "wire_money" in e["error"] for e in ev)          # a tool nobody offered does not exist
     assert f.verify(r.run_id)["ok"] and trace.verify()["ok"]
+
+
+# ── the protections are on by default (a Flow built with no limit arguments, as /flows, chat, mail and control do) ──
+def test_a_flow_with_no_arguments_has_every_limit_on(monkeypatch):
+    f = make(script(FINAL))
+    assert (f.max_turns, f.max_cost, f.max_seconds, f.max_repeat, f.max_invalid, f.max_model_errors) == (12, 0.5, 120.0, 3, 3, 3)
+
+
+def test_default_loop_detection_stops_the_same_call_proposed_again_and_again():
+    r = make(script(*[call("read", n=1)] * 6)).start("loop")
+    assert (r.status, r.output) == ("stopped", "loop_detected") and r.escalation == {"handed_on": False}
+
+
+def test_default_stops_a_model_that_keeps_sending_garbage_and_a_model_that_is_down():
+    assert make(script(*["nope"] * 9)).start("x").output == "too_many_invalid"
+    def down(prompt, model):
+        raise LLMError("no model")
+    flow = make(FakeLLM(down))
+    r = flow.start("x")
+    assert r.status == "model_error"
+    for _ in range(5):
+        r = flow.resume(r.run_id)
+    assert (r.status, r.output) == ("stopped", "model_unavailable")      # resume no longer retries without bound
+
+
+def test_limits_come_from_the_environment_and_zero_turns_one_off(monkeypatch):
+    monkeypatch.setenv("VELARIS_FLOW_MAX_COST", "0.01")
+    monkeypatch.setenv("VELARIS_FLOW_MAX_REPEAT", "0")
+    monkeypatch.setenv("VELARIS_FLOW_MAX_SECONDS", "banana")          # a typo keeps the safe default, never switches a cap off
+    f = make(script(FINAL))
+    assert (f.max_cost, f.max_repeat, f.max_seconds) == (0.01, 0, 120.0)
+    assert make(script(FINAL), max_repeat=7).max_repeat == 7            # an explicit argument wins over the environment
+    monkeypatch.setenv("VELARIS_FLOW_MAX_COST", "0")
+    assert make(script(FINAL)).max_cost is None

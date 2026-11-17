@@ -66,6 +66,25 @@ def escalations(org: Optional[str] = None) -> List[Dict[str, Any]]:
     return [e for e in _escalations().load()["items"] if org is None or e.get("org") == org]
 
 
+def record_escalation(caller: Caller, department: str, to: str, info: Dict[str, Any],
+                      wall: Callable[[], float] = time.time) -> Dict[str, Any]:
+    """Hand a stopped run on: the queue (`escalations()`), the trace and the executive-absence ledger. Used by every
+    department orchestrator and by the API's /flows, so a stop is never silent."""
+    item = {"ts": wall(), "org": caller.org, "department": department, "to": to,
+            "run_id": info["run_id"], "reason": info["reason"], "task": info["task"][:300],
+            "brain_run": (info.get("meta") or {}).get("brain_run", ""), "caller": caller.id}
+
+    def add(d: Dict[str, Any]) -> None:
+        d["items"] = (d["items"] + [item])[-MAX_ESCALATIONS:]
+    _escalations().update(add)
+    trace.append("orchestration", "escalated", {k: item[k] for k in ("department", "run_id", "reason", "brain_run")})
+    try:
+        absence.escalated(org=caller.org, department=department, run_id=info["run_id"], reason=info["reason"], clock=wall)
+    except Exception as e:  # the briefing is best effort; the escalation itself is already stored
+        logger.warning("absence ledger could not be told about an escalation: %s", type(e).__name__)
+    return item
+
+
 class DepartmentOrchestrator:
     def __init__(self, department: str, *, scope: str, escalate_to: str = "the central brain, then a person",
                  limits: Optional[Limits] = None, llm: Optional[LLM] = None, engine: Any = None, gate: Any = None,
@@ -116,19 +135,7 @@ class DepartmentOrchestrator:
                     clock=self._clock, **({"meter": self._meter} if self._meter else {}))
 
     def _escalate(self, caller: Caller, info: Dict[str, Any]) -> None:
-        item = {"ts": self._wall(), "org": caller.org, "department": self.department, "to": self.escalate_to,
-                "run_id": info["run_id"], "reason": info["reason"], "task": info["task"][:300],
-                "brain_run": (info.get("meta") or {}).get("brain_run", ""), "caller": caller.id}
-
-        def add(d: Dict[str, Any]) -> None:
-            d["items"] = (d["items"] + [item])[-MAX_ESCALATIONS:]
-        _escalations().update(add)
-        trace.append("orchestration", "escalated", {k: item[k] for k in ("department", "run_id", "reason", "brain_run")})
-        try:
-            absence.escalated(org=caller.org, department=self.department, run_id=info["run_id"], reason=info["reason"],
-                              clock=self._wall)
-        except Exception as e:  # the briefing is best effort; the escalation itself is already stored
-            logger.warning("absence ledger could not be told about an escalation: %s", type(e).__name__)
+        item = record_escalation(caller, self.department, self.escalate_to, info, wall=self._wall)
         if self.on_escalate is not None:
             self.on_escalate({**item, "meta": info.get("meta")})
 

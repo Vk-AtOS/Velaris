@@ -202,6 +202,16 @@ def test_model_flow_uses_only_declared_tools(tmp_path):
     assert r["status"] == "waiting_approval" and r["pending"]["tool"] == "DEMO.book" and BOOKED == []
 
 
+def test_flows_stop_a_looping_model_by_default_and_hand_the_run_on(tmp_path):
+    """No limit is configured anywhere: the default caps of flow.py (VELARIS_FLOW_*) are on for /flows."""
+    from velaris.orchestration import base
+    c = app_client(tmp_path, llm=FakeLLM(lambda p, m: json.dumps({"tool": "DEMO.whoami", "args": {}})))
+    r = send(c, "POST", "/flows", {"task": "who am i", "tools": ["DEMO.whoami"]}).json()
+    assert (r["status"], r["output"]) == ("stopped", "loop_detected") and r["escalation"] == {"handed_on": True}
+    queued = base.escalations("acme")
+    assert [(e["department"], e["run_id"], e["reason"], e["caller"]) for e in queued] == [("flows", r["run_id"], "loop_detected", "u1")]
+
+
 class FakePrime:
     def __init__(self):
         self.req = None

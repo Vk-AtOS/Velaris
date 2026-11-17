@@ -44,14 +44,17 @@ waiting. It never runs. A step interrupted mid-run is asked about afresh.
 call(tool, args) starts a run of exactly one step chosen by code, not by a model:
 the same verdict, approval and record, then the tool's output as the final answer.
 
-Limits and escalation (KAN-30)
-------------------------------
+Limits and escalation (KAN-30, on by default since KAN-30 follow-up)
+------------------------------------------------------------------
 Before every model turn code checks, from the event rows alone (so they hold across a restart and a
 resume): turns (`max_turns`), model spend (`max_cost`, summed `cost` of the turns, priced by `meter`),
 active seconds (`max_seconds`, model time plus tool time, NOT the days a run waits for an approval), the
 same call proposed `max_repeat` times (loop), `max_invalid` unusable replies in a row, and `max_model_errors`
-model failures (these last three are off at 0, the default, so existing callers behave as before; the
-orchestrators in velaris.orchestration turn them on). A model call the sensitivity policy or the budget refuses stops the run at once. Each of
+model failures. Every limit is ON by default for every Flow (the API's /flows, chat, mail, control and the
+orchestrators alike); the default comes from the environment (`default_limits()`: VELARIS_FLOW_MAX_TURNS 12,
+_MAX_COST USD 0.50, _MAX_SECONDS 120, _MAX_REPEAT 3, _MAX_INVALID 3, _MAX_MODEL_ERRORS 3) and a limit is
+switched off only by setting it to 0 (environment or argument); an explicit argument wins over the environment.
+Calls chosen by code (`call`, mail, chat confirmations) make no model turn, so no limit can touch them. A model call the sensitivity policy or the budget refuses stops the run at once. Each of
 these ends the run as `stop` with a reason and calls `escalate(info)` once (to the brain or a person); the
 Result carries what was escalated. The limits never touch a call that is already waiting or approved.
 
@@ -66,6 +69,7 @@ import sqlite3
 
 from velaris.core.sqlite_util import connect as connect_db
 import logging
+import os
 import threading
 import time
 import uuid
@@ -80,6 +84,26 @@ logger = logging.getLogger("velaris.intel.flow")
 from velaris.intel.paths import data_dir
 
 GENESIS = "0" * 64
+LIMIT_DEFAULTS = {"max_turns": ("VELARIS_FLOW_MAX_TURNS", 12), "max_cost": ("VELARIS_FLOW_MAX_COST", 0.50),
+                  "max_seconds": ("VELARIS_FLOW_MAX_SECONDS", 120.0), "max_repeat": ("VELARIS_FLOW_MAX_REPEAT", 3),
+                  "max_invalid": ("VELARIS_FLOW_MAX_INVALID", 3), "max_model_errors": ("VELARIS_FLOW_MAX_MODEL_ERRORS", 3)}
+
+
+def default_limits() -> Dict[str, Any]:
+    """The per-run limits every Flow gets unless its caller passes its own. Environment first, then the built-in value;
+    0 means off. A value that is not a non-negative number is ignored (with a warning): a typo must not switch a cap off."""
+    out: Dict[str, Any] = {}
+    for key, (env, default) in LIMIT_DEFAULTS.items():
+        raw = os.environ.get(env, "").strip()
+        try:
+            value = type(default)(raw) if raw else default
+            if value < 0:
+                raise ValueError(raw)
+        except ValueError:
+            logger.warning("%s=%r is not a number >= 0; using %s", env, raw, default)
+            value = default
+        out[key] = value or None if key in ("max_cost", "max_seconds") else int(value)
+    return out
 MAX_OUTPUT_CHARS = 4000       # how much of a tool's output is kept and shown to the model
 TERMINAL = ("final", "stop")
 _SCHEMA = """
@@ -150,17 +174,22 @@ def _connection(path: str) -> sqlite3.Connection:
 class Flow:
     def __init__(self, tools: Sequence[Tool], *, llm: Optional[LLM] = None, model: Optional[str] = None,
                  instructions: str = "", permit: Optional[Callable[[str, Dict[str, Any]], str]] = None,
-                 max_turns: int = 12, path: Optional[str] = None, gate: Any = None, max_cost: Optional[float] = None,
-                 max_seconds: Optional[float] = None, max_repeat: int = 0, max_invalid: int = 0,
-                 max_model_errors: int = 0, meter: Callable[[str, Completion], float] = model_cost,
+                 max_turns: Optional[int] = None, path: Optional[str] = None, gate: Any = None,
+                 max_cost: Optional[float] = None, max_seconds: Optional[float] = None, max_repeat: Optional[int] = None,
+                 max_invalid: Optional[int] = None, max_model_errors: Optional[int] = None, meter: Callable[[str, Completion], float] = model_cost,
                  escalate: Optional[Callable[[Dict[str, Any]], Any]] = None, route: Optional[str] = None,
                  models: Optional[List[str]] = None, sensitivity: Optional[str] = None,
                  clock: Callable[[], float] = time.monotonic) -> None:
         self.tools = {t.name: t for t in tools}
         self.llm, self.model, self.instructions = llm or LLM(), model, instructions
-        self.permit, self.max_turns, self.gate = permit, max_turns, gate
-        self.max_cost, self.max_seconds, self.max_repeat = max_cost, max_seconds, max_repeat
-        self.max_invalid, self.max_model_errors, self.meter, self.escalate = max_invalid, max_model_errors, meter, escalate
+        self.permit, self.gate = permit, gate
+        want = {"max_turns": max_turns, "max_cost": max_cost, "max_seconds": max_seconds, "max_repeat": max_repeat,
+                "max_invalid": max_invalid, "max_model_errors": max_model_errors}
+        lim = {**default_limits(), **{k: (v or None) if k in ("max_cost", "max_seconds") else int(v)
+                                      for k, v in want.items() if v is not None}}       # None: the default; 0: off
+        self.max_turns, self.max_cost, self.max_seconds = lim["max_turns"], lim["max_cost"], lim["max_seconds"]
+        self.max_repeat, self.max_invalid, self.max_model_errors = lim["max_repeat"], lim["max_invalid"], lim["max_model_errors"]
+        self.meter, self.escalate = meter, escalate
         self.route, self.models, self.sensitivity, self._clock = route, models, sensitivity, clock
         self._spent: Dict[str, Any] = {}          # cost and seconds of the model turn whose call is being appended
         self._db = _connection(path or str(data_dir() / "flow.db"))
@@ -273,7 +302,7 @@ class Flow:
 
     def _limit(self, events: List[Dict[str, Any]]) -> str:
         """The reason the run may not ask the model again, or "" (computed from the events alone)."""
-        if sum(e["kind"] in ("call", "invalid", "final") for e in events) >= self.max_turns:
+        if self.max_turns and sum(e["kind"] in ("call", "invalid", "final") for e in events) >= self.max_turns:
             return "out_of_turns"
         if self.max_cost is not None and sum(e.get("cost", 0.0) for e in events) >= self.max_cost:
             return "cost_cap"
