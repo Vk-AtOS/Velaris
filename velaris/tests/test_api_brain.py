@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from velaris.intel import providers, trace
+from velaris.intel import providers
 from velaris.intel.llm import FakeLLM
 from velaris.tests.test_api_service import _env, api_entries, app_client, send  # noqa: F401  (fixtures and helpers)
 
