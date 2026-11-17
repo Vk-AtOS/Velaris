@@ -21,6 +21,7 @@ from velaris.agentkit.hiring_common import bad, digest, iso, new_id, now, sha, s
 from velaris.intel import docs, guard
 
 MAX_B64 = 14_000_000
+RESUME_LIMITS = {"MAX_BYTES": 10_000_000, "MAX_MEMBER": 8_000_000, "MAX_UNPACKED": 24_000_000, "MAX_PDF_PAGES": 30}
 MAX_QUOTE = 240
 MONTHS = {m: i for i, m in enumerate(["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"], 1)}
 HEADINGS = {
@@ -59,7 +60,8 @@ def read_text(filename: str, text: Optional[str], content_base64: Optional[str])
         raise bad("content_base64 is not valid base64") from e
     name = filename if isinstance(filename, str) and 0 < len(filename) <= 200 else "resume.txt"
     try:
-        md, kind = docs.convert(name, data)
+        with docs.limits(**RESUME_LIMITS):        # an anonymous upload is parsed under résumé limits, not the library's 64/256 MB
+            md, kind = docs.convert(name, data)
     except docs.DocError as e:
         raise bad(str(e)[:300]) from e
     return md, kind

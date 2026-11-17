@@ -204,3 +204,24 @@ def test_a_hostile_line_cannot_stall_the_parser():
     assert time.time() - t < 1.0
     out = r.parse("acme", "Skills\nPython 5 years\n")
     assert out["skills"] and out["skills"][0]["mentions"][0]["years"] == 5.0
+
+
+def test_a_resume_is_parsed_under_resume_limits_not_the_library_limits():
+    """KAN-64: an anonymous upload could unpack 64 MB per part and 256 MB in total, like a trusted library file."""
+    import io
+    import zipfile
+    from velaris.agentkit import hiring_resume as hr
+    from velaris.intel import docs
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("[Content_Types].xml", "<x/>")
+        z.writestr("word/document.xml", "<w:document>" + "a" * 20_000_000 + "</w:document>")      # 20 MB unpacked, tiny when packed
+    data = buf.getvalue()
+    assert len(data) < 1_000_000
+    with docs.limits(**hr.RESUME_LIMITS):
+        with pytest.raises(docs.DocTooLarge):
+            docs.convert("cv.docx", data)
+    with pytest.raises(Exception) as e:                                     # the real entry point applies them
+        hr.read_text("cv.docx", None, base64.b64encode(data).decode())
+    assert "refused" in str(e.value) or "larger" in str(e.value) or "unpack" in str(e.value)
+    assert docs._lim("MAX_MEMBER") == docs.MAX_MEMBER                       # the tighter limit applies only inside the block

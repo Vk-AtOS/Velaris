@@ -19,6 +19,8 @@ Office files are read with zipfile + defusedxml. PDF needs `pypdf` (text PDFs; s
 """
 from __future__ import annotations
 
+import contextlib
+import contextvars
 import csv
 import hashlib
 import io
@@ -38,7 +40,7 @@ from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
 
 from defusedxml.ElementTree import fromstring as safe_xml
 
@@ -81,6 +83,25 @@ class DocTooLarge(DocError):
     no other converter is tried on it."""
 
 
+_OVERRIDE: contextvars.ContextVar = contextvars.ContextVar("docs_limits", default={})
+
+
+def _lim(name: str) -> int:
+    """A size limit: the module's, or the tighter one of an enclosing `limits(...)` (a public upload is not a library file)."""
+    return _OVERRIDE.get().get(name, globals()[name])
+
+
+@contextlib.contextmanager
+def limits(**tighter: int) -> Iterator[None]:
+    """Lower MAX_BYTES / MAX_MEMBER / MAX_UNPACKED / MAX_PDF_PAGES for the conversions inside the block (never raise them)."""
+    new = {k: min(v, globals()[k]) for k, v in tighter.items() if k in ("MAX_BYTES", "MAX_MEMBER", "MAX_UNPACKED", "MAX_PDF_PAGES")}
+    token = _OVERRIDE.set({**_OVERRIDE.get(), **new})
+    try:
+        yield
+    finally:
+        _OVERRIDE.reset(token)
+
+
 class _Zip(zipfile.ZipFile):
     """An Office file opened with limits on how much it may unpack.
 
@@ -98,19 +119,19 @@ class _Zip(zipfile.ZipFile):
 
     def part(self, member: str) -> bytes:
         info = self.getinfo(member)
-        if info.file_size > MAX_MEMBER:
-            raise DocTooLarge(f"{member} is {info.file_size} bytes unpacked (limit {MAX_MEMBER})")
-        if self.unpacked + info.file_size > MAX_UNPACKED:
-            raise DocTooLarge(f"the file unpacks to more than {MAX_UNPACKED} bytes in total")
+        if info.file_size > _lim("MAX_MEMBER"):
+            raise DocTooLarge(f"{member} is {info.file_size} bytes unpacked (limit {_lim('MAX_MEMBER')})")
+        if self.unpacked + info.file_size > _lim("MAX_UNPACKED"):
+            raise DocTooLarge(f"the file unpacks to more than {_lim('MAX_UNPACKED')} bytes in total")
         body = bytearray()
         with self.open(info) as f:
             while block := f.read(1 << 20):
                 body += block
                 self.unpacked += len(block)
-                if len(body) > MAX_MEMBER:
-                    raise DocTooLarge(f"{member} unpacks to more than {MAX_MEMBER} bytes")
-                if self.unpacked > MAX_UNPACKED:
-                    raise DocTooLarge(f"the file unpacks to more than {MAX_UNPACKED} bytes in total")
+                if len(body) > _lim("MAX_MEMBER"):
+                    raise DocTooLarge(f"{member} unpacks to more than {_lim('MAX_MEMBER')} bytes")
+                if self.unpacked > _lim("MAX_UNPACKED"):
+                    raise DocTooLarge(f"the file unpacks to more than {_lim('MAX_UNPACKED')} bytes in total")
         return bytes(body)
 
 
@@ -300,8 +321,8 @@ def _pdf(data: bytes) -> str:
     except ImportError as e:
         raise DocError("reading PDF needs the 'pypdf' package") from e
     reader = PdfReader(io.BytesIO(data))
-    if len(reader.pages) > MAX_PDF_PAGES:
-        raise DocTooLarge(f"PDF has {len(reader.pages)} pages (limit {MAX_PDF_PAGES})")
+    if len(reader.pages) > _lim("MAX_PDF_PAGES"):
+        raise DocTooLarge(f"PDF has {len(reader.pages)} pages (limit {_lim('MAX_PDF_PAGES')})")
     # ponytail: the limits are on page count and on text as it accumulates. One page whose
     # content stream alone unpacks enormously is left to pypdf's own handling.
     pages, chars = [], 0
@@ -351,8 +372,8 @@ def convert(name: str, data: bytes) -> Tuple[str, str]:
     A file that breaks a size limit (stored size, entries, unpacked size per part and in total,
     slides, PDF pages, extracted text) raises DocTooLarge at once and nothing more is tried.
     """
-    if len(data) > MAX_BYTES:
-        raise DocTooLarge(f"{name} is larger than {MAX_BYTES // 1_000_000} MB")
+    if len(data) > _lim("MAX_BYTES"):
+        raise DocTooLarge(f"{name} is larger than {_lim('MAX_BYTES') // 1_000_000} MB")
     failed: List[str] = []
     for kind, accepts, to_markdown in CONVERTERS:
         try:
