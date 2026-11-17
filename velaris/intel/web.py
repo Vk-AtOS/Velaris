@@ -28,7 +28,7 @@ from urllib.parse import quote_plus, urlsplit
 from velaris.intel import router
 from velaris.intel import guard, trace
 from velaris.intel.llm import LLM, LLMError, extract_json
-from velaris.intel.web_fetch import Fetcher, FetchError
+from velaris.intel.web_fetch import Fetcher, FetchError, trace_url
 from velaris.intel.web_markdown import clean_url, html_to_markdown
 
 logger = logging.getLogger("velaris.intel.web")
@@ -166,7 +166,7 @@ def _render_with_browser(url: str, f: Fetcher) -> Optional[str]:
                 finally:
                     browser.close()
         except Exception as e:  # the browser is best-effort; the caller keeps the static result
-            trace.append("web", "render.failed", {"url": url, "error": type(e).__name__})
+            trace.append("web", "render.failed", {"url": trace_url(url), "error": type(e).__name__})
             return None
 
 
@@ -193,7 +193,7 @@ def scrape(url: str, *, use_cache: bool = True, render_js: bool = True, f: Optio
                 needs_js=bool(out["needs_js"]), from_cache=got.from_cache, fetched_at=time.time())
     if scan.blocked:      # keep the evidence, withhold the text from any model
         page.markdown, page.error = "", "blocked_by_guard"
-    trace.append("web", "scrape", {"url": url, "chars": len(page.markdown), "risk": page.risk,
+    trace.append("web", "scrape", {"url": trace_url(url), "chars": len(page.markdown), "risk": page.risk,
                                     "sha256": hashlib.sha256(page.markdown.encode()).hexdigest()})
     return page
 
@@ -267,7 +267,7 @@ def map_site(url: str, *, limit: int = 200, f: Optional[Fetcher] = None) -> List
         if u and u not in seen and _same_site(u, url):
             seen.add(u)
             out.append(u)
-    trace.append("web", "map", {"url": url, "count": len(out[:limit])})
+    trace.append("web", "map", {"url": trace_url(url), "count": len(out[:limit])})
     return out[:limit]
 
 
@@ -300,7 +300,7 @@ def crawl(url: str, *, limit: int = 20, max_depth: int = 2, include: Optional[st
                 continue
             seen_urls.add(u)
             queue.append((u, depth + 1))
-    trace.append("web", "crawl", {"url": url, "pages": len(pages), "visited": len(seen_urls)})
+    trace.append("web", "crawl", {"url": trace_url(url), "pages": len(pages), "visited": len(seen_urls)})
     return pages
 
 
@@ -351,7 +351,7 @@ def search(query: str, *, limit: int = 8, f: Optional[Fetcher] = None) -> List[D
         used.append(name)
         results.extend(r for r in got if r["url"] not in {x["url"] for x in results})
     safe = [r for r in results if not guard.scan(f"{r['title']} {r['snippet']}", source=r["url"]).blocked][:limit]
-    trace.append("web", "search", {"query": query, "providers": used, "results": len(safe),
+    trace.append("web", "search", {"query": f"[{len(query)} chars, sha256 {hashlib.sha256(query.encode()).hexdigest()[:12]}]", "providers": used, "results": len(safe),
                                     "dropped": len(results[:limit]) - len(safe)})
     return safe
 
@@ -403,7 +403,7 @@ def extract(page: Page, fields: Dict[str, str], *, llm: Optional[LLM] = None,
             ungrounded.append(k)
             v = None
         data[k] = v
-    trace.append("web", "extract", {"url": page.final_url, "fields": list(fields), "ungrounded": ungrounded})
+    trace.append("web", "extract", {"url": trace_url(page.final_url), "fields": list(fields), "ungrounded": ungrounded})
     return {"data": data, "ungrounded": ungrounded, "error": ""}
 
 
