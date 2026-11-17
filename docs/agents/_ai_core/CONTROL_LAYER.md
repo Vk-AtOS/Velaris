@@ -33,5 +33,5 @@ are `act` methods in the HTTP allowlist; the richer API (observations, approvals
 ## Called by
 
 - **other agents:** none found
-- **platform modules:** `velaris/api/allowlist.py`
+- **platform modules:** `velaris/api/allowlist.py`, `velaris/intel/tools.py`
 - **tests:** `velaris/tests/test_alias_layers.py`, `velaris/tests/test_control_api.py`

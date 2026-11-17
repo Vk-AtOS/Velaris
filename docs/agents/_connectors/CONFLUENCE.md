@@ -51,5 +51,5 @@ withheld from the results and from the library, and said so.
 ## Called by
 
 - **other agents:** none found
-- **platform modules:** `departments/_connectors/JIRA/atlassian.py`, `velaris/api/allowlist.py`
+- **platform modules:** `departments/_connectors/JIRA/atlassian.py`, `velaris/api/allowlist.py`, `velaris/intel/tools.py`
 - **tests:** `velaris/tests/atlassian_kit.py`, `velaris/tests/test_atlassian_connectors.py`, `velaris/tests/test_atlassian_scope.py`

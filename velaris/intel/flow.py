@@ -43,6 +43,20 @@ waiting. It never runs. A step interrupted mid-run is asked about afresh.
 
 call(tool, args) starts a run of exactly one step chosen by code, not by a model:
 the same verdict, approval and record, then the tool's output as the final answer.
+
+Limits and escalation (KAN-30)
+------------------------------
+Before every model turn code checks, from the event rows alone (so they hold across a restart and a
+resume): turns (`max_turns`), model spend (`max_cost`, summed `cost` of the turns, priced by `meter`),
+active seconds (`max_seconds`, model time plus tool time, NOT the days a run waits for an approval), the
+same call proposed `max_repeat` times (loop), `max_invalid` unusable replies in a row, and `max_model_errors`
+model failures (these last three are off at 0, the default, so existing callers behave as before; the
+orchestrators in velaris.orchestration turn them on). A model call the sensitivity policy or the budget refuses stops the run at once. Each of
+these ends the run as `stop` with a reason and calls `escalate(info)` once (to the brain or a person); the
+Result carries what was escalated. The limits never touch a call that is already waiting or approved.
+
+With `route=` (a task class of velaris.intel.router) the model call goes through the fallback chain; every
+call carries `sensitivity` (None means restricted, see velaris.intel.policy).
 """
 from __future__ import annotations
 
@@ -51,14 +65,18 @@ import json
 import sqlite3
 
 from velaris.core.sqlite_util import connect as connect_db
+import logging
 import threading
 import time
 import uuid
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
-from velaris.intel import guard, trace
-from velaris.intel.llm import LLM, LLMError, extract_json
+from velaris.intel import catalogue, guard, router, trace, usage
+from velaris.intel.errors import BudgetExceeded, PolicyRefused
+from velaris.intel.llm import LLM, Completion, LLMError, extract_json
+
+logger = logging.getLogger("velaris.intel.flow")
 from velaris.intel.paths import data_dir
 
 GENESIS = "0" * 64
@@ -94,6 +112,7 @@ class Result:
     output: str = ""             # the final answer, or why the run stopped
     pending: Optional[Dict[str, Any]] = None   # {tool, args, reason, call_hash} when waiting
     turns: int = 0
+    escalation: Optional[Dict[str, Any]] = None    # set when the run stopped and was handed on (see escalate=)
 
     def to_dict(self) -> Dict[str, Any]:
         return self.__dict__.copy()
@@ -105,6 +124,13 @@ def call_hash(tool: str, args: Dict[str, Any]) -> str:
 
 def _hash(prev: str, run_id: str, seq: int, ts: float, kind: str, body: str) -> str:
     return hashlib.sha256(json.dumps([prev, run_id, seq, ts, kind, body]).encode()).hexdigest()
+
+
+def model_cost(prompt: str, out: Completion) -> float:
+    """USD of one model turn, estimated from sizes and the catalogue price (0.0 when the price is unknown: the
+    gateway itself refuses unpriced models while an organisation has a USD budget)."""
+    cost = catalogue.cost_estimate(out.model, usage.estimate_tokens(len(prompt)), usage.estimate_tokens(len(out.text)))
+    return float(cost or 0.0)
 
 
 _local = threading.local()
@@ -124,10 +150,19 @@ def _connection(path: str) -> sqlite3.Connection:
 class Flow:
     def __init__(self, tools: Sequence[Tool], *, llm: Optional[LLM] = None, model: Optional[str] = None,
                  instructions: str = "", permit: Optional[Callable[[str, Dict[str, Any]], str]] = None,
-                 max_turns: int = 12, path: Optional[str] = None, gate: Any = None) -> None:
+                 max_turns: int = 12, path: Optional[str] = None, gate: Any = None, max_cost: Optional[float] = None,
+                 max_seconds: Optional[float] = None, max_repeat: int = 0, max_invalid: int = 0,
+                 max_model_errors: int = 0, meter: Callable[[str, Completion], float] = model_cost,
+                 escalate: Optional[Callable[[Dict[str, Any]], Any]] = None, route: Optional[str] = None,
+                 models: Optional[List[str]] = None, sensitivity: Optional[str] = None,
+                 clock: Callable[[], float] = time.monotonic) -> None:
         self.tools = {t.name: t for t in tools}
         self.llm, self.model, self.instructions = llm or LLM(), model, instructions
         self.permit, self.max_turns, self.gate = permit, max_turns, gate
+        self.max_cost, self.max_seconds, self.max_repeat = max_cost, max_seconds, max_repeat
+        self.max_invalid, self.max_model_errors, self.meter, self.escalate = max_invalid, max_model_errors, meter, escalate
+        self.route, self.models, self.sensitivity, self._clock = route, models, sensitivity, clock
+        self._spent: Dict[str, Any] = {}          # cost and seconds of the model turn whose call is being appended
         self._db = _connection(path or str(data_dir() / "flow.db"))
 
     # ── the event log ────────────────────────────────────────────────────────
@@ -179,35 +214,79 @@ class Flow:
 
     def _propose(self, run_id: str, events: List[Dict[str, Any]]) -> None:
         """One model turn: append `final`, `call` (with the code's verdict) or `invalid`."""
+        prompt, started = self._prompt(events), self._clock()
         try:
-            reply = self.llm.complete(self._prompt(events), model=self.model, max_tokens=800, temperature=0.0,
-                                      purpose="flow.step").text
-        except LLMError as e:      # not terminal: resume() asks the model again
-            self._append(run_id, events, "model_error", {"error": str(e)[:200]})
+            if self.route:
+                out = router.complete(self.route, prompt, llm=self.llm, sensitivity=self.sensitivity, models=self.models,
+                                      max_tokens=800, temperature=0.0, purpose="flow.step")
+            else:
+                out = self.llm.complete(prompt, model=self.model, max_tokens=800, temperature=0.0, purpose="flow.step",
+                                        sensitivity=self.sensitivity)
+        except (PolicyRefused, BudgetExceeded) as e:      # asking again cannot change this: stop and hand it on
+            return self._stop(run_id, events, "budget_exceeded" if isinstance(e, BudgetExceeded) else "policy_refused")
+        except LLMError as e:      # not terminal: resume() asks the model again (up to max_model_errors)
+            self._append(run_id, events, "model_error", {"error": str(e)[:200], "sec": self._clock() - started})
             return
+        reply = out.text
+        spent = {"cost": self.meter(prompt, out), "sec": self._clock() - started}
         try:
             step = extract_json(reply)
             if not isinstance(step, dict):
                 raise LLMError("the reply must be one JSON object")
         except LLMError as e:
-            self._append(run_id, events, "invalid", {"error": str(e), "reply": reply[:300]})
+            self._append(run_id, events, "invalid", {"error": str(e), "reply": reply[:300], **spent})
             return
         if isinstance(step.get("final"), str):
-            self._append(run_id, events, "final", {"output": step["final"]})
+            self._append(run_id, events, "final", {"output": step["final"], **spent})
             return
         name, args = step.get("tool"), step.get("args", {})
         tool = self.tools.get(name) if isinstance(name, str) else None
         if tool is None:
-            self._append(run_id, events, "invalid", {"error": f"there is no tool named {name!r}"})
+            self._append(run_id, events, "invalid", {"error": f"there is no tool named {name!r}", **spent})
         elif not isinstance(args, dict) or set(args) - set(tool.params):
             self._append(run_id, events, "invalid", {"error": f"{name} takes only these arguments: "
-                                                              f"{sorted(tool.params)}"})
+                                                              f"{sorted(tool.params)}", **spent})
         else:
+            self._spent = spent
             self._append_call(run_id, events, tool, args)
 
     def _append_call(self, run_id: str, events: List[Dict[str, Any]], tool: Tool, args: Dict[str, Any]) -> None:
+        h = call_hash(tool.name, args)
+        if self.max_repeat and sum(e["kind"] == "call" and e["call_hash"] == h for e in events) >= self.max_repeat - 1:
+            return self._stop(run_id, events, "loop_detected")      # the same step again and again: the model is stuck
+        spent, self._spent = self._spent, {}
         self._append(run_id, events, "call", {"tool": tool.name, "args": args, "verdict": self._verdict(tool, args),
-                                              "call_hash": call_hash(tool.name, args)})
+                                              "call_hash": h, **spent})
+
+    def _stop(self, run_id: str, events: List[Dict[str, Any]], reason: str) -> None:
+        """End the run and hand it on once: `escalate(info)` is called, and what happened is part of the stop event."""
+        info: Dict[str, Any] = {"run_id": run_id, "reason": reason, "task": events[0].get("task", ""),
+                                "meta": events[0].get("meta") or {}, "step": len(events)}
+        handled = False
+        if self.escalate is not None:
+            try:
+                self.escalate(info)
+                handled = True
+            except Exception as e:  # a failing escalation is recorded, never hidden and never a crash of the run
+                logger.warning("escalating run %s failed: %s", run_id, type(e).__name__)
+        self._append(run_id, events, "stop", {"reason": reason, "escalation": {"handed_on": handled}})
+
+    def _limit(self, events: List[Dict[str, Any]]) -> str:
+        """The reason the run may not ask the model again, or "" (computed from the events alone)."""
+        if sum(e["kind"] in ("call", "invalid", "final") for e in events) >= self.max_turns:
+            return "out_of_turns"
+        if self.max_cost is not None and sum(e.get("cost", 0.0) for e in events) >= self.max_cost:
+            return "cost_cap"
+        if self.max_seconds is not None and sum(e.get("sec", 0.0) for e in events) >= self.max_seconds:
+            return "time_cap"
+        if self.max_model_errors and sum(e["kind"] == "model_error" for e in events) >= self.max_model_errors:
+            return "model_unavailable"
+        tail = 0
+        for e in reversed(events):
+            if e["kind"] != "invalid":
+                break
+            tail += 1
+        return "too_many_invalid" if self.max_invalid and tail >= self.max_invalid else ""
 
     def _prompt(self, events: List[Dict[str, Any]]) -> str:
         tools = "\n".join(
@@ -232,6 +311,7 @@ class Flow:
     # ── running ──────────────────────────────────────────────────────────────
     def _execute(self, run_id: str, events: List[Dict[str, Any]], call: Dict[str, Any]) -> None:
         self._append(run_id, events, "exec", {"call_seq": call["seq"]})      # written BEFORE the side effect
+        started = time.monotonic()      # not self._clock: the Atlassian approval gate runs this method on a stand-in object
         try:
             out, ok = self.tools[call["tool"]].fn(**call["args"]), True
             out = out if isinstance(out, str) else json.dumps(out, default=str, ensure_ascii=False)
@@ -242,7 +322,7 @@ class Flow:
         if flagged:
             out = "[the tool's output was withheld because it read like instructions, not data]"
         self._append(run_id, events, "result", {"call_seq": call["seq"], "ok": ok, "output": out,
-                                                "flagged": flagged})
+                                                "flagged": flagged, "sec": time.monotonic() - started})
 
     def _advance(self, run_id: str) -> Result:
         events = self.history(run_id)
@@ -254,7 +334,7 @@ class Flow:
             if last["kind"] == "final":
                 return Result(run_id, "done", last["output"], None, turns)
             if last["kind"] == "stop":
-                return Result(run_id, "stopped", last["reason"], None, turns)
+                return Result(run_id, "stopped", last["reason"], None, turns, last.get("escalation"))
             call = next((e for e in reversed(events) if e["kind"] == "call"), None)
             if call and not any(e["kind"] == "result" and e["call_seq"] == call["seq"] for e in events):
                 after = events[call["seq"] + 1:]
@@ -297,11 +377,14 @@ class Flow:
                     done = next(e for e in events if e["kind"] == "result" and e["call_seq"] == call["seq"])
                     self._append(run_id, events, "final", {"output": done["output"], "ok": done["ok"]})
                 continue
-            if turns >= self.max_turns:
-                self._append(run_id, events, "stop", {"reason": "out_of_turns"})
+            if (why := self._limit(events)):
+                self._stop(run_id, events, why)
                 continue
             self._propose(run_id, events)
             if events[-1]["kind"] == "model_error":
+                if self._limit(events) == "model_unavailable":
+                    self._stop(run_id, events, "model_unavailable")
+                    continue
                 return Result(run_id, "model_error", events[-1]["error"], None, turns)
 
     def _ask_gate(self, run_id: str, events: List[Dict[str, Any]], call: Dict[str, Any], pending: Dict[str, Any],

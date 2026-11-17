@@ -63,5 +63,5 @@ Onboarding cases: checklist tasks, minimal-data capture, masked identifiers. See
 ## Called by
 
 - **other agents:** `EMPLOYEE_ONBOARDING`, `EMPLOYEE_RECORDS`, `OFFER_LETTERS`, `POLICY_ACKS`
-- **platform modules:** `velaris/agentkit/hr_wiring.py`, `velaris/agentkit/onboarding_adapters.py`, `velaris/agentkit/onboarding_common.py`, `velaris/api/allowlist.py`
+- **platform modules:** `velaris/agentkit/hr_wiring.py`, `velaris/agentkit/onboarding_adapters.py`, `velaris/agentkit/onboarding_common.py`, `velaris/api/allowlist.py`, `velaris/orchestration/autonomy.py`
 - **tests:** `velaris/tests/test_hr_data_legacy.py`, `velaris/tests/test_hr_data_onboarding.py`, `velaris/tests/test_hr_wiring.py`, `velaris/tests/test_onboarding_flow.py`, `velaris/tests/test_onboarding_records.py`

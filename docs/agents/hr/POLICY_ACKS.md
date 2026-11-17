@@ -52,5 +52,5 @@ Versioned policies and acknowledgement evidence. See the module docstring.
 ## Called by
 
 - **other agents:** `EMPLOYEE_RECORDS`, `ONBOARDING_FLOW`
-- **platform modules:** `velaris/agentkit/hr_wiring.py`, `velaris/agentkit/onboarding_adapters.py`, `velaris/agentkit/onboarding_checklists.py`, `velaris/agentkit/onboarding_common.py`, `velaris/agentkit/onboarding_directory.py`, `velaris/api/allowlist.py`
+- **platform modules:** `velaris/agentkit/hr_wiring.py`, `velaris/agentkit/onboarding_adapters.py`, `velaris/agentkit/onboarding_checklists.py`, `velaris/agentkit/onboarding_common.py`, `velaris/agentkit/onboarding_directory.py`, `velaris/api/allowlist.py`, `velaris/orchestration/autonomy.py`
 - **tests:** `velaris/tests/test_hr_data_traces.py`, `velaris/tests/test_hr_wiring.py`, `velaris/tests/test_onboarding_flow.py`, `velaris/tests/test_onboarding_records.py`
