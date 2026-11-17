@@ -110,9 +110,9 @@ class ComplianceMixin(ChatCore):
                "reactions": [dict(r) for r in self.store.all(
                    "SELECT message_id, emoji FROM reactions WHERE user_id=?", (user_id,))],
                "drafts": [dict(r) for r in self.store.all(
-                   "SELECT channel_id, topic, body, updated FROM drafts WHERE user_id=?", (user_id,))],
-               "files": [{**dict(r), "name": file_name(r["name"])} for r in self.store.all(
-                   "SELECT hash, name, size, ctype, created_at FROM files WHERE uploader=?", (user_id,))],
+                   "SELECT user_id, channel_id, topic, body, updated FROM drafts WHERE user_id=?", (user_id,))],
+               "files": [{**{k: v for k, v in dict(r).items() if k != "uploader"}, "name": file_name(r)} for r in self.store.all(
+                   "SELECT hash, uploader, name, size, ctype, created_at FROM files WHERE uploader=?", (user_id,))],
                "exported_at": self.clock()}
         self._audit("user.export", caller.id, caller.org, subject=user_id, messages=len(msgs),
                     export_sha256=hashlib.sha256(json.dumps(out, sort_keys=True, default=str).encode()).hexdigest())
@@ -124,7 +124,7 @@ class ComplianceMixin(ChatCore):
         db.execute("UPDATE messages SET body=?, erased=1, attachments='[]', mentions='[]', "
                    "deleted_at=COALESCE(deleted_at, ?), deleted_by=COALESCE(deleted_by, 'erasure'), "
                    "sender=COALESCE(?, sender) WHERE id=?",
-                   (fieldseal.seal("", SEAL), self.clock(), pseudonym, msg["id"]))
+                   (fieldseal.seal("", SEAL, fieldseal.bind_for("messages", "body", msg["id"])), self.clock(), pseudonym, msg["id"]))
         for table in ("edits", "reactions"):
             db.execute(f"DELETE FROM {table} WHERE message_id=?", (msg["id"],))
         db.execute("DELETE FROM pins WHERE message_id=?", (msg["id"],))

@@ -233,3 +233,13 @@ def test_the_api_routes_connect_callback_status_disconnect_and_admin_revoke(tmp_
     assert send(c, "POST", "/integrations/atlassian/revoke", {"user_id": "alice"}, sub="bob").status_code == 403
     assert send(c, "POST", "/integrations/atlassian/revoke", {"user_id": "alice"}, sub="hr", roles=["hr_admin"]).json() == {"revoked": True}
     assert send(c, "GET", "/integrations/atlassian/status", sub="alice").json()["connected"] is False
+
+
+def test_disconnecting_also_revokes_the_refresh_token_at_atlassian_and_survives_a_failure(world):
+    """KAN-69 SV2-13: revoke_user used to delete only the local copy; the refresh token stayed valid at Atlassian."""
+    a, oa, _ = world
+    connect(oa, ALICE)
+    assert oa.revoke_user("acme", "alice", by="alice") is True
+    sent = [c for c in a.calls if c[2] == ao.REVOKE_URL.removeprefix("https://auth.atlassian.com")]
+    assert len(sent) == 1 and sent[0][3]["token"] == "rt-alice-1"              # the mock answers 500: the failure was only logged
+    assert oa.status(ALICE)["connected"] is False

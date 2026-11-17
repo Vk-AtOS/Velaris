@@ -48,15 +48,20 @@ class SealedConnection(sqlite3.Connection):
     _fd: Optional[int] = None
     _lockpath: str = ""
 
+    @property
+    def _ctx(self) -> str:
+        """What the sealed image is bound to: directory and file name (a file of another store or agent does not open)."""
+        return vault.path_context(self._path)
+
     def _attach(self, path: Path, purpose: str) -> None:
         self._path, self._purpose = path, purpose
         self._lockpath = str(path) + ".lock"
         with lock_for(self._lockpath):
             if path.exists() and path.stat().st_size:
                 blob = read_private(path)
-                self.deserialize(vault.open_bytes(blob, purpose) if vault.is_sealed(blob) else vault.legacy_plaintext(blob, path))
-                if not vault.is_sealed(blob):              # migration window only: seal now, not "on the next commit"
-                    vault.write_sealed(path, self.serialize(), purpose)
+                self.deserialize(vault.open_bytes(blob, purpose, self._ctx) if vault.is_sealed(blob) else vault.legacy_plaintext(blob, path))
+                if not vault.is_bound(blob):               # migration window only: seal (and bind) now, not "on the next commit"
+                    vault.write_sealed(path, self.serialize(), purpose, self._ctx)
             else:
                 vault.derive_key(purpose)                  # no key, no new store (fail closed before anything is written)
             self._stamp = self._file_stamp()
@@ -90,7 +95,7 @@ class SealedConnection(sqlite3.Connection):
         if self._file_stamp() == self._stamp or (self.in_transaction and self._fd is None):
             return
         with self._locked():
-            self.deserialize(vault.open_bytes(read_private(self._path), self._purpose))
+            self.deserialize(vault.open_bytes(read_private(self._path), self._purpose, self._ctx))
             self._stamp, self._synced = self._file_stamp(), self._version()
 
     def _before(self, sql: object) -> None:
@@ -143,7 +148,7 @@ class SealedConnection(sqlite3.Connection):
         with self._locked():
             if self._file_stamp() != self._stamp:
                 raise SealedConflict(f"{self._path.name} was changed by another process; reload before writing")
-            vault.write_sealed(self._path, self.serialize(), self._purpose)
+            vault.write_sealed(self._path, self.serialize(), self._purpose, self._ctx)
             self._stamp, self._synced = self._file_stamp(), self._version()
 
     def commit(self) -> None:

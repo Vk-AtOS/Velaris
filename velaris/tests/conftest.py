@@ -57,7 +57,7 @@ def _tests_may_read_sealed_state(monkeypatch):
             agent = next((p.name for p in self.parents if p.parent.name == "agents"), "")
             for purpose in (f"hiring:{agent}", f"hr:{agent}", f"memory:{agent}", agent):
                 try:
-                    return vault.open_bytes(blob, purpose).decode()
+                    return vault.open_bytes(blob, purpose, f"{self.parent.name}/{self.name}" if vault.is_bound(blob) else None).decode()
                 except vault.VaultError:
                     continue
             raise
@@ -75,10 +75,11 @@ def _tests_may_read_sealed_state(monkeypatch):
             agent = next((p.name for p in self.parents if p.parent.name == "agents"), "")
             for purpose in (f"hiring:{agent}", f"hr:{agent}", f"memory:{agent}", agent):
                 try:
-                    vault.open_bytes(blob, purpose)
+                    ctx = f"{self.parent.name}/{self.name}" if vault.is_bound(blob) else None
+                    vault.open_bytes(blob, purpose, ctx)
                 except vault.VaultError:
                     continue
-                return self.write_bytes(vault.seal_bytes(data.encode(), purpose))
+                return self.write_bytes(vault.seal_bytes(data.encode(), purpose, ctx))
         return orig_write(self, data, *a, **k)
     monkeypatch.setattr(Path, "write_text", write_text)
 

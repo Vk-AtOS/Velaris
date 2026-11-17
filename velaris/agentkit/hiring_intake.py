@@ -12,6 +12,7 @@ import base64
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from velaris.agentkit import hiring_common as hc
 from velaris.agentkit import hiring_forms as hf
 from velaris.agentkit import hiring_sched as sched
 from velaris.agentkit.hiring_common import DAY, HiringError, application_known, audit, hid, iso, new_id, now
@@ -26,6 +27,9 @@ MAX_PENDING_PER_FORM = 500       # unreviewed submissions one form may hold (eac
 def _form(form_id: Any) -> Dict[str, Any]:
     f = hf._st().load()["forms"].get(str(form_id))
     if not f or f["status"] != "published":
+        raise HiringError("not_found", "no such form")
+    req = hc.load_requisition(f["org"], f["requisition_id"])
+    if not req or req.get("state") != "open":            # a closed or filled requisition no longer takes applications (KAN-64)
         raise HiringError("not_found", "no such form")
     return f
 
@@ -75,7 +79,7 @@ def public_submit(form_id: str, answers: Dict[str, Any], pow_solution: Dict[str,
         sid = new_id("sub")
         if file_info:
             path = private_dir(agent_dir(hf.AGENT) / "uploads") / f"{sid}.bin"
-            vault.write_sealed(path, bytes(file_bytes), "hiring:SCREENING_FORMS")
+            vault.write_sealed(path, bytes(file_bytes), "hiring:SCREENING_FORMS", vault.path_context(path))
             file_info["path"] = str(path)
         consent = {"purpose": f"recruitment: {f['title']}"[:300], "notice_version": f["consent_version"],
                    "retention_until": iso(at + f["retention_days"] * DAY)[:10], "channel": "web_form",
@@ -141,4 +145,4 @@ def public_withdraw(token: str) -> Dict[str, Any]:
 
 
 def file_b64(path: str) -> str:
-    return base64.b64encode(vault.read_sealed(path, "hiring:SCREENING_FORMS")).decode()
+    return base64.b64encode(vault.read_sealed(path, "hiring:SCREENING_FORMS", vault.path_context(path))).decode()

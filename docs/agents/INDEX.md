@@ -170,7 +170,7 @@
 
 | Agent | Status | Purpose |
 |---|---|---|
-| [CHROMOS](data_knowledge/CHROMOS.md) | rule_based | Chromos: detects schema changes by hashing a canonical JSON form of each schema. |
+| [CHROMOS](data_knowledge/CHROMOS.md) | real | Chromos: detects schema changes by hashing a canonical JSON form of each schema. |
 | [DOCUMENT_LIBRARY](data_knowledge/DOCUMENT_LIBRARY.md) | real | Document library agent: a company's files, searchable and answerable with citations. |
 | [EPISODIC_MEMORY](data_knowledge/EPISODIC_MEMORY.md) | real | EPISODIC_MEMORY: a durable, time-ordered log of what happened. |
 | [GLOBAL_STATE_MAP](data_knowledge/GLOBAL_STATE_MAP.md) | real | GLOBAL_STATE_MAP: one shared, versioned map of state that several agents read and write. |

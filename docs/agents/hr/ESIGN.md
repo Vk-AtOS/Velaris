@@ -2,7 +2,7 @@
 
 - **Department:** `hr`
 - **Status (static inventory):** `real`
-- **Source:** `departments/hr/ESIGN/main.py` (544 lines)
+- **Source:** `departments/hr/ESIGN/main.py` (559 lines)
 
 ## Purpose
 
@@ -53,9 +53,9 @@ Signing requests: create, send, ceremony (token-authenticated), seal, verify. Se
 - `velaris.agentkit.onboarding_common`
 - `velaris.agentkit.results`
 - `velaris.agentkit.state`
+- `velaris.core`
 - `velaris.core.access`
 - `velaris.intel`
-- `velaris.intel.paths`
 
 ## State and configuration
 

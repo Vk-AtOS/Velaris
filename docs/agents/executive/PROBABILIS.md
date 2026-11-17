@@ -2,7 +2,7 @@
 
 - **Department:** `executive`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/executive/PROBABILIS/main.py` (47 lines)
+- **Source:** `departments/executive/PROBABILIS/main.py` (53 lines)
 
 ## Purpose
 
@@ -18,7 +18,7 @@ global random module, unseeded, so they differ between runs. Keeps no state.
 - `__init__(config)`
 - `health_check()`
 - `bernoulli(p)` — Run Bernoulli trials (0 or 1) for 'trials' iterations.
-- `monte_carlo(func)` — Run Monte-Carlo using function callback.
+- `monte_carlo(func)` — Run Monte-Carlo using function callback. It runs `func` as given, so it must only ever be called by code that holds a
 - `distribution_mean(values)`
 
 ## Depends on
@@ -33,4 +33,4 @@ global random module, unseeded, so they differ between runs. Keeps no state.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_probabilis.py`
+- **tests:** `velaris/tests/test_kan93_rest.py`, `velaris/tests/test_probabilis.py`

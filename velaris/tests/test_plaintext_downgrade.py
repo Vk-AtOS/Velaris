@@ -20,7 +20,7 @@ def test_planted_plaintext_is_refused_by_every_sealed_reader(tmp_path):
     f = tmp_path / "blob"
     f.write_bytes(b"forged")
     with pytest.raises(vault.PlaintextRefused):
-        vault.read_sealed(f, "x")
+        vault.read_sealed(f, "x", vault.path_context(f))
 
     j = tmp_path / "s.json"
     j.write_text(json.dumps({"admins": ["mallory"]}))
@@ -107,7 +107,7 @@ def test_old_empty_strings_are_sealed_silently_but_text_is_not():
     c.execute("CREATE TABLE m(id INTEGER PRIMARY KEY, body TEXT)")
     c.execute("INSERT INTO m(body) VALUES ('')")
     assert fieldseal.seal_existing(c, "m", ["body"], "chat", key="id") == 1
-    assert fieldseal.unseal(c.execute("SELECT body FROM m").fetchone()[0], "chat") == ""
+    assert fieldseal.unseal(c.execute("SELECT body FROM m").fetchone()[0], "chat", fieldseal.bind_for("m", "body", 1)) == ""
     c.execute("INSERT INTO m(body) VALUES (7)")
     with pytest.raises(vault.PlaintextRefused):
         fieldseal.seal_existing(c, "m", ["body"], "chat", key="id")

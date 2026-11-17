@@ -28,7 +28,8 @@ from typing import Any, Callable, Dict, List, Optional
 
 from velaris.control.core import COMPENSATABLE, IRREVERSIBLE, READ, UNDOABLE, ControlError, sha
 from velaris.intel import trace
-from velaris.intel.paths import data_dir, private_dir, read_private, write_private
+from velaris.core import vault
+from velaris.intel.paths import data_dir, private_dir
 
 logger = logging.getLogger("velaris.control.checkpoint")
 _SCHEMA = """
@@ -68,6 +69,9 @@ class Compensators:
 compensators = Compensators()
 
 
+BLOB_SEAL = "control:checkpoint"
+
+
 class CheckpointStore:
     def __init__(self, base: Optional[Path] = None) -> None:
         self.base = private_dir(base or private_dir(data_dir() / "control"))
@@ -81,13 +85,18 @@ class CheckpointStore:
         h = sha(data)
         d = private_dir(self._blobs / h[:2])
         if not (d / h).exists():
-            write_private(d / h, data)
+            vault.write_sealed(d / h, data, BLOB_SEAL, h)     # file copies are the user's files: sealed, bound to their hash
         return h
 
     def get(self, h: str) -> bytes:
         if not (isinstance(h, str) and len(h) == 64 and h.isalnum()):
             raise ControlError("bad_blob", "not a blob hash")
-        data = read_private(self._blobs / h[:2] / h)
+        try:
+            data = vault.read_sealed(self._blobs / h[:2] / h, BLOB_SEAL, h)   # a plaintext copy is refused outside the migration window
+        except vault.PlaintextRefused:
+            raise
+        except vault.VaultError:
+            raise ControlError("blob_corrupt", "a checkpoint copy does not open") from None
         if sha(data) != h:
             raise ControlError("blob_corrupt", "a checkpoint copy does not match its hash")
         return data

@@ -24,12 +24,15 @@ import ipaddress
 import os
 import re
 import smtplib
+import socket
+import sqlite3
 import ssl
 from dataclasses import asdict, dataclass
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from velaris.agents.SECRETS_VAULT.main import SecretsVault
 from velaris.core.access import Caller
+from velaris.intel.web_fetch import FetchError, check_public
 from velaris.mail.common import Clock, MailError, RelayError, audit, uid
 from velaris.mail.db import dumps, loads
 from velaris.mail.mime import parse_message
@@ -110,13 +113,35 @@ def _q(name: str) -> str:
     return '"' + name.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
+class _PinnedImapSSL(imaplib.IMAP4_SSL):
+    """IMAP over TLS to an address that was already checked: the name is not resolved a second time, and the certificate is
+    still checked against the host name."""
+
+    def __init__(self, host: str, port: int, *, address: str, **kw: Any) -> None:
+        self._address = address
+        super().__init__(host, port, **kw)
+
+    def _create_socket(self, timeout: Optional[float]) -> ssl.SSLSocket:
+        sock = socket.create_connection((self._address, self.port), timeout)
+        return self.ssl_context.wrap_socket(sock, server_hostname=self.host)
+
+
 class ImapLibTransport:
-    """imaplib over TLS with certificate and host name checks. There is no plaintext constructor."""
+    """imaplib over TLS with certificate and host name checks. There is no plaintext constructor. With the default factory
+    the host must resolve to public addresses only (an administrator names the host, and the account password is sent to
+    it), and the connection goes to the address that was checked (KAN-69 SV2-03)."""
 
     def __init__(self, host: str, port: int = 993, *, timeout: float = 30.0, factory: Any = imaplib.IMAP4_SSL,
-                 context: Optional[ssl.SSLContext] = None) -> None:
+                 context: Optional[ssl.SSLContext] = None, resolver: Any = None) -> None:
+        extra: Dict[str, Any] = {}
+        if factory is imaplib.IMAP4_SSL:
+            try:
+                addresses = check_public(f"https://{host}", *([resolver] if resolver else []))
+            except FetchError:
+                raise ConnectorError("blocked_address") from None      # one code for every refusal: no oracle for the network behind
+            factory, extra = _PinnedImapSSL, {"address": addresses[0]}
         try:
-            self._c = factory(host, port, ssl_context=context or ssl.create_default_context(), timeout=timeout)
+            self._c = factory(host, port, ssl_context=context or ssl.create_default_context(), timeout=timeout, **extra)
         except (imaplib.IMAP4.error, OSError):
             raise ConnectorError("connect_failed") from None
 
@@ -239,6 +264,11 @@ def role_for(name: str, special: str) -> str:
     return _SPECIAL.get(special) or _NAMES.get(name.strip().lower(), "custom")
 
 
+def secret_prefix(mb: Any) -> str:
+    """Vault secrets of a mailbox's accounts are named mail.<org>.<mailbox id>.<name>: only that mailbox can own one."""
+    return f"mail.{mb['org']}.{mb['id']}."
+
+
 def create_account(store: MailStore, caller: Caller, mailbox_id: str, d: Any) -> Dict[str, Any]:
     """Only a mail_admin connects accounts: the host is chosen by them, so a user cannot point a vault secret at a server of their own."""
     who = store._who(caller)
@@ -246,9 +276,15 @@ def create_account(store: MailStore, caller: Caller, mailbox_id: str, d: Any) ->
         raise MailError("forbidden", "connecting an account needs the mail_admin role", 403)
     mb, _ = store.access(caller, mailbox_id, "admin")
     cfg = validate_account(d)
+    prefix = secret_prefix(mb)
+    if not cfg.secret_name.startswith(prefix) or len(cfg.secret_name) == len(prefix):     # SV2-03: a secret is named for its owner
+        raise MailError("bad_secret", f"secret_name must be {prefix}<name>")                 # same answer whether or not it exists elsewhere
     aid = uid()
-    store.run("INSERT INTO account(id, mailbox_id, org, config, created_by, created) VALUES (?,?,?,?,?,?)",
-              (aid, mb["id"], mb["org"], dumps(asdict(cfg)), who.id, store.clock()))
+    try:
+        store.run("INSERT INTO account(id, mailbox_id, org, config, created_by, created, secret_name) VALUES (?,?,?,?,?,?,?)",
+                  (aid, mb["id"], mb["org"], dumps(asdict(cfg)), who.id, store.clock(), cfg.secret_name))
+    except sqlite3.IntegrityError:                                    # the UNIQUE index decides, also between concurrent requests
+        raise MailError("secret_in_use", "that secret already belongs to an account of this mailbox", 409) from None
     audit("account.create", who.id, who.org, mailbox=mb["id"], account=aid, secret=cfg.secret_name)
     return {"id": aid, **asdict(cfg)}
 
@@ -276,6 +312,8 @@ def sync_account(store: MailStore, acct: Any, imap_factory: Callable[[AccountCon
     state = loads(acct["state"], {})
     state.setdefault("folders", {})
     res = {"folders": 0, "fetched": 0, "stored": 0, "duplicates": 0, "skipped_large": 0, "resets": 0}
+    if acct["secret_name"] != cfg.secret_name:                  # not bound to this account (legacy or planted config): never used
+        raise ConnectorError("secret_not_bound")
     password = secrets(cfg.secret_name)
     if not password:
         raise ConnectorError("secret_missing")

@@ -148,5 +148,13 @@ def test_restored_run_keeps_the_owners_recorded_roles_capped_by_current(tmp_path
     run_id = r.json()["task_id"]
     svc = built[-1]
     row = svc._row(Caller("u1", "acme", frozenset({"hr_admin"})), run_id)
-    assert svc._owner(Caller("u2", "acme", frozenset({"flow_approver"})), row).roles == {"hr_admin", "recruiter"}
+    approver = Caller("u2", "acme", frozenset({"flow_approver"}))
+    with pytest.raises(AccessDenied):                                  # no way to verify the owner now: only the owner moves the run
+        svc._owner(approver, row)
     assert svc._owner(Caller("u1", "acme", frozenset({"hr_admin"})), row).roles == {"hr_admin"}   # recruiter was revoked
+    from velaris.orchestration import identity
+    identity.set_resolver(lambda org, uid: Caller(uid, org, frozenset({"hr_admin"})))           # the owner was demoted since the start
+    try:
+        assert svc._owner(approver, row).roles == {"hr_admin"}
+    finally:
+        identity.set_resolver(None)

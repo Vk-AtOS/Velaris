@@ -97,7 +97,7 @@ def test_pad_edit_log_replays_to_any_moment_and_the_chain_detects_tampering(env)
         assert rec.replay_pad(session_id=sess, upto_seq=2)["text"] == "def f(x):\n    return x"
         assert rec.replay_pad(session_id=sess)["text"] == "def f(x):\n    return x!"
     p = agent_dir("INTERVIEW_RECORD") / "events" / f"{sess}.jsonl"
-    assert "VLV1:" in p.read_text()                                                                # events are sealed at rest
+    assert "VLV2:" in p.read_text()                                                                # events are sealed at rest
     lines = [json.dumps(e, sort_keys=True) for e in stored_events(sess)]
     forged = json.loads(lines[1])
     forged["data"]["text"] = "\n    return 0"                                                        # edit history after the fact
@@ -122,7 +122,7 @@ def test_one_audio_track_per_participant_referenced_by_hash(env):
     r = gw.ingest_audio(tok, data, "audio/wav", 61.5)
     assert r["status"] == "ok" and r["sha256"] == hashlib.sha256(data).hexdigest()
     path = agent_dir("INTERVIEW_RECORD") / "audio" / f"{r['sha256']}.bin"
-    assert path.read_bytes() != data and vault.read_sealed(path, "hiring:INTERVIEW_RECORD") == data and oct(path.stat().st_mode & 0o777) == "0o600"
+    assert path.read_bytes() != data and vault.read_sealed(path, "hiring:INTERVIEW_RECORD", vault.path_context(path)) == data and oct(path.stat().st_mode & 0o777) == "0o600"
     assert gw.ingest_audio(tok, data, "audio/wav", 61.5)["status"] == "conflict"                     # one per participant
     assert gw.ingest_audio(itok, data, "audio/wav", 5)["status"] == "denied"                         # the interviewer has not consented
     with as_(who("interviewer", id="iv-1")):

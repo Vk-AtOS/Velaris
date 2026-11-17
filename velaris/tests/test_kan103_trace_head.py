@@ -198,3 +198,40 @@ def test_an_append_in_flight_when_the_data_directory_changes_stays_in_its_own_di
     assert trace.verify() == {"ok": True, "entries": 2, "broken_at": None, "reason": ""}
     monkeypatch.setenv("VELARIS_DATA", str(b))
     assert not (b / "trace.jsonl").exists() and not (b / "trace.head").exists()
+
+
+def _forge_unkeyed_entry():
+    """What someone with only write access to the data directory can do: append an entry hashed with plain SHA-256."""
+    p = trace._path()
+    prev = [json.loads(line) for line in p.read_text().splitlines()][-1]["hash"]
+    e = {"ts": 1.0, "actor": "attacker", "action": "fake", "payload": {}, "prev": prev}
+    e["hash"] = trace._hash(prev, e["ts"], e["actor"], e["action"], e["payload"], keyed=False)
+    with open(p, "a") as f:
+        f.write(json.dumps(e, sort_keys=True) + "\n")
+
+
+def test_entry_forged_past_the_head_without_the_key_is_not_verified_and_not_absorbed():
+    """KAN-69 SV2-05: entries were hashed with plain SHA-256 and anything past the head verified, then the next append signed it."""
+    _fill(3)
+    assert trace.verify()["ok"]
+    _forge_unkeyed_entry()
+    assert trace.verify()["ok"] is False
+    assert verify_incremental()["ok"] is False
+    with pytest.raises(trace.TraceHeadError):
+        trace.append("real", "next", {})                    # the next real append must not re-sign the fake entry
+
+
+def test_trace_written_before_keyed_hashes_still_verifies_and_gains_keyed_entries(monkeypatch):
+    _fill(2)
+    p = trace._path()
+    es, prev = [json.loads(line) for line in p.read_text().splitlines()], trace.GENESIS
+    for e in es:                                           # rewrite as an older release wrote it: unkeyed, no version tag
+        e.pop("v", None)
+        e["prev"] = prev
+        e["hash"] = prev = trace._hash(e["prev"], e["ts"], e["actor"], e["action"], e["payload"], keyed=False)
+    p.write_text("".join(json.dumps(e, sort_keys=True) + "\n" for e in es))
+    trace._head_paths()[0].unlink()
+    trace.rebaseline()
+    assert trace.verify()["ok"]
+    trace.append("new", "keyed", {})
+    assert trace.verify()["ok"] and trace.verify()["entries"] == 3

@@ -278,6 +278,9 @@ class AdminMixin:
     # ── DPDP: export and erasure ─────────────────────────────────────────────
     def export_mailbox(self, caller: Caller, mailbox_id: str, limit: int = 20000) -> Dict[str, Any]:
         mb, via = self.access(caller, mailbox_id, "admin")                     # type: ignore[attr-defined]
+        if via["via"] == "admin":                  # an administrator manages mailboxes but does not read other people's mail (SV2-02)
+            audit("mailbox.export.refused", caller.id, caller.org, mailbox=mb["id"], reason="not_owner")
+            raise MailError("forbidden", "only the mailbox owner can export its messages", 403)
         rows = self.q("SELECT * FROM message WHERE mailbox_id=? ORDER BY received_ts LIMIT ?", (mb["id"], limit + 1))   # type: ignore[attr-defined]
         audit("mailbox.export", caller.id, caller.org, mailbox=mb["id"], via=via["via"], messages=min(len(rows), limit))
         return {"mailbox": self.mailbox_dict(mb), "settings": {"signature": mb["signature"], "vacation": loads(mb["vacation"], {})},   # type: ignore[attr-defined]

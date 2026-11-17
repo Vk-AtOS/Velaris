@@ -168,7 +168,7 @@ class Assistant:
                               "ORDER BY COALESCE(date_ts, received_ts), rowid", (mb["id"], row["thread_id"]))
         text, people = self._thread_text(thread, own)
         samples = [re.sub(r"(?m)^>.*\n?", "", r["body_text"] or "").strip()[:600] for r in self.store.q(
-            "SELECT m.body_text FROM message m JOIN folder f ON f.id=m.folder_id WHERE m.mailbox_id=? AND f.role='sent' AND m.draft=0 "
+            "SELECT m.id, m.body_text FROM message m JOIN folder f ON f.id=m.folder_id WHERE m.mailbox_id=? AND f.role='sent' AND m.draft=0 "
             "ORDER BY m.received_ts DESC LIMIT 5", (mb["id"],))]
         style, _ = guard.redact("\n---\n".join(s for s in samples if s))
         extra = ""

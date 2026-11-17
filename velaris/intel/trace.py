@@ -36,10 +36,27 @@ def _path() -> Path:
     return data_dir() / "trace.jsonl"
 
 
-def _hash(prev: str, ts: float, actor: str, action: str, payload: Dict[str, Any]) -> str:
+def _hash(prev: str, ts: float, actor: str, action: str, payload: Dict[str, Any], keyed: bool = True) -> str:
+    """Entry hash. Version 2 entries (the default) are HMAC-SHA256 under a key derived from the vault key, so someone who can
+    only write the data directory cannot forge entries; `keyed=False` is the unkeyed SHA-256 of entries written before."""
     body = json.dumps([prev, ts, actor, action, payload], sort_keys=True, separators=(",", ":"),
-                      default=str)
-    return hashlib.sha256(body.encode()).hexdigest()
+                      default=str).encode()
+    if not keyed:
+        return hashlib.sha256(body).hexdigest()
+    try:
+        key = vault.derive_key("trace-entry")
+    except vault.VaultKeyError as e:
+        raise TraceHeadError(f"no vault key to hash trace entries: {e}") from e
+    return hmac.new(key, body, hashlib.sha256).hexdigest()
+
+
+def is_keyed(e: Dict[str, Any]) -> bool:
+    return e.get("v") == 2
+
+
+def entry_ok(e: Dict[str, Any], prev: str) -> bool:
+    """The entry chains onto `prev` and its hash is right for its version (KeyError/TypeError for a malformed entry)."""
+    return e.get("prev") == prev and e.get("hash") == _hash(prev, e["ts"], e["actor"], e["action"], e["payload"], is_keyed(e))
 
 
 MAX_PAYLOAD_BYTES = 32768      # an entry above this keeps only a digest, so no entry can grow without bound
@@ -129,6 +146,8 @@ def _count_to(path: Path, head: tuple) -> int:
         n += 1
         if n == head[0]:
             found = isinstance(e, dict) and e.get("hash") == head[1]
+        if n > head[0] and isinstance(e, dict) and not is_keyed(e):          # past the signed head only keyed entries are real
+            raise TraceHeadError("an unkeyed entry follows the signed head: entries were added to the trace file by hand")
     if n < head[0] or not found:
         raise TraceHeadError("the trace is shorter than, or differs from, its signed head: entries were removed or altered")
     return n
@@ -181,7 +200,7 @@ def append(actor: str, action: str, payload: Optional[Dict[str, Any]] = None) ->
             count = _next_count(path, prev, base)
             ts = time.time()
             entry = {"ts": ts, "actor": actor, "action": action, "payload": payload,
-                     "prev": prev, "hash": _hash(prev, ts, actor, action, payload)}
+                     "prev": prev, "v": 2, "hash": _hash(prev, ts, actor, action, payload)}
             head_body = _head_body(count, entry["hash"])     # signed BEFORE the entry is written: no key, nothing is written
             with open_private(path, "a") as f:       # the trace names people and what was read about them
                 if path.stat().st_size and _ends_without_newline(path):
@@ -262,8 +281,12 @@ def _walk(want: set) -> tuple:
         try:
             if e.get("prev") != prev:
                 return {"ok": False, "entries": n, "broken_at": n, "reason": "previous-hash mismatch"}, prev, at
-            if e.get("hash") != _hash(prev, e["ts"], e["actor"], e["action"], e["payload"]):
+            if not entry_ok(e, prev):
                 return {"ok": False, "entries": n, "broken_at": n, "reason": "entry was altered"}, prev, at
+            if want and n > max(want) and not is_keyed(e):
+                return {"ok": False, "entries": n, "broken_at": n, "reason": "unkeyed entry after the signed head"}, prev, at
+        except TraceHeadError:
+            return {"ok": False, "entries": n, "broken_at": n, "reason": "no vault key: entries cannot be checked"}, prev, at
         except (KeyError, TypeError):
             return {"ok": False, "entries": n, "broken_at": n, "reason": "malformed entry"}, prev, at
         prev = e["hash"]

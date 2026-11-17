@@ -57,7 +57,7 @@ class STREAM_PROCESSORAgent:
             st = data.get("streams", {}).get(stream) if isinstance(stream, str) else None
             if st is None:
                 return fail("unknown_stream", "define() has not been called for this stream")
-            spec, accepted, late, bad = st["spec"], 0, 0, 0
+            spec, accepted, late, bad, overflow = st["spec"], 0, 0, 0, 0
             for ev in events:
                 value = ev.get(spec["value_field"]) if isinstance(ev, dict) else None
                 key = ev.get(spec["key_field"]) if isinstance(ev, dict) and spec["key_field"] else ""
@@ -69,15 +69,20 @@ class STREAM_PROCESSORAgent:
                 if start + spec["window_s"] <= watermark:
                     late += 1
                     continue
+                if f"{start}|{key}" not in st["windows"] and len(st["windows"]) >= MAX_WINDOWS:
+                    for old in sorted((k for k, x in st["windows"].items() if x["start"] + spec["window_s"] <= watermark),
+                                      key=lambda k: st["windows"][k]["start"])[:1]:
+                        del st["windows"][old]               # only a CLOSED window is evicted: its value is final and was readable
+                    if len(st["windows"]) >= MAX_WINDOWS:
+                        overflow += 1                        # all open: refuse the event, never drop an open window's data
+                        continue
                 w = st["windows"].setdefault(f"{start}|{key}", {"start": start, "key": key, "count": 0, "sum": 0.0,
                                                                 "min": value, "max": value})
                 w.update(count=w["count"] + 1, sum=w["sum"] + value, min=min(w["min"], value), max=max(w["max"], value))
                 st["max_ts"] = ev["ts"] if st["max_ts"] is None else max(st["max_ts"], ev["ts"])
                 accepted += 1
             st["late"], st["invalid"] = st["late"] + late, st["invalid"] + bad
-            for old in sorted(st["windows"], key=lambda k: st["windows"][k]["start"])[:max(0, len(st["windows"]) - MAX_WINDOWS)]:
-                del st["windows"][old]
-            return ok(accepted=accepted, late=late, invalid=bad)
+            return ok(accepted=accepted, late=late, invalid=bad, **({"overflow": overflow} if overflow else {}))
         return self._state.update(take)
 
     def results(self, stream: str, closed_only: bool = True) -> Dict[str, Any]:

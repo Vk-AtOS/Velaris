@@ -250,12 +250,12 @@ def test_audio_upload_streams_seals_and_obeys_consent_type_size_and_one_track(cl
     sha = r.json()["result"]["sha256"]
     stored = data_dir() / "agents" / "INTERVIEW_RECORD" / "audio" / f"{sha}.bin"
     assert stored.exists() and stored.read_bytes()[:4] == vault.STREAM_MAGIC and data[:300] not in stored.read_bytes()
-    assert vault.read_sealed(stored, "hiring:INTERVIEW_RECORD") == data
+    assert vault.read_sealed(stored, "hiring:INTERVIEW_RECORD", vault.path_context(stored)) == data
     err(client.post(url, content=wav(), headers=hdr), 409, "conflict")                                        # one track per participant
     assert not list((data_dir() / "uploads").glob("*"))                                                        # no temp file left behind
     with pytest.raises(vault.VaultError):
         stored.write_bytes(stored.read_bytes()[:-30])                                                         # cut short: refused when read
-        vault.read_sealed(stored, "hiring:INTERVIEW_RECORD")
+        vault.read_sealed(stored, "hiring:INTERVIEW_RECORD", vault.path_context(stored))
 
 
 # ---- the signing ceremony, end to end against ESIGN ----------------------------------------------------------------------------
@@ -328,19 +328,21 @@ def test_rate_limit_per_token_and_per_ip_bucket_with_window_reset(client, tick):
     err(client.post(f"/schedule/{TOKEN}/cancel"), 404, "not_found")
 
 
-def test_ip_buckets_are_separate_and_x_forwarded_for_is_only_trusted_when_set(esign_world, tick):
+def test_ip_buckets_are_separate_and_x_forwarded_for_is_only_trusted_when_set(esign_world, tick, monkeypatch):
     lim = {"cancel": RouteLimit(1024, 100, 2)}
     plain = TestClient(create_public_app(PublicSettings(esign=esign_world[0], clock=tick, limits=lim)), raise_server_exceptions=False)
     for xff in ("198.51.100.1", "198.51.100.2", "198.51.100.3"):               # spoofed header, untrusted: one bucket
         r = plain.post(f"/schedule/{'a' * 32}/cancel", headers={"x-forwarded-for": xff})
     assert r.status_code == 429
+    monkeypatch.setattr(public, "_from_trusted_proxy", lambda peer: True)          # the test client's peer is not an address
     proxied = TestClient(create_public_app(PublicSettings(esign=esign_world[0], clock=tick, limits=lim, trust_proxy=True)), raise_server_exceptions=False)
     codes = [proxied.post(f"/schedule/{chr(98 + i) * 32}/cancel", headers={"x-forwarded-for": f"spoof, 198.51.100.{i}"}).status_code for i in range(3)]
     assert codes == [404, 404, 404]                                           # the proxy's own entry (last) separates clients
 
 
-def test_counter_table_is_bounded_and_fails_closed_for_addresses_but_random_ids_cannot_lock_clients_out(esign_world, tick):
+def test_counter_table_is_bounded_and_fails_closed_for_addresses_but_random_ids_cannot_lock_clients_out(esign_world, tick, monkeypatch):
     """KAN-64 review: random tokens in the URL used to create rate keys until the table was full and every new client got 429."""
+    monkeypatch.setattr(public, "_from_trusted_proxy", lambda peer: True)
     c = TestClient(create_public_app(PublicSettings(esign=esign_world[0], clock=tick, max_keys=4, trust_proxy=True)), raise_server_exceptions=False)
     flood = [c.post(f"/schedule/{chr(97 + i) * 32}/cancel", headers={"x-forwarded-for": "198.51.100.200"}).status_code for i in range(8)]
     assert 429 not in flood                                           # ids are not counted once their table is full
@@ -431,3 +433,15 @@ def test_a_withdrawal_stops_new_bookings_and_asking_twice_keeps_the_first_date(c
     assert hf._st().load()["withdrawals"][app_id]["requested_at"] == stamp
     err(client.get(f"/schedule/{sched_tok}/slots"), 404, "not_found")
     err(client.post(f"/schedule/{sched_tok}/pick", json={"start": 1}), 404, "not_found")
+
+
+def test_forwarded_for_is_believed_only_from_the_proxy_address():
+    """KAN-64: with TRUST_PROXY any direct client could choose its own rate-limit key by sending X-Forwarded-For."""
+    from fastapi import Request
+
+    def req(peer, xff):
+        return Request({"type": "http", "headers": [(b"x-forwarded-for", xff.encode())], "client": (peer, 1234), "method": "GET", "path": "/"})
+    assert public._client_ip(req("127.0.0.1", "9.9.9.9, 203.0.113.7"), True) == "203.0.113.7"        # nginx on loopback
+    assert public._client_ip(req("172.18.0.1", "203.0.113.7"), True) == "203.0.113.7"                  # docker bridge gateway
+    assert public._client_ip(req("93.184.216.34", "203.0.113.7"), True) == "93.184.216.34"             # a direct public client: ignored
+    assert public._client_ip(req("127.0.0.1", "203.0.113.7"), False) == "127.0.0.1"                    # not trusting a proxy at all

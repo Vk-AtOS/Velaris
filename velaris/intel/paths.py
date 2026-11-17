@@ -69,9 +69,9 @@ def agent_file(name: str, filename: str) -> str:
 
 
 def legacy_candidates(name: str, filename: str) -> list:
-    """Where older releases kept <name>/<filename>: next to the agent's source, in the working directory, in /tmp."""
+    """Where older releases kept <name>/<filename>: next to the agent's source and in /tmp. Not the working directory: a file
+    of that name in whatever directory the service was started from would be copied into the agent's store (KAN-69 SV2-14)."""
     found = sorted(_REPO.glob(f"departments/*/{name}/{filename}"))
-    found += [Path.cwd() / filename]
     if filename in _OLD_TMP:
         found.append(Path(_OLD_TMP[filename]))
     return [p for p in found if p.is_file() and not p.is_symlink()]

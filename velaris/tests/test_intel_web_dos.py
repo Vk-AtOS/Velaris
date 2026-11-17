@@ -42,9 +42,14 @@ def test_self_hosted_searxng_on_a_private_host_is_allowed_only_when_configured(m
     with pytest.raises(FetchError):
         check_public("http://search.corp/search", private)
     monkeypatch.setenv("SEARXNG_URL", "http://search.corp:8080")
-    assert check_public("http://search.corp/search", private) == ["10.0.0.5"]
+    assert check_public("http://search.corp:8080/search", private) == ["10.0.0.5"]
+    for url in ("http://other.corp/", "http://search.corp/search", "http://search.corp:9000/search"):   # other host, other port (KAN-69 SV2-11)
+        with pytest.raises(FetchError):
+            check_public(url, private)
+    monkeypatch.setenv("SEARXNG_URL", "http://search.corp:8080/searx")
+    assert check_public("http://search.corp:8080/searx/search?q=x", private) == ["10.0.0.5"]
     with pytest.raises(FetchError):
-        check_public("http://other.corp/", private)
+        check_public("http://search.corp:8080/admin", private)             # same host and port, another path
 
 
 def test_cache_is_atomic_corrupt_entry_is_refetched_and_expired_entries_are_swept(tmp_path):
@@ -87,9 +92,10 @@ def test_docs_and_memory_hard_erase_leave_no_text_behind():
     assert d._db.execute("SELECT count(*) FROM chunks").fetchone()[0] == 0
     m = MemoryStore(FakeLLM({}))
     from velaris.core import fieldseal
-    sealed = (fieldseal.seal("a phone", "memory"), fieldseal.seal("[]", "memory"))
-    m._db.execute("INSERT INTO memories (id, scope, text, embedding, created_at) VALUES ('a','s',?,?,1)", sealed)
-    m._db.execute("INSERT INTO memories (id, scope, text, embedding, created_at, supersedes) VALUES ('b','s',?,?,2,'a')", sealed)
+    sealed = lambda i: (fieldseal.seal("a phone", "memory", fieldseal.bind_for("memories", "text", i)),
+                        fieldseal.seal("[]", "memory", fieldseal.bind_for("memories", "embedding", i)))
+    m._db.execute("INSERT INTO memories (id, scope, text, embedding, created_at) VALUES ('a','s',?,?,1)", sealed("a"))
+    m._db.execute("INSERT INTO memories (id, scope, text, embedding, created_at, supersedes) VALUES ('b','s',?,?,2,'a')", sealed("b"))
     m._db.commit()
     assert m.erase("b", reason="dpdp") == 2 and m._db.execute("SELECT count(*) FROM memories").fetchone()[0] == 0
 
@@ -103,3 +109,15 @@ def test_docs_unique_current_version(tmp_path):
     d.ingest("a.md", b"# A\nfirst", scope="s")
     with pytest.raises(sqlite3.IntegrityError):
         d._db.execute("INSERT INTO documents VALUES ('x','s','a.md','h','md','',1,NULL,NULL)")
+
+
+def test_trace_holds_no_query_text_of_fetched_urls_or_searches(monkeypatch):
+    """KAN-69 SV2-12: the plain-text trace kept full URLs with query strings and the search text."""
+    import httpx
+    from velaris.intel import trace
+    from velaris.intel.web_fetch import Fetcher
+    f = Fetcher(transport=httpx.MockTransport(lambda r: httpx.Response(200, headers={"content-type": "text/html"}, text="<p>hi</p>")),
+                resolver=lambda h: ["93.184.216.34"], min_gap_s=0, obey_robots=False)
+    f.fetch("https://a.test/page?payslip=asha-rao-1200000")
+    text = trace._path().read_text()
+    assert "a.test/page" in text and "payslip" not in text and "asha-rao" not in text

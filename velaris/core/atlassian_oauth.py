@@ -43,6 +43,7 @@ logger = logging.getLogger("velaris.atlassian_oauth")
 
 AUTH_URL = "https://auth.atlassian.com/authorize"
 TOKEN_URL = "https://auth.atlassian.com/oauth/token"
+REVOKE_URL = "https://auth.atlassian.com/oauth/revoke"      # UNVERIFIED against the live service (no network here); best effort
 RESOURCES_URL = "https://api.atlassian.com/oauth/token/accessible-resources"
 API_BASE = "https://api.atlassian.com"
 DEFAULT_SCOPES = ("read:jira-work", "write:jira-work", "read:confluence-content.all", "read:confluence-space.summary", "offline_access")
@@ -233,7 +234,14 @@ class OAuth:
     def revoke_user(self, org: str, user_id: str, by: str = "") -> bool:
         """Forget this person's tokens (they disconnect, or HR offboards them). Atlassian-side the grant can also be removed at
         id.atlassian.com; without our copy of the refresh token nothing here can act as them any more."""
-        gone = self._store.update(lambda d: d["tokens"].pop(self._key(org, user_id), None) is not None)
+        rec = self._store.update(lambda d: d["tokens"].pop(self._key(org, user_id), None))
+        gone = rec is not None
+        if gone and self.configured and isinstance(rec, dict) and rec.get("refresh_token"):
+            try:                                          # SV2-13: the grant is also ended at Atlassian, best effort
+                self._call("POST", REVOKE_URL, json_body={"token": rec["refresh_token"], "client_id": self.client_id,
+                                                          "client_secret": self._secret})
+            except OAuthError as e:
+                logger.warning("could not revoke the refresh token at Atlassian (%s); the local copy is gone", e.code)
         if gone:
             trace.append("atlassian", "oauth.revoked", {"user": user_id, "org": org, "by": by or user_id})
         return bool(gone)

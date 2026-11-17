@@ -29,7 +29,7 @@ import threading
 import time
 from dataclasses import dataclass
 from http.cookiejar import CookieJar, DefaultCookiePolicy
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 from urllib import robotparser
 from urllib.parse import urljoin, urlsplit
 
@@ -77,10 +77,24 @@ def _resolve(host: str) -> list:
     return [info[4][0] for info in socket.getaddrinfo(host, None)]
 
 
-def _operator_host() -> str:
-    """Host of SEARXNG_URL when the operator configured one (a self-hosted search engine is often on a private
-    address). Only that exact host is exempt; every redirect hop is still checked against it."""
-    return (urlsplit(os.environ.get("SEARXNG_URL", "")).hostname or "").lower()
+def trace_url(url: str) -> str:
+    """A URL for the plain-text trace: scheme, host, port and path, and for a query only its length and a digest (the query
+    can carry text from a payslip or a token; KAN-69 SV2-12)."""
+    parts = urlsplit(str(url))
+    host = parts.hostname or ""
+    out = f"{parts.scheme}://{host}" + (f":{parts.port}" if parts.port else "") + parts.path
+    return out + (f"?[{len(parts.query)} chars, sha256 {hashlib.sha256(parts.query.encode()).hexdigest()[:12]}]" if parts.query else "")
+
+
+def _is_operator_url(parts: Any) -> bool:
+    """Only the operator's SearXNG endpoint is exempt: its host AND port, and a path under SEARXNG_URL's path (KAN-69 SV2-11).
+    Any other port or path of that host is checked like every public address."""
+    op = urlsplit(os.environ.get("SEARXNG_URL", ""))
+    if not op.hostname or (parts.hostname or "").lower() != op.hostname.lower():
+        return False
+    port = lambda u: u.port or {"http": 80, "https": 443}.get(u.scheme)
+    base = op.path.rstrip("/")
+    return parts.scheme == op.scheme and port(parts) == port(op) and (parts.path == base or parts.path.startswith(base + "/"))
 
 
 def check_public(url: str, resolver: Resolver = _resolve) -> List[str]:
@@ -98,7 +112,7 @@ def check_public(url: str, resolver: Resolver = _resolve) -> List[str]:
         raise FetchError("dns_failed", parts.hostname) from e
     if not addresses:
         raise FetchError("dns_failed", parts.hostname)
-    if parts.hostname.lower() == _operator_host():
+    if _is_operator_url(parts):
         return list(dict.fromkeys(addresses))      # the operator's own SearXNG: private addresses are expected there
     for addr in addresses:
         ip = ipaddress.ip_address(addr.split("%")[0])
@@ -301,25 +315,25 @@ class Fetcher:
             parts = urlsplit(target)  # hostname, not netloc: netloc can hold user:password@
             url = f"{parts.scheme}://{parts.hostname}" + (f":{parts.port}" if parts.port else "")
         if not is_api and not self.allowed_by_robots(url):
-            trace.append("web", "fetch.refused", {"url": url, "reason": "robots"})
+            trace.append("web", "fetch.refused", {"url": trace_url(url), "reason": "robots"})
             raise FetchError("robots_disallowed", url)
         try:
             r, final_url = self._get_following(target)
         except FetchError as e:
-            trace.append("web", "fetch.refused", {"url": url, "reason": e.reason})
+            trace.append("web", "fetch.refused", {"url": trace_url(url), "reason": e.reason})
             if is_api:
                 raise FetchError(e.reason, url) from None  # the original detail can quote the full URL
             raise
         ctype = r.headers.get("content-type", "").split(";")[0].strip().lower()
         if r.status_code >= 400:
-            trace.append("web", "fetch.failed", {"url": url, "status": r.status_code})
+            trace.append("web", "fetch.failed", {"url": trace_url(url), "status": r.status_code})
             raise FetchError("http_status", str(r.status_code))
         if ctype and not ctype.startswith(TEXT_TYPES):
             raise FetchError("not_text", ctype)
         out = Fetched(url=target, final_url=str(httpx.URL(final_url)), status=r.status_code, content_type=ctype, text=r.text)
         if not is_api:
             self._cache_put(target, out)
-        trace.append("web", "fetch", {"url": url, "final_url": url if is_api else out.final_url,
+        trace.append("web", "fetch", {"url": trace_url(url), "final_url": trace_url(url) if is_api else trace_url(out.final_url),
                                        "status": out.status, "bytes": len(out.text)})
         return out
 

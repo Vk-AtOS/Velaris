@@ -27,6 +27,7 @@ from velaris.control.planner import ControlRun, Limits, set_kill
 from velaris.control.terminal import Runner, TerminalSurface
 from velaris.core.access import AccessDenied, Caller, org_denied
 from velaris.intel import trace
+from velaris.orchestration import identity
 from velaris.intel.flow import Flow, FlowError
 from velaris.intel.llm import LLM
 from velaris.intel.paths import data_dir, private_dir
@@ -144,17 +145,17 @@ class ControlService:
         return row
 
     def _owner(self, caller: Caller, row: Dict[str, Any]) -> Caller:
-        """The run's owner as it must act after a restart: the roles recorded when the run started (flow meta), capped by
-        the owner's current roles when the owner is the one asking. No record means no roles (agent calls fail closed)."""
-        roles: frozenset = frozenset()
-        employee_id = None
+        """The run's owner as they are NOW: the roles recorded when the run started (flow meta) are an upper bound, narrowed by
+        the owner's current roles (velaris.orchestration.identity: the asking person's signed roles when it is the owner,
+        else the deployment's resolver). When the owner's current identity cannot be established, AccessDenied: only the owner
+        can move the run (KAN-69 SV2-09: an approver used to run it with a snapshot that a demotion had not changed).
+        No record means no roles (agent calls fail closed)."""
         events = Flow([], llm=self.llm, path=self.flow_path).history(row["flow_run_id"]) if row["flow_run_id"] else []
         meta = (events[0].get("meta") or {}).get("caller") if events else None
-        if isinstance(meta, dict) and meta.get("id") == row["owner"] and meta.get("org") == row["org"]:
-            roles, employee_id = frozenset(meta.get("roles") or ()), meta.get("employee_id")
-        if caller.id == row["owner"]:
-            roles &= caller.roles
-        return Caller(id=row["owner"], org=row["org"], roles=roles, employee_id=employee_id)
+        if not (isinstance(meta, dict) and meta.get("id") == row["owner"] and meta.get("org") == row["org"]):
+            return Caller(id=row["owner"], org=row["org"], roles=frozenset())
+        saved = Caller(id=row["owner"], org=row["org"], roles=frozenset(meta.get("roles") or ()), employee_id=meta.get("employee_id"))
+        return identity.current_owner(saved, caller)
 
     def _run(self, caller: Caller, run_id: str) -> ControlRun:
         row = self._row(caller, run_id)

@@ -2,7 +2,7 @@
 
 - **Department:** `executive`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/executive/STOCHASTIX/main.py` (53 lines)
+- **Source:** `departments/executive/STOCHASTIX/main.py` (59 lines)
 
 ## Purpose
 
@@ -18,8 +18,8 @@ raises.
 
 - `__init__(config)`
 - `health_check()`
-- `random_walk(start, step_std, seed)` — Generate a 1D random walk.
-- `sample_paths(n_paths, start, step_std, seed)` — Sample multiple deterministic or random paths.
+- `random_walk(start, step_std, seed, drift)` — Generate a 1D random walk; `drift` is the mean step (default 0: a driftless walk).
+- `sample_paths(n_paths, start, step_std, seed, drift)` — Sample multiple deterministic or random paths (at most MAX_PATHS; more raises ValueError).
 - `expected_final(paths)` — Mean of final values.
 
 ## Depends on
@@ -34,4 +34,4 @@ raises.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_stochastix.py`
+- **tests:** `velaris/tests/test_kan93_rest.py`, `velaris/tests/test_stochastix.py`
