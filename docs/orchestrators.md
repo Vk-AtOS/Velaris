@@ -608,6 +608,6 @@ Design: `docs/design/central_brain.md`.
   at 1,000 untaken messages. No agent defines `on_message` yet, so today nothing is consumed (the messages stay queued).
 * **Defect 14** closed by deleting `AgentRouter.publish` (looked at the module, no receivers, no callers).
 * **Defect 16** closed and **17** answered: ORCHESTRIX is a thin face of `agentkit.graph.order` (the brain already orders with it, so
-  wiring a second sort in would duplicate it). MCFE_ROUTER, BUSINESS_OPS_ENGINE, HUMAN_APPROVAL_WORKFLOW, CONVERGENCE_BRIDGE keep
-  their names; their manifests say what they do and the inventory counts them as what they are. **Defect 18** was already closed by
+  wiring a second sort in would duplicate it). MCFE_ROUTER, BUSINESS_OPS_ENGINE, HUMAN_APPROVAL_WORKFLOW, CONVERGENCE_BRIDGE are
+  unchanged: they do no orchestration (sections 3 and 4) and renaming agents is an owner decision, not made here. **Defect 18** was already closed by
   the brain (`/brain`: dependency-ordered steps, each run by a department orchestrator with approvals).
