@@ -267,6 +267,7 @@ def test_legal_hold_export_needs_a_second_approver_and_is_off_by_default():
     """KAN-69 SV2-02: owner-only by default; with legal_export on, a mail_admin exports once after another person approves."""
     store, _, _, clock, _, boxes = make_world()
     mb, admin2 = boxes["alice"], Caller("admin2", ORG, frozenset({"mail_admin"}))
+    H = lambda who, rid: next(p["request_hash"] for p in store.pending_legal_exports(who) if p["id"] == rid)   # noqa: E731
     put(store, mb, mid="l1@x", subject="held")
     with pytest.raises(MailError):
         store.request_legal_export(ADMIN, mb["id"], "court order 42, matter X")            # off by default
@@ -278,23 +279,36 @@ def test_legal_hold_export_needs_a_second_approver_and_is_off_by_default():
     rid = store.request_legal_export(ADMIN, mb["id"], "court order 42, matter X")["id"]
     for bad in (lambda: store.export_mailbox(ADMIN, mb["id"]),                              # no request cited
                 lambda: store.export_mailbox(ADMIN, mb["id"], legal_request=rid),           # not approved yet
-                lambda: store.decide_legal_export(ADMIN, rid, True),                        # the requester cannot approve
-                lambda: store.decide_legal_export(BOB, rid, True)):                         # nor can a plain member
+                lambda: store.decide_legal_export(ADMIN, rid, True, "x"),                        # the requester cannot approve
+                lambda: store.decide_legal_export(BOB, rid, True, "x")):                         # nor can a plain member
         with pytest.raises(MailError) as e:
             bad()
         assert e.value.status == 403
-    assert store.decide_legal_export(admin2, rid, True)["state"] == "approved"
+    shown = store.pending_legal_exports(admin2)[0]                                          # the approver sees what is exported
+    assert (shown["mailbox"], shown["mailbox_owner"], shown["requested_by"]) == ("alice@acme.com", "alice", "admin")
+    assert store.pending_legal_exports(ADMIN) == []                                         # the requester decides nothing
+    with pytest.raises(MailError):
+        store.pending_legal_exports(BOB)
+    with pytest.raises(MailError) as e:
+        store.decide_legal_export(admin2, rid, True, "0" * 64)                              # blind approval: wrong hash
+    assert e.value.status == 409
+    old = shown["request_hash"]
+    store.run("UPDATE legal_export SET mailbox_id=? WHERE id=?", (boxes["bob"]["id"], rid))   # changed after viewing
+    with pytest.raises(MailError):
+        store.decide_legal_export(admin2, rid, True, old)
+    store.run("UPDATE legal_export SET mailbox_id=? WHERE id=?", (mb["id"], rid))
+    assert store.decide_legal_export(admin2, rid, True, old)["state"] == "approved"
     with pytest.raises(MailError):
         store.export_mailbox(admin2, mb["id"], legal_request=rid)                           # only for the requester
     assert store.export_mailbox(ADMIN, mb["id"], legal_request=rid)["messages"]
     with pytest.raises(MailError):
         store.export_mailbox(ADMIN, mb["id"], legal_request=rid)                            # single use
     other = store.request_legal_export(ADMIN, mb["id"], "court order 43, matter Y")["id"]
-    store.decide_legal_export(admin2, other, True)
+    store.decide_legal_export(admin2, other, True, H(admin2, other))
     clock.advance(25 * 3600)
     with pytest.raises(MailError):
         store.export_mailbox(ADMIN, mb["id"], legal_request=other)                          # expired
     rej = store.request_legal_export(ADMIN, mb["id"], "court order 44, matter Z")["id"]
-    store.decide_legal_export(CAROL, rej, False)
+    store.decide_legal_export(CAROL, rej, False, H(CAROL, rej))
     with pytest.raises(MailError):
         store.export_mailbox(ADMIN, mb["id"], legal_request=rej)

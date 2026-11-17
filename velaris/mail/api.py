@@ -256,7 +256,8 @@ def mount_mail(app: FastAPI, settings: Any, authed: Callable, record: Callable, 
     # DPDP
     route("GET", "/mailboxes/{mb}/export", "export", lambda c, b, r: st.export_mailbox(c, P(r, "mb"), legal_request=Q(r, "legal_request") or ""))
     route("POST", "/mailboxes/{mb}/legal-export", "legal_export.request", lambda c, b, r: st.request_legal_export(c, P(r, "mb"), str(_obj(b).get("reason", ""))))
-    route("POST", "/legal-exports/{rid}/decide", "legal_export.decide", lambda c, b, r: st.decide_legal_export(c, P(r, "rid"), _obj(b).get("approve")))
+    route("POST", "/legal-exports/{rid}/decide", "legal_export.decide", lambda c, b, r: st.decide_legal_export(c, P(r, "rid"), _obj(b).get("approve"), _obj(b).get("request_hash", "")))
+    route("GET", "/legal-exports", "legal_export.list", lambda c, b, r: {"requests": st.pending_legal_exports(c)})
 
     def erase(c: Caller, b: Any, r: Request) -> Any:
         if Q(r, "confirm") != "erase":

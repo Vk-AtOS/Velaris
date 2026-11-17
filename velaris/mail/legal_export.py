@@ -6,7 +6,9 @@ the requester, within EXPIRES seconds. Every step is traced (ids and reason leng
 """
 from __future__ import annotations
 
-from typing import Any, Dict
+import hashlib
+import json
+from typing import Any, Dict, List
 
 from velaris.core.access import Caller
 from velaris.mail.common import MailError, audit, uid
@@ -15,7 +17,25 @@ EXPIRES = 24 * 3600
 APPROVERS = frozenset({"mail_admin", "mail_approver"})
 
 
+def request_hash(r: Any) -> str:
+    """What an approver is shown and must send back: binds the decision to this mailbox, requester, reason and time."""
+    return hashlib.sha256(json.dumps([r["mailbox_id"], r["requested_by"], r["reason"], r["created"]]).encode()).hexdigest()
+
+
 class LegalExportMixin:
+    def pending_legal_exports(self, caller: Caller) -> List[Dict[str, Any]]:
+        """What a second approver may decide: mailbox address and owner, requester, reason, time, request_hash."""
+        who = self._who(caller)                                                # type: ignore[attr-defined]
+        if not who.roles & APPROVERS:
+            raise MailError("forbidden", "only a mail_admin or mail_approver sees legal-hold requests", 403)
+        out = []
+        for r in self.q("SELECT l.*, m.address, m.owner_id FROM legal_export l JOIN mailbox m ON m.id=l.mailbox_id "   # type: ignore[attr-defined]
+                        "WHERE l.org=? AND l.state='pending' AND l.requested_by<>? AND l.created>? ORDER BY l.created LIMIT 100",
+                        (who.org, who.id, self.clock() - EXPIRES)):             # type: ignore[attr-defined]
+            out.append({"id": r["id"], "mailbox": r["address"], "mailbox_owner": r["owner_id"], "requested_by": r["requested_by"],
+                        "reason": r["reason"], "created": r["created"], "request_hash": request_hash(r)})
+        return out
+
     def request_legal_export(self, caller: Caller, mailbox_id: str, reason: str) -> Dict[str, Any]:
         who = self._who(caller)                                                # type: ignore[attr-defined]
         mb, via = self.access(caller, mailbox_id, "admin")                     # type: ignore[attr-defined]
@@ -32,7 +52,7 @@ class LegalExportMixin:
         audit("legal_export.requested", who.id, who.org, request=rid, mailbox=mb["id"], reason_chars=len(reason.strip()))
         return {"id": rid, "state": "pending"}
 
-    def decide_legal_export(self, caller: Caller, request_id: str, approve: bool) -> Dict[str, Any]:
+    def decide_legal_export(self, caller: Caller, request_id: str, approve: bool, seen_hash: str = "") -> Dict[str, Any]:
         who = self._who(caller)                                                # type: ignore[attr-defined]
         r = self.one("SELECT * FROM legal_export WHERE id=? AND org=?", (str(request_id), who.org))   # type: ignore[attr-defined]
         if r is None:
@@ -42,6 +62,9 @@ class LegalExportMixin:
             raise MailError("forbidden", "a different mail_admin or mail_approver than the requester must decide", 403)
         if not isinstance(approve, bool):
             raise MailError("bad_request", "approve is true or false")
+        if not (isinstance(seen_hash, str) and seen_hash == request_hash(r)):   # decide on what was shown, not on an id
+            audit("legal_export.refused", who.id, who.org, request=r["id"], reason="hash_mismatch")
+            raise MailError("conflict", "send the request_hash of the request as shown to you", 409)
         n = self.run("UPDATE legal_export SET state=?, decided_by=?, decided_at=? WHERE id=? AND state='pending'",   # type: ignore[attr-defined]
                      ("approved" if approve else "rejected", who.id, self.clock(), r["id"]))   # type: ignore[attr-defined]
         if not n:
