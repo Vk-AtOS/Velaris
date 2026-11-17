@@ -48,4 +48,4 @@ Optional: pass an LLM callable for richer summaries.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_kan93_rest.py`, `velaris/tests/test_no_state_in_source_tree.py`
+- **tests:** `velaris/tests/test_dept_it_infrastructure_stubs_2.py`, `velaris/tests/test_kan93_rest.py`, `velaris/tests/test_no_state_in_source_tree.py`

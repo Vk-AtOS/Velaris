@@ -84,11 +84,15 @@ class RecordStore:
         got = self._read(self._path(key), key)
         return got[1] if got else None
 
-    def put(self, key: str, rec: Dict[str, Any]) -> None:
+    def check(self, key: str, rec: Dict[str, Any]) -> bytes:
+        """The sealed bytes of this record, or StateTooLarge: lets a caller refuse BEFORE it commits to writing several records."""
         body = json.dumps({"k": str(key), "v": rec, "schema_version": self.version}, sort_keys=True, default=str).encode("utf-8")
         if len(body) > MAX_RECORD_BYTES:
             raise StateTooLarge(f"{self.agent}/{self.collection} record would be {len(body)} bytes (cap {MAX_RECORD_BYTES}); not saved")
-        sealed = vault.seal_bytes(body, self._aad(self._h(key)))
+        return vault.seal_bytes(body, self._aad(self._h(key)))
+
+    def put(self, key: str, rec: Dict[str, Any]) -> None:
+        sealed = self.check(key, rec)
         agent_dir(self.agent)
         with self._lock(key):
             path = self._path(key)

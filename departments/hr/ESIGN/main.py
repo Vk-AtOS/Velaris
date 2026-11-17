@@ -29,8 +29,9 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from velaris.agentkit import onboarding_dsr as dsr
 from velaris.agentkit import onboarding_esign as es
-from velaris.agentkit.onboarding_common import (dsr_gate, HR_ADMINS, Refused, Store, clean_text, iso, keyed_hash, new_id, parse_iso, reader,
+from velaris.agentkit.onboarding_common import (dsr_gate, HR_ADMINS, Refused, clean_text, iso, keyed_hash, new_id, parse_iso, reader,
                                                 sha256_hex, utcnow, writer)
+from velaris.agentkit.onboarding_shard import ShardedStore
 from velaris.agentkit.results import fail, health, invalid, ok
 from velaris.agentkit.state import append_line
 from velaris.core.access import Caller, current_caller, deployment_org
@@ -64,7 +65,7 @@ class Esign:
 
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         self.config = config or {}
-        self.store = Store(_AGENT)
+        self.store = ShardedStore(_AGENT, ("requests",), lambda r: [s["token_sha256"] for s in r.get("signers", []) if s.get("token_sha256")])
 
     def health_check(self) -> Dict[str, Any]:
         return health(_AGENT, sender=bool(self.config.get("sender")), platform_signature=bool(self.config.get("pdf_signer")),
@@ -274,9 +275,8 @@ class Esign:
             return None
         sha = sha256_hex(token.encode())
         dep = deployment_org()
-        for r in self.store.load().get("records", {}).get("requests", {}).values():
-            if dep is not None and r.get("org") != dep:
-                continue
+        r = self.store.by_token(sha)
+        if r is not None and not (dep is not None and r.get("org") != dep):
             for s in r["signers"]:
                 if s["token_sha256"] and hmac.compare_digest(s["token_sha256"], sha):
                     return r["id"], s["id"], r["org"]

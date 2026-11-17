@@ -56,7 +56,7 @@ def test_nothing_is_recorded_without_consent_and_consent_is_per_participant_and_
         assert rec.give_consent(session_id=sess, scopes=["events"], notice_version="v1")["status"] == "denied"      # not a participant
     assert gw.ingest_event(itok, "join")["seq"] == 2
     assert gw.ingest_event("x" * 30, "join")["status"] == "not_found" and gw.ingest_event(None, "join")["status"] == "not_found"
-    s = json.loads((agent_dir("INTERVIEW_RECORD") / "sessions.json").read_text())
+    s = {c: dict(hr.st().load()[c]) for c in ("sessions", "tokens")}
     assert tok not in json.dumps(s) and hc.sha(tok) in s["tokens"] and s["sessions"][sess]["org"] == ORG
     assert s["sessions"][sess]["consents"]["candidate"]["notice_version"] == "v1"
 
@@ -219,7 +219,9 @@ def test_close_withdraw_and_erasure(env):
     assert v["status"] == "erased" and v["events"] == 2 and v["tracks"] == 0
     assert not (agent_dir("INTERVIEW_RECORD") / "events" / f"{sess}.jsonl").exists()
     assert list((agent_dir("INTERVIEW_RECORD") / "audio").glob("*")) == []
-    assert "private pad text" not in (agent_dir("INTERVIEW_RECORD") / "sessions.json").read_text() and tok not in (agent_dir("INTERVIEW_RECORD") / "sessions.json").read_text()
+    disk = "".join(p.read_bytes().decode("latin-1") for p in (agent_dir("INTERVIEW_RECORD") / "records").rglob("*.rec"))
+    now_ = json.dumps({c: dict(hr.st().load()[c]) for c in ("sessions", "tokens")}, default=str)
+    assert "private pad text" not in disk + now_ and tok not in disk + now_
     assert gw.candidate_consent(tok, ["events"], "v1")["status"] == "not_found"
     t = trace_text()
     assert "session.closed" in t and "private pad text" not in t and "secretaudio" not in t

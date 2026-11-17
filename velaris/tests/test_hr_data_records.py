@@ -46,7 +46,7 @@ def test_erase_subject_reaches_offers_and_esign_and_reports_what_was_erased_and_
     stored = offers.store.state.load()["records"]["offers"]
     assert stored["acme:ofr-declined"]["candidate"]["email"] == "erased" and stored["acme:ofr-accepted"]["candidate"]["email"] == "asha@example.in"
     assert stored["acme:ofr-other"]["candidate"]["email"] == "someone@else.in"            # someone else's offer is untouched
-    reqs = esign.store.state.load()["records"]["requests"]
+    reqs = esign.store.state.load()["requests"]
     assert reqs["acme:sig-voided"]["signers"][0]["email"] == "erased" and reqs["acme:sig-sealed"]["signers"][0]["email"] == "asha@example.in"
 
 
