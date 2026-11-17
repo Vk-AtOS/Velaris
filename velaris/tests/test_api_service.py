@@ -4,6 +4,7 @@ Uses FastAPI's TestClient (no listener) and a demo agent dispatched through the 
 BackendEngine.run. Prime is a fake behind httpx.MockTransport.
 """
 import json
+import os
 import secrets
 import types
 
@@ -157,7 +158,16 @@ def test_allowlist_private_and_parameters(tmp_path):
     assert send(c, "POST", "/agents/DEMO/payslip", {}).json()["error"]["code"] == "bad_params"
     assert send(c, "POST", "/agents/DEMO/whoami", [1]).json()["error"]["code"] == "bad_params"
     assert send(c, "POST", "/agents/DEMO/remember", {"text": "x", "scope": "other:hr"}).status_code == 403
-    assert send(c, "POST", "/agents/DEMO/remember", {"text": "x", "scope": "acme:hr"}).status_code == 200
+    assert send(c, "POST", "/agents/DEMO/remember", {"text": "x", "scope": "acme:hr"}).status_code == 403          # KAN-69 SV2-08: not a listed kind
+    for ok in ("acme", "acme:user:u1"):
+        assert send(c, "POST", "/agents/DEMO/remember", {"text": "x", "scope": ok}).status_code == 200
+    assert send(c, "POST", "/agents/DEMO/remember", {"text": "x", "scope": "acme:user:u2"}).status_code == 403      # another member's scope
+    os.environ["VELARIS_SHARED_SCOPE_KINDS"] = "team"
+    try:
+        assert send(c, "POST", "/agents/DEMO/remember", {"text": "x", "scope": "acme:team:hr"}).status_code == 200
+        assert send(c, "POST", "/agents/DEMO/remember", {"text": "x", "scope": "acme:user:u2"}).status_code == 403
+    finally:
+        del os.environ["VELARIS_SHARED_SCOPE_KINDS"]
     assert BOOKED == []
     assert [p["outcome"] for p in api_entries("agent.call")][:3] == ["not_allowed"] * 3
     listing = send(c, "GET", "/agents").json()

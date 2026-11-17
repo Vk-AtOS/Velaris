@@ -23,6 +23,7 @@ extra rule here; the caller is set by BackendEngine.run.
 from __future__ import annotations
 
 import inspect
+import os
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any, Dict, FrozenSet, List, Optional, Tuple
@@ -283,6 +284,19 @@ def tool_params(fn: Any, rule: Rule) -> Dict[str, str]:
             for p in http_params(fn) if p.name != rule.actor}
 
 
+def scope_allowed(scope: Any, caller: Caller) -> bool:
+    """A memory / document scope the caller may name: the organisation's own (`org`), their own (`org:user:<id>`), or
+    `org:<kind>:<name>` for a kind the operator lists in VELARIS_SHARED_SCOPE_KINDS (comma separated, default none).
+    Before, any `org:<anything>` passed, so one member could read another member's `org:user:<other>` (KAN-69 SV2-08)."""
+    if not isinstance(scope, str):
+        return False
+    if scope in (caller.org, f"{caller.org}:user:{caller.id}"):
+        return True
+    kinds = {k.strip() for k in os.environ.get("VELARIS_SHARED_SCOPE_KINDS", "").split(",") if k.strip()}
+    parts = scope.split(":")
+    return len(parts) >= 3 and ":".join(parts[:1]) == caller.org and parts[1] in kinds and parts[1] != "user"
+
+
 def prepare(agent: str, method: str, fn: Any, params: Any, caller: Caller) -> Dict[str, Any]:
     """Check one call against its rule and return the arguments to call with.
 
@@ -305,8 +319,8 @@ def prepare(agent: str, method: str, fn: Any, params: Any, caller: Caller) -> Di
         args[rule.actor] = caller.id
     if rule.scope:
         scope = args.get(rule.scope)
-        if not (isinstance(scope, str) and (scope == caller.org or scope.startswith(caller.org + ":"))):
-            raise AccessDenied("the scope belongs to another organisation")
+        if not scope_allowed(scope, caller):
+            raise AccessDenied("the scope belongs to another organisation or another user")
     if rule.own:
         name, category = rule.own
         if args.get(name) is None:
