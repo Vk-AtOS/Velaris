@@ -47,6 +47,7 @@ class SealedConnection(sqlite3.Connection):
     _stamp: Tuple[int, int] = (0, 0)
     _fd: Optional[int] = None
     _lockpath: str = ""
+    _good: bytes = b""          # the image the file holds (or would hold): where a commit that could not be written goes back to
 
     @property
     def _ctx(self) -> str:
@@ -64,7 +65,7 @@ class SealedConnection(sqlite3.Connection):
                     vault.write_sealed(path, self.serialize(), purpose, self._ctx)
             else:
                 vault.derive_key(purpose)                  # no key, no new store (fail closed before anything is written)
-            self._stamp = self._file_stamp()
+            self._stamp, self._good = self._file_stamp(), self.serialize()
 
     def _file_stamp(self) -> Tuple[int, int]:
         try:
@@ -96,7 +97,7 @@ class SealedConnection(sqlite3.Connection):
             return
         with self._locked():
             self.deserialize(vault.open_bytes(read_private(self._path), self._purpose, self._ctx))
-            self._stamp, self._synced = self._file_stamp(), self._version()
+            self._stamp, self._synced, self._good = self._file_stamp(), self._version(), self.serialize()
 
     def _before(self, sql: object) -> None:
         if self._fd is None and isinstance(sql, str) and _WRITE.match(sql):
@@ -139,6 +140,12 @@ class SealedConnection(sqlite3.Connection):
     def _flush(self) -> None:
         try:
             self._flush_locked()
+        except BaseException:
+            # The caller is told this commit failed (disk full, conflict, lock timeout): it must not come back later through
+            # close() or the next commit, which write the whole image. Go back to the last image that is on disk.
+            self.deserialize(self._good)
+            self._synced = self._version()
+            raise
         finally:
             self._release()
 
@@ -148,8 +155,9 @@ class SealedConnection(sqlite3.Connection):
         with self._locked():
             if self._file_stamp() != self._stamp:
                 raise SealedConflict(f"{self._path.name} was changed by another process; reload before writing")
-            vault.write_sealed(self._path, self.serialize(), self._purpose, self._ctx)
-            self._stamp, self._synced = self._file_stamp(), self._version()
+            image = self.serialize()
+            vault.write_sealed(self._path, image, self._purpose, self._ctx)
+            self._stamp, self._synced, self._good = self._file_stamp(), self._version(), image
 
     def commit(self) -> None:
         super().commit()

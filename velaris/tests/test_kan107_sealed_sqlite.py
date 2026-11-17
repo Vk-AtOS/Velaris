@@ -111,3 +111,31 @@ def test_sealed_stream_roundtrip_and_reordered_or_cut_records_fail(tmp_path):
     p.write_bytes(raw[:4 + rec])                                  # the last record is missing
     with pytest.raises(vault.VaultError):
         vault.read_sealed(p, "x", "a.bin")
+
+
+def test_a_commit_that_failed_to_reach_the_disk_is_never_written_later(tmp_path, monkeypatch):
+    """KAN-69: commit() raised (disk full) so the caller was told it failed; the row must not appear later through close() or
+    through the next commit, which would write the whole image including it."""
+    import errno
+    import sqlite3
+    from velaris.core import sealed_sqlite as ss, vault
+    path = tmp_path / "agents" / "T" / "x.db"
+    path.parent.mkdir(parents=True)
+    c = ss.connect_sealed(path, "hr:TEST")
+    c.execute("CREATE TABLE t(v)")
+    c.commit()
+    real = vault.write_sealed
+
+    def full(*a, **k):
+        raise OSError(errno.ENOSPC, "No space left on device")
+    monkeypatch.setattr(vault, "write_sealed", full)
+    c.execute("INSERT INTO t VALUES ('failed')")
+    with pytest.raises(OSError):
+        c.commit()
+    monkeypatch.setattr(vault, "write_sealed", real)                 # the disk has room again
+    assert c.execute("SELECT count(*) FROM t").fetchone()[0] == 0      # the connection agrees with what it told the caller
+    c.execute("INSERT INTO t VALUES ('ok')")
+    c.commit()
+    c.close()
+    rows = [r[0] for r in ss.connect_sealed(path, "hr:TEST").execute("SELECT v FROM t")]
+    assert rows == ["ok"]

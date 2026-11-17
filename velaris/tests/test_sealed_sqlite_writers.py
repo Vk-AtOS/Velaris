@@ -74,9 +74,7 @@ def test_a_failing_flush_does_not_leave_the_write_lock_held(tmp_path):
         except OSError:
             pass
     assert _second_process_can_write(tmp_path, path) == "ok"
-    import pytest
-    with pytest.raises(ss.SealedConflict):                 # the failed commit is not silently re-applied over the other's write
-        c.close()
+    c.close()                                              # the failed commit was undone: close() writes nothing over the other's row
     assert ss.connect_sealed(path, "hr:TEST").execute("SELECT count(*) FROM t").fetchone()[0] == 1   # the other process's row
     assert _second_process_can_write(tmp_path, path) == "ok"                                         # and the lock is still free
 
