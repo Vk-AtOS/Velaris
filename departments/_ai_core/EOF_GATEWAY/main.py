@@ -75,8 +75,9 @@ class EOF_GATEWAYAgent:
     def health_check(self):
         return health(NAME)
 
-    def route(self, dst: str, payload: dict, *, via: Any = None) -> Dict[str, Any]:
-        """Queue `payload` for `dst` as the current caller, through agent `via` if given (see the module docstring)."""
+    def route(self, dst: str, payload: dict, *, via: Any = None, dry_run: bool = False) -> Dict[str, Any]:
+        """Queue `payload` for `dst` as the current caller, through agent `via` if given (see the module docstring).
+        With `dry_run` every check runs (and is traced) but nothing is queued: status "ok", routed False, dry_run True."""
         base = {"routed": False, "src": None, "dst": dst}
         dst_id = ident(dst, 80)
         if dst_id is None:
@@ -113,6 +114,8 @@ class EOF_GATEWAYAgent:
                 logger.warning("EOF_GATEWAY could not trace a refusal: %s", e)
             return {**base, **fail("blocked", "payload text looks like instructions to a model",
                                    findings=[f["rule"] for f in scan.findings])}
+        if dry_run:
+            return {**base, "status": "ok", "dry_run": True}
         message = {"id": new_id("msg"), "ts": time.time(), "src": src_id, "sender": "agent" if sender else "caller",
                    "on_behalf_of": caller.id, "dst": dst_id, "payload": payload}
         try:
@@ -135,9 +138,12 @@ class EOF_GATEWAYAgent:
         _, refused = check_caller(NAME, "receive", {"dst": dst_id}, roles=frozenset(), also=dst_id)
         if refused:
             return {**refused, "messages": []}
-        queued = read_lines(peek_dir(NAME) / f"inbox_{dst_id}.jsonl")
-        taken = int(self._cursors.load().get(dst_id, 0))
-        batch = queued[taken:taken + limit]
-        if batch:
-            self._cursors.update(lambda c: c.__setitem__(dst_id, taken + len(batch)))
-        return {"status": "ok", "messages": batch, "remaining": len(queued) - taken - len(batch)}
+
+        def take(cursors):                       # read and advance under ONE lock: two receivers never get the same message
+            queued = read_lines(peek_dir(NAME) / f"inbox_{dst_id}.jsonl")
+            taken = int(cursors.get(dst_id, 0))
+            batch = queued[taken:taken + limit]
+            if batch:
+                cursors[dst_id] = taken + len(batch)
+            return {"status": "ok", "messages": batch, "remaining": len(queued) - taken - len(batch)}
+        return self._cursors.update(take)

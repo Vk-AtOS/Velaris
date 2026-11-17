@@ -28,6 +28,27 @@ _registry: Dict[str, "FileLock"] = {}
 _registry_guard = threading.Lock()
 
 
+def flock_fd(path: Union[str, "os.PathLike[str]"], timeout: float) -> int:
+    """Take the flock on `path` and return its descriptor (close it to release; no thread owns it, so a finalizer on
+    any thread can release). Raises TimeoutError after `timeout`: a stuck holder never blocks forever."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    fd = os.open(path, os.O_RDWR | os.O_CREAT, 0o600)
+    deadline = time.monotonic() + timeout
+    try:
+        while True:
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                return fd
+            except BlockingIOError:
+                if time.monotonic() > deadline:
+                    raise TimeoutError(f"lock {path} busy for {timeout:.0f}s") from None
+                time.sleep(0.005)
+    except BaseException:
+        os.close(fd)
+        raise
+
+
 class FileLock:
     def __init__(self, path: Union[str, "os.PathLike[str]"], timeout: Optional[float] = None) -> None:
         self.path = Path(path)
@@ -48,21 +69,7 @@ class FileLock:
             raise
 
     def _flock(self) -> int:
-        self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        fd = os.open(self.path, os.O_RDWR | os.O_CREAT, 0o600)
-        deadline = time.monotonic() + self.timeout
-        try:
-            while True:
-                try:
-                    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                    return fd
-                except BlockingIOError:
-                    if time.monotonic() > deadline:
-                        raise TimeoutError(f"lock {self.path} busy for {self.timeout:.0f}s") from None
-                    time.sleep(0.005)
-        except BaseException:
-            os.close(fd)
-            raise
+        return flock_fd(self.path, self.timeout)
 
     def release(self) -> None:
         self._depth -= 1

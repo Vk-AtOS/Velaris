@@ -1,4 +1,5 @@
 """INTERVIEW_RECORD: consent-gated events, replayable pad log, audio by hash, transcriber hook, evidence view with no score of any kind."""
+from velaris.agentkit.state import append_line
 import hashlib
 import json
 import os
@@ -101,12 +102,16 @@ def test_pad_edit_log_replays_to_any_moment_and_the_chain_detects_tampering(env)
     forged = json.loads(lines[1])
     forged["data"]["text"] = "\n    return 0"                                                        # edit history after the fact
     lines[1] = json.dumps(forged, sort_keys=True)
-    p.write_text("\n".join(lines) + "\n")
+    def rewrite(ls):                                   # an insider with the key rewrites the sealed log
+        p.unlink()
+        for line in ls:
+            append_line(p, json.loads(line), encrypted=hr._SEAL)
+    rewrite(lines)
     assert hr.verify_chain(stored_events(sess)) is False
     with as_(c["adm"]):
         assert rec.evidence_view(session_id=sess)["hash_chain_intact"] is False
         assert rec.replay_pad(session_id=sess)["status"] == "integrity"
-    p.write_text("\n".join(lines[:1] + lines[2:]) + "\n")                                            # a removed entry is detected too
+    rewrite(lines[:1] + lines[2:])                                            # a removed entry is detected too
     assert hr.verify_chain(stored_events(sess)) is False
 
 

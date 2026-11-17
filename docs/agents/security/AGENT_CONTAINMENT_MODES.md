@@ -2,7 +2,7 @@
 
 - **Department:** `security`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/security/AGENT_CONTAINMENT_MODES/main.py` (65 lines)
+- **Source:** `departments/security/AGENT_CONTAINMENT_MODES/main.py` (71 lines)
 
 ## Purpose
 
@@ -41,4 +41,4 @@ Velaris Agent Containment Modes
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_kan104_unauthenticated_writes.py`
+- **tests:** `velaris/tests/test_kan104_unauthenticated_writes.py`, `velaris/tests/test_r3_failpath_portfolio_containment.py`

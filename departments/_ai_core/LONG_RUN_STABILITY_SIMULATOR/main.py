@@ -8,10 +8,16 @@ failure_prob = min(1, (variance + drift)/100). An empty series gives stability 0
 failure_prob 1.0; a single value gives stability 100 and failure_prob 0.0 (neither is
 recorded). batch_simulate(batch) maps simulate over several series; summary() averages the
 recorded runs (zeros when there are none). This is a fixed formula, not a model of components.
-State: self.results in memory only, lost on restart. Non-numeric input raises.
+State: self.results in memory only, lost on restart; it keeps the newest 1,000 runs. Input that is not a list or tuple
+of at most 100,000 finite real numbers (booleans, strings, NaN and infinity included) raises ValueError, so a bad
+value can never produce a "stable" score.
 """
 from typing import List, Dict, Any
+import math
 import statistics
+
+MAX_RUNS = 1000
+MAX_POINTS = 100_000
 
 
 class LongRunStabilitySimulator:
@@ -30,6 +36,9 @@ class LongRunStabilitySimulator:
         Input: list of numeric performance values over time.
         Output: stability metrics.
         """
+        if not isinstance(series, (list, tuple)) or len(series) > MAX_POINTS or not all(
+                isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x) for x in series):
+            raise ValueError(f"series must be a list of at most {MAX_POINTS} finite numbers")
         if not series:
             return {"stability": 0, "variance": 0, "failure_prob": 1.0}
 
@@ -48,6 +57,7 @@ class LongRunStabilitySimulator:
         }
 
         self.results.append(out)
+        del self.results[:-MAX_RUNS]
         return out
 
     def batch_simulate(self, batch: List[List[float]]) -> List[Dict[str, Any]]:

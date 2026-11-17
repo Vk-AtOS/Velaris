@@ -62,7 +62,10 @@ def test_deep_audit_baseline_is_pinned_and_only_an_admin_moves_it():
     D = mod("DEEP_AUDIT_ENGINE").DeepAuditEngine
     d = D()
     assert d.detect_drift("cfg", {"a": 1}) is True           # never audited
-    assert d.audit("cfg", {"a": 1})["name"] == "cfg"         # first audit pins the baseline (any caller)
+    assert d.audit("cfg", {"a": 1})["status"] == "unauthenticated"       # nobody pins a baseline anonymously
+    assert d.detect_drift("cfg", {"a": 1}) is True
+    with acting_as(MEMBER):
+        assert d.audit("cfg", {"a": 1})["name"] == "cfg"      # first audit pins the baseline (any authenticated caller)
     assert d.detect_drift("cfg", {"a": 1}) is False
     assert d.detect_drift("cfg", {"a": "tampered"}) is True
     with acting_as(MEMBER):
@@ -90,8 +93,9 @@ def test_deep_audit_truncation_keeps_baselines_and_a_signed_checkpoint(monkeypat
     M = mod("DEEP_AUDIT_ENGINE")
     monkeypatch.setattr(M, "MAX_ENTRIES", 3)
     d = M.DeepAuditEngine()
-    for i in range(6):
-        d.audit(f"n{i}", i)
+    with acting_as(MEMBER):
+        for i in range(6):
+            d.audit(f"n{i}", i)
     assert len(d.log) == 3 and d.verify_log()
     assert d.detect_drift("n0", 0) is False                   # the dropped entry's baseline is still pinned
     path = agent_dir("DEEP_AUDIT_ENGINE") / "audit_log.json"
@@ -149,3 +153,24 @@ def test_aegis_forgets_quiet_sources_and_bounds_a_flood():
     for _ in range(50):
         a.record_event("flood")
     assert len(a.events["flood"]) <= 3 and a.is_rate_limited("flood")
+
+
+def test_deep_audit_checkpoint_key_comes_from_the_vault_not_from_a_file_beside_the_log(monkeypatch):
+    import base64
+    import hashlib
+    import hmac
+    M = mod("DEEP_AUDIT_ENGINE")
+    monkeypatch.setattr(M, "MAX_ENTRIES", 2)
+    d = M.DeepAuditEngine()
+    with acting_as(MEMBER):
+        for i in range(4):
+            d.audit(f"n{i}", i)
+    assert not (agent_dir("DEEP_AUDIT_ENGINE") / "audit.key").exists()      # no key file is created any more
+    path = agent_dir("DEEP_AUDIT_ENGINE") / "audit_log.json"
+    doc = json.loads(path.read_text())
+    doc["checkpoint"]["hash"] = "0" * 64                                    # an attacker with the data dir re-signs it
+    forged_key = b"k" * 32
+    (agent_dir("DEEP_AUDIT_ENGINE") / "audit.key").write_bytes(forged_key)
+    doc["checkpoint"]["sig"] = base64.b64encode(hmac.new(b"j" * 32, b"0" * 64, hashlib.sha256).digest()).decode()
+    path.write_text(json.dumps(doc))
+    assert M.DeepAuditEngine().verify_log() is False

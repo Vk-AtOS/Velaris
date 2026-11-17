@@ -2,7 +2,7 @@
 
 - **Department:** `operations`
 - **Status (static inventory):** `real`
-- **Source:** `departments/operations/SLA_MONITOR/main.py` (132 lines)
+- **Source:** `departments/operations/SLA_MONITOR/main.py` (146 lines)
 
 ## Purpose
 
@@ -14,7 +14,7 @@ Ported from VKatOS sla_monitor. Tracks client/delivery SLA commitments and surfa
 - `__init__(db_path)`
 - `add(client, description, deadline_hours, priority)`
 - `close(commitment_id)`
-- `scan()`
+- `scan(record)` — Overdue open commitments not already reported in the last hour. With `record=False` nothing is written
 - `dashboard()`
 
 ## Class `SLAMonitorAgent`
@@ -25,7 +25,7 @@ Ported from VKatOS sla_monitor.
 - `__init__(config)`
 - `health_check()`
 - `add_commitment(client, description, deadline_hours, priority)`
-- `check_breaches()`
+- `check_breaches(record)`
 - `resolve(commitment_id)`
 - `dashboard()`
 
@@ -42,4 +42,4 @@ Ported from VKatOS sla_monitor.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_kan113_sqlite_versions.py`, `velaris/tests/test_no_state_in_source_tree.py`
+- **tests:** `velaris/tests/test_kan113_sqlite_versions.py`, `velaris/tests/test_no_state_in_source_tree.py`, `velaris/tests/test_r3_ops.py`

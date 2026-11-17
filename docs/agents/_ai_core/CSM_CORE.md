@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/_ai_core/CSM_CORE/main.py` (73 lines)
+- **Source:** `departments/_ai_core/CSM_CORE/main.py` (86 lines)
 
 ## Purpose
 
@@ -40,4 +40,4 @@ State: <VELARIS_DATA>/agents/CSM_CORE/state.json.
 
 - **other agents:** `SAGE`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_a_csm.py`, `velaris/tests/test_layer15_csm.py`
+- **tests:** `velaris/tests/test_aicore_a_csm.py`, `velaris/tests/test_layer15_csm.py`, `velaris/tests/test_r3_csm_crk_eac.py`

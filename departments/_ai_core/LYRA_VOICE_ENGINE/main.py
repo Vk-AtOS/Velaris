@@ -6,8 +6,13 @@ LyraVoiceConfig.mode picks the input: "mock" (fixed fake transcript), "cli" (typ
 via sounddevice, with whisper transcription when asr_backend is "whisper", else a typed fallback). Methods: listen()
 (audio bytes or None), transcribe(audio), speak(text) (pyttsx3 or print; False only for empty text),
 interpret_intent(text) (keyword match on infra/balance/status/simulate, otherwise "customer"; returns request_id, domain,
-payload), run_once(user_text) and run_loop(handler, stop_after). run_once only names the engine it would route to and
-returns a simulated {"status": "ok", ...}; it calls no other agent. A handler exception in run_loop becomes a failed reply.
+payload), run_once(user_text) and run_loop(handler, stop_after, max_idle). run_once only names the engine it would route to and
+returns a simulated {"status": "ok", ...}; it calls no other agent. In live (microphone) mode a transcript is acted on
+only when it starts with the wake word (default "lyra"; the word is removed first); other speech is ignored, and with
+no wake word configured (None) everything is acted on. run_loop hands the handler the same result dict in every mode,
+counts a handled command (not an ignored one) toward stop_after, stops by itself after `max_idle` (default 120)
+consecutive empty or ignored turns or when typed input ends (EOF), and stop() ends it from another thread. A handler
+exception in run_loop becomes a failed reply.
 Keeps no state. Missing audio packages are logged and the affected step returns None or an empty string.
 """
 from dataclasses import dataclass
@@ -156,6 +161,25 @@ class LyraVoiceEngine:
         rid = f"lyra-{self._hash(text or '') % 100000:05d}"
         return {"request_id": rid, "domain": domain, "payload": payload}
 
+    def _wake(self, text: str) -> Optional[str]:
+        """The command after the wake word, or None when live speech did not start with it."""
+        word = (self.cfg.wake_word or "").strip().lower()
+        if not word:
+            return text
+        low = text.strip().lower()
+        if low == word or low.startswith(word) and not low[len(word)].isalnum():
+            return text.strip()[len(word):].lstrip(" ,.:;!-")
+        return None
+
+    def stop(self) -> None:
+        self._running = False
+
+    def _result(self, intent: Dict[str, Any]) -> Dict[str, Any]:
+        engine_name = {"it_infra": "IT_INFRA_ENGINE", "grid": "GRID_BALANCE_ENGINE", "itsm": "ITSM_ENGINE",
+                       "portfolio": "PORTFOLIO_SIM_ENGINE", "customer": "CUSTOMER_BEHAVIOR_ENGINE"}.get(intent["domain"], "MAE")
+        return {"status": "ok", "request_id": intent["request_id"], "routed_to": engine_name,
+                "payload": intent["payload"], "message": f"Simulated execution for domain {intent['domain']}"}
+
     def run_once(self, user_text: Optional[str]=None) -> Dict[str,Any]:
         if self.cfg.mode in ("mock",):
             transcribed = self.transcribe(None)
@@ -175,41 +199,43 @@ class LyraVoiceEngine:
                     transcribed = user_text.strip()
                 except EOFError:          # no terminal attached: nothing was said
                     transcribed = ""
+            else:                          # spoken: only what follows the wake word counts
+                heard = self._wake(transcribed)
+                if heard is None:
+                    return {"status": "ignored", "reason": "no wake word"}
+                transcribed = heard
         intent = self.interpret_intent(transcribed)
-        engine_name = {
-            "it_infra":"IT_INFRA_ENGINE",
-            "grid":"GRID_BALANCE_ENGINE",
-            "itsm":"ITSM_ENGINE",
-            "portfolio":"PORTFOLIO_SIM_ENGINE",
-            "customer":"CUSTOMER_BEHAVIOR_ENGINE"
-        }.get(intent["domain"], "MAE")
-        simulated_result = {
-            "status":"ok",
-            "request_id": intent["request_id"],
-            "routed_to": engine_name,
-            "payload": intent["payload"],
-            "message": f"Simulated execution for domain {intent['domain']}"
-        }
+        simulated_result = self._result(intent)
         spoken = f"Executed {simulated_result['routed_to']}. Result status {simulated_result['status']}."
         self.speak(spoken)
         return simulated_result
 
-    def run_loop(self, handler: Optional[Callable[[Dict[str,Any]], Dict[str,Any]]] = None, stop_after: int = 0):
+    def run_loop(self, handler: Optional[Callable[[Dict[str,Any]], Dict[str,Any]]] = None, stop_after: int = 0,
+                 max_idle: int = 120):
         self._running = True
-        iterations = 0
+        iterations = idle = 0
         try:
             while self._running:
                 if self.cfg.mode == "mock":
                     res = self.run_once()
                 elif self.cfg.mode == "cli":
-                    res = self.run_once()
+                    try:
+                        line = input("Lyra (type your command)> ")
+                    except EOFError:               # typed input ended: there will never be another command
+                        break
+                    res = self.run_once(line)
                 else:
                     audio = self.listen()
                     text = self.transcribe(audio)
-                    if not text:
+                    heard = self._wake(text) if text else None
+                    if heard is None:              # silence or speech without the wake word
+                        idle += 1
+                        if idle >= max_idle:
+                            break
                         time.sleep(0.5)
                         continue
-                    res = self.interpret_intent(text)
+                    res = self._result(self.interpret_intent(heard))
+                idle = 0
                 reply = {}
                 if handler:
                     try:

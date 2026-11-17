@@ -20,6 +20,8 @@ from typing import Any, Dict, List, Optional
 from velaris.chat.core import ChatCore
 from velaris.chat.errors import ChatError
 from velaris.chat.policy import CHAT_ADMIN
+from velaris.chat.store import SEAL
+from velaris.core import fieldseal
 from velaris.core.access import Caller
 
 DAY = 86400.0
@@ -118,9 +120,10 @@ class ComplianceMixin(ChatCore):
     # ── erasure ───────────────────────────────────────────────────────────────
     def _erase(self, db: sqlite3.Connection, msg: sqlite3.Row, pseudonym: Optional[str] = None) -> None:
         """Remove a message's content for good; the row stays as a tombstone."""
-        db.execute("UPDATE messages SET body='', erased=1, attachments='[]', mentions='[]', "
+        db.execute("UPDATE messages SET body=?, erased=1, attachments='[]', mentions='[]', "
                    "deleted_at=COALESCE(deleted_at, ?), deleted_by=COALESCE(deleted_by, 'erasure'), "
-                   "sender=COALESCE(?, sender) WHERE id=?", (self.clock(), pseudonym, msg["id"]))
+                   "sender=COALESCE(?, sender) WHERE id=?",
+                   (fieldseal.seal("", SEAL), self.clock(), pseudonym, msg["id"]))
         for table in ("edits", "reactions"):
             db.execute(f"DELETE FROM {table} WHERE message_id=?", (msg["id"],))
         db.execute("DELETE FROM pins WHERE message_id=?", (msg["id"],))

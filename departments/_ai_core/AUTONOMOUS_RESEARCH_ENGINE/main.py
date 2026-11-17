@@ -9,13 +9,15 @@ unknown); query(term) scores each document by how many of its fields contain the
 top 3 into one string with a count ("No results", 0 for an empty list); research(question,
 **limits) returns velaris.intel.research.research(...).to_dict() and takes max_subquestions,
 max_sources, max_rounds.
-State: in memory only (self.sources), lost on restart; research() keeps none here.
-Failure: bad names or sources return False or empty results; query() on a non-string term
-raises AttributeError; research() errors propagate from velaris.intel.research.
+State: in memory only (velaris.agentkit.memsearch.KeywordStore: bounded, copies in and out), lost on restart;
+research() keeps none here.
+Failure: bad names or sources return False or empty results; query() of an empty or non-string term returns [];
+research() errors propagate from velaris.intel.research.
 """
 
 from typing import List, Dict, Any
 
+from velaris.agentkit.memsearch import KeywordStore
 from velaris.intel.research import research
 
 
@@ -29,47 +31,21 @@ class AutonomousResearchEngine:
     """
 
     def __init__(self):
-        self.sources: Dict[str, List[Dict[str, Any]]] = {}
+        self._store = KeywordStore()
+
+    @property
+    def sources(self) -> Dict[str, List[Dict[str, Any]]]:
+        return self._store.data
 
     def register_source(self, name: str):
-        key = name.lower()
-        if key in self.sources:
-            return False
-        self.sources[key] = []
-        return True
+        return self._store.register(name)
 
     def add_document(self, source: str, data: Dict[str, Any]) -> bool:
-        key = source.lower()
-        if key not in self.sources:
-            return False
-        self.sources[key].append(data)
-        return True
+        return self._store.add(source, data)
 
     def query(self, term: str) -> List[Dict[str, Any]]:
-        """
-        Simple offline research:
-        - keyword matching
-        - score = number of matching fields
-        """
-        term = term.lower()
-        ranked = []
-
-        for source, docs in self.sources.items():
-            for d in docs:
-                score = 0
-                for k, v in d.items():
-                    if term in str(v).lower():
-                        score += 1
-
-                if score > 0:
-                    ranked.append({
-                        "source": source,
-                        "document": d,
-                        "score": score
-                    })
-
-        ranked.sort(key=lambda x: x["score"], reverse=True)
-        return ranked
+        """Offline keyword search: score = number of matching fields, best first."""
+        return [{"source": h["collection"], "document": h["record"], "score": h["score"]} for h in self._store.search(term)]
 
     def research(self, question: str, **limits) -> Dict[str, Any]:
         """Research a question on the live web. Every sentence of the report cites a source,
@@ -78,6 +54,8 @@ class AutonomousResearchEngine:
         return research(question, **limits).to_dict()
 
     def summarize(self, results: List[Dict[str, Any]]) -> Dict[str, Any]:
+        results = [r for r in results if isinstance(r, dict) and isinstance(r.get("document"), dict)] \
+            if isinstance(results, list) else []
         if not results:
             return {"summary": "No results", "count": 0}
 

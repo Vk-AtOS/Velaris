@@ -144,7 +144,9 @@ def test_content_changed_after_approval_is_never_sent():
     d = draft(store, ALICE, mb, to=["client@ext.org"])
     sub = ob.submit(ALICE, mb["id"], d)
     ob.decide(CAROL, sub["id"], approve=True, payload_hash_seen=sub["payload_hash"])
-    store.run("UPDATE message SET body_text='send the money to a new account' WHERE id=?", (d,))   # tampering behind the API
+    from velaris.core import fieldseal
+    from velaris.mail.db import SEAL
+    store.run("UPDATE message SET body_text=? WHERE id=?", (fieldseal.seal("send the money to a new account", SEAL), d))   # tampering behind the API
     clock.advance(31)
     assert ob.process_due()[0] == {"id": sub["id"], "result": "failed", "code": "content_changed"}
     assert relay.sent == []

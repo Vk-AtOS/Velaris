@@ -11,12 +11,31 @@ The master key lives OUTSIDE VELARIS_DATA, so a copy of the data directory is us
 A missing, short, world-readable or in-data-dir key raises VaultKeyError: the store fails CLOSED, a new key
 is never invented (a restore without the key must not silently start a fresh, unreadable store).
 Per-purpose keys are derived from the master with HKDF-SHA256.
+
+Plaintext where a sealed value is expected is REFUSED (PlaintextRefused): otherwise anyone who can write the data
+directory could replace a sealed file with a forged plaintext one and have it trusted (downgrade). Files written before
+sealing existed are migrated once, in a window that only the key holder can open:
+  1. python -m velaris.core.vault start-migration [hours]   writes <VELARIS_DATA>/.vault_plaintext_open: an expiry
+     time MAC'd with a key derived from the master key (default 24 h, at most 168 h). Nobody who can only write the
+     data directory can forge or extend it.
+  2. start the services with VELARIS_VAULT_ALLOW_PLAINTEXT=1: stores read plaintext and seal it at once.
+  3. python -m velaris.core.vault end-migration             deletes the token.
+Both the switch AND a valid unexpired token are required; with either missing, plaintext is refused. The closed state is
+the ABSENCE of a token that only the key can create, so deleting files cannot reopen anything; the one thing a data
+directory writer can do is replay a copy of a token taken during an earlier window, until that token's expiry.
+Every store goes through legacy_plaintext() for this, none decides on its own.
 """
 from __future__ import annotations
 
 import base64
+import hashlib
+import hmac
+import json
+import logging
 import os
+import time
 import stat
+import sys
 from pathlib import Path
 from typing import Iterable, Iterator
 
@@ -27,10 +46,60 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 MAGIC = b"VLV1"
+ALLOW_PLAINTEXT = "VELARIS_VAULT_ALLOW_PLAINTEXT"
+OPEN_TOKEN = ".vault_plaintext_open"
+MAX_WINDOW_HOURS = 168
+logger = logging.getLogger("velaris.vault")
 
 
 class VaultError(ValueError):
     """The blob cannot be opened (tampered, wrong store, wrong key)."""
+
+
+class PlaintextRefused(VaultError):
+    """A plaintext value where a sealed one is expected, outside the one-time migration window."""
+
+
+def _data_dir() -> Path:
+    return Path(os.environ.get("VELARIS_DATA") or Path.home() / ".velaris")
+
+
+def _token_mac(expires: int) -> str:
+    return hmac.new(derive_key("plaintext-migration"), f"open|{expires}".encode(), hashlib.sha256).hexdigest()
+
+
+def plaintext_allowed() -> bool:
+    """True only inside the migration window: the env switch is set AND an unexpired, key-authenticated open token exists."""
+    if os.environ.get(ALLOW_PLAINTEXT) != "1":
+        return False
+    try:
+        tok = json.loads((_data_dir() / OPEN_TOKEN).read_text(encoding="utf-8"))
+        expires = int(tok["expires"])
+        return expires > time.time() and hmac.compare_digest(_token_mac(expires), str(tok["mac"]))
+    except (OSError, ValueError, KeyError, TypeError, VaultKeyError):
+        return False                                        # no token, forged token, no key: closed
+
+
+def start_plaintext_migration(hours: float = 24) -> Path:
+    """Open the migration window for this data directory (needs the master key)."""
+    expires = int(time.time() + min(float(hours), MAX_WINDOW_HOURS) * 3600)
+    path = _data_dir() / OPEN_TOKEN
+    write_private(path, json.dumps({"expires": expires, "mac": _token_mac(expires)}).encode())
+    return path
+
+
+def legacy_plaintext(value, what: object):
+    """`value` (plaintext found where `what` should be sealed) if the migration window is open, else PlaintextRefused."""
+    if not plaintext_allowed():
+        raise PlaintextRefused(f"{what} is not sealed; plaintext is refused (migrate once with {ALLOW_PLAINTEXT}=1, "
+                               "then `python -m velaris.core.vault end-migration`)")
+    logger.warning("accepting plaintext for %s (migration window open)", what)
+    return value
+
+
+def end_plaintext_migration() -> None:
+    """Close the migration window: remove the open token."""
+    (_data_dir() / OPEN_TOKEN).unlink(missing_ok=True)
 
 
 class VaultKeyError(RuntimeError):
@@ -100,11 +169,11 @@ def write_sealed(path, data: bytes, purpose: str) -> None:
 
 
 def read_sealed(path, purpose: str) -> bytes:
-    """The plaintext of a sealed file; a file still in plaintext (written before sealing existed) is returned as is."""
+    """The plaintext of a sealed file; a plaintext file raises PlaintextRefused outside the migration window."""
     if is_stream(path):
         return b"".join(open_sealed_stream(path, purpose))
     blob = read_private(path)
-    return open_bytes(blob, purpose) if is_sealed(blob) else blob
+    return open_bytes(blob, purpose) if is_sealed(blob) else legacy_plaintext(blob, path)
 
 
 # ---- large files: chunked sealing (audio uploads of up to 200 MB must not be held in memory) -------------------------------
@@ -199,3 +268,14 @@ def unseal_to_file(path, purpose: str, dest) -> None:
     with os.fdopen(fd, "wb") as f:
         for block in open_sealed_stream(path, purpose):
             f.write(block)
+
+
+if __name__ == "__main__":
+    cmd = sys.argv[1:2]
+    if cmd == ["start-migration"]:
+        print(f"plaintext migration open until: {start_plaintext_migration(float(sys.argv[2]) if len(sys.argv) > 2 else 24)}")
+    elif cmd == ["end-migration"]:
+        end_plaintext_migration()
+        print("plaintext migration ended")
+    else:
+        sys.exit("usage: python -m velaris.core.vault start-migration [hours] | end-migration")

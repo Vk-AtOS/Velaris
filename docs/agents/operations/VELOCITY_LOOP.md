@@ -2,7 +2,7 @@
 
 - **Department:** `operations`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/operations/VELOCITY_LOOP/main.py` (89 lines)
+- **Source:** `departments/operations/VELOCITY_LOOP/main.py` (112 lines)
 
 ## Purpose
 
@@ -14,11 +14,13 @@ accelerate(task) takes a task with the stages it has passed through:
                                "left": "2026-11-04T17:00", "active_hours": 3}, ...]}
 
 and computes, from the timestamps:
-  hours in each stage and its share of the lead time,
+  hours in each stage and its share of the lead time (lead time = hours covered by at least one stage: a gap between
+  stages is not counted and time where stages overlap is counted once, reported as overlap_hours),
   the bottleneck (the stage that held the task longest),
   flow efficiency = active hours / lead time, when every stage reports active_hours.
 
-It then proposes looking at the bottleneck first. That is a suggestion for a
+Times with an offset ("+05:30", "Z") are converted to UTC before they are compared, so stages recorded in different
+zones line up; a time with no offset is taken as UTC. It then proposes looking at the bottleneck first. That is a suggestion for a
 person: `final` stays "ready_for_approval" and the agent changes nothing. It does
 not speed anything up by itself, and it measures elapsed clock time, not working hours.
 
@@ -40,4 +42,4 @@ not speed anything up by itself, and it measures elapsed clock time, not working
 
 - **other agents:** `AIIE_KERNEL`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_AI_IE_layer.py`, `velaris/tests/test_dept_operations_stubs.py`
+- **tests:** `velaris/tests/test_AI_IE_layer.py`, `velaris/tests/test_dept_operations_stubs.py`, `velaris/tests/test_r3_ops.py`

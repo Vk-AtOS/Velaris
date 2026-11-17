@@ -93,7 +93,7 @@ def test_ZOHO_PROJECTS_task_summary_counts_closed_overdue_and_late_closed():
              {"status": {"name": "Closed"}, "end_date_long": future, "completed_time_long": past}]      # closed on time
     z = zp({"tasks": tasks})
     assert z.get_task_summary("PR", "O1") == {
-        "total_tasks": 4, "completed": 2, "completion_rate": 50.0, "overdue": 1, "late_closed": 1,
+        "closed_unknown": 0, "total_tasks": 4, "completed": 2, "completion_rate": 50.0, "overdue": 1, "late_closed": 1,
         "on_time_rate": 50.0}                                  # on time = closed and not closed late
     url, params = z.zoho.calls[0]
     assert url.endswith("/portal/P1/projects/PR/tasks/") and params == {"owner": "O1"}
@@ -103,7 +103,7 @@ def test_ZOHO_PROJECTS_empty_responses_give_zero_rates_and_empty_lists():
     z = zp({})
     assert z.get_projects() == [] and z.get_timelogs("PR", "O1", "01-01-2026", "01-31-2026") == []
     s = z.get_task_summary("PR", "O1")
-    assert s["completion_rate"] == 0 and s["on_time_rate"] == 0 and s["late_closed"] == 0
+    assert s["completion_rate"] == 0 and s["on_time_rate"] is None and s["late_closed"] == 0
 
 
 def test_ZOHO_PROJECTS_health_reports_whether_zoho_credentials_are_configured():
@@ -296,3 +296,11 @@ def test_LEGAL_INTELLIGENCE_ENGINE_missing_entries_report_not_found():
     assert l.lookup("tax", "x") == "NOT_FOUND" and l.update_rule("tax", "x", "t") is False
     l.add_rule("tax", "a", "t")
     assert l.lookup("tax", "b") == "NOT_FOUND" and l.update_rule("tax", "b", "t") is False
+
+
+def test_ZOHO_PROJECTS_closed_task_without_completion_time_is_unknown_not_on_time():
+    tasks = [{"status": {"name": "Closed"}, "end_date_long": 1_000},                       # no completed_time_long
+             {"status": {"name": "Closed"}, "end_date_long": 10 ** 15, "completed_time_long": 5}]
+    s = zp({"tasks": tasks}).get_task_summary("PR", "O1")
+    assert s["closed_unknown"] == 1 and s["late_closed"] == 0 and s["on_time_rate"] == 100.0
+    assert zp({"tasks": tasks[:1]}).get_task_summary("PR", "O1")["on_time_rate"] is None

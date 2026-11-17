@@ -2,19 +2,23 @@
 
 Tasks are placed largest first; each goes to the worker that has the skill, has
 room, and would end up least utilised (load / capacity). A task that fits
-nowhere is returned as unassigned with the reason, never squeezed in.
+nowhere is returned as unassigned with the reason, never squeezed in: "too big for any worker" (its effort exceeds
+every skilled worker's whole capacity, so waiting will not help) is told apart from "no spare capacity now". The result
+carries complete (True only when nothing is unassigned), so a caller cannot take status "ok" for "everything placed".
+At most 10,000 workers and 10,000 tasks per call.
 Deterministic greedy heuristic, not an optimal bin-packing.
 """
 from velaris.agentkit.checks import ident, number
 from velaris.agentkit.results import health, invalid, ok
 
 NAME = "CLBPP_DISTRIBUTOR"
+MAX_ITEMS = 10_000
 
 
 def clean_workers(workers):
     """{name: {"capacity", "load", "skills"}} or an error string."""
-    if not isinstance(workers, list):
-        return "workers must be a list"
+    if not isinstance(workers, list) or len(workers) > MAX_ITEMS:
+        return f"workers must be a list of at most {MAX_ITEMS}"
     out = {}
     for w in workers:
         name = ident(w.get("name")) if isinstance(w, dict) else None
@@ -23,8 +27,8 @@ def clean_workers(workers):
         skills = w.get("skills") if name else None
         if name is None or capacity is None or capacity <= 0 or load is None or load < 0 or name in out:
             return f"worker {w!r} needs a unique name, a positive capacity and a non-negative load"
-        if skills is not None and not isinstance(skills, list):
-            return f"worker {name}: skills must be a list"
+        if skills is not None and not (isinstance(skills, list) and all(isinstance(s, str) for s in skills)):
+            return f"worker {name}: skills must be a list of names"
         out[name] = {"capacity": capacity, "load": load, "skills": skills}
     return out
 
@@ -41,8 +45,8 @@ class CLBPP_DISTRIBUTORAgent:
         pool = clean_workers(workers)
         if isinstance(pool, str):
             return invalid(pool)
-        if not isinstance(tasks, list):
-            return invalid("tasks must be a list")
+        if not isinstance(tasks, list) or len(tasks) > MAX_ITEMS:
+            return invalid(f"tasks must be a list of at most {MAX_ITEMS}")
         seen = set()
         for t in tasks:
             tid = ident(t.get("id")) if isinstance(t, dict) else None
@@ -56,7 +60,12 @@ class CLBPP_DISTRIBUTORAgent:
             skilled = [n for n, w in pool.items() if skill is None or (w["skills"] is not None and skill in w["skills"])]
             fits = [n for n in skilled if pool[n]["load"] + t["effort"] <= pool[n]["capacity"]]
             if not fits:
-                reason = f"no worker has skill {skill!r}" if not skilled else "no skilled worker has enough spare capacity"
+                if not skilled:
+                    reason = f"no worker has skill {skill!r}"
+                elif all(t["effort"] > pool[n]["capacity"] for n in skilled):
+                    reason = "too big for any skilled worker: the effort exceeds every capacity"
+                else:
+                    reason = "no skilled worker has enough spare capacity"
                 unassigned.append({"id": t["id"], "reason": reason})
                 continue
             best = min(fits, key=lambda n: ((pool[n]["load"] + t["effort"]) / pool[n]["capacity"], n))
@@ -64,4 +73,4 @@ class CLBPP_DISTRIBUTORAgent:
             assignments[t["id"]] = best
         loads = {n: {"load": w["load"], "capacity": w["capacity"], "utilisation": round(w["load"] / w["capacity"], 4)}
                  for n, w in pool.items()}
-        return ok(assignments=assignments, unassigned=unassigned, loads=loads)
+        return ok(assignments=assignments, unassigned=unassigned, loads=loads, complete=not unassigned)

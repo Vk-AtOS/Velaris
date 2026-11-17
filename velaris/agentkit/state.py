@@ -5,8 +5,9 @@
                                         anything on disk; the first save creates the directory.
                                         `path=` puts the file somewhere the caller chose instead.
                                         `encrypted="<purpose>"` seals the file with velaris.core.vault (personal
-                                        data); a still-plaintext file is read and sealed on its next save, and
-                                        a missing key raises VaultKeyError (fail closed).
+                                        data); a plaintext file there is REFUSED (vault.PlaintextRefused) unless the
+                                        one-time migration window of velaris.core.vault is open, in which case it
+                                        is sealed at once; a missing key raises VaultKeyError (fail closed).
                                         `version`/`migrations` give the file a schema_version and a migration
                                         hook: migrations[n](data) turns a version-n document into n+1. Files
                                         written before versioning count as version 0. A file from a NEWER
@@ -112,11 +113,17 @@ class JsonState:
     def _decode(self, raw: bytes) -> Dict[str, Any]:
         if vault.is_sealed(raw):
             raw = vault.open_bytes(raw, self._purpose or self.agent)   # VaultError/VaultKeyError: raised, never "corrupt"
-        elif self._purpose:
-            vault._master()                                              # plaintext legacy file: still need the key to go on
+            sealed = True
+        else:
+            sealed = False
+            if self._purpose:
+                vault._master()                                          # no key, no personal data, whatever the file holds
         data = json.loads(raw.decode("utf-8"))
         if not isinstance(data, dict):
             raise ValueError("state file does not hold a JSON object")
+        if self._purpose and not sealed:
+            vault.legacy_plaintext(None, self.path)                      # downgrade: refused outside the migration window
+            write_private(self.path, vault.seal_bytes(raw, self._purpose))   # inside it: sealed now, not "on the next save"
         return data
 
     def load(self) -> Dict[str, Any]:
@@ -191,10 +198,12 @@ def append_line(path: Path, record: Dict[str, Any], *, encrypted: Optional[str] 
             os.fsync(f.fileno())
 
 
-def _parse_line(line: str, encrypted: Optional[str]) -> Dict[str, Any]:
+def _parse_line(line: str, encrypted: Optional[str], path: object = "line") -> Dict[str, Any]:
     if line.startswith(_SEALED_LINE):
         line = vault.open_bytes(base64.b64decode(line[len(_SEALED_LINE):], validate=True), encrypted or "").decode("utf-8")
-    return json.loads(line)
+        return json.loads(line)
+    out = json.loads(line)                              # a torn line is ValueError (skipped); a whole plaintext one is judged
+    return vault.legacy_plaintext(out, path) if encrypted else out
 
 
 def last_line(path: Path, *, encrypted: Optional[str] = None, tail: int = 262_144) -> Optional[Dict[str, Any]]:
@@ -213,7 +222,7 @@ def last_line(path: Path, *, encrypted: Optional[str] = None, tail: int = 262_14
     for raw in reversed(lines):
         if raw.strip():
             try:
-                return _parse_line(raw.decode("utf-8"), encrypted)
+                return _parse_line(raw.decode("utf-8"), encrypted, path)
             except vault.VaultError:
                 raise
             except ValueError:
@@ -223,15 +232,14 @@ def last_line(path: Path, *, encrypted: Optional[str] = None, tail: int = 262_14
 
 def read_lines(path: Path, *, encrypted: Optional[str] = None) -> List[Dict[str, Any]]:
     """Every parseable JSON line of a file; a torn last line is skipped with a warning.
-    With `encrypted`, sealed lines are opened (a wrong key raises) and plaintext legacy lines still read."""
+    With `encrypted`, sealed lines are opened (a wrong key raises) and a plaintext line raises vault.PlaintextRefused
+    unless the one-time migration window is open."""
     if not path.exists():
         return []
     out = []
     for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
         try:
-            if line.startswith(_SEALED_LINE):
-                line = vault.open_bytes(base64.b64decode(line[len(_SEALED_LINE):], validate=True), encrypted or "").decode("utf-8")
-            out.append(json.loads(line))
+            out.append(_parse_line(line, encrypted, path))
         except vault.VaultError:
             raise
         except ValueError as e:

@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `real`
-- **Source:** `departments/_ai_core/ADVANCED_SEARCH_ENGINE/main.py` (70 lines)
+- **Source:** `departments/_ai_core/ADVANCED_SEARCH_ENGINE/main.py` (54 lines)
 
 ## Purpose
 
@@ -14,7 +14,8 @@ lower-cased. search(keyword) is a case-insensitive substring match that scores e
 by the number of fields containing the keyword and returns hits best first; datasets_list()
 names the datasets. web_search(query, limit=8) and read_page(url) delegate to velaris.intel.web
 (read_page returns a dict whose 'error' key is set for a blocked or unreadable page).
-State: in memory only, lost on restart. No input validation: a non-string name or keyword raises.
+State: in memory only, lost on restart (velaris.agentkit.memsearch.KeywordStore: bounded, records are copied in and
+out). A bad name or record returns False; an empty or non-string keyword finds nothing.
 
 ## Class `AdvancedSearchEngine`
 
@@ -24,6 +25,7 @@ Velaris Advanced Search Engine (Offline)
 - Multi-index registry
 
 - `__init__()`
+- `datasets()`
 - `register_dataset(name)`
 - `add_record(dataset, record)`
 - `search(keyword)`
@@ -33,6 +35,7 @@ Velaris Advanced Search Engine (Offline)
 
 ## Depends on
 
+- `velaris.agentkit.memsearch`
 - `velaris.intel`
 
 ## State and configuration
@@ -42,5 +45,5 @@ Velaris Advanced Search Engine (Offline)
 ## Called by
 
 - **other agents:** none found
-- **platform modules:** `velaris/api/allowlist.py`
-- **tests:** `velaris/tests/test_agents_coverage_b.py`
+- **platform modules:** `velaris/agentkit/memsearch.py`, `velaris/api/allowlist.py`
+- **tests:** `velaris/tests/test_agents_coverage_b.py`, `velaris/tests/test_r3_patch_evolution_search_clbpp.py`
