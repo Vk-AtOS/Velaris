@@ -35,12 +35,13 @@ from velaris.agentkit.results import fail, health, invalid, ok
 from velaris.agentkit.state import append_line
 from velaris.core.access import Caller, current_caller, deployment_org
 from velaris.intel import trace
-from velaris.intel.paths import read_private, write_private
+from velaris.core import vault
 
 logger = logging.getLogger("ESIGN")
 _AGENT = "ESIGN"
 _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 MAX_DOC = 5 * 1024 * 1024
+FILE_SEAL = "hr:ESIGN:file"            # purpose of the document and sealed-PDF encryption
 OUTBOX_SEAL = "hr:ESIGN:outbox"       # purpose of the outbox encryption; an operator's relay reads it with state.read_lines(path, encrypted=OUTBOX_SEAL)
 MAX_FAILS, MAX_OTP_TRIES, OTP_MINUTES, MAX_REMINDERS = 10, 5, 10, 3
 _PENDING = ("sent", "viewed", "consented")
@@ -78,10 +79,20 @@ class Esign:
     def _sealed_path(self, req_id: str, signed: bool = False) -> Path:
         return self.store.files_dir("sealed") / f"{req_id}{'.signed' if signed else ''}.pdf"
 
+    @staticmethod
+    def _write(path: Path, data: bytes) -> None:
+        """Contracts, offers and signed PDFs are personal data: sealed at rest and bound to their file (KAN-69 SV2-04)."""
+        vault.write_sealed(path, data, FILE_SEAL, f"{path.parent.name}/{path.name}")
+
     def _read(self, path: Path) -> Optional[bytes]:
         try:
-            return read_private(path)
+            return vault.read_sealed(path, FILE_SEAL, f"{path.parent.name}/{path.name}")
         except FileNotFoundError:
+            return None
+        except vault.PlaintextRefused:
+            raise
+        except vault.VaultError as e:                    # tampered or moved: never served; verification reports it as invalid
+            logger.warning("%s does not open: %s", path.name, e)
             return None
 
     # ---- delivery ---------------------------------------------------------------------------
@@ -127,7 +138,7 @@ class Esign:
         except (ValueError, TypeError) as e:
             return invalid(str(e))
         sha = sha256_hex(raw)
-        write_private(self._doc_path(sha), raw)
+        self._write(self._doc_path(sha), raw)
         req = {"id": new_id("sig"), "org": who.org, "title": title, "document_ref": str(document_ref)[:80] or None,
                "document_sha256": sha, "document_size": len(raw), "status": "draft", "created_by": who.id,
                "created_at": iso(self._now()), "valid_days": int(valid_days), "expires_at": None, "signers": sg,
@@ -427,9 +438,9 @@ class Esign:
         res = es.seal(original, req["title"], evidence, req["created_at"], now)
         sig = es.platform_signature(res["sealed_pdf"], res["seal_hash"], self.config.get("pdf_signer"))
         try:
-            write_private(self._sealed_path(req_id), res["sealed_pdf"])
+            self._write(self._sealed_path(req_id), res["sealed_pdf"])
             if sig.get("signed_pdf"):
-                write_private(self._sealed_path(req_id, True), sig["signed_pdf"])
+                self._write(self._sealed_path(req_id, True), sig["signed_pdf"])
             trace.append("esign", "esign.sealed", {"request": req_id, "org": org, "seal_hash": res["seal_hash"],
                                                    "document_sha256": res["document_sha256"], "sealed_sha256": res["sealed_sha256"]})
         except (OSError, ValueError) as e:

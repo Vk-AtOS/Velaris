@@ -11,6 +11,7 @@ from velaris.tests.onboarding_helpers import HR1, HR2, MGR, ORG, OTHER_ORG_HR, C
 from velaris.agents.ESIGN.main import Esign
 from velaris.agentkit import onboarding_esign as es
 from velaris.agentkit.onboarding_pdf import build_pdf, parse_pdf
+from velaris.core import vault
 from velaris.core.access import acting_as
 
 IP, UA = "203.0.113.9", "Mozilla/5.0 test"
@@ -223,7 +224,8 @@ def test_tampering_is_detected_by_verify():
 
     def sealed_file(rid):
         f = Path(os.environ["VELARIS_DATA"]) / "agents" / "ESIGN" / "sealed" / f"{rid}.pdf"
-        f.write_bytes(f.read_bytes().replace(b"Certificate", b"Certifucate"))
+        raw = f.read_bytes()                                  # sealed at rest: flip a byte of the ciphertext
+        f.write_bytes(raw[:-1] + bytes([raw[-1] ^ 1]))
 
     def sealed_missing(rid):
         (Path(os.environ["VELARIS_DATA"]) / "agents" / "ESIGN" / "sealed" / f"{rid}.pdf").unlink()
@@ -231,6 +233,20 @@ def test_tampering_is_detected_by_verify():
     for mutate in (evidence_name, evidence_time, chain, order, document, sealed_file, sealed_missing):
         valid, failed = tampered(mutate)
         assert valid is False and failed, mutate.__name__
+
+
+def test_documents_and_sealed_pdfs_are_encrypted_and_bound_to_their_file():
+    """KAN-69 SV2-04: contracts and offers were stored in plain text; a sealed file must not open as another one."""
+    e, sender, _, rid = setup()
+    sign_all(e, sender)
+    base = Path(os.environ["VELARIS_DATA"]) / "agents" / "ESIGN"
+    docs = list((base / "documents").iterdir())
+    pdf = base / "sealed" / f"{rid}.pdf"
+    assert all(vault.is_bound(f.read_bytes()) for f in docs) and vault.is_bound(pdf.read_bytes())
+    assert b"%PDF" not in pdf.read_bytes()
+    docs[0].write_bytes(pdf.read_bytes())                     # a valid sealed file moved over the document
+    with acting_as(HR1):
+        assert e.verify(rid)["valid"] is False
 
 
 def test_trace_anchor_missing_is_reported():

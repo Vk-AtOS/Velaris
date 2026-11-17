@@ -204,7 +204,10 @@ def read_sealed(path, purpose: str, context: Optional[str] = None) -> bytes:
     if is_stream(path):
         return b"".join(open_sealed_stream(path, purpose))
     blob = read_private(path)
-    return open_bytes(blob, purpose, context) if is_sealed(blob) else legacy_plaintext(blob, path)
+    data = open_bytes(blob, purpose, context) if is_sealed(blob) else legacy_plaintext(blob, path)
+    if context is not None and not is_bound(blob):      # only reachable inside the migration window: seal and bind it now
+        write_sealed(path, data, purpose, context)
+    return data
 
 
 # ---- large files: chunked sealing (audio uploads of up to 200 MB must not be held in memory) -------------------------------
