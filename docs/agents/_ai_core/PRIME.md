@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `real`
-- **Source:** `departments/_ai_core/PRIME/main.py` (225 lines)
+- **Source:** `departments/_ai_core/PRIME/main.py` (226 lines)
 
 ## Purpose
 
@@ -61,6 +61,7 @@ Backward-compatible alias (test_phase4_intel.py and integration tests use this n
 - `velaris.agentkit.results`
 - `velaris.agentkit.state`
 - `velaris.agents.ENGINE.main`
+- `velaris.backend.engine`
 - `velaris.core.access`
 - `velaris.core.prime`
 - `velaris.intel`
