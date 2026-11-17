@@ -29,7 +29,7 @@ Every number below can be reproduced with the command next to it. Nothing here i
 
 | | real | rule-based | not implemented | total |
 |---|---|---|---|---|
-| all departments | 159 | 175 | 12 | 346 |
+| all departments | 160 | 174 | 12 | 346 |
 
 "real" means the agent delegates to `velaris.intel` or has logic and touches something outside the process (files, a database, the network,
 the OS); "rule-based" means it has logic that stays in memory; "not implemented" means it says so, or has no logic beyond

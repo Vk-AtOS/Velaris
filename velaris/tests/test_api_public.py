@@ -437,7 +437,7 @@ def test_a_withdrawal_stops_new_bookings_and_asking_twice_keeps_the_first_date(c
 
 def test_forwarded_for_is_believed_only_from_the_proxy_address():
     """KAN-64: with TRUST_PROXY any direct client could choose its own rate-limit key by sending X-Forwarded-For."""
-    from starlette.requests import Request
+    from fastapi import Request
 
     def req(peer, xff):
         return Request({"type": "http", "headers": [(b"x-forwarded-for", xff.encode())], "client": (peer, 1234), "method": "GET", "path": "/"})
