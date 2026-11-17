@@ -117,7 +117,6 @@ def test_a_commit_that_failed_to_reach_the_disk_is_never_written_later(tmp_path,
     """KAN-69: commit() raised (disk full) so the caller was told it failed; the row must not appear later through close() or
     through the next commit, which would write the whole image including it."""
     import errno
-    import sqlite3
     from velaris.core import sealed_sqlite as ss, vault
     path = tmp_path / "agents" / "T" / "x.db"
     path.parent.mkdir(parents=True)
