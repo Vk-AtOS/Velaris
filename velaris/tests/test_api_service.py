@@ -344,3 +344,20 @@ def test_network_steps_that_name_something_the_task_did_not_wait_for_a_person():
     assert permit(t, {"url": "https://docs.example.com/guide?page=2", "x": ["//evil.test/a"]}) == "approve"   # nested
     assert permit("DEMO.whoami", {"note": "https://evil.test/x"}) == "allow"           # not a network tool
     assert permit_for("x", lambda n: True)(t, {}) == "approve"                           # the tool's own rule still applies
+
+
+def test_dot_segments_in_a_path_are_refused_and_no_route_reads_identity_from_the_query(tmp_path):
+    """KAN-69 VP-6 / VP-5 (Velaris halves): '.' and '..' (also percent-encoded) never reach a route; and who the caller is
+    comes only from the signed assertion, never from an org / user_id / as_user query parameter."""
+    from velaris.api.auth import AuthError, Verifier
+    v = Verifier(SECRET, KEY.public_key())
+    for path in ("/flows/./verify", "/agents/%2e%2e/x", "/mail/mailboxes/../export?a=1"):
+        nonce = secrets.token_urlsafe(16)
+        ident = make_assertion(KEY, sub="u1", org="acme", roles=(), employee_id=None, nonce=nonce)
+        with pytest.raises(AuthError) as e:
+            v.verify("GET", path, {k.lower(): x for k, x in sign(SECRET, "GET", path, b"", ident, nonce=nonce).items()}, b"")
+        assert e.value.code == "bad_path"
+    import pathlib
+    import re
+    src = "\n".join(p.read_text() for p in pathlib.Path(__file__).parents[1].rglob("*.py") if "tests" not in p.parts)
+    assert not re.findall(r"query_params(?:\.get\(|\[)\s*[\"'](?:org|org_id|user_id|as_user|caller|employee_id)[\"']", src)

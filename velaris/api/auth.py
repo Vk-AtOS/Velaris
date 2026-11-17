@@ -38,6 +38,7 @@ import logging
 import secrets
 import sqlite3
 import time
+from urllib.parse import unquote
 from typing import Any, Callable, Dict, Iterable, Mapping, Optional
 
 from cryptography.exceptions import InvalidSignature
@@ -125,6 +126,8 @@ class Verifier:
                             hashlib.sha256).hexdigest()
         if not hmac.compare_digest(expected, mac):
             raise AuthError("bad_signature", "the request signature does not match")
+        if any(unquote(seg) in (".", "..") for seg in path.partition("?")[0].split("/")):
+            raise AuthError("bad_path", "a path segment of '.' or '..' is not accepted", status=400)   # KAN-69 VP-6: no dot-segment games
         now = self._clock()
         if not ts.isdigit() or abs(now - int(ts)) > self._window:
             raise AuthError("stale", "the request timestamp is outside the accepted window")
