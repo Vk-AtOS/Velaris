@@ -312,3 +312,29 @@ def test_legal_hold_export_needs_a_second_approver_and_is_off_by_default():
     store.decide_legal_export(CAROL, rej, False, H(CAROL, rej))
     with pytest.raises(MailError):
         store.export_mailbox(ADMIN, mb["id"], legal_request=rej)
+
+
+def test_attachment_rows_and_search_index_rows_are_bound_to_their_message():
+    """KAN-167: somebody with write access to mail.db moves an attachment row (or an index row) onto another message."""
+    store, _, _, _, _, boxes = make_world()
+    mb = boxes["alice"]
+    att = (b"Content-Type: multipart/mixed; boundary=B\r\nFrom: a@x.com\r\nMessage-ID: <%s>\r\nSubject: invoice\r\n\r\n--B\r\nContent-Type: text/plain\r\n\r\nt\r\n--B\r\n"
+           b'Content-Type: application/pdf\r\nContent-Disposition: attachment; filename="f.pdf"\r\nContent-Transfer-Encoding: base64\r\n\r\nSGVsbG8=\r\n--B--\r\n')
+    a = store.deliver(mb["id"], parse_message(att.replace(b"%s", b"1@x")), received=1.0)
+    b = put(store, mb, mid="plain@x", subject="lunch plans", body="pizza on friday")
+    sha = store.get_message(ALICE, mb["id"], a)["attachment_list"][0]["sha256"]
+    store.run("UPDATE attachment SET message_pk=? WHERE message_pk=?", (b, a))                # moved to another message
+    assert store.get_message(ALICE, mb["id"], b)["attachment_list"] == []                      # not served there
+    with pytest.raises(MailError):
+        store.attachment(ALICE, mb["id"], b, sha)
+    store.run("UPDATE attachment SET message_pk=? WHERE message_pk=?", (a, b))
+    store.run("UPDATE attachment SET name='evil.exe'")                                         # edited in place
+    assert store.get_message(ALICE, mb["id"], a)["attachment_list"] == []
+    # the search index: copy the index row of "pizza" onto the invoice message
+    if store.fts:
+        rid_a = store.one("SELECT rowid AS r FROM message WHERE id=?", (a,))["r"]
+        rid_b = store.one("SELECT rowid AS r FROM message WHERE id=?", (b,))["r"]
+        row = store.one("SELECT subject AS s1, body AS b1, people AS p1 FROM msg_fts WHERE rowid=?", (rid_b,))
+        store.run("UPDATE msg_fts SET subject=?, body=?, people=? WHERE rowid=?", (row["s1"], row["b1"], row["p1"], rid_a))
+        hits = [m["id"] for m in store.list_messages(ALICE, mb["id"], q="pizza")["messages"]]
+        assert hits == [b]                                                                      # the invoice does not turn up for "pizza"
