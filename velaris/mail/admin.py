@@ -15,6 +15,7 @@ from velaris.core.access import Caller
 from velaris.mail.common import DnsError, MailError, audit, uid
 from velaris.mail.mime import valid_address
 from velaris.mail.db import dumps, loads
+from velaris.mail.legal_export import LegalExportMixin
 
 MB = 1024 * 1024
 DOMAIN = re.compile(r"(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}\Z")
@@ -27,6 +28,7 @@ DEFAULTS: Dict[str, Any] = {
     "undo_window_s": 30, "max_message_bytes": 25 * MB, "max_attachment_bytes": 10 * MB, "default_quota_bytes": 1024 * MB,
     "retention_days": 0, "trash_retention_days": 30, "spam_retention_days": 30,
     "spam_threshold": 5.0, "autoreply_external": False,
+    "legal_export": False,          # true: a mail_admin may export a mailbox with a second approver (legal hold); off: owner only
 }
 _INT = {"max_recipients": (1, 500), "undo_window_s": (0, 300), "max_message_bytes": (1024, 100 * MB),
         "max_attachment_bytes": (0, 100 * MB), "default_quota_bytes": (MB, 1024 * 1024 * MB), "retention_days": (0, 36500),
@@ -38,7 +40,7 @@ def _is_admin(caller: Caller) -> bool:
     return "mail_admin" in caller.roles
 
 
-class AdminMixin:
+class AdminMixin(LegalExportMixin):
     # ── org settings ─────────────────────────────────────────────────────────
     def org_settings(self, org: str) -> Dict[str, Any]:
         r = self.one("SELECT data FROM org_settings WHERE org=?", (org,))      # type: ignore[attr-defined]
@@ -71,7 +73,7 @@ class AdminMixin:
                 if not (isinstance(v, str) and re.fullmatch(r"[a-z0-9][a-z0-9-]{0,30}", v)):
                     raise MailError("bad_request", "dkim_selector is 1-31 letters, digits or hyphens")
                 clean[k] = v
-            else:                                                              # autoreply_external
+            else:                                                              # autoreply_external, legal_export
                 if not isinstance(v, bool):
                     raise MailError("bad_request", f"{k} is true or false")
                 clean[k] = v
@@ -276,11 +278,10 @@ class AdminMixin:
         return out
 
     # ── DPDP: export and erasure ─────────────────────────────────────────────
-    def export_mailbox(self, caller: Caller, mailbox_id: str, limit: int = 20000) -> Dict[str, Any]:
+    def export_mailbox(self, caller: Caller, mailbox_id: str, limit: int = 20000, *, legal_request: str = "") -> Dict[str, Any]:
         mb, via = self.access(caller, mailbox_id, "admin")                     # type: ignore[attr-defined]
         if via["via"] == "admin":                  # an administrator manages mailboxes but does not read other people's mail (SV2-02)
-            audit("mailbox.export.refused", caller.id, caller.org, mailbox=mb["id"], reason="not_owner")
-            raise MailError("forbidden", "only the mailbox owner can export its messages", 403)
+            self.use_legal_export(caller, mb, legal_request)                   # type: ignore[attr-defined]
         rows = self.q("SELECT * FROM message WHERE mailbox_id=? ORDER BY received_ts LIMIT ?", (mb["id"], limit + 1))   # type: ignore[attr-defined]
         audit("mailbox.export", caller.id, caller.org, mailbox=mb["id"], via=via["via"], messages=min(len(rows), limit))
         return {"mailbox": self.mailbox_dict(mb), "settings": {"signature": mb["signature"], "vacation": loads(mb["vacation"], {})},   # type: ignore[attr-defined]

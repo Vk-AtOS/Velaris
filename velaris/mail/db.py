@@ -82,6 +82,9 @@ CREATE TABLE IF NOT EXISTS domain(
   PRIMARY KEY(domain, org));
 CREATE UNIQUE INDEX IF NOT EXISTS domain_owner ON domain(domain) WHERE verified=1;
 CREATE TABLE IF NOT EXISTS org_settings(org TEXT PRIMARY KEY, data TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS legal_export(
+  id TEXT PRIMARY KEY, org TEXT NOT NULL, mailbox_id TEXT NOT NULL, requested_by TEXT NOT NULL, reason TEXT NOT NULL,
+  created REAL NOT NULL, state TEXT NOT NULL DEFAULT 'pending', decided_by TEXT NOT NULL DEFAULT '', decided_at REAL, used_at REAL);
 """
 
 
