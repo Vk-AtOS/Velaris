@@ -13,7 +13,7 @@ from velaris.intel.paths import data_dir
 def test_roundtrip_and_blind_token_helpers():
     s = fieldseal.seal("hello Asha", "x")
     assert s.startswith("vlv1:") and "Asha" not in s and fieldseal.unseal(s, "x") == "hello Asha"
-    assert fieldseal.seal(s, "x") == s and fieldseal.unseal(fieldseal.seal("", "x"), "x") == "" and fieldseal.unseal(None, "x") is None
+    assert fieldseal.unseal(fieldseal.seal(s, "x"), "x") == s and fieldseal.unseal(fieldseal.seal("", "x"), "x") == "" and fieldseal.unseal(None, "x") is None
     with pytest.raises(vault.VaultError):
         fieldseal.unseal(s, "other-store")
     assert fieldseal.blind_tokens("Hello hello WORLD", "m") == fieldseal.blind_tokens("hello world", "m")
@@ -22,9 +22,9 @@ def test_roundtrip_and_blind_token_helpers():
 
 def test_row_class_unseals_by_column_name_for_key_dict_and_iteration():
     c = sqlite3.connect(":memory:")
-    c.row_factory = fieldseal.row_class("p", ("body",))
+    c.row_factory = fieldseal.row_class("p", ("body",), "t")
     c.execute("CREATE TABLE t(id, body)")
-    c.execute("INSERT INTO t VALUES (1, ?)", (fieldseal.seal("secret", "p", fieldseal.bind_for("body", 1)),))
+    c.execute("INSERT INTO t VALUES (1, ?)", (fieldseal.seal("secret", "p", fieldseal.bind_for("t", "body", 1)),))
     r = c.execute("SELECT * FROM t").fetchone()
     assert r["body"] == "secret" and r[1] == "secret" and dict(r) == {"id": 1, "body": "secret"} and tuple(r) == (1, "secret")
 

@@ -17,9 +17,10 @@ from typing import Any, Dict, Optional, Tuple
 
 from velaris.chat.core import ChatCore
 from velaris.chat.errors import ChatError
+from velaris.chat.store import NAME_SEAL
 from velaris.core import fieldseal, vault
 from velaris.core.access import Caller
-from velaris.intel.paths import private_dir, read_private
+from velaris.intel.paths import private_dir
 
 DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -57,12 +58,10 @@ def sniff(data: bytes, name: str = "") -> Optional[str]:
     return None
 
 
-NAME_SEAL = "chat:file-name"     # the file name column is sealed at rest (KAN-167); the blob is sealed per content hash
-
-
-def file_name(stored: Any) -> str:
-    """The plaintext file name of a `files.name` value (plaintext is refused outside the migration window)."""
-    return fieldseal.unseal(stored, NAME_SEAL)
+def file_name(row: Any) -> str:
+    """The plaintext file name of a `files` row (it must carry hash and uploader: the name is bound to them). Plaintext or an
+    unbound value is refused outside the migration window."""
+    return fieldseal.unseal(row["name"], NAME_SEAL, fieldseal.bind_for("files", "name", row["hash"], row["uploader"]))
 
 
 def clean_name(name: Any) -> str:
@@ -98,10 +97,10 @@ class FilesMixin(ChatCore):
         digest = hashlib.sha256(data).hexdigest()
         with self._write() as db:
             db.execute("INSERT OR IGNORE INTO files VALUES(?,?,?,?,?,?,?)",
-                       (digest, caller.org, len(data), found, fieldseal.seal(name, NAME_SEAL), caller.id, self.clock()))
+                       (digest, caller.org, len(data), found, fieldseal.seal(name, NAME_SEAL, fieldseal.bind_for("files", "name", digest, caller.id)), caller.id, self.clock()))
             self._audit("file.upload", caller.id, caller.org, file=digest, bytes=len(data), type=found)
             if not self._blob(digest).exists():
-                vault.write_sealed(self._blob(digest), data, _blob_purpose(digest))
+                vault.write_sealed(self._blob(digest), data, _blob_purpose(digest), digest)
         return {"hash": digest, "size": len(data), "content_type": found, "name": name}
 
     def download(self, caller: Caller, digest: Any) -> Tuple[Dict[str, Any], bytes]:
@@ -119,13 +118,9 @@ class FilesMixin(ChatCore):
                 self._denied(caller, "download", "not uploader or channel member")
             raise ChatError(404, "no_such_file", "no such file")
         try:
-            path = self._blob(digest)
-            raw = read_private(path)
+            data = vault.read_sealed(self._blob(digest), _blob_purpose(digest), digest)   # old plaintext/unbound blobs are rebound in the window
         except OSError:
             raise ChatError(404, "no_such_file", "no such file") from None
-        data = vault.open_bytes(raw, _blob_purpose(digest)) if vault.is_sealed(raw) else vault.legacy_plaintext(raw, path)
         if hashlib.sha256(data).hexdigest() != digest:       # a blob swapped or damaged on disk is never served
             raise ChatError(404, "no_such_file", "no such file")
-        if not vault.is_sealed(raw):                         # migration window only: seal the old plaintext blob now
-            vault.write_sealed(path, data, _blob_purpose(digest))
-        return {"hash": digest, "size": meta["size"], "content_type": meta["ctype"], "name": file_name(meta["name"])}, data
+        return {"hash": digest, "size": meta["size"], "content_type": meta["ctype"], "name": file_name(meta)}, data

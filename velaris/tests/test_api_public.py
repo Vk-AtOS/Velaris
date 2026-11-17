@@ -250,12 +250,12 @@ def test_audio_upload_streams_seals_and_obeys_consent_type_size_and_one_track(cl
     sha = r.json()["result"]["sha256"]
     stored = data_dir() / "agents" / "INTERVIEW_RECORD" / "audio" / f"{sha}.bin"
     assert stored.exists() and stored.read_bytes()[:4] == vault.STREAM_MAGIC and data[:300] not in stored.read_bytes()
-    assert vault.read_sealed(stored, "hiring:INTERVIEW_RECORD") == data
+    assert vault.read_sealed(stored, "hiring:INTERVIEW_RECORD", vault.path_context(stored)) == data
     err(client.post(url, content=wav(), headers=hdr), 409, "conflict")                                        # one track per participant
     assert not list((data_dir() / "uploads").glob("*"))                                                        # no temp file left behind
     with pytest.raises(vault.VaultError):
         stored.write_bytes(stored.read_bytes()[:-30])                                                         # cut short: refused when read
-        vault.read_sealed(stored, "hiring:INTERVIEW_RECORD")
+        vault.read_sealed(stored, "hiring:INTERVIEW_RECORD", vault.path_context(stored))
 
 
 # ---- the signing ceremony, end to end against ESIGN ----------------------------------------------------------------------------

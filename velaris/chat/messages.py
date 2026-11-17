@@ -87,7 +87,7 @@ class MessagesMixin(ChatCore):
                  json.dumps(files), int(ai_assisted),
                  None if context_authors is None else json.dumps(context_authors)))
             mid = cur.lastrowid
-            db.execute("UPDATE messages SET body=? WHERE id=?", (fieldseal.seal(body, SEAL, fieldseal.bind_for("body", mid)), mid))   # bound to its row
+            db.execute("UPDATE messages SET body=? WHERE id=?", (fieldseal.seal(body, SEAL, fieldseal.bind_for("messages", "body", mid)), mid))   # bound to its row
             self.store.index(db, mid, body)
             self._audit("message.post", caller.id, caller.org, channel=ch["id"], message=mid, bytes=len(body.encode()),
                         body_sha256=sha(body), ai_assisted=ai_assisted, for_user=on_behalf_of or None)
@@ -137,10 +137,10 @@ class MessagesMixin(ChatCore):
         self._spend(caller)
         with self._write() as db:
             (n,) = db.execute("SELECT COUNT(*) FROM edits WHERE message_id=?", (msg["id"],)).fetchone()
-            db.execute("INSERT INTO edits VALUES(?,?,?,?,?)", (msg["id"], n + 1, fieldseal.seal(msg["body"], SEAL, fieldseal.bind_for("body", msg["id"], n + 1)),
+            db.execute("INSERT INTO edits VALUES(?,?,?,?,?)", (msg["id"], n + 1, fieldseal.seal(msg["body"], SEAL, fieldseal.bind_for("edits", "body", msg["id"], n + 1)),
                                                               caller.id, self.clock()))
             db.execute("UPDATE messages SET body=?, edited_at=?, mentions=? WHERE id=?",
-                       (fieldseal.seal(body, SEAL, fieldseal.bind_for("body", msg["id"])), self.clock(), json.dumps(mentioned), msg["id"]))
+                       (fieldseal.seal(body, SEAL, fieldseal.bind_for("messages", "body", msg["id"])), self.clock(), json.dumps(mentioned), msg["id"]))
             self.store.index(db, msg["id"], body)
             self._audit("message.edit", caller.id, caller.org, channel=ch["id"], message=msg["id"], version=n + 1,
                         body_sha256=sha(body))

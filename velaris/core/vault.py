@@ -27,7 +27,8 @@ Every store goes through legacy_plaintext() for this, none decides on its own.
 
 Binding (KAN-69 SV2-06): a sealed blob is also bound to WHERE it lives, so it cannot be moved. VLV2 = VLV1 with the
 authenticated data `purpose|context`: JsonState, sealed_sqlite and append_line files use their `<directory>/<file name>`,
-fieldseal columns (vlv2:) use `<column>#<row id>` (composite keys joined with "."). VLV1 / vlv1: values, written by earlier
+fieldseal columns (vlv2:) use a JSON list [table, column, *row key] (bind_for, version tag "b2"); file readers and writers
+TAKE THE CONTEXT AS A REQUIRED ARGUMENT (path_context(path) or a stable record id such as a content hash). VLV1 / VLS1 / vlv1: values, written by earlier
 releases, are judged like plaintext where a binding is expected: opened only inside the migration window, and the store
 rewrites them bound at once (files and append logs on first read, sqlite columns at open, once per database).
 UPGRADE ORDER: 1. stop all services; 2. `python -m velaris.core.vault start-migration`; 3. start the new release once with
@@ -193,36 +194,47 @@ def new_key() -> str:
     return base64.urlsafe_b64encode(os.urandom(32)).decode()
 
 
-def write_sealed(path, data: bytes, purpose: str, context: Optional[str] = None) -> None:
-    """Atomically write `data` sealed (owner-only file); `context` (e.g. the file's name) is bound into the seal."""
+def path_context(path) -> str:
+    """The location a sealed file is bound to: its directory name and file name (the data directory itself may move)."""
+    p = Path(str(path))
+    return f"{p.parent.name}/{p.name}"
+
+
+def write_sealed(path, data: bytes, purpose: str, context: str) -> None:
+    """Atomically write `data` sealed (owner-only file), bound to `context` (path_context(path) or a stable record id)."""
     write_private(path, seal_bytes(data, purpose, context))
 
 
-def read_sealed(path, purpose: str, context: Optional[str] = None) -> bytes:
-    """The plaintext of a sealed file; a plaintext (or, when `context` is given, unbound) file raises PlaintextRefused
-    outside the migration window."""
+def read_sealed(path, purpose: str, context: str) -> bytes:
+    """The plaintext of a sealed file. `context` is mandatory: a file sealed for another location does not open. A plaintext
+    or unbound (VLV1/VLS1) file raises PlaintextRefused outside the migration window; inside it the file is rebound at once."""
     if is_stream(path):
-        return b"".join(open_sealed_stream(path, purpose))
+        out = b"".join(open_sealed_stream(path, purpose, context))
+        if stream_is_legacy(path):
+            _rebind_stream(path, purpose, context)
+        return out
     blob = read_private(path)
     data = open_bytes(blob, purpose, context) if is_sealed(blob) else legacy_plaintext(blob, path)
-    if context is not None and not is_bound(blob):      # only reachable inside the migration window: seal and bind it now
+    if not is_bound(blob):                              # only reachable inside the migration window
         write_sealed(path, data, purpose, context)
     return data
 
 
 # ---- large files: chunked sealing (audio uploads of up to 200 MB must not be held in memory) -------------------------------
-STREAM_MAGIC = b"VLS1"
+STREAM_MAGIC = b"VLS2"          # records authenticated with purpose|context|position|last
+LEGACY_STREAM_MAGIC = b"VLS1"   # written before binding existed: window only, rebound on first read
 CHUNK = 1 << 20
 
 
-def _stream_aad(purpose: str, index: int, last: bool) -> bytes:
-    return purpose.encode() + b"|" + index.to_bytes(8, "big") + (b"L" if last else b"M")     # no reordering, no truncation
+def _stream_aad(purpose: str, index: int, last: bool, context: Optional[str] = None) -> bytes:
+    head = purpose.encode() if context is None else purpose.encode() + b"|" + context.encode()
+    return head + b"|" + index.to_bytes(8, "big") + (b"L" if last else b"M")     # no reordering, no truncation
 
 
-def write_sealed_stream(path, chunks: Iterable[bytes], purpose: str) -> int:
-    """Seal an iterable of byte chunks (any sizes) into `path` as VLS1 records of at most 1 MiB, atomically and owner-only.
-    Each record is authenticated with its position and whether it is the last, so cutting the file short or swapping
-    records fails on reading. Returns the number of plaintext bytes."""
+def write_sealed_stream(path, chunks: Iterable[bytes], purpose: str, context: str) -> int:
+    """Seal an iterable of byte chunks (any sizes) into `path` as VLS2 records of at most 1 MiB, atomically and owner-only.
+    Each record is authenticated with its context, position and whether it is the last, so cutting the file short, swapping
+    records or moving the file fails on reading. Returns the number of plaintext bytes."""
     aead, target, total = AESGCM(_key(purpose)), Path(path), 0
     tmp = target.with_name(f".{target.name}.{os.urandom(6).hex()}.tmp")
     fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
@@ -235,7 +247,7 @@ def write_sealed_stream(path, chunks: Iterable[bytes], purpose: str) -> int:
             def emit(block: bytes, last: bool) -> None:
                 nonlocal index
                 nonce = os.urandom(12)
-                ct = aead.encrypt(nonce, block, _stream_aad(purpose, index, last))
+                ct = aead.encrypt(nonce, block, _stream_aad(purpose, index, last, context))
                 f.write(nonce + len(ct).to_bytes(4, "big") + ct)
                 index += 1
 
@@ -254,12 +266,17 @@ def write_sealed_stream(path, chunks: Iterable[bytes], purpose: str) -> int:
     return total
 
 
-def open_sealed_stream(path, purpose: str) -> Iterator[bytes]:
-    """The plaintext of a VLS1 file, chunk by chunk. Raises VaultError on tamper, truncation, wrong store or key."""
+def open_sealed_stream(path, purpose: str, context: str) -> Iterator[bytes]:
+    """The plaintext of a stream file, chunk by chunk. Raises VaultError on tamper, truncation, wrong store, key or location.
+    A VLS1 (unbound) file is judged like plaintext: PlaintextRefused outside the migration window."""
     aead = AESGCM(_key(purpose))
     with open(path, "rb") as f:
-        if f.read(4) != STREAM_MAGIC:
+        magic = f.read(4)
+        if magic not in (STREAM_MAGIC, LEGACY_STREAM_MAGIC):
             raise VaultError("not a sealed stream")
+        ctx = context if magic == STREAM_MAGIC else None
+        if ctx is None:
+            legacy_plaintext(None, path)
         index, seen_last = 0, False
         while True:
             head = f.read(16)
@@ -273,13 +290,13 @@ def open_sealed_stream(path, purpose: str) -> Iterator[bytes]:
                 raise VaultError("sealed stream is truncated")
             for last in (False, True):
                 try:
-                    yield aead.decrypt(nonce, ct, _stream_aad(purpose, index, last))
+                    yield aead.decrypt(nonce, ct, _stream_aad(purpose, index, last, ctx))
                     seen_last = last
                     break
                 except InvalidTag:
                     continue
             else:
-                raise VaultError("sealed stream failed authentication (tampered, reordered or wrong store/key)")
+                raise VaultError("sealed stream failed authentication (tampered, reordered, moved or wrong store/key)")
             index += 1
         if not seen_last:
             raise VaultError("sealed stream is truncated (no final record)")
@@ -288,20 +305,31 @@ def open_sealed_stream(path, purpose: str) -> Iterator[bytes]:
 def is_stream(path) -> bool:
     try:
         with open(path, "rb") as f:
-            return f.read(4) == STREAM_MAGIC
+            return f.read(4) in (STREAM_MAGIC, LEGACY_STREAM_MAGIC)
     except OSError:
         return False
 
 
-def unseal_to_file(path, purpose: str, dest) -> None:
+def stream_is_legacy(path) -> bool:
+    with open(path, "rb") as f:
+        return f.read(4) == LEGACY_STREAM_MAGIC
+
+
+def _rebind_stream(path, purpose: str, context: str) -> None:
+    write_sealed_stream(path, open_sealed_stream(path, purpose, context), purpose, context)
+
+
+def unseal_to_file(path, purpose: str, context: str, dest) -> None:
     """Write the plaintext of a sealed file (either format) to `dest`, owner-only, without holding it in memory."""
     if not is_stream(path):
-        write_private(dest, read_sealed(path, purpose))
+        write_private(dest, read_sealed(path, purpose, context))
         return
     fd = os.open(dest, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(fd, "wb") as f:
-        for block in open_sealed_stream(path, purpose):
+        for block in open_sealed_stream(path, purpose, context):
             f.write(block)
+    if stream_is_legacy(path):
+        _rebind_stream(path, purpose, context)
 
 
 if __name__ == "__main__":

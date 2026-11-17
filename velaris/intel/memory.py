@@ -81,7 +81,7 @@ class MemoryStore:
     def __init__(self, llm: Optional[LLM] = None, *, path: Optional[str] = None) -> None:
         self.llm = llm or LLM()
         self._db = connect_db(path or str(data_dir() / "memory.db"), check_same_thread=False)
-        self._db.row_factory = fieldseal.row_class(SEAL, ("text", "embedding"))   # reading unseals; writing seals below
+        self._db.row_factory = fieldseal.row_class(SEAL, ("text", "embedding"), "memories")   # reading unseals; writing seals below
         self._db.execute("PRAGMA secure_delete=ON")          # erased text must not linger in freed pages (DPDP)
         self._db.execute("PRAGMA busy_timeout=5000")
         self._db.executescript(_SCHEMA)
@@ -226,8 +226,8 @@ class MemoryStore:
                 self._db.execute(
                     "INSERT INTO memories (id, scope, text, embedding, source, created_at, supersedes, trace_hash) "
                     "VALUES (?,?,?,?,?,?,?,?)",
-                    (new_id, scope, fieldseal.seal(fact, SEAL, fieldseal.bind_for("text", new_id)),
-                     fieldseal.seal(json.dumps(vec), SEAL, fieldseal.bind_for("embedding", new_id)), source, now,
+                    (new_id, scope, fieldseal.seal(fact, SEAL, fieldseal.bind_for("memories", "text", new_id)),
+                     fieldseal.seal(json.dumps(vec), SEAL, fieldseal.bind_for("memories", "embedding", new_id)), source, now,
                      decision["target"], entry["hash"]))
                 self._db.commit()
             results.append({"action": decision["action"], "text": fact, "id": new_id,

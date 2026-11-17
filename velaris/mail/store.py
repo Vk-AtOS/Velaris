@@ -189,7 +189,7 @@ class MailStore(AdminMixin, Database):
                       "VALUES (?,?,?,?,?,?,?,?)", (pk, a.sha256, a.name, a.content_type, a.size, a.content_id, int(a.inline), org))
 
     def _row_values(self, p: Parsed, pk: str) -> Dict[str, Any]:
-        s = lambda v, col: fieldseal.seal(v, SEAL, fieldseal.bind_for(col, pk))     # bound to this message row
+        s = lambda v, col: fieldseal.seal(v, SEAL, fieldseal.bind_for("message", col, pk))     # bound to this message row
         return {"message_id": p.message_id, "in_reply_to": p.in_reply_to, "refs": dumps(p.references), "from_addr": s(p.from_addr, "from_addr"),
                 "from_name": s(p.from_name, "from_name"), "to_addrs": s(dumps(p.to), "to_addrs"), "cc_addrs": s(dumps(p.cc), "cc_addrs"), "subject": s(p.subject, "subject"),
                 "date_ts": p.date_ts, "size": max(p.size, len(p.text) + len(p.html) + sum(a.size for a in p.attachments)),
@@ -218,7 +218,7 @@ class MailStore(AdminMixin, Database):
             else:
                 fid = c.execute("SELECT id FROM folder WHERE mailbox_id=? AND role=?", (mailbox_id, folder_role)).fetchone()["id"]
             vals.update(id=pk, org=mb["org"], mailbox_id=mailbox_id, folder_id=fid, thread_id=self._thread_for(c, mb, p, now),
-                        bcc_addrs=fieldseal.seal(dumps(list(bcc)), SEAL, fieldseal.bind_for("bcc_addrs", pk)), received_ts=now, seen=int(seen or draft), draft=int(draft), source=source,
+                        bcc_addrs=fieldseal.seal(dumps(list(bcc)), SEAL, fieldseal.bind_for("message", "bcc_addrs", pk)), received_ts=now, seen=int(seen or draft), draft=int(draft), source=source,
                         origin=origin, auth_results=auth_results[:2000], spam_score=spam_score, spam_report=dumps(spam_report or []),
                         sent_by=sent_by)
             cur = c.execute(f"INSERT INTO message({','.join(vals)}) VALUES ({','.join('?' * len(vals))})", tuple(vals.values()))
@@ -250,7 +250,7 @@ class MailStore(AdminMixin, Database):
                 raise MailError("not_found", "no such draft", 404)
             vals = self._row_values(p, draft_id)
             vals.pop("message_id")
-            vals["bcc_addrs"] = fieldseal.seal(dumps(list(bcc)), SEAL, fieldseal.bind_for("bcc_addrs", draft_id))
+            vals["bcc_addrs"] = fieldseal.seal(dumps(list(bcc)), SEAL, fieldseal.bind_for("message", "bcc_addrs", draft_id))
             old = [a["sha256"] for a in c.execute("SELECT sha256 FROM attachment WHERE message_pk=?", (draft_id,))]
             used = self.used_bytes(mailbox_id) - r["size"] + vals["size"]
             if used > c.execute("SELECT quota_bytes FROM mailbox WHERE id=?", (mailbox_id,)).fetchone()[0]:

@@ -82,11 +82,11 @@ class Esign:
     @staticmethod
     def _write(path: Path, data: bytes) -> None:
         """Contracts, offers and signed PDFs are personal data: sealed at rest and bound to their file (KAN-69 SV2-04)."""
-        vault.write_sealed(path, data, FILE_SEAL, f"{path.parent.name}/{path.name}")
+        vault.write_sealed(path, data, FILE_SEAL, vault.path_context(path))
 
     def _read(self, path: Path) -> Optional[bytes]:
         try:
-            return vault.read_sealed(path, FILE_SEAL, f"{path.parent.name}/{path.name}")
+            return vault.read_sealed(path, FILE_SEAL, vault.path_context(path))
         except FileNotFoundError:
             return None
         except vault.PlaintextRefused:

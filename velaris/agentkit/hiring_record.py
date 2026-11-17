@@ -165,7 +165,7 @@ def store_audio(org: str, s: Dict[str, Any], participant: str, data: bytes, mime
         raise bad("audio must be 1 byte to 200 MB")
     h = hashlib.sha256(bytes(data)).hexdigest()
     path = private_dir(agent_dir(AGENT) / "audio") / f"{h}.bin"
-    vault.write_sealed(path, bytes(data), _SEAL)
+    vault.write_sealed(path, bytes(data), _SEAL, vault.path_context(path))
     return track_record(participant, h, len(data), mime, duration_s, str(path))
 
 
@@ -213,7 +213,7 @@ def store_audio_file(org: str, s: Dict[str, Any], participant: str, src: str, mi
     path = private_dir(agent_dir(AGENT) / "audio") / f"{sha}.bin"
     created = not path.exists()
     with open(src, "rb") as f:
-        vault.write_sealed_stream(path, iter(lambda: f.read(1 << 20), b""), _SEAL)
+        vault.write_sealed_stream(path, iter(lambda: f.read(1 << 20), b""), _SEAL, vault.path_context(path))
     return {**track_record(participant, sha, size, mime, duration_s, str(path)), "_created": created}
 
 
@@ -232,7 +232,7 @@ def track_record(participant: str, sha256: str, size: int, mime: str, duration_s
 def _plain_copy(path: str) -> Iterator[str]:
     with tempfile.TemporaryDirectory(prefix="vl-audio-") as d:
         tmp = os.path.join(d, os.path.basename(path))
-        vault.unseal_to_file(path, _SEAL, tmp)          # streamed: a 200 MB track is never held in memory
+        vault.unseal_to_file(path, _SEAL, vault.path_context(path), tmp)          # streamed: a 200 MB track is never held in memory
         yield tmp
 
 

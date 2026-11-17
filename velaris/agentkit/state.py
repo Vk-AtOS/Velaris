@@ -113,7 +113,7 @@ class JsonState:
     @property
     def _context(self) -> Optional[str]:
         """What a sealed file is bound to: its directory and file name, so it does not open as another file."""
-        return f"{self.path.parent.name}/{self.path.name}" if self._purpose else None
+        return vault.path_context(self.path) if self._purpose else None
 
     def _decode(self, raw: bytes) -> Dict[str, Any]:
         if vault.is_sealed(raw):
@@ -160,7 +160,7 @@ class JsonState:
         with self.lock:
             target = self.path if self._explicit else agent_dir(self.agent) / self.filename
             if self._purpose:
-                body = vault.seal_bytes(body, self._purpose, f"{target.parent.name}/{target.name}")
+                body = vault.seal_bytes(body, self._purpose, vault.path_context(target))
             write_private(target, body)
 
     def update(self, fn: Callable[[Dict[str, Any]], Any]) -> Any:
@@ -186,9 +186,7 @@ _SEALED_LINE = "VLV1:"      # sealed line, bound to the purpose only (written be
 _BOUND_LINE = "VLV2:"       # sealed line bound to the purpose AND the file (directory/name): not movable to another file
 
 
-def _line_context(path: object) -> str:
-    p = Path(str(path))
-    return f"{p.parent.name}/{p.name}"
+_line_context = vault.path_context
 
 
 def append_line(path: Path, record: Dict[str, Any], *, encrypted: Optional[str] = None) -> None:
@@ -249,13 +247,9 @@ def last_line(path: Path, *, encrypted: Optional[str] = None, tail: int = 262_14
     return None
 
 
-def read_lines(path: Path, *, encrypted: Optional[str] = None) -> List[Dict[str, Any]]:
-    """Every parseable JSON line of a file; a torn last line is skipped with a warning.
-    With `encrypted`, sealed lines are opened (a wrong key raises) and a plaintext line raises vault.PlaintextRefused
-    unless the one-time migration window is open."""
-    if not path.exists():
-        return []
-    out, old_format = [], False
+def _read_all(path: Path, encrypted: Optional[str]) -> "tuple[List[Dict[str, Any]], List[int], bool]":
+    """(records, numbers of unreadable lines, whether any sealed line is in the old unbound format)."""
+    out, bad, old_format = [], [], False
     for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
         try:
             out.append(_parse_line(line, encrypted, path))
@@ -264,9 +258,28 @@ def read_lines(path: Path, *, encrypted: Optional[str] = None) -> List[Dict[str,
             raise
         except ValueError as e:
             logger.warning("Skipping unreadable line %s of %s: %s", n, path, e)
-    if old_format:                                      # only reachable inside the migration window: bind every line to this file
-        with lock_for(path.with_name(path.name + ".lock")):
-            body = "".join(_BOUND_LINE + base64.b64encode(vault.seal_bytes(json.dumps(r, sort_keys=True, default=str).encode(), encrypted,
-                                                                           _line_context(path))).decode("ascii") + "\n" for r in out)
-            write_private(path, body.encode("ascii"))
+            bad.append(n)
+    return out, bad, old_format
+
+
+def read_lines(path: Path, *, encrypted: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Every parseable JSON line of a file; a torn last line is skipped with a warning.
+    With `encrypted`, sealed lines are opened (a wrong key raises) and a plaintext line raises vault.PlaintextRefused
+    unless the one-time migration window is open. Inside the window a file with old-format (unbound) lines is rewritten
+    bound to the file: under the file lock, re-read under it so no concurrent append is lost, and never if a line is
+    unreadable (the file stays as it is and the read raises)."""
+    if not path.exists():
+        return []
+    out, bad, old_format = _read_all(path, encrypted)
+    if not old_format:
+        return out
+    with lock_for(path.with_name(path.name + ".lock")):
+        out, bad, old_format = _read_all(path, encrypted)               # what is on disk NOW, with the lock held
+        if not old_format:
+            return out
+        if bad:
+            raise vault.VaultError(f"{path.name} has unreadable lines {bad[:5]}; not migrated (the file is unchanged)")
+        body = "".join(_BOUND_LINE + base64.b64encode(vault.seal_bytes(json.dumps(r, sort_keys=True, default=str).encode(), encrypted,
+                                                                       _line_context(path))).decode("ascii") + "\n" for r in out)
+        write_private(path, body.encode("ascii"))
     return out

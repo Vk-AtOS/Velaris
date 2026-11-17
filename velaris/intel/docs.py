@@ -428,7 +428,7 @@ class DocStore:
     def __init__(self, llm: Optional[LLM] = None, *, path: Optional[str] = None) -> None:
         self.llm = llm or LLM()
         self._db = connect_db(path or str(data_dir() / "docs.db"), check_same_thread=False)
-        self._db.row_factory = fieldseal.row_class(SEAL, _SEALED)     # reading unseals; ingest seals
+        self._db.row_factory = fieldseal.row_class(SEAL, _SEALED, "chunks")     # reading unseals; ingest seals
         self._db.execute("PRAGMA secure_delete=ON")          # erased text must not linger in freed pages (DPDP)
         self._db.execute("PRAGMA busy_timeout=5000")
         self._db.executescript(_SCHEMA)
@@ -476,7 +476,7 @@ class DocStore:
             self._db.execute("INSERT INTO documents VALUES (?,?,?,?,?,?,?,NULL,?)",
                              (doc_id, scope, name, sha, kind, source, now, old["id"] if old else None))
             cids = [uuid.uuid4().hex for _ in parts]
-            bound = lambda col, i, v: fieldseal.seal(v, SEAL, fieldseal.bind_for(col, cids[i]))     # bound to its chunk row
+            bound = lambda col, i, v: fieldseal.seal(v, SEAL, fieldseal.bind_for("chunks", col, cids[i]))     # bound to its chunk row
             self._db.executemany("INSERT INTO chunks VALUES (?,?,?,?,?,?,?,?)", [
                 (cids[i], doc_id, i, bound("heading", i, p["heading"]), bound("text", i, p["text"]), shas[i],
                  bound("embedding", i, known[shas[i]]), flags[i])

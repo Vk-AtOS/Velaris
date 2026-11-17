@@ -75,7 +75,7 @@ def public_submit(form_id: str, answers: Dict[str, Any], pow_solution: Dict[str,
         sid = new_id("sub")
         if file_info:
             path = private_dir(agent_dir(hf.AGENT) / "uploads") / f"{sid}.bin"
-            vault.write_sealed(path, bytes(file_bytes), "hiring:SCREENING_FORMS")
+            vault.write_sealed(path, bytes(file_bytes), "hiring:SCREENING_FORMS", vault.path_context(path))
             file_info["path"] = str(path)
         consent = {"purpose": f"recruitment: {f['title']}"[:300], "notice_version": f["consent_version"],
                    "retention_until": iso(at + f["retention_days"] * DAY)[:10], "channel": "web_form",
@@ -141,4 +141,4 @@ def public_withdraw(token: str) -> Dict[str, Any]:
 
 
 def file_b64(path: str) -> str:
-    return base64.b64encode(vault.read_sealed(path, "hiring:SCREENING_FORMS")).decode()
+    return base64.b64encode(vault.read_sealed(path, "hiring:SCREENING_FORMS", vault.path_context(path))).decode()

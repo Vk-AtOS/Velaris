@@ -98,16 +98,16 @@ def test_sealed_stream_roundtrip_and_reordered_or_cut_records_fail(tmp_path):
     import os
     p = tmp_path / "a.bin"
     data = os.urandom(3 * vault.CHUNK + 5)
-    assert vault.write_sealed_stream(p, (data[i:i + 700_000] for i in range(0, len(data), 700_000)), "x") == len(data)
-    assert vault.read_sealed(p, "x") == data
+    assert vault.write_sealed_stream(p, (data[i:i + 700_000] for i in range(0, len(data), 700_000)), "x", "a.bin") == len(data)
+    assert vault.read_sealed(p, "x", "a.bin") == data
     with pytest.raises(vault.VaultError):
-        list(vault.open_sealed_stream(p, "other"))
+        list(vault.open_sealed_stream(p, "other", "a.bin"))
     raw = p.read_bytes()
     rec = 16 + vault.CHUNK + 16
     swapped = raw[:4] + raw[4 + rec:4 + 2 * rec] + raw[4:4 + rec] + raw[4 + 2 * rec:]
     p.write_bytes(swapped)
     with pytest.raises(vault.VaultError):
-        vault.read_sealed(p, "x")
+        vault.read_sealed(p, "x", "a.bin")
     p.write_bytes(raw[:4 + rec])                                  # the last record is missing
     with pytest.raises(vault.VaultError):
-        vault.read_sealed(p, "x")
+        vault.read_sealed(p, "x", "a.bin")

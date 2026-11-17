@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any, Iterator, List, Optional
 
 from velaris.core import vault
-from velaris.intel.paths import data_dir, open_private, private_dir, read_private, write_private
+from velaris.intel.paths import data_dir, open_private, private_dir, write_private
 from velaris.mail.common import MailError
 
 SEAL = "mail"       # purpose of the column-level encryption (velaris.core.fieldseal)
@@ -93,7 +93,7 @@ class Database:
         open_private(self.path, "a").close()                      # created 0600 before sqlite touches it
         self._lock = threading.RLock()
         self._conn = connect_db(str(self.path), check_same_thread=False)
-        self._conn.row_factory = fieldseal.row_class(SEAL, SEALED)
+        self._conn.row_factory = fieldseal.row_class(SEAL, SEALED, "message")
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA foreign_keys=ON")
         self._conn.execute("PRAGMA secure_delete=ON")             # purged and edited text must not linger in freed pages
@@ -165,14 +165,13 @@ class Database:
         if hashlib.sha256(data).hexdigest() != sha:
             raise MailError("bad_hash", "the content does not match its hash")
         try:
-            write_private(self._blob_path(sha), vault.seal_bytes(data, "mail:blob"), exclusive=True)
+            write_private(self._blob_path(sha), vault.seal_bytes(data, "mail:blob", sha), exclusive=True)
         except FileExistsError:
             pass                                                   # same content already stored
 
     def get_blob(self, sha: str) -> bytes:
         try:
-            data = read_private(self._blob_path(sha))
-            data = vault.open_bytes(data, "mail:blob") if vault.is_sealed(data) else vault.legacy_plaintext(data, f"mail blob {sha[:8]}")
+            data = vault.read_sealed(self._blob_path(sha), "mail:blob", sha)     # bound to its hash; old blobs rebound in the window
         except FileNotFoundError:
             raise MailError("not_found", "no such attachment", 404) from None
         except vault.VaultError as e:                              # tampered, or plaintext planted in its place

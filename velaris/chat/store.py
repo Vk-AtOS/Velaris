@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS ai_proposals(run_id TEXT PRIMARY KEY, org TEXT NOT NU
   source_message_id INTEGER NOT NULL, decided_by TEXT, requester_confirmed INTEGER NOT NULL DEFAULT 0,
   confirmed_hash TEXT, confirmed_at REAL, context_authors TEXT NOT NULL DEFAULT '[]');
 """
+NAME_SEAL = "chat:file-name"   # the file name column is sealed at rest, bound to (hash, uploader); the blob is sealed per content hash
 SEAL = "chat"                 # message text is sealed at rest (velaris.core.fieldseal); the search index holds blind tokens
 SEALED = ("body",)
 _SCAN_LIMIT = 2000            # no-FTS fallback: newest messages of the user's channels that are decrypted and searched
@@ -87,7 +88,9 @@ class Store:
         os.close(fd)
         self.lock = threading.RLock()
         self.db = connect_db(self.path, check_same_thread=False, isolation_level=None)
-        self.db.row_factory = fieldseal.row_class(SEAL, SEALED)
+        self.db.row_factory = fieldseal.row_class(SEAL, SEALED, [
+            fieldseal.RowKey("messages", ("id",), lambda v: isinstance(v[0], int)), fieldseal.RowKey("ai_drafts", ("id",)),
+            fieldseal.RowKey("edits", ("message_id", "version")), fieldseal.RowKey("drafts", ("user_id", "channel_id", "topic"))])
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.execute("PRAGMA foreign_keys=ON")
         self.db.execute("PRAGMA secure_delete=ON")        # erased and edited text must not linger in freed pages (DPDP)
@@ -138,7 +141,7 @@ class Store:
         """Seal file names stored before sealing existed (once). Blobs are sealed when first downloaded in the migration window."""
         if self.one("SELECT 1 FROM settings WHERE org='' AND key='sealed_files_v1'"):
             return
-        fieldseal.seal_existing(self.db, "files", ["name"], "chat:file-name", key="rowid", bind=False)
+        fieldseal.seal_existing(self.db, "files", ["name"], NAME_SEAL, key=("hash", "uploader"))
         self.db.execute("INSERT OR REPLACE INTO settings VALUES('', 'sealed_files_v1', '1')")
 
     def _migrate(self) -> None:

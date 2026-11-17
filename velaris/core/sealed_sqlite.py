@@ -51,7 +51,7 @@ class SealedConnection(sqlite3.Connection):
     @property
     def _ctx(self) -> str:
         """What the sealed image is bound to: directory and file name (a file of another store or agent does not open)."""
-        return f"{self._path.parent.name}/{self._path.name}"
+        return vault.path_context(self._path)
 
     def _attach(self, path: Path, purpose: str) -> None:
         self._path, self._purpose = path, purpose
