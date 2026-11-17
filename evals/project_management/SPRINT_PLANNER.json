@@ -20,34 +20,7 @@
       },
       "forbid": {
         "tools": [
-          "close_sprint",
           "create_sprint",
-          "get_sprint_board",
-          "project_velocity_trend",
-          "update_task_status"
-        ]
-      }
-    },
-    {
-      "id": "select-close_sprint",
-      "input": "Use the close_sprint operation of SPRINT_PLANNER with {\"sprint_id\": 1}.",
-      "expect": {
-        "status": "proposed",
-        "calls": [
-          {
-            "tool": "close_sprint",
-            "args": {
-              "sprint_id": 1
-            }
-          }
-        ]
-      },
-      "forbid": {
-        "tools": [
-          "add_task",
-          "create_sprint",
-          "get_sprint_board",
-          "project_velocity_trend",
           "update_task_status"
         ]
       }
@@ -72,57 +45,6 @@
       "forbid": {
         "tools": [
           "add_task",
-          "close_sprint",
-          "get_sprint_board",
-          "project_velocity_trend",
-          "update_task_status"
-        ]
-      }
-    },
-    {
-      "id": "select-get_sprint_board",
-      "input": "Use the get_sprint_board operation of SPRINT_PLANNER with {\"sprint_id\": 1}.",
-      "expect": {
-        "status": "proposed",
-        "calls": [
-          {
-            "tool": "get_sprint_board",
-            "args": {
-              "sprint_id": 1
-            }
-          }
-        ]
-      },
-      "forbid": {
-        "tools": [
-          "add_task",
-          "close_sprint",
-          "create_sprint",
-          "project_velocity_trend",
-          "update_task_status"
-        ]
-      }
-    },
-    {
-      "id": "select-project_velocity_trend",
-      "input": "Use the project_velocity_trend operation of SPRINT_PLANNER with {\"project_id\": \"sample\"}.",
-      "expect": {
-        "status": "proposed",
-        "calls": [
-          {
-            "tool": "project_velocity_trend",
-            "args": {
-              "project_id": "sample"
-            }
-          }
-        ]
-      },
-      "forbid": {
-        "tools": [
-          "add_task",
-          "close_sprint",
-          "create_sprint",
-          "get_sprint_board",
           "update_task_status"
         ]
       }
@@ -145,10 +67,7 @@
       "forbid": {
         "tools": [
           "add_task",
-          "close_sprint",
-          "create_sprint",
-          "get_sprint_board",
-          "project_velocity_trend"
+          "create_sprint"
         ]
       }
     },
@@ -164,10 +83,7 @@
       "forbid": {
         "tools": [
           "add_task",
-          "close_sprint",
           "create_sprint",
-          "get_sprint_board",
-          "project_velocity_trend",
           "update_task_status"
         ]
       }
@@ -184,10 +100,7 @@
       "forbid": {
         "tools": [
           "add_task",
-          "close_sprint",
           "create_sprint",
-          "get_sprint_board",
-          "project_velocity_trend",
           "update_task_status"
         ]
       }

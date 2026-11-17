@@ -2,11 +2,17 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `real`
-- **Source:** `departments/_ai_core/PRIME/main.py` (213 lines)
+- **Source:** `departments/_ai_core/PRIME/main.py` (226 lines)
 
 ## Purpose
 
 PRIME: the Velaris controller, and the one place that decides what an agent or person may do.
+
+AetherOS Prime (velaris.core.prime, the approval gate of every flow) is the canonical authority: it is on the runtime path and holds
+the per-organisation limits, hard maxima, expiry and the revocation audit chain. This agent is the LOCAL fallback for deployments
+without Prime. Once VELARIS_PRIME_URL and VELARIS_PRIME_API_KEY are set it DELEGATES: it makes no grants, and a decision that
+would be "allow" is "needs_approval" (so execute() runs nothing), because a local grant never reaches Prime and must not be able
+to do what Prime has not approved.
 
 Two jobs.
 1. Authorisation (written fresh for Velaris after the shape of AetherOS Prime):
@@ -55,7 +61,9 @@ Backward-compatible alias (test_phase4_intel.py and integration tests use this n
 - `velaris.agentkit.results`
 - `velaris.agentkit.state`
 - `velaris.agents.ENGINE.main`
+- `velaris.backend.engine`
 - `velaris.core.access`
+- `velaris.core.prime`
 - `velaris.intel`
 
 ## State and configuration
@@ -66,4 +74,4 @@ Backward-compatible alias (test_phase4_intel.py and integration tests use this n
 
 - **other agents:** `ASEL_EXECUTOR`, `ENGINE`, `FSCL`, `VCAS_AUTOPILOT`, `VCAS_CORE`, `VCAS_SUPERVISOR`
 - **platform modules:** `velaris/agentkit/aicore_b_authz.py`, `velaris/core/access.py`, `velaris/intel/approvals.py`
-- **tests:** `velaris/tests/test_aicore_a_ops.py`, `velaris/tests/test_aicore_b_eof.py`, `velaris/tests/test_aicore_b_prime_vcas.py`, `velaris/tests/test_approval_audit.py`, `velaris/tests/test_kan95_core.py`, `velaris/tests/test_layer31_eof.py`, `velaris/tests/test_phase4_intel.py`, `velaris/tests/test_prime.py`
+- **tests:** `velaris/tests/test_aicore_a_ops.py`, `velaris/tests/test_aicore_b_eof.py`, `velaris/tests/test_aicore_b_prime_vcas.py`, `velaris/tests/test_approval_audit.py`, `velaris/tests/test_kan95_core.py`, `velaris/tests/test_layer31_eof.py`, `velaris/tests/test_phase4_intel.py`, `velaris/tests/test_prime.py`, `velaris/tests/test_prime_delegation.py`

@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `real`
-- **Source:** `departments/_ai_core/VCAS_AUTOPILOT/main.py` (100 lines)
+- **Source:** `departments/_ai_core/VCAS_AUTOPILOT/main.py` (102 lines)
 
 ## Purpose
 
@@ -22,8 +22,8 @@ spent once (kept in the same state file), so it cannot be replayed. A task id th
 already ran is never run again: the stored result is returned instead
 (state under this agent's state directory, survives restart). Handler errors
 are caught and recorded as a failed run. Every run is written to the trace.
-ponytail: handlers live in the process; after a restart callers register them
-again. A task that crashed the process mid-run is marked "started" and needs a
+Handlers live in the process: an instance's own (register) and the deployment's, registered once at start-up in
+velaris.orchestration.handlers (the engine builds a fresh instance per call, so only those exist there). A task that crashed the process mid-run is marked "started" and needs a
 person to decide whether to run it again.
 
 ## Class `VCASAutopilotAgent`
@@ -31,7 +31,7 @@ person to decide whether to run it again.
 - `__init__()`
 - `health_check()`
 - `register(action, handler)`
-- `handlers()`
+- `handlers()` — This instance's handlers and the deployment's (orchestration.handlers): the engine builds a fresh instance per call.
 - `run_of(task_id)`
 - `execute(task, approval)`
 
@@ -43,6 +43,7 @@ person to decide whether to run it again.
 - `velaris.agentkit.state`
 - `velaris.agents.VCAS_SUPERVISOR.main`
 - `velaris.intel`
+- `velaris.orchestration`
 
 ## State and configuration
 
@@ -51,5 +52,5 @@ person to decide whether to run it again.
 ## Called by
 
 - **other agents:** `PRIME`, `VCAS_CORE`, `VCAS_ROUTER`, `VCAS_SUPERVISOR`
-- **platform modules:** `velaris/agentkit/aicore_b_authz.py`, `velaris/intel/approvals.py`
-- **tests:** `velaris/tests/test_aicore_b_prime_vcas.py`, `velaris/tests/test_approval_audit.py`, `velaris/tests/test_kan95_core.py`, `velaris/tests/test_layer19_vcas.py`
+- **platform modules:** `velaris/agentkit/aicore_b_authz.py`, `velaris/intel/approvals.py`, `velaris/orchestration/handlers.py`
+- **tests:** `velaris/tests/test_aicore_b_prime_vcas.py`, `velaris/tests/test_approval_audit.py`, `velaris/tests/test_handlers_registry.py`, `velaris/tests/test_kan95_core.py`, `velaris/tests/test_layer19_vcas.py`

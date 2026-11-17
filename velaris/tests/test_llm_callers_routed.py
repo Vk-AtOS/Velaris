@@ -3,8 +3,7 @@ import ast
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-ALLOWED = {"velaris/intel/router.py", "velaris/intel/llm.py", "velaris/api/observability.py",
-           "velaris/intel/flow.py", "velaris/intel/corrections_eval.py"}      # flow.py: owned by the orchestration work (not yet routed)
+ALLOWED = {"velaris/intel/router.py", "velaris/intel/llm.py", "velaris/api/observability.py"}      # the gateway, the router, the metering wrapper
 
 
 def test_no_direct_llm_complete_call_remains():

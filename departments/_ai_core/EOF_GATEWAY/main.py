@@ -3,7 +3,8 @@
 route(dst, payload, via=None) checks the message and appends it to the
 destination's inbox (one owner-only file per destination under this agent's
 state directory); receive(dst) returns the messages not yet taken. It delivers
-to an inbox and nothing more: it does not call the destination agent.
+to an inbox and nothing more: it does not call the destination agent (velaris.orchestration.inbox.deliver hands the messages to
+an agent that defines on_message). An inbox holds at most MAX_BACKLOG untaken messages; after that route answers queue_full.
 
 Who sent it is never a free-text argument. Every message records:
   on_behalf_of   the current caller (velaris.core.access); routing without one is refused.
@@ -44,6 +45,7 @@ from velaris.intel.paths import agent_dir
 logger = logging.getLogger("EOF_GATEWAY")
 NAME = "EOF_GATEWAY"
 MAX_PAYLOAD_BYTES = 64 * 1024
+MAX_BACKLOG = 1000        # messages queued and not yet taken, per destination: an inbox nobody reads must not fill the disk
 
 
 def _strings(value: Any) -> Iterator[str]:
@@ -74,6 +76,10 @@ class EOF_GATEWAYAgent:
 
     def health_check(self):
         return health(NAME)
+
+    def backlog(self, dst_id: str) -> int:
+        """Messages queued for `dst_id` and not yet taken (read-only)."""
+        return len(read_lines(peek_dir(NAME) / f"inbox_{dst_id}.jsonl")) - int(self._cursors.load().get(dst_id, 0))
 
     def route(self, dst: str, payload: dict, *, via: Any = None, dry_run: bool = False) -> Dict[str, Any]:
         """Queue `payload` for `dst` as the current caller, through agent `via` if given (see the module docstring).
@@ -116,6 +122,8 @@ class EOF_GATEWAYAgent:
                                    findings=[f["rule"] for f in scan.findings])}
         if dry_run:
             return {**base, "status": "ok", "dry_run": True}
+        if self.backlog(dst_id) >= MAX_BACKLOG:
+            return {**base, **fail("queue_full", f"{dst_id} has {MAX_BACKLOG} messages nobody has taken; nothing more is queued")}
         message = {"id": new_id("msg"), "ts": time.time(), "src": src_id, "sender": "agent" if sender else "caller",
                    "on_behalf_of": caller.id, "dst": dst_id, "payload": payload}
         try:

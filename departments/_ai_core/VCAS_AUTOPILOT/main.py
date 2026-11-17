@@ -14,8 +14,8 @@ spent once (kept in the same state file), so it cannot be replayed. A task id th
 already ran is never run again: the stored result is returned instead
 (state under this agent's state directory, survives restart). Handler errors
 are caught and recorded as a failed run. Every run is written to the trace.
-ponytail: handlers live in the process; after a restart callers register them
-again. A task that crashed the process mid-run is marked "started" and needs a
+Handlers live in the process: an instance's own (register) and the deployment's, registered once at start-up in
+velaris.orchestration.handlers (the engine builds a fresh instance per call, so only those exist there). A task that crashed the process mid-run is marked "started" and needs a
 person to decide whether to run it again.
 """
 import logging
@@ -28,6 +28,7 @@ from velaris.agentkit.results import fail, health, invalid
 from velaris.agentkit.state import JsonState
 from velaris.agents.VCAS_SUPERVISOR.main import task_error
 from velaris.intel import approvals
+from velaris.orchestration import handlers as shared
 
 logger = logging.getLogger("VCAS_AUTOPILOT")
 NAME = "VCAS_AUTOPILOT"
@@ -42,7 +43,7 @@ class VCASAutopilotAgent:
         self._runs = JsonState(NAME, "runs.json", {"runs": {}})
 
     def health_check(self):
-        return health(NAME, handlers=sorted(self._handlers))
+        return health(NAME, handlers=self.handlers())
 
     def register(self, action: str, handler: Callable[[Dict[str, Any]], Any]) -> Dict[str, Any]:
         if ident(action) is None or not callable(handler):
@@ -51,7 +52,8 @@ class VCASAutopilotAgent:
         return {"status": "ok", "action": action}
 
     def handlers(self):
-        return sorted(self._handlers)
+        """This instance's handlers and the deployment's (orchestration.handlers): the engine builds a fresh instance per call."""
+        return sorted(set(self._handlers) | set(shared.names(NAME)))
 
     def run_of(self, task_id: str) -> Optional[Dict[str, Any]]:
         return self._runs.load().get("runs", {}).get(str(task_id))
@@ -64,7 +66,7 @@ class VCASAutopilotAgent:
         task_id = str(task["id"])
         if not _proven(task, approval):
             return {**base, **fail("not_approved", "execute needs a recorded approval of this task (trace_hash)")}
-        handler = self._handlers.get(task["action"])
+        handler = self._handlers.get(task["action"]) or shared.get(NAME, task["action"])
         if handler is None:
             return {**base, **fail("no_handler", f"no handler is registered for '{task['action']}'")}
         previous = self.run_of(task_id)

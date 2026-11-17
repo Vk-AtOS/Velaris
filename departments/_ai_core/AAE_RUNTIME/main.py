@@ -28,6 +28,7 @@ from velaris.agentkit.state import JsonState
 from velaris.agents.AAE_POLICY.main import AAE_POLICYAgent
 from velaris.core.access import GOVERNANCE_ADMINS, SECURITY_ADMINS, check_caller
 from velaris.intel import approvals
+from velaris.orchestration import handlers as shared
 
 NAME = "AAE_RUNTIME"
 logger = logging.getLogger(NAME)
@@ -44,7 +45,7 @@ class AAE_RUNTIMEAgent:
         self._state = JsonState(NAME, "state.json", {"journal": {}, "requests": {}})
 
     def health_check(self):
-        return health(NAME, handlers=sorted(self.handlers))
+        return health(NAME, handlers=sorted(set(self.handlers) | set(shared.names(NAME))))
 
     def register(self, action_type, handler):
         if ident(action_type) is None or not callable(handler):
@@ -85,7 +86,7 @@ class AAE_RUNTIMEAgent:
             approved_by, requested_by = caller.id, request["requested_by"]
         else:
             approved_by = None              # nothing needed approving; do not record a claimed approver
-        handler = self.handlers.get(atype)
+        handler = self.handlers.get(atype) or shared.get(NAME, atype)
         if handler is None:
             return self._finish(aid, atype, "no_handler",
                                 fail("no_handler", f"no handler registered for {atype!r}", action=aid),

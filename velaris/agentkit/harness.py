@@ -27,10 +27,10 @@ from velaris.agentkit.harness_spec import load_json, manifest_path
 from velaris.agentkit.harness_tools import build_object, specs_for
 from velaris.api.allowlist import READ, prepare, rule_for
 from velaris.core.access import AccessDenied, Caller
-from velaris.intel import guard, router, trace
+from velaris.intel import guard, router, trace, usage
 from velaris.intel.errors import LLMError, PolicyRefused
 from velaris.intel.flow import call_hash
-from velaris.intel.tools import ToolSpec, dataclass_params, validate
+from velaris.intel.tools import ToolOutputError, ToolSpec, dataclass_params, validate, validate_output
 from velaris.intel.llm import LLM, extract_json
 
 MAX_OUTPUT_CHARS = 4000
@@ -168,6 +168,10 @@ class Harness:
             if param in run_args:
                 run_args = {**run_args, param: build_object(cls, run_args[param])}
         out = self.engine.run(self.agent, spec.method, run_args, caller=caller)
+        problems = validate_output(spec, out)          # a result that does not fit its declared shape is a failed step, never data
+        if problems:
+            self._trace("call.bad_output", {"tool": spec.method, "problems": problems})
+            raise ToolOutputError("; ".join(problems))
         return out if isinstance(out, str) else json.dumps(out, default=str, ensure_ascii=False)
 
     def _trace(self, action: str, payload: Dict[str, Any]) -> None:
@@ -192,8 +196,9 @@ class Harness:
         for turn in range(1, max_turns + 1):
             out.turns = turn
             try:
-                done = router.complete(self.entry["task_class"], self.prompt(task, steps), llm=self.llm, sensitivity=level,
-                                       models=self.models, purpose=f"harness.{self.agent}", max_tokens=800, temperature=0.0)
+                with usage.usage_context(org=caller.org if caller else None, agent=self.agent):    # spend is the AGENT's, not "harness"
+                    done = router.complete(self.entry["task_class"], self.prompt(task, steps), llm=self.llm, sensitivity=level,
+                                           models=self.models, purpose=f"harness.{self.agent}", max_tokens=800, temperature=0.0)
             except PolicyRefused as e:
                 out.status, out.reason = "refused", str(e)[:200]
                 return out

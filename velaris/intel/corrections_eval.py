@@ -19,7 +19,7 @@ from typing import Any, Dict, List, Optional
 import httpx
 
 from velaris.agentkit.state import append_line, read_lines
-from velaris.intel import llm
+from velaris.intel import llm, router
 from velaris.intel.paths import agent_dir
 
 PAGE = 200
@@ -80,8 +80,8 @@ def run(cases: List[Dict[str, Any]], model: str, gateway: Optional[llm.LLM] = No
         t = tally.setdefault(case["agent"], {"total": 0, "passed": 0, "errors": 0})
         t["total"] += 1
         try:
-            reply = gateway.complete(prompt_for(case), model=model, temperature=0.0, max_tokens=600,
-                                     purpose="corrections_eval", sensitivity="restricted").text
+            reply = router.complete("worker", prompt_for(case), llm=gateway, models=[model], temperature=0.0, max_tokens=600,
+                                    purpose="corrections_eval", sensitivity="restricted").text
             t["passed"] += passes(case, reply)
         except llm.LLMError:
             t["errors"] += 1                                   # an error is a failure, and counted separately

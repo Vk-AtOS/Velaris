@@ -19,29 +19,24 @@
     "sensitivity": "internal",
     "task_class": "planner",
     "eval": "evals/project_management/SPRINT_PLANNER.json",
-    "wave": "KAN-36",
+    "wave": "KAN-31",
     "status": "deterministic_tool",
     "tools": {
       "add_task": {
         "kind": "act"
       },
-      "close_sprint": {
-        "kind": "act"
-      },
       "create_sprint": {
-        "kind": "act"
-      },
-      "get_sprint_board": {
-        "kind": "act"
-      },
-      "project_velocity_trend": {
         "kind": "act"
       },
       "update_task_status": {
         "kind": "act"
       }
     },
-    "excluded": {},
+    "excluded": {
+      "close_sprint": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "get_sprint_board": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "project_velocity_trend": "not in the HTTP allowlist (velaris/api/allowlist.py)"
+    },
     "reviewed": true
   }
 }

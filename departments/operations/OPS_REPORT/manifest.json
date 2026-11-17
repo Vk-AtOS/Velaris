@@ -11,26 +11,21 @@
     "sensitivity": "internal",
     "task_class": "worker",
     "eval": "evals/operations/OPS_REPORT.json",
-    "wave": "KAN-41",
+    "wave": "KAN-31",
     "status": "deterministic_tool",
     "tools": {
       "add_blocker": {
-        "kind": "act"
-      },
-      "generate_report": {
-        "kind": "act"
-      },
-      "generate_report_dict": {
-        "kind": "act"
-      },
-      "log": {
         "kind": "act"
       },
       "resolve_blocker": {
         "kind": "act"
       }
     },
-    "excluded": {},
+    "excluded": {
+      "generate_report": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "generate_report_dict": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "log": "not in the HTTP allowlist (velaris/api/allowlist.py)"
+    },
     "reviewed": true
   }
 }

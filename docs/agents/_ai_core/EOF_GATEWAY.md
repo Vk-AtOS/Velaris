@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `real`
-- **Source:** `departments/_ai_core/EOF_GATEWAY/main.py` (150 lines)
+- **Source:** `departments/_ai_core/EOF_GATEWAY/main.py` (158 lines)
 
 ## Purpose
 
@@ -11,7 +11,8 @@ EOF_GATEWAY: a durable message hand-off between agents.
 route(dst, payload, via=None) checks the message and appends it to the
 destination's inbox (one owner-only file per destination under this agent's
 state directory); receive(dst) returns the messages not yet taken. It delivers
-to an inbox and nothing more: it does not call the destination agent.
+to an inbox and nothing more: it does not call the destination agent (velaris.orchestration.inbox.deliver hands the messages to
+an agent that defines on_message). An inbox holds at most MAX_BACKLOG untaken messages; after that route answers queue_full.
 
 Who sent it is never a free-text argument. Every message records:
   on_behalf_of   the current caller (velaris.core.access); routing without one is refused.
@@ -38,6 +39,7 @@ separators), so it can never name a file outside this agent's directory.
 
 - `__init__()`
 - `health_check()`
+- `backlog(dst_id)` — Messages queued for `dst_id` and not yet taken (read-only).
 - `route(dst, payload, via, dry_run)` — Queue `payload` for `dst` as the current caller, through agent `via` if given (see the module docstring).
 - `receive(dst, limit)` — Messages queued for `dst` that were not returned before, oldest first. Only `dst` itself may ask.
 
@@ -58,5 +60,5 @@ separators), so it can never name a file outside this agent's directory.
 ## Called by
 
 - **other agents:** `CORE_CONVERGENCE`, `EOF_CORE`, `EOF_POLICY`
-- **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_b_eof.py`, `velaris/tests/test_layer31_eof.py`, `velaris/tests/test_r3_eof.py`
+- **platform modules:** `velaris/orchestration/inbox.py`
+- **tests:** `velaris/tests/test_aicore_b_eof.py`, `velaris/tests/test_eof_inbox.py`, `velaris/tests/test_layer31_eof.py`, `velaris/tests/test_r3_eof.py`

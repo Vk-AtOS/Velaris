@@ -27,7 +27,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from velaris.agentkit.graph import order
 from velaris.core.access import AccessDenied, Caller, org_denied
-from velaris.intel import guard, router, trace
+from velaris.intel import guard, router, trace, usage
 from velaris.intel.errors import LLMError
 from velaris.intel.llm import LLM, extract_json
 from velaris.orchestration.base import REFUSAL, DepartmentOrchestrator
@@ -90,10 +90,11 @@ class Brain:
                 'done first. If it is unclear, or you cannot tell which department: {"questions": ["<question for '
                 'the person>"]}. Never plan an action the request does not ask for.')
 
-    def _ask(self, prompt: str) -> Any:
+    def _ask(self, prompt: str, org: Optional[str] = None) -> Any:
         # always through the router: no chain means the default model, never an unchecked call; the sensitivity is explicit
-        text = router.complete(self.route or "planner", prompt, llm=self.llm, sensitivity=self.sensitivity, models=self.models,
-                               max_tokens=1200, temperature=0.0, purpose="brain.plan").text
+        with usage.usage_context(org=org, agent="brain"):
+            text = router.complete(self.route or "planner", prompt, llm=self.llm, sensitivity=self.sensitivity, models=self.models,
+                                   max_tokens=1200, temperature=0.0, purpose="brain.plan").text
         return extract_json(text)
 
     def _plan(self, goal: str, caller: Caller) -> Dict[str, Any]:
@@ -101,7 +102,7 @@ class Brain:
         names, problem = sorted(self.orchestrators), ""
         for _ in range(2):
             try:
-                reply = self._ask(self._prompt(goal, caller, problem))
+                reply = self._ask(self._prompt(goal, caller, problem), caller.org)
                 if isinstance(reply, dict) and reply.get("questions"):
                     qs = [q.strip()[:300] for q in reply["questions"] if isinstance(q, str) and q.strip()][:3]
                     if qs:

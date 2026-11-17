@@ -27,11 +27,14 @@ Public interface (other modules import these names; they do not change): ToolSpe
 """
 from __future__ import annotations
 
+import ast
 import builtins
 import dataclasses
+import decimal
 import inspect
 import logging
 import re
+import textwrap
 import threading
 import typing
 from dataclasses import dataclass
@@ -41,7 +44,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from velaris.api.allowlist import ACT, READ, http_params, prepare, rule_for
 from velaris.core.access import AccessDenied, Caller, org_denied
 from velaris.intel import trace
-from velaris.intel.flow import Tool
+from velaris.intel.flow import Tool, Warned
 
 logger = logging.getLogger("velaris.intel.tools")
 SIDE_EFFECTS = ("none", "internal", "external")
@@ -64,6 +67,10 @@ class ToolError(ValueError):
     """A tool spec is unusable, or a name is registered twice."""
 
 
+class ToolOutputError(ToolError):
+    """A tool returned something that does not fit its declared output schema (a failed step, never an answer)."""
+
+
 @dataclass(frozen=True)
 class ToolSpec:
     name: str                               # "AGENT.method", the name the model uses
@@ -78,6 +85,7 @@ class ToolSpec:
     required_roles: Tuple[str, ...] = ()    # roles the allowlist rule asks for (information; enforced by the rule)
     actor_param: Optional[str] = None       # parameter the code fills with the caller (never shown to a model)
     allowlisted: bool = True                # False: no row in velaris.api.allowlist; only the harness may use it
+    output: Dict[str, Any] = dataclasses.field(default_factory=dict)   # JSON schema of the result; {} = nothing provable (KAN-29)
 
     def __post_init__(self) -> None:
         if self.side_effects not in SIDE_EFFECTS or self.sensitivity not in LEVELS:
@@ -197,6 +205,124 @@ def input_schema(fn: Any, actor: Any = None) -> Dict[str, Any]:
     return {"type": "object", "properties": props, "required": required, "additionalProperties": False}
 
 
+# ── schema of the RESULT (KAN-29): the return annotation, else what the method's own `return` statements prove ──
+_OUT_TYPES = {str: "string", int: "integer", float: "number", bool: "boolean", type(None): "null", list: "array",
+              dict: "object", tuple: "array", decimal.Decimal: "number"}
+_OUT_CALLS = {"dict": "object", "list": "array", "sorted": "array", "str": "string", "bool": "boolean", "int": "integer",
+              "float": "number", "tuple": "array"}
+
+
+def _union(kinds: List[Optional[str]]) -> Dict[str, Any]:
+    """{"type": ...} for a set of JSON types, or {} when any member is unknown (None): no claim is better than a wrong one."""
+    if not kinds or None in kinds:
+        return {}
+    ordered = sorted(set(kinds))
+    return {"type": ordered[0] if len(ordered) == 1 else ordered}
+
+
+def _out_kind(tp: Any) -> Optional[str]:
+    """One JSON type name for a (resolved) annotation member, None when it cannot be told (Any, a class, a set, bytes)."""
+    origin = typing.get_origin(tp) or tp
+    if origin in (typing.Sequence, builtins.list, typing.List):
+        return "array"
+    return _OUT_TYPES.get(origin) if origin is not typing.Any else None
+
+
+def _out_schema(tp: Any) -> Dict[str, Any]:
+    args = [a for a in typing.get_args(tp)]
+    if typing.get_origin(tp) is typing.Union:
+        return _union([_out_kind(a) for a in args])
+    kind = _out_kind(tp)
+    if kind is None:
+        return {}
+    if kind == "array" and args and typing.get_origin(tp) in (builtins.list, typing.List):
+        items = _out_schema(args[0])
+        return {"type": "array", "items": items} if items else {"type": "array"}
+    return {"type": kind}
+
+
+def _parse(fn: Any) -> Optional[ast.AST]:
+    try:
+        node = ast.parse(textwrap.dedent(inspect.getsource(fn))).body[0]
+    except (OSError, TypeError, SyntaxError, IndentationError) as e:
+        logger.debug("no source for %s: %s", getattr(fn, "__name__", fn), type(e).__name__)
+        return None
+    return node if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) else None
+
+
+def _returns(fn_node: ast.AST) -> Tuple[List[Optional[ast.AST]], Dict[str, ast.AST]]:
+    """The values of every `return` of this function (not of the functions nested in it), and the nested functions by name."""
+    out: List[Optional[ast.AST]] = []
+    nested: Dict[str, ast.AST] = {}
+    todo = builtins.list(ast.iter_child_nodes(fn_node))
+    while todo:
+        n = todo.pop()
+        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            nested[n.name] = n
+            continue
+        if isinstance(n, (ast.Lambda, ast.ClassDef)):
+            continue
+        if isinstance(n, ast.Return):
+            out.append(n.value)
+        todo.extend(ast.iter_child_nodes(n))
+    return out, nested
+
+
+def _kinds(node: ast.AST, fn: Any, depth: int) -> List[Optional[str]]:
+    """The JSON type (None: unclear) of every `return` of a function. A call to a helper (a function nested in the method or
+    defined in its module, as `fail(...)` / `ok(...)` are) is judged by that helper's own returns, up to `depth` levels."""
+    values, nested = _returns(node)
+    if any(isinstance(n, (ast.Yield, ast.YieldFrom)) for n in ast.walk(node)):
+        return [None]
+
+    def one(v: Optional[ast.AST]) -> List[Optional[str]]:
+        if v is None or (isinstance(v, ast.Constant) and v.value is None):
+            return ["null"]
+        simple = {ast.Dict: "object", ast.DictComp: "object", ast.List: "array", ast.ListComp: "array", ast.Tuple: "array",
+                  ast.JoinedStr: "string"}.get(type(v))
+        if simple:
+            return [simple]
+        if isinstance(v, ast.Constant):
+            return [_OUT_TYPES.get(type(v.value))]
+        if isinstance(v, ast.IfExp):
+            return one(v.body) + one(v.orelse)
+        if isinstance(v, ast.Call) and isinstance(v.func, ast.Name):
+            name = v.func.id
+            if name in _OUT_CALLS:
+                return [_OUT_CALLS[name]]
+            helper = nested.get(name)
+            target = None if helper is not None else (getattr(fn, "__globals__", {}).get(name))
+            if depth > 0 and (helper is not None or inspect.isfunction(target)):
+                inner = helper if helper is not None else _parse(target)
+                if inner is not None:
+                    return _kinds(inner, target or fn, depth - 1)
+        return [None]
+    return [k for v in values for k in one(v)] or ["null"]
+
+
+def _observed_schema(fn: Any) -> Dict[str, Any]:
+    """What the code of an unannotated method proves about its result: the JSON type of every `return`, {} when one is unclear."""
+    node = _parse(fn)
+    return {} if node is None else _union(_kinds(node, fn, 2))
+
+
+def output_schema(fn: Any) -> Dict[str, Any]:
+    """JSON schema of what a method returns: its return annotation, else the types its `return` statements prove, else {}
+    (nothing provable: not validated, never guessed)."""
+    hints = _hints(fn)
+    if "return" in hints:
+        return _out_schema(hints["return"])
+    return {} if getattr(fn, "__annotations__", {}).get("return") is not None else _observed_schema(fn)
+
+
+def validate_output(tool: ToolSpec, value: Any) -> builtins.list:
+    """Why `value` does not fit the tool's declared output, as short sentences (never the value itself); empty when it fits."""
+    if tool.output and not _type_ok(value, tool.output):
+        want = tool.output.get("type")
+        return [f"result is {type(value).__name__}, declared {'|'.join(want) if isinstance(want, builtins.list) else want}"]
+    return []
+
+
 def side_effects_of(method: str, kind: str) -> str:
     if kind == READ:
         return "none"
@@ -243,7 +369,7 @@ def derive_spec(agent: str, method: str, fn: Any, department: str, *, kind: str 
     kind = rule.kind if rule else (READ if kind == READ else ACT)
     return ToolSpec(name=f"{agent}.{method}", agent=agent, method=method, params=input_schema(fn, rule),
                     side_effects=side_effects_of(method, kind), sensitivity=sensitivity_of(agent, department, fn, allowlisted=rule is not None),
-                    department=department, description=_first_line(fn) or f"{agent}.{method}", kind=kind,
+                    department=department, description=_first_line(fn) or f"{agent}.{method}", kind=kind, output=output_schema(fn),
                     required_roles=tuple(sorted(rule.roles or ())) if rule else (),
                     actor_param=rule.actor if rule else None, allowlisted=rule is not None)
 
@@ -286,9 +412,9 @@ def _type_ok(value: Any, schema: Dict[str, Any]) -> bool:
             return True
         if one == "integer" and isinstance(value, int) and not isinstance(value, bool):
             return True
-        if one == "number" and isinstance(value, (int, float)) and not isinstance(value, bool):
+        if one == "number" and isinstance(value, (int, float, decimal.Decimal)) and not isinstance(value, bool):
             return True
-        if one == "array" and isinstance(value, builtins.list) and all(_type_ok(v, schema.get("items", {})) for v in value):
+        if one == "array" and isinstance(value, (builtins.list, tuple)) and all(_type_ok(v, schema.get("items", {})) for v in value):
             return True
         if one == "object" and isinstance(value, dict):
             return True
@@ -331,7 +457,17 @@ def flow_tool(tool: ToolSpec, run: Callable[..., Any], *, needs_approval: Any = 
         if problems:
             trace.append("tools", "invalid_args", {"tool": tool.name, "problems": problems[:5]})
             raise ValueError("; ".join(problems))
-        return run(**args)
+        result = run(**args)
+        problems = validate_output(tool, result)
+        if not problems:
+            return result
+        if tool.side_effects == "none":          # a read: nothing happened, so a failed step is safe to retry
+            trace.append("tools", "invalid_output", {"tool": tool.name, "problems": problems[:3]})
+            raise ToolOutputError("; ".join(problems))
+        # An action that ran stays executed: failing it would invite a retry and repeat the side effect.
+        trace.append("tools", "output_mismatch", {"tool": tool.name, "problems": problems[:3], "executed": True})
+        return Warned("[the action ran; its result did not fit the declared shape and is withheld]",
+                      "output_mismatch: " + "; ".join(problems))
     need = (tool.side_effects != "none") if needs_approval is None else needs_approval
     return Tool(tool.name, checked, tool.description, _prompt_params(tool), needs_approval=need,
                 idempotent=tool.side_effects == "none")

@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `real`
-- **Source:** `departments/_ai_core/AAE_RUNTIME/main.py` (166 lines)
+- **Source:** `departments/_ai_core/AAE_RUNTIME/main.py` (167 lines)
 
 ## Purpose
 
@@ -42,6 +42,7 @@ State (journal by action id): <VELARIS_DATA>/agents/AAE_RUNTIME/state.json.
 - `velaris.agents.AAE_POLICY.main`
 - `velaris.core.access`
 - `velaris.intel`
+- `velaris.orchestration`
 
 ## State and configuration
 
@@ -50,5 +51,5 @@ State (journal by action id): <VELARIS_DATA>/agents/AAE_RUNTIME/state.json.
 ## Called by
 
 - **other agents:** `ADAPTIVE_ACTION_ENGINE`
-- **platform modules:** `velaris/intel/approvals.py`
-- **tests:** `velaris/tests/test_aicore_a_aae.py`, `velaris/tests/test_approval_audit.py`, `velaris/tests/test_kan104_operator_clear.py`, `velaris/tests/test_kan104_unauthenticated_writes.py`, `velaris/tests/test_layer25_aae.py`
+- **platform modules:** `velaris/intel/approvals.py`, `velaris/orchestration/handlers.py`
+- **tests:** `velaris/tests/test_aicore_a_aae.py`, `velaris/tests/test_approval_audit.py`, `velaris/tests/test_handlers_registry.py`, `velaris/tests/test_kan104_operator_clear.py`, `velaris/tests/test_kan104_unauthenticated_writes.py`, `velaris/tests/test_layer25_aae.py`

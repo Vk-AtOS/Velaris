@@ -11,23 +11,20 @@
     "sensitivity": "internal",
     "task_class": "worker",
     "eval": "evals/operations/SLA_MONITOR.json",
-    "wave": "KAN-41",
+    "wave": "KAN-31",
     "status": "deterministic_tool",
     "tools": {
       "add_commitment": {
-        "kind": "act"
-      },
-      "check_breaches": {
-        "kind": "act"
-      },
-      "dashboard": {
         "kind": "act"
       },
       "resolve": {
         "kind": "act"
       }
     },
-    "excluded": {},
+    "excluded": {
+      "check_breaches": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "dashboard": "not in the HTTP allowlist (velaris/api/allowlist.py)"
+    },
     "reviewed": true
   }
 }
