@@ -12,6 +12,7 @@ import base64
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from velaris.agentkit import hiring_common as hc
 from velaris.agentkit import hiring_forms as hf
 from velaris.agentkit import hiring_sched as sched
 from velaris.agentkit.hiring_common import DAY, HiringError, application_known, audit, hid, iso, new_id, now
@@ -26,6 +27,9 @@ MAX_PENDING_PER_FORM = 500       # unreviewed submissions one form may hold (eac
 def _form(form_id: Any) -> Dict[str, Any]:
     f = hf._st().load()["forms"].get(str(form_id))
     if not f or f["status"] != "published":
+        raise HiringError("not_found", "no such form")
+    req = hc.load_requisition(f["org"], f["requisition_id"])
+    if not req or req.get("state") != "open":            # a closed or filled requisition no longer takes applications (KAN-64)
         raise HiringError("not_found", "no such form")
     return f
 

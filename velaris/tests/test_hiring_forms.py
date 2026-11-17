@@ -285,3 +285,25 @@ def test_consent_version_must_be_the_current_notice(env):
     assert submit(fid, cv=None)["status"] == "consent_outdated"
     assert hf._st().load()["submissions"] == {}
     assert submit(fid)["status"] == "ok"
+
+
+def test_form_stops_taking_applications_when_its_requisition_closes(env):
+    """KAN-64: a published form stayed public after the requisition was closed."""
+    ats, forms, rid, fid, c = env
+    assert hi.public_form(fid)["status"] == "ok"
+    with as_(c["rec"]):
+        assert ats.close_requisition(requisition_id=rid)["status"] == "ok"
+    assert hi.public_form(fid)["status"] == "not_found" and hi.public_challenge(fid)["status"] == "not_found"
+
+
+def test_a_submission_stuck_in_accepting_is_released_by_the_sweep(env, monkeypatch):
+    ats, forms, rid, fid, c = env
+    ref = submit(fid)["reference"]
+    hf._st().update(lambda d: d["submissions"][ref].update(status="accepting", accepting_at=hc.now()))   # an accept that died mid-way
+    with as_(c["rec"]):
+        forms.sweep_submissions()
+    assert hf._st().load()["submissions"][ref]["status"] == "accepting"                 # fresh: another request may still be working on it
+    advance(monkeypatch, 16 * 60)
+    with as_(c["rec"]):
+        forms.sweep_submissions()
+    assert hf._st().load()["submissions"][ref]["status"] == "pending"
