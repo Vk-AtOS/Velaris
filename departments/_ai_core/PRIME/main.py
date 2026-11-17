@@ -94,7 +94,8 @@ class VelarisPrime:
         decision = self.authorize(caller.id, authz.EXECUTE, f"{agent}.{method}", {})
         if decision["decision"] != authz.ALLOW:
             return {**decision, "status": "not_authorised", "executed": False}
-        return self.engine.run(agent, method, params)
+        from velaris.backend.engine import backend      # deferred: it loads every agent. ONE dispatch path: acting_as(caller), hr_config
+        return backend.run(agent, method, params, caller=caller)
 
     # ---- grants --------------------------------------------------------------
 

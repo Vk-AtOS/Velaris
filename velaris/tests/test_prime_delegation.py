@@ -35,3 +35,17 @@ def test_a_local_grant_can_no_longer_allow_once_prime_is_configured(monkeypatch)
     assert refused["status"] == "delegated_to_prime", refused
     with acting_as(BOT):                                                             # and execute() runs nothing
         assert local.execute("VIGILIS", "health_check", principal="ap-bot")["executed"] is False
+
+
+def test_execute_runs_through_the_backend_engine_as_the_caller(monkeypatch):
+    """Defect 15: execute() used a second engine, without acting_as, so the callee saw no caller (a bypass of caller handling)."""
+    from velaris.backend.engine import backend
+    from velaris.core.access import current_caller
+    local, seen = VelarisPrime(), []
+    with acting_as(Caller("meena", "acme", frozenset({"governance_admin"}))):
+        local.grant(principal="ops-bot", actions=["agent.execute"], approver="kumar", resources=["VIGILIS.health_check"], autonomy="act")
+    monkeypatch.setattr(backend, "run", lambda a, m, p=None, caller=None: seen.append((a, m, caller)) or {"status": "ok"})
+    with acting_as(Caller("ops-bot", "acme")):
+        assert local.execute("VIGILIS", "health_check", principal="ops-bot") == {"status": "ok"}
+    assert seen and seen[0][:2] == ("VIGILIS", "health_check") and seen[0][2].id == "ops-bot"
+    assert current_caller() is None
