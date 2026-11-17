@@ -33,3 +33,20 @@ def test_parallel_groups_respect_transitive_dependencies():
     diamond = {'A': [], 'B': ['A'], 'C': ['A'], 'D': ['B', 'C']}
     assert o.parallel_groups(o.resolve_dependencies(diamond), diamond) == [['A'], ['B', 'C'], ['D']]
     assert o.parallel_groups([], {}) == []
+
+
+def test_a_cycle_and_an_unknown_dependency_are_refused_with_a_clear_error_and_no_recursion():
+    import pytest
+    o = OrchestrixAgent()
+    with pytest.raises(ValueError, match="Circular dependency detected: a -> b -> a"):
+        o.resolve_dependencies({'a': ['b'], 'b': ['a']})
+    with pytest.raises(ValueError, match="unknown dependencies"):
+        o.resolve_dependencies({'a': [], 'b': ['ghost']})           # was silently ['ghost', 'a', 'b']
+    big = {f"t{i}": [f"t{i - 1}"] if i else [] for i in range(5000)}  # a 5000-deep chain: the old recursion hit the limit
+    assert o.resolve_dependencies(big)[-1] == "t4999"
+
+
+def test_it_is_the_same_ordering_the_brain_uses():
+    from velaris.agentkit.graph import order
+    tasks = {'A': [], 'B': ['A'], 'C': ['A', 'B']}
+    assert OrchestrixAgent().resolve_dependencies(tasks) == order(tasks)["order"]
