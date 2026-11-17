@@ -48,4 +48,4 @@ No audio leaves the machine — fully local.
 
 - **other agents:** `CALL_TRANSCRIBER`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_kan93_agents.py`, `velaris/tests/test_no_state_in_source_tree.py`
+- **tests:** `velaris/tests/test_allowlist_departments.py`, `velaris/tests/test_kan93_agents.py`, `velaris/tests/test_no_state_in_source_tree.py`

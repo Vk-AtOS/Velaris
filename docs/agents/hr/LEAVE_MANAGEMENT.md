@@ -55,4 +55,4 @@ Balances seeded from policy defaults; Zoho People sync optional.
 
 - **other agents:** `EMPLOYEE_RECORDS`
 - **platform modules:** `velaris/api/allowlist.py`, `velaris/core/backfill_org.py`, `velaris/orchestration/autonomy.py`
-- **tests:** `velaris/tests/test_autonomy.py`, `velaris/tests/test_caller_access.py`, `velaris/tests/test_deployment_org.py`, `velaris/tests/test_hr_data_records.py`, `velaris/tests/test_hr_wiring.py`, `velaris/tests/test_intel_tools.py`, `velaris/tests/test_kan68_backfill_org.py`, `velaris/tests/test_leave_and_api_trace.py`, `velaris/tests/test_no_state_in_source_tree.py`
+- **tests:** `velaris/tests/test_autonomy.py`, `velaris/tests/test_caller_access.py`, `velaris/tests/test_deployment_org.py`, `velaris/tests/test_hr_data_records.py`, `velaris/tests/test_hr_wiring.py`, `velaris/tests/test_intel_tools.py`, `velaris/tests/test_kan68_backfill_org.py`, `velaris/tests/test_leave_and_api_trace.py`, `velaris/tests/test_no_state_in_source_tree.py`, `velaris/tests/test_tool_unification.py`

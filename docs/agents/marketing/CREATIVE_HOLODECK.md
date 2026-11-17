@@ -37,5 +37,5 @@ Velaris Creative Holodeck
 ## Called by
 
 - **other agents:** none found
-- **platform modules:** none found
+- **platform modules:** `velaris/api/allowlist.py`
 - **tests:** `velaris/tests/test_agents_coverage_a.py`

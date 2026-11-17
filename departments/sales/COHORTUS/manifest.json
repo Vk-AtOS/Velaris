@@ -15,14 +15,13 @@
     "wave": "KAN-42",
     "status": "deterministic_tool",
     "tools": {
-      "assign_roles": {
-        "kind": "act"
-      },
       "collaboration_clusters": {
         "kind": "read"
       }
     },
-    "excluded": {},
+    "excluded": {
+      "assign_roles": "not in the HTTP allowlist (velaris/api/allowlist.py)"
+    },
     "reviewed": true
   }
 }

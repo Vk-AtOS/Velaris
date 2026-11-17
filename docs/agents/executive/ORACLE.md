@@ -32,5 +32,5 @@ TypeError; nothing is caught.
 ## Called by
 
 - **other agents:** none found
-- **platform modules:** none found
+- **platform modules:** `velaris/api/allowlist.py`
 - **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_aicore_a_ops.py`, `velaris/tests/test_eval_runner.py`, `velaris/tests/test_kan93_agents.py`, `velaris/tests/test_oracle.py`

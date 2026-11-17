@@ -35,5 +35,5 @@ probability (no clamp at 0); non-numeric input raises TypeError.
 ## Called by
 
 - **other agents:** none found
-- **platform modules:** none found
+- **platform modules:** `velaris/api/allowlist.py`
 - **tests:** `velaris/tests/test_retenta.py`

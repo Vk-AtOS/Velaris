@@ -31,5 +31,5 @@ no state. Non-iterable input raises TypeError.
 ## Called by
 
 - **other agents:** none found
-- **platform modules:** none found
-- **tests:** `velaris/tests/test_auditor.py`
+- **platform modules:** `velaris/api/allowlist.py`
+- **tests:** `velaris/tests/test_allowlist_departments.py`, `velaris/tests/test_auditor.py`

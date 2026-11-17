@@ -35,4 +35,4 @@ TypeError.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_helix.py`, `velaris/tests/test_system_integration.py`
+- **tests:** `velaris/tests/test_allowlist_departments.py`, `velaris/tests/test_helix.py`, `velaris/tests/test_system_integration.py`

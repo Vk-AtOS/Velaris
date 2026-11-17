@@ -45,4 +45,4 @@ Velaris Budget Guardrails (INR, exact to the paisa)
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_kan104_unauthenticated_writes.py`, `velaris/tests/test_kan94_pm_agents.py`
+- **tests:** `velaris/tests/test_allowlist_departments.py`, `velaris/tests/test_kan104_unauthenticated_writes.py`, `velaris/tests/test_kan94_pm_agents.py`

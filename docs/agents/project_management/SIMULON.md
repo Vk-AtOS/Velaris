@@ -33,5 +33,5 @@ run_linear returns [] while run_dynamic still returns the initial value.
 ## Called by
 
 - **other agents:** none found
-- **platform modules:** none found
+- **platform modules:** `velaris/api/allowlist.py`
 - **tests:** `velaris/tests/test_simulon.py`

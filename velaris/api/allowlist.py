@@ -28,7 +28,7 @@ from functools import lru_cache
 from typing import Any, Dict, FrozenSet, List, Optional, Tuple
 
 from velaris.agents.inventory import inventory
-from velaris.core.access import Caller, AccessDenied, ATLASSIAN_READERS, READ_OTHERS, acting_as, authorize_read, check_caller
+from velaris.core.access import Caller, AccessDenied, ATLASSIAN_READERS, SECURITY_ADMINS, READ_OTHERS, acting_as, authorize_read, check_caller
 
 READ, ACT = "read", "act"
 _NEVER_PARAMS = {"self", "caller"}
@@ -51,6 +51,22 @@ _DEC = frozenset({"hiring_manager", "hr_admin"})
 _HIR = frozenset({"recruiter", "hiring_manager", "hr_admin"})
 _PAN = frozenset({"recruiter", "hiring_manager", "interviewer", "hr_admin"})
 _ADM = frozenset({"hr_admin"})
+
+NOTES: Dict[str, str] = {}      # "AGENT.method" -> why exposing it is safe (every row of the departments added in KAN-31 follow-up has one)
+_PURE = ("pure function of its arguments: keeps no data, makes no outside call, uses no model, so it can show the caller "
+         "nothing but what the caller sent; no role needed, as for TREASURIX")
+_BOUNDED = ("pure function of its arguments and a random draw; the agent clamps `trials` to 1,000,000, so the work per call is "
+            "bounded; keeps no data, no outside call")
+_SEC = ("pure check over the arguments (nothing stored is read); limited to security staff because the department is "
+        "restricted and the result tells how the platform's checks think")
+
+
+def _calc(agent: str, note: str, *methods: str, roles: Optional[FrozenSet[str]] = None) -> Dict[str, Rule]:
+    """READ rules for methods that are pure functions of their arguments, each with its security note (NOTES)."""
+    for m in methods:
+        NOTES[f"{agent}.{m}"] = note
+    return {m: Rule(READ, roles=roles) for m in methods}
+
 
 METHODS: Dict[str, Dict[str, Rule]] = {
     # HR
@@ -262,6 +278,39 @@ METHODS: Dict[str, Dict[str, Rule]] = {
         "transcribe_track": Rule(ACT, roles=_HIR),
         "withdraw_my_consent": Rule(ACT, roles=_PAN),
     },
+    # Departments reviewed for KAN-31 (client_success, executive, marketing, operations, project_management, sales,
+    # security): ONLY methods that are pure functions of their arguments, proven read by agentkit.harness_derive. An
+    # agent that keeps data (JsonState, files, instance state the engine's fresh instance would lose), calls out, asks
+    # a model, checks the caller itself, or takes an object of its own class is NOT listed (see docs/orchestrators.md).
+    "LOGISTA": _calc("LOGISTA", _PURE, "choose_route"),
+    "INSIGHTA": _calc("INSIGHTA", _PURE, "behavioral_shift", "consistency_score", "detect_trend"),
+    "ORACLE": _calc("ORACLE", _BOUNDED, "forecast"),
+    "PROBABILIS": _calc("PROBABILIS", _PURE, "bernoulli", "distribution_mean"),
+    "REALMEX": _calc("REALMEX", _PURE, "extract_dimensions", "score_reality"),
+    "STOCHASTIX": _calc("STOCHASTIX", _PURE, "expected_final"),
+    "ARTESIA": _calc("ARTESIA", _PURE, "aesthetic_score", "fuse_styles", "style_profile"),
+    "CREATIVA": _calc("CREATIVA", _PURE, "expand_concept", "idea_mix", "novelty_score"),
+    "CREATIVE_HOLODECK": _calc("CREATIVE_HOLODECK", _PURE, "compose", "random_scene"),
+    "IMAGINA": _calc("IMAGINA", _PURE, "imagine", "scenario", "visual_map"),
+    "FABRICA": _calc("FABRICA", _PURE, "build_layers", "combine", "composition_score"),
+    "FLUXOR": _calc("FLUXOR", _PURE, "balance_load", "compute_throughput", "detect_spike"),
+    "GENEFLOW": _calc("GENEFLOW", _PURE, "compute_diff"),
+    "OPERATUS": _calc("OPERATUS", _PURE, "validate_inputs"),
+    "OPTIMA": _calc("OPTIMA", _PURE, "efficiency_score", "metric_normalize", "pivot_factor"),
+    "POLARIS": _calc("POLARIS", _PURE, "best_trajectory", "compute_score", "rank_long_term"),
+    "SIMULON": _calc("SIMULON", _PURE, "run_linear"),
+    "TACTICIAN": {**_calc("TACTICIAN", _PURE, "recommend_adjustments"), **_calc("TACTICIAN", _BOUNDED, "simulate_plan")},
+    "AMPLIFEX": _calc("AMPLIFEX", _PURE, "amplify", "audience_growth", "signal_strength"),
+    "ATTRACTA": _calc("ATTRACTA", _PURE, "appeal_score", "attraction_potential", "emotional_resonance"),
+    "AUTONOMOUS_SALES_NAVIGATOR": _calc("AUTONOMOUS_SALES_NAVIGATOR", _PURE, "predict_close_probability", "score_lead", "suggest_strategy"),
+    "COHORTUS": _calc("COHORTUS", _PURE, "collaboration_clusters"),
+    "CONVERTA": _calc("CONVERTA", _PURE, "conversion_rate", "funnel_leakage", "optimization_score"),
+    "DOMAIN_ADVISOR": _calc("DOMAIN_ADVISOR", _PURE, "advise"),
+    "RETENTA": _calc("RETENTA", _PURE, "churn_probability", "engagement_decay", "retention_score"),
+    "TARGETA": _calc("TARGETA", _PURE, "match_score", "segmentation_score", "target_fit"),
+    "AUDITOR": _calc("AUDITOR", _SEC, "check_compliance", "find_violations", roles=SECURITY_ADMINS),
+    "PRAETOR": _calc("PRAETOR", _SEC, "detect_anomaly", roles=SECURITY_ADMINS),
+    "SAFETY_PERIMETER": _calc("SAFETY_PERIMETER", _SEC, "can_execute", "check_jurisdiction", "check_syscall", roles=SECURITY_ADMINS),
 }
 
 

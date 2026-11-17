@@ -15,14 +15,13 @@
     "wave": "KAN-44",
     "status": "deterministic_tool",
     "tools": {
-      "allocate_resources": {
-        "kind": "act"
-      },
       "choose_route": {
         "kind": "read"
       }
     },
-    "excluded": {},
+    "excluded": {
+      "allocate_resources": "not in the HTTP allowlist (velaris/api/allowlist.py)"
+    },
     "reviewed": true
   }
 }

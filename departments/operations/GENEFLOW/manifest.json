@@ -15,14 +15,13 @@
     "wave": "KAN-41",
     "status": "deterministic_tool",
     "tools": {
-      "apply_migration": {
-        "kind": "act"
-      },
       "compute_diff": {
         "kind": "read"
       }
     },
-    "excluded": {},
+    "excluded": {
+      "apply_migration": "not in the HTTP allowlist (velaris/api/allowlist.py)"
+    },
     "reviewed": true
   }
 }

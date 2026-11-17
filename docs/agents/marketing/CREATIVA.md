@@ -32,5 +32,5 @@ no input checking (a non-list keywords value raises TypeError).
 ## Called by
 
 - **other agents:** none found
-- **platform modules:** none found
+- **platform modules:** `velaris/api/allowlist.py`
 - **tests:** `velaris/tests/test_creativa.py`

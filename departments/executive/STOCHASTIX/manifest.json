@@ -17,15 +17,12 @@
     "tools": {
       "expected_final": {
         "kind": "read"
-      },
-      "random_walk": {
-        "kind": "act"
-      },
-      "sample_paths": {
-        "kind": "act"
       }
     },
-    "excluded": {},
+    "excluded": {
+      "random_walk": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "sample_paths": "not in the HTTP allowlist (velaris/api/allowlist.py)"
+    },
     "reviewed": true
   }
 }

@@ -42,4 +42,4 @@ secrets, and the file legacy.migrated marks a finished migration.
 
 - **other agents:** `JOB_POSTINGS`
 - **platform modules:** `departments/_connectors/JIRA/atlassian.py`, `velaris/mail/connector.py`
-- **tests:** `velaris/tests/test_agent_paths.py`, `velaris/tests/test_kan88_vault.py`, `velaris/tests/test_mail_connector.py`, `velaris/tests/test_private_files.py`
+- **tests:** `velaris/tests/test_agent_paths.py`, `velaris/tests/test_allowlist_departments.py`, `velaris/tests/test_kan88_vault.py`, `velaris/tests/test_mail_connector.py`, `velaris/tests/test_private_files.py`

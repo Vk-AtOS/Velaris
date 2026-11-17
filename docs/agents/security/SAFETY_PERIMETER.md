@@ -41,5 +41,5 @@ Velaris Safety Perimeter
 ## Called by
 
 - **other agents:** none found
-- **platform modules:** none found
+- **platform modules:** `velaris/api/allowlist.py`
 - **tests:** `velaris/tests/test_agents_coverage_c.py`, `velaris/tests/test_kan88_security_agents.py`

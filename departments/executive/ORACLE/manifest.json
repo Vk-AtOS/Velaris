@@ -17,12 +17,11 @@
     "tools": {
       "forecast": {
         "kind": "read"
-      },
-      "multi_scenario": {
-        "kind": "act"
       }
     },
-    "excluded": {},
+    "excluded": {
+      "multi_scenario": "not in the HTTP allowlist (velaris/api/allowlist.py)"
+    },
     "reviewed": true
   }
 }

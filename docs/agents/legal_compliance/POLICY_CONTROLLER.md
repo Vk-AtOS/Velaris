@@ -54,4 +54,4 @@ current caller (velaris.core.access), never an argument.
 
 - **other agents:** `GOVERNANCE_ADAPTATION_LOOP`, `GOVERNANCE_KERNEL`, `VIGILIS`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_dept_legal_compliance_stubs.py`, `velaris/tests/test_governance_kernel.py`
+- **tests:** `velaris/tests/test_allowlist_departments.py`, `velaris/tests/test_dept_legal_compliance_stubs.py`, `velaris/tests/test_governance_kernel.py`

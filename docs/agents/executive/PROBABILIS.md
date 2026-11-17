@@ -32,5 +32,5 @@ global random module, unseeded, so they differ between runs. Keeps no state.
 ## Called by
 
 - **other agents:** none found
-- **platform modules:** none found
+- **platform modules:** `velaris/api/allowlist.py`
 - **tests:** `velaris/tests/test_probabilis.py`

@@ -31,5 +31,5 @@ it is empty. Config: boost_factor, version. Results are truncated toward zero. K
 ## Called by
 
 - **other agents:** none found
-- **platform modules:** none found
+- **platform modules:** `velaris/api/allowlist.py`
 - **tests:** `velaris/tests/test_amplifex.py`

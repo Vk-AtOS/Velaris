@@ -40,5 +40,5 @@ Velaris Autonomous Sales Navigator
 ## Called by
 
 - **other agents:** none found
-- **platform modules:** none found
+- **platform modules:** `velaris/api/allowlist.py`
 - **tests:** `velaris/tests/test_agents_coverage_b.py`, `velaris/tests/test_kan94_sales_marketing.py`

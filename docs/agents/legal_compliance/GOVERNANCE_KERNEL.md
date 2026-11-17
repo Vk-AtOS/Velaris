@@ -40,4 +40,4 @@ is False.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_governance_kernel.py`
+- **tests:** `velaris/tests/test_allowlist_departments.py`, `velaris/tests/test_governance_kernel.py`
