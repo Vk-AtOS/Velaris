@@ -91,10 +91,9 @@ class Brain:
                 'the person>"]}. Never plan an action the request does not ask for.')
 
     def _ask(self, prompt: str) -> Any:
-        kw = dict(llm=self.llm, sensitivity=self.sensitivity, models=self.models, max_tokens=1200, temperature=0.0,
-                  purpose="brain.plan")
-        text = router.complete(self.route, prompt, **kw).text if self.route else \
-            self.llm.complete(prompt, max_tokens=1200, temperature=0.0, purpose="brain.plan", sensitivity=self.sensitivity).text
+        # always through the router: no chain means the default model, never an unchecked call; the sensitivity is explicit
+        text = router.complete(self.route or "planner", prompt, llm=self.llm, sensitivity=self.sensitivity, models=self.models,
+                               max_tokens=1200, temperature=0.0, purpose="brain.plan").text
         return extract_json(text)
 
     def _plan(self, goal: str, caller: Caller) -> Dict[str, Any]:
