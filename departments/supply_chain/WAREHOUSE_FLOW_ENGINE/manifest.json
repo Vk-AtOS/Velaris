@@ -1,0 +1,7 @@
+{
+  "name": "WAREHOUSE_FLOW_ENGINE",
+  "version": "0.1.0",
+  "domain": "supply_chain",
+  "description": "WAREHOUSE_FLOW_ENGINE: one period of warehouse flow, worked through as arithmetic.",
+  "entrypoint": "main.py:WarehouseFlowEngine"
+}

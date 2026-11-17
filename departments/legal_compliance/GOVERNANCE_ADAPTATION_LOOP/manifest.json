@@ -1,0 +1,7 @@
+{
+  "name": "GOVERNANCE_ADAPTATION_LOOP",
+  "version": "0.1.0",
+  "domain": "legal_compliance",
+  "description": "GOVERNANCE_ADAPTATION_LOOP: learns from human overrides which rules need review. Proposes; never applies.",
+  "entrypoint": "main.py:GovernanceAdaptationLoop"
+}

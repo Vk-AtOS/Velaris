@@ -1,0 +1,7 @@
+{
+  "name": "INSURANCE_POLICY_ENGINE",
+  "version": "0.1.0",
+  "domain": "finance",
+  "description": "INSURANCE_POLICY_ENGINE: underwriting clauses and premium from a supplied rate table.",
+  "entrypoint": "main.py:InsurancePolicyEngine"
+}

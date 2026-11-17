@@ -1,0 +1,7 @@
+{
+  "name": "LOCAL_REGISTRY_CACHE",
+  "version": "0.1.0",
+  "domain": "it_infrastructure",
+  "description": "LOCAL_REGISTRY_CACHE: an offline copy of \"which agents exist and where\".",
+  "entrypoint": "main.py:LocalRegistryCache"
+}

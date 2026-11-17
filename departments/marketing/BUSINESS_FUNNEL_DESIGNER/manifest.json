@@ -1,0 +1,7 @@
+{
+  "name": "BUSINESS_FUNNEL_DESIGNER",
+  "version": "0.1.0",
+  "domain": "marketing",
+  "description": "Business funnel designer: multi-stage conversion funnels with drop-off analysis.",
+  "entrypoint": "main.py:BusinessFunnelDesigner"
+}

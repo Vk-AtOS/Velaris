@@ -1,0 +1,7 @@
+{
+  "name": "CONVERGENCE_BRIDGE",
+  "version": "0.1.0",
+  "domain": "operations",
+  "description": "Alias agent CONVERGENCE_BRIDGE: fronts ORCHESTRIX, COHERENCE_SYNC_CORE, REGISTRY. See velaris.agentkit.alias.",
+  "entrypoint": "main.py:CONVERGENCE_BRIDGEAgent"
+}

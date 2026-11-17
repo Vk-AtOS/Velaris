@@ -29,6 +29,7 @@ from velaris.agentkit import onboarding_retention as retention
 from velaris.agentkit.onboarding_common import (HR_ADMINS, Refused, Store, clean_text, iso, new_id, parse_date, reader, utcnow, writer)
 from velaris.agentkit.results import fail, health, invalid, ok
 from velaris.core.access import AccessDenied, authorize_read
+from velaris.core.offboarding import revoke_connector_tokens
 from velaris.intel import trace
 from velaris.agents.ESIGN.main import Esign
 from velaris.agents.LEAVE_MANAGEMENT.main import LeaveManagement
@@ -328,11 +329,16 @@ class EmployeeRecords:
         if x["status"] != "open" or not prog["complete"]:
             return fail("conflict", "required exit tasks are still open" if x["status"] == "open" else f"exit is {x['status']}",
                         open_tasks=[t["key"] for t in prog["tasks"] if t["required"] and t["state"] not in ("done", "waived")])
+        try:                                                  # a leaver's connector tokens die with the exit (KAN-73); idempotent, retry on failure
+            revoked = revoke_connector_tokens(who.org, x["employee_id"], by=who.id)
+        except Exception as e:
+            logger.warning("exit %s: connector token revocation failed: %s", exit_id, e)
+            return fail("revocation_failed", "the leaver's connected-account tokens could not be revoked; the exit stays open, try again")
         self.store.update("exits", exit_id, who.org, lambda r: r.update(status="done", finalised_by=who.id))
         self.store.update("employees", x["employee_id"], who.org, lambda e: (e["history"].append(
             {"at": iso(self._now()), "by": who.id, "field": "status", "old": e["status"], "new": "exited", "reason": "exit finalised"}),
             e.update(status="exited")))
-        return ok(employee_id=x["employee_id"], employee_status="exited")
+        return ok(employee_id=x["employee_id"], employee_status="exited", tokens_revoked=revoked)
 
     # ---- data subject rights --------------------------------------------------------------------------------
     def retention_table(self) -> Dict[str, Any]:

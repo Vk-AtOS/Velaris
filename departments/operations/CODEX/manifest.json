@@ -1,0 +1,7 @@
+{
+  "name": "CODEX",
+  "version": "0.1.0",
+  "domain": "operations",
+  "description": "Codex: detects changes in rule sets by hashing a canonical JSON form of each.",
+  "entrypoint": "main.py:CodexAgent"
+}

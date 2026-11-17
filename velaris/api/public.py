@@ -157,7 +157,7 @@ SIGN_METHODS = {"open": "open_signing", "otp_request": "request_otp", "otp_verif
 NOT_VALID = Refusal(404, "not_found", "this link is not valid or has expired")
 # an agent's result status -> (HTTP status, code); anything unlisted is a 500 without detail
 _STATUS = {"not_found": 404, "invalid_token": 404, "invalid_input": 400, "challenge_failed": 400, "name_mismatch": 400, "otp_wrong": 400,
-           "denied": 403, "identity_mismatch": 403, "locked": 429, "rate_limited": 429, "conflict": 409, "not_open": 409,
+           "denied": 403, "identity_mismatch": 403, "locked": 429, "rate_limited": 429, "conflict": 409, "consent_outdated": 409, "not_open": 409,
            "out_of_order": 409, "otp_required": 409, "otp_unavailable": 409, "expired": 410,
            "not_configured": 503, "audit_failed": 503, "seal_failed": 503}
 _REASON_SAFE = {400, 403, 409, 410, 429}
@@ -337,9 +337,10 @@ def create_public_app(settings: Optional[PublicSettings] = None) -> FastAPI:
                     data = base64.b64decode(d["file_base64"], validate=True)
                 except (binascii.Error, ValueError):
                     return {"status": "invalid_input", "reason": "file_base64 is not valid base64"}
-            return _plain(intake.public_submit, form_id, d["answers"], d["pow_solution"], d.get("file_name"), data)
+            return _plain(intake.public_submit, form_id, d["answers"], d["pow_solution"], d.get("file_name"), data, d.get("consent_version"))
         return await handle(request, "apply", form_id, token=False, call=call,
-                            body={"answers": (dict, True), "pow_solution": (dict, True), "file_name": (str, False), "file_base64": (str, False)})
+                            body={"answers": (dict, True), "pow_solution": (dict, True), "file_name": (str, False), "file_base64": (str, False),
+                                  "consent_version": (str, False)})
 
     @app.get("/careers/status/{token}")
     async def status(token: str, request: Request) -> JSONResponse:

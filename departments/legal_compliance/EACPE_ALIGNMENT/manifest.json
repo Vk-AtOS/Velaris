@@ -1,0 +1,7 @@
+{
+  "name": "EACPE_ALIGNMENT",
+  "version": "0.1.0",
+  "domain": "legal_compliance",
+  "description": "EACPE_ALIGNMENT: is a proposed action inside the mandate its agent was given?",
+  "entrypoint": "main.py:EACPE_ALIGNMENTAgent"
+}

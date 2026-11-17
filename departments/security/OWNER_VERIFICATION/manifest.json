@@ -1,0 +1,7 @@
+{
+  "name": "OWNER_VERIFICATION",
+  "version": "0.1.0",
+  "domain": "security",
+  "description": "Owner verification: checks the fingerprint, face and voice templates of the single owner by exact string match.",
+  "entrypoint": "main.py:OwnerVerification"
+}

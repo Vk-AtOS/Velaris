@@ -1,0 +1,7 @@
+{
+  "name": "PARALLEL_CORE",
+  "version": "0.1.0",
+  "domain": "it_infrastructure",
+  "description": "PARALLEL_CORE: run one function over many inputs on a bounded thread pool.",
+  "entrypoint": "main.py:PARALLEL_COREAgent"
+}

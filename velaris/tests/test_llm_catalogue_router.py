@@ -161,8 +161,9 @@ def test_restricted_calls_never_fail_over_to_a_provider_that_may_not_see_them(op
     with pytest.raises(llm.PolicyRefused):
         router.complete("worker", "pay", llm=fake, models=["free:m"], breaker=router.Breaker(), sensitivity=None)
     assert fake.calls == []
-    with pytest.raises(llm.LLMError, match="no model chain"):
-        router.complete("planner", "x", llm=fake, breaker=router.Breaker())
+    one = Scripted({"a:m": ["ok"], llm.default_model(): ["dflt"]})                  # no chain configured: a chain of one
+    assert router.complete("planner", "x", llm=one, model="a:m", breaker=router.Breaker(), sensitivity="internal").text == "ok"
+    assert router.complete("planner", "x", llm=one, breaker=router.Breaker(), sensitivity="internal").text == "dflt"
 
 
 def test_chains_are_stored_per_task_class():

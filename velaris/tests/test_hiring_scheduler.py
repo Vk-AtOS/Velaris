@@ -180,7 +180,7 @@ def test_line_folding_and_escaping_follow_rfc5545():
     parsed = parse_ics(ics)                                                      # asserts every physical line is at most 75 octets and CRLF-terminated
     assert unesc(parsed["props"]["SUMMARY"]) == title and parsed["props"]["DESCRIPTION"] == "x" * 300
     assert 'ORGANIZER;CN="Org Q  name":mailto:o@x.example' in ics.replace("\r\n ", "")
-    for kw in ({"method": "PUBLISH", "sequence": 0}, {"method": "REQUEST", "sequence": -1}):
+    for kw in ({"method": "COUNTER", "sequence": 0}, {"method": "REQUEST", "sequence": -1}):
         with pytest.raises(hc.HiringError):
             sl.build_ics(kw["method"], uid="u", sequence=kw["sequence"], start=1, end=2, stamp=0, summary="s", description="d", location="l", organizer=("o", "o@x"), attendees=[])
 

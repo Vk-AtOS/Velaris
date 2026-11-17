@@ -37,6 +37,7 @@ from concurrent.futures import TimeoutError as CallTimeout
 from dataclasses import asdict, dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
+from velaris.intel import router
 from velaris.intel import guard, trace
 from velaris.intel.llm import LLM, TIMEOUT_S, LLMError, call_timeout, extract_json
 
@@ -149,8 +150,8 @@ def _review(llm: LLM, reviewer: str, question: str, answers: Dict[str, str],
               f"using each of these labels exactly once: {', '.join(by_label)}.")
     last = "no reply"
     for attempt in range(2):
-        text = llm.complete(prompt if attempt == 0 else prompt + "\n\nYour last reply was not valid. JSON only.",
-                            model=reviewer, max_tokens=600, temperature=0.0, purpose="council.review").text
+        text = router.complete("worker", prompt if attempt == 0 else prompt + "\n\nYour last reply was not valid. JSON only.",
+                            llm=llm, model=reviewer, sensitivity="restricted", max_tokens=600, temperature=0.0, purpose="council.review").text
         try:
             data = extract_json(text)
             ranking = [str(x).strip().upper()[-1:] for x in data["ranking"]]
@@ -212,8 +213,8 @@ def council(question: str, *, models: Sequence[str], llm: Optional[LLM] = None,
         preamble, block = guard.wrap(context, label="background material")
         ask += f"\n\n{preamble}\n\n{block}"
     ask += "\n\nAnswer accurately and concisely. Say so plainly if you are not sure."
-    res.answers = _parallel(members, lambda m: llm.complete(
-        ask, model=m, max_tokens=900, purpose="council.answer").text, "answer", res.failed, timeout_s)
+    res.answers = _parallel(members, lambda m: router.complete(
+        "worker", ask, llm=llm, model=m, sensitivity="restricted", max_tokens=900, purpose="council.answer").text, "answer", res.failed, timeout_s)
     answered = res.answered = list(res.answers)
     enough = len(answered) >= quorum
     if not enough:
@@ -250,8 +251,8 @@ def council(question: str, *, models: Sequence[str], llm: Optional[LLM] = None,
                   "points several answers share. Where the answers conflict on something that matters, say that "
                   "it is disputed instead of silently picking a side. Do not mention the candidates or the ranking.")
         chair = chairman or answered[0]       # a member that just failed would only fail again
-        text = _parallel([chair], lambda m: llm.complete(
-            prompt, model=m, max_tokens=1200, purpose="council.chairman").text,
+        text = _parallel([chair], lambda m: router.complete(
+            "worker", prompt, llm=llm, model=m, sensitivity="restricted", max_tokens=1200, purpose="council.chairman").text,
             "chairman", res.failed, timeout_s).get(chair)
         if text:
             res.answer, res.chosen_by = text, "chairman"

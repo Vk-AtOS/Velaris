@@ -1,0 +1,7 @@
+{
+  "name": "DOMAIN_EXPANSION",
+  "version": "0.1.0",
+  "domain": "sales",
+  "description": "DOMAIN_EXPANSION: how much of each vertical's market the company has, and what is left.",
+  "entrypoint": "main.py:DOMAIN_EXPANSIONAgent"
+}

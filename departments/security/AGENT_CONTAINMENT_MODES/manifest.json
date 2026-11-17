@@ -1,0 +1,7 @@
+{
+  "name": "AGENT_CONTAINMENT_MODES",
+  "version": "0.1.0",
+  "domain": "security",
+  "description": "Agent containment modes: records a containment level per agent and says which actions that level allows.",
+  "entrypoint": "main.py:AgentContainmentModes"
+}

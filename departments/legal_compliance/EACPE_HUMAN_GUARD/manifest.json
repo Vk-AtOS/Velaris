@@ -1,0 +1,7 @@
+{
+  "name": "EACPE_HUMAN_GUARD",
+  "version": "0.1.0",
+  "domain": "legal_compliance",
+  "description": "EACPE_HUMAN_GUARD: irreversible actions wait for a named person.",
+  "entrypoint": "main.py:EACPE_HUMAN_GUARDAgent"
+}

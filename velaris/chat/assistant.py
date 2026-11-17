@@ -39,6 +39,7 @@ from dataclasses import dataclass
 from functools import partial
 from typing import Any, Callable, Dict, List, Optional, Sequence
 
+from velaris.intel import router
 from velaris.chat.core import sha
 from velaris.chat.errors import ChatError
 from velaris.chat.policy import CHAT_ADMIN, is_assistant, strip_mention
@@ -153,7 +154,7 @@ class Assistant:
             return self._notice(caller, ch, row, assistant, "blocked")
         prompt, authors = self._prompt(caller, ch, row, assistant, request)
         try:
-            reply = self.llm.complete(prompt, max_tokens=800, temperature=0.2, purpose="chat.assistant").text
+            reply = router.complete("worker", prompt, llm=self.llm, sensitivity="restricted", max_tokens=800, temperature=0.2, purpose="chat.assistant").text
         except LLMError:
             return self._notice(caller, ch, row, assistant, "model_error")
         try:

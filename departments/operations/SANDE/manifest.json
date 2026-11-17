@@ -1,0 +1,7 @@
+{
+  "name": "SANDE",
+  "version": "0.1.0",
+  "domain": "operations",
+  "description": "Alias agent SANDE: fronts LOCAL_ACCELERATOR, LOCAL_AUTONOMY_CORE, LOCAL_REGISTRY_CACHE, LOCAL_ROUTER, LOCAL_MEMORY_STORE. See velaris.agentkit.alias.",
+  "entrypoint": "main.py:SANDEAgent"
+}

@@ -1,0 +1,7 @@
+{
+  "name": "DISTRIBUTED_FABRIC",
+  "version": "0.1.0",
+  "domain": "it_infrastructure",
+  "description": "DISTRIBUTED_FABRIC: which node owns which key (consistent hashing).",
+  "entrypoint": "main.py:DISTRIBUTED_FABRICAgent"
+}

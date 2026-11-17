@@ -1,0 +1,7 @@
+{
+  "name": "IDENTITY_FRAMEWORK",
+  "version": "0.1.0",
+  "domain": "security",
+  "description": "Identity framework: stores user profiles with salted password hashes and checks passwords.",
+  "entrypoint": "main.py:IdentityFramework"
+}

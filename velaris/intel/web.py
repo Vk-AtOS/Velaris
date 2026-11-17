@@ -25,6 +25,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, Iterable, List, Optional, Sequence
 from urllib.parse import quote_plus, urlsplit
 
+from velaris.intel import router
 from velaris.intel import guard, trace
 from velaris.intel.llm import LLM, LLMError, extract_json
 from velaris.intel.web_fetch import Fetcher, FetchError
@@ -389,7 +390,7 @@ def extract(page: Page, fields: Dict[str, str], *, llm: Optional[LLM] = None,
               "Use null for anything the page does not state. Copy values as written; do not infer or compute. "
               "Reply with the JSON object only.")
     try:
-        raw = extract_json(llm.complete(prompt, model=model, max_tokens=800, temperature=0.0,
+        raw = extract_json(router.complete("worker", prompt, llm=llm, model=model, sensitivity="internal", max_tokens=800, temperature=0.0,
                                         purpose="web.extract").text)
     except LLMError as e:
         return {"data": {k: None for k in fields}, "ungrounded": [], "error": str(e)}

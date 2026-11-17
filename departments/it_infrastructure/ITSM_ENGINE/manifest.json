@@ -1,0 +1,7 @@
+{
+  "name": "ITSM_ENGINE",
+  "version": "0.1.0",
+  "domain": "it_infrastructure",
+  "description": "ITSM_ENGINE: an IT ticket and incident store with priority, SLA clocks and an audit trail.",
+  "entrypoint": "main.py:ITSMEngine"
+}

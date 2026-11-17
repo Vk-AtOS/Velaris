@@ -1,0 +1,7 @@
+{
+  "name": "MULTI_TENANT_ENGINE",
+  "version": "0.1.0",
+  "domain": "operations",
+  "description": "Multi-tenant engine: an in-memory key/value store partitioned by tenant id.",
+  "entrypoint": "main.py:MultiTenantEngine"
+}

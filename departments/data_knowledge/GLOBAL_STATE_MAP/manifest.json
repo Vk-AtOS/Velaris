@@ -1,0 +1,7 @@
+{
+  "name": "GLOBAL_STATE_MAP",
+  "version": "0.1.0",
+  "domain": "data_knowledge",
+  "description": "GLOBAL_STATE_MAP: one shared, versioned map of state that several agents read and write.",
+  "entrypoint": "main.py:GLOBAL_STATE_MAPAgent"
+}

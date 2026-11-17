@@ -1,0 +1,7 @@
+{
+  "name": "HYPERSYNC",
+  "version": "0.1.0",
+  "domain": "operations",
+  "description": "Alias agent HYPERSYNC: fronts COHERENCE_SYNC_CORE, CSG_STATEALIGN. See velaris.agentkit.alias.",
+  "entrypoint": "main.py:HYPERSYNCAgent"
+}

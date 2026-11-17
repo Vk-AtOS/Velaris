@@ -1,0 +1,7 @@
+{
+  "name": "COMPLIANCE_GUARD",
+  "version": "0.1.0",
+  "domain": "security",
+  "description": "Compliance guard: checks an action dict against registered required-field and forbidden-field rules.",
+  "entrypoint": "main.py:ComplianceGuard"
+}

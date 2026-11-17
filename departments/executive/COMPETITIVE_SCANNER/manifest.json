@@ -1,0 +1,7 @@
+{
+  "name": "COMPETITIVE_SCANNER",
+  "version": "0.1.0",
+  "domain": "executive",
+  "description": "COMPETITIVE_SCANNER: read competitors' public pages and report what changed.",
+  "entrypoint": "main.py:COMPETITIVE_SCANNERAgent"
+}

@@ -1,0 +1,7 @@
+{
+  "name": "TELEMETRY_SPINE",
+  "version": "0.1.0",
+  "domain": "it_infrastructure",
+  "description": "Telemetry spine: an append-only local log of typed events with a simple query and per-type counts.",
+  "entrypoint": "main.py:TelemetrySpine"
+}

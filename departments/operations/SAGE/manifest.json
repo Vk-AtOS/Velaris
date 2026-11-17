@@ -1,0 +1,7 @@
+{
+  "name": "SAGE",
+  "version": "0.1.0",
+  "domain": "operations",
+  "description": "Alias agent SAGE: fronts STRATEGOS, STRATEGIC_INTEL, CSM_CORE. See velaris.agentkit.alias.",
+  "entrypoint": "main.py:SAGEAgent"
+}

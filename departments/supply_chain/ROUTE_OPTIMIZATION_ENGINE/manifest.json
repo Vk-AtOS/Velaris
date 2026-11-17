@@ -1,0 +1,7 @@
+{
+  "name": "ROUTE_OPTIMIZATION_ENGINE",
+  "version": "0.1.0",
+  "domain": "supply_chain",
+  "description": "ROUTE_OPTIMIZATION_ENGINE: a round trip through every location, by a real heuristic.",
+  "entrypoint": "main.py:RouteOptimizationEngine"
+}

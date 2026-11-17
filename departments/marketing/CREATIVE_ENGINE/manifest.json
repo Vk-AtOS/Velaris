@@ -1,0 +1,7 @@
+{
+  "name": "CREATIVE_ENGINE",
+  "version": "0.1.0",
+  "domain": "marketing",
+  "description": "CREATIVE_ENGINE: campaign ideas, variations and blends, drafted by a model.",
+  "entrypoint": "main.py:CreativeEngine"
+}

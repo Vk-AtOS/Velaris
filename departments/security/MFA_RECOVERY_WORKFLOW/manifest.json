@@ -1,0 +1,7 @@
+{
+  "name": "MFA_RECOVERY_WORKFLOW",
+  "version": "0.1.0",
+  "domain": "security",
+  "description": "MFA recovery workflow: one-time recovery codes that yield a one-time reset token, used to record a new credential hash.",
+  "entrypoint": "main.py:MFARecoveryWorkflow"
+}

@@ -156,9 +156,9 @@ def _utc(ts: float) -> str:
 
 def build_ics(method: str, *, uid: str, sequence: int, start: float, end: float, stamp: float, summary: str, description: str,
               location: str, organizer: Tuple[str, str], attendees: Sequence[Tuple[str, str, str]]) -> str:
-    """METHOD:REQUEST or CANCEL. organizer = (name, email); attendees = (name, email, role) with role REQ-PARTICIPANT or OPT-PARTICIPANT."""
-    if method not in ("REQUEST", "CANCEL"):
-        raise bad("method must be REQUEST or CANCEL")
+    """METHOD:REQUEST, CANCEL or PUBLISH (a copy for the candidate's own calendar, no attendees). organizer = (name, email); attendees = (name, email, role) with role REQ-PARTICIPANT or OPT-PARTICIPANT."""
+    if method not in ("REQUEST", "CANCEL", "PUBLISH"):
+        raise bad("method must be REQUEST, CANCEL or PUBLISH")
     if not (isinstance(sequence, int) and sequence >= 0) or not uid or not end > start:
         raise bad("sequence must be >= 0, uid non-empty and end after start")
     lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Velaris//Hiring Scheduler 1.0//EN", "CALSCALE:GREGORIAN", f"METHOD:{method}",

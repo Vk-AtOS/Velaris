@@ -41,4 +41,4 @@ answer on the word-list path.
 
 - **other agents:** `MCFE_CORE`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_b_mcfe.py`, `velaris/tests/test_layer18_mcfe.py`
+- **tests:** `velaris/tests/test_aicore_b_mcfe.py`, `velaris/tests/test_corrections.py`, `velaris/tests/test_layer18_mcfe.py`

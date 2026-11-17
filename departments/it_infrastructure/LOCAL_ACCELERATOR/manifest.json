@@ -1,0 +1,7 @@
+{
+  "name": "LOCAL_ACCELERATOR",
+  "version": "0.1.0",
+  "domain": "it_infrastructure",
+  "description": "LOCAL_ACCELERATOR: an on-disk result cache that makes repeated work instant.",
+  "entrypoint": "main.py:LOCAL_ACCELERATORAgent"
+}

@@ -1,0 +1,7 @@
+{
+  "name": "SECRETS_VAULT",
+  "version": "0.1.0",
+  "domain": "security",
+  "description": "Secrets vault: stores named secrets as encrypted files.",
+  "entrypoint": "main.py:SecretsVault"
+}

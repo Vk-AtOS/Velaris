@@ -1,0 +1,7 @@
+{
+  "name": "DRY_RUN_SIMULATION",
+  "version": "0.1.0",
+  "domain": "project_management",
+  "description": "Dry-run simulation: records what an action would do instead of doing it; it performs no action in either mode.",
+  "entrypoint": "main.py:DryRunSimulation"
+}

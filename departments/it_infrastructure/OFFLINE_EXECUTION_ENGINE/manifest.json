@@ -1,0 +1,7 @@
+{
+  "name": "OFFLINE_EXECUTION_ENGINE",
+  "version": "0.1.0",
+  "domain": "it_infrastructure",
+  "description": "OFFLINE_EXECUTION_ENGINE: a durable, replay-safe journal of local command runs.",
+  "entrypoint": "main.py:OfflineExecutionEngine"
+}

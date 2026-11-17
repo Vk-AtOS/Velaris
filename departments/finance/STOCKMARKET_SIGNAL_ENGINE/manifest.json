@@ -1,0 +1,7 @@
+{
+  "name": "STOCKMARKET_SIGNAL_ENGINE",
+  "version": "0.1.0",
+  "domain": "finance",
+  "description": "STOCKMARKET_SIGNAL_ENGINE: standard technical indicators on a supplied price series.",
+  "entrypoint": "main.py:StockMarketSignalEngine"
+}

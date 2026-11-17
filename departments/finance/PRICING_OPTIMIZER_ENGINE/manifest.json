@@ -1,0 +1,7 @@
+{
+  "name": "PRICING_OPTIMIZER_ENGINE",
+  "version": "0.1.0",
+  "domain": "finance",
+  "description": "PRICING_OPTIMIZER_ENGINE: profit-maximising price, by two stated methods.",
+  "entrypoint": "main.py:PricingOptimizerEngine"
+}

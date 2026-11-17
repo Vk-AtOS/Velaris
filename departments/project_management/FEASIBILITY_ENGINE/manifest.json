@@ -1,0 +1,7 @@
+{
+  "name": "FEASIBILITY_ENGINE",
+  "version": "0.1.0",
+  "domain": "project_management",
+  "description": "FEASIBILITY_ENGINE: a scored feasibility checklist where every criterion shows its evidence.",
+  "entrypoint": "main.py:FEASIBILITY_ENGINEAgent"
+}

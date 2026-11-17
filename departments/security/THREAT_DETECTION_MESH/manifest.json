@@ -1,0 +1,7 @@
+{
+  "name": "THREAT_DETECTION_MESH",
+  "version": "0.1.0",
+  "domain": "security",
+  "description": "Threat detection mesh: rule-based event scorer that counts matches against registered signatures; not machine learning.",
+  "entrypoint": "main.py:ThreatDetectionMesh"
+}

@@ -1,0 +1,7 @@
+{
+  "name": "DIGITAL_TWIN_XR_ENGINE",
+  "version": "0.1.0",
+  "domain": "project_management",
+  "description": "Digital twin / XR engine: named in-memory state dicts with update, diff and merge (no XR rendering, no device link).",
+  "entrypoint": "main.py:DigitalTwinXREngine"
+}

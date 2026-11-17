@@ -1,0 +1,7 @@
+{
+  "name": "CUSTOMER_BEHAVIOR_ENGINE",
+  "version": "0.1.0",
+  "domain": "marketing",
+  "description": "CUSTOMER_BEHAVIOR_ENGINE: descriptive metrics and a rule-based segment for one customer account.",
+  "entrypoint": "main.py:CustomerBehaviorEngine"
+}

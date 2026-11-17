@@ -1,0 +1,7 @@
+{
+  "name": "FINANCIAL_AI_ENGINE",
+  "version": "0.1.0",
+  "domain": "finance",
+  "description": "Financial AI engine: growth, a straight-line forecast and a threshold health label (plain arithmetic, no model).",
+  "entrypoint": "main.py:FinancialAIEngine"
+}

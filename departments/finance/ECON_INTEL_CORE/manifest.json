@@ -1,0 +1,7 @@
+{
+  "name": "ECON_INTEL_CORE",
+  "version": "0.1.0",
+  "domain": "finance",
+  "description": "ECON_INTEL_CORE: a sourced register of economic indicators, plus cited research.",
+  "entrypoint": "main.py:ECON_INTEL_COREAgent"
+}

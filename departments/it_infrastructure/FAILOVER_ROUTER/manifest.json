@@ -1,0 +1,7 @@
+{
+  "name": "FAILOVER_ROUTER",
+  "version": "0.1.0",
+  "domain": "it_infrastructure",
+  "description": "FAILOVER_ROUTER: send a service's traffic to its first working target.",
+  "entrypoint": "main.py:FAILOVER_ROUTERAgent"
+}

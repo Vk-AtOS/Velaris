@@ -65,4 +65,4 @@ Signing requests: create, send, ceremony (token-authenticated), seal, verify. Se
 
 - **other agents:** `EMPLOYEE_RECORDS`, `OFFER_LETTERS`
 - **platform modules:** `velaris/agentkit/hr_wiring.py`, `velaris/agentkit/onboarding_adapters.py`, `velaris/agentkit/onboarding_common.py`, `velaris/agentkit/onboarding_dsr.py`, `velaris/api/allowlist.py`, `velaris/api/public.py`
-- **tests:** `velaris/tests/test_api_public.py`, `velaris/tests/test_hr_data_traces.py`, `velaris/tests/test_hr_wiring.py`, `velaris/tests/test_onboarding_esign.py`, `velaris/tests/test_onboarding_records.py`
+- **tests:** `velaris/tests/test_api_public.py`, `velaris/tests/test_hr_data_traces.py`, `velaris/tests/test_hr_wiring.py`, `velaris/tests/test_onboarding_esign.py`, `velaris/tests/test_onboarding_records.py`, `velaris/tests/test_public_browser.py`

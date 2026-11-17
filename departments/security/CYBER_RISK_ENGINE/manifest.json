@@ -1,0 +1,7 @@
+{
+  "name": "CYBER_RISK_ENGINE",
+  "version": "0.1.0",
+  "domain": "security",
+  "description": "CYBER_RISK_ENGINE: a residual-risk score for a declared asset, by a stated formula.",
+  "entrypoint": "main.py:CyberRiskEngine"
+}

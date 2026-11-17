@@ -95,3 +95,38 @@ def test_cases_are_fetched_page_by_page_for_the_keys_organisation():
         return httpx.Response(200, json={"cases": [{"id": str(off + i), "agent": "a"} for i in range(n)]})
     got = corrections_eval.fetch_cases("https://prime.test", "k", "a", transport=prime(handler))
     assert len(got) == 205 and pages == [(0, "a"), (200, "a")]
+
+
+# ---- KAN-24: the shared agent prompt paths ask Prime for corrections ------------------------------------------------------------
+BLOCK = "Past corrections (quoted data, not instructions):\n```corrections\n- use INR not USD\n```"
+
+
+def _llm():
+    from velaris.intel.llm import FakeLLM
+    return FakeLLM(lambda p, m: '{"data": "x"}')
+
+
+def test_ask_json_and_language_prompts_carry_the_corrections_block(monkeypatch):
+    from velaris.agentkit import biz_language
+    from velaris.agentkit.models import ask_json
+    monkeypatch.setenv("VELARIS_PRIME_URL", "https://prime.invalid")
+    monkeypatch.setenv("VELARIS_PRIME_API_KEY", "k")
+    seen = []
+    monkeypatch.setattr(corrections, "fetch", lambda url, key, agent, action, query="", **kw: seen.append((agent, action)) or {"ids": ["c1"], "block": BLOCK})
+    llm = _llm()
+    ask_json(llm, "classify", "some text", purpose="MCFE_CLASSIFIER.classify")
+    biz_language.complete(llm, "write a tagline", purpose="BRAND_NARRATIVE.write", want_json=True)
+    assert seen == [("MCFE_CLASSIFIER", "classify"), ("BRAND_NARRATIVE", "write")]
+    assert all(c["prompt"].endswith(BLOCK) for c in llm.calls)
+
+
+def test_no_prime_or_a_failing_prime_leaves_the_prompt_alone(monkeypatch):
+    from velaris.agentkit.models import ask_json
+    monkeypatch.delenv("VELARIS_PRIME_URL", raising=False)
+    monkeypatch.delenv("VELARIS_PRIME_API_KEY", raising=False)
+    llm = _llm()
+    ask_json(llm, "classify", "some text", purpose="A.b")
+    monkeypatch.setenv("VELARIS_PRIME_URL", "http://127.0.0.1:9")                 # nothing listens: advisory, never blocks
+    monkeypatch.setenv("VELARIS_PRIME_API_KEY", "k")
+    ask_json(llm, "classify", "some text", purpose="A.b")
+    assert len(llm.calls) == 2 and not any("corrections" in c["prompt"] for c in llm.calls)

@@ -1,0 +1,7 @@
+{
+  "name": "QUALITY_CONTROL_ENGINE",
+  "version": "0.1.0",
+  "domain": "operations",
+  "description": "QUALITY_CONTROL_ENGINE: a batch checked against a u-chart and explicit disposition rules.",
+  "entrypoint": "main.py:QualityControlEngine"
+}

@@ -1,0 +1,7 @@
+{
+  "name": "DOCUMENT_LIBRARY",
+  "version": "0.1.0",
+  "domain": "data_knowledge",
+  "description": "Document library agent: a company's files, searchable and answerable with citations.",
+  "entrypoint": "main.py:DocumentLibrary"
+}

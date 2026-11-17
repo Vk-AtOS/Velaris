@@ -1,0 +1,7 @@
+{
+  "name": "PIN_UNLOCK_LAYER",
+  "version": "0.1.0",
+  "domain": "security",
+  "description": "PIN unlock layer: per-user PINs with a locked/unlocked flag and a lockout after repeated wrong PINs.",
+  "entrypoint": "main.py:PINUnlockLayer"
+}

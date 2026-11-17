@@ -1,0 +1,7 @@
+{
+  "name": "MEMORY_REALLOCATOR",
+  "version": "0.1.0",
+  "domain": "data_knowledge",
+  "description": "MEMORY_REALLOCATOR: divide a RAM budget among declared consumers.",
+  "entrypoint": "main.py:MEMORY_REALLOCATORAgent"
+}

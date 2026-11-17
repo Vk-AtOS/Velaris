@@ -1,0 +1,7 @@
+{
+  "name": "LOCAL_MEMORY_STORE",
+  "version": "0.1.0",
+  "domain": "data_knowledge",
+  "description": "LOCAL_MEMORY_STORE: a small key-value store on this machine's disk.",
+  "entrypoint": "main.py:LocalMemoryStore"
+}

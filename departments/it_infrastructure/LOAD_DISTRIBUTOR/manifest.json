@@ -1,0 +1,7 @@
+{
+  "name": "LOAD_DISTRIBUTOR",
+  "version": "0.1.0",
+  "domain": "it_infrastructure",
+  "description": "LOAD_DISTRIBUTOR: picks which backend gets the next request.",
+  "entrypoint": "main.py:LOAD_DISTRIBUTORAgent"
+}

@@ -1,0 +1,7 @@
+{
+  "name": "OFFLINE_RUNTIME_PACKAGER",
+  "version": "0.1.0",
+  "domain": "it_infrastructure",
+  "description": "Offline runtime packager: bundles a Velaris source folder into a tar archive for offline installs, leaving secrets out.",
+  "entrypoint": "main.py:OfflineRuntimePackager"
+}

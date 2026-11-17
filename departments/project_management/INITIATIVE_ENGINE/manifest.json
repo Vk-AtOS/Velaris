@@ -1,0 +1,7 @@
+{
+  "name": "INITIATIVE_ENGINE",
+  "version": "0.1.0",
+  "domain": "project_management",
+  "description": "INITIATIVE_ENGINE: rank proposed initiatives by RICE and keep the register.",
+  "entrypoint": "main.py:InitiativeEngine"
+}

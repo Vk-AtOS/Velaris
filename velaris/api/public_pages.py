@@ -18,7 +18,10 @@ from fastapi import FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
-from velaris.agents.JOB_POSTINGS import main as job_postings
+from xml.sax.saxutils import escape
+
+from velaris.agentkit import hiring_public_jobs as jobs
+from velaris.agentkit import hiring_sched as sched
 from velaris.core.access import acting_as
 
 logger = logging.getLogger("velaris.api.public")
@@ -76,11 +79,36 @@ def register(app: FastAPI, gate: Gate, token_re: "re.Pattern[str]", form_re: "re
         if not SLUG.fullmatch(slug):
             return None
         try:
-            r = await run_in_threadpool(lambda: _plain(job_postings.public_job, slug))
+            r = await run_in_threadpool(lambda: _plain(jobs.public_job, slug))
         except Exception as e:                      # a store failure reads as "not available": nothing about it reaches the visitor
             logger.warning("job page failed: %s", type(e).__name__)
             return None
         return r if r.get("status") == "ok" else None
+
+    @app.get("/sitemap.xml")
+    async def sitemap(request: Request) -> Response:
+        """Live jobs only (no token, no personal data): the public job_url of every live posting whose slug is unambiguous."""
+        if (refused := await gate(request, "job", "sitemap", False, SLUG)) is not None:
+            return _gone(refused)
+        try:
+            entries = await run_in_threadpool(jobs.sitemap_entries)
+        except Exception as e:
+            logger.warning("sitemap failed: %s", type(e).__name__)
+            return _gone()
+        body = ('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+                + "".join(f"<url><loc>{escape(e['loc'])}</loc><lastmod>{e['lastmod']}</lastmod></url>\n" for e in entries) + "</urlset>\n")
+        return Response(body, media_type="application/xml", headers={"Cache-Control": "public, max-age=900"})
+
+    @app.get("/schedule/{token}/calendar.ics")
+    async def calendar(token: str, request: Request) -> Response:
+        """The booked interview as a calendar file (KAN-124); the same shape of answer for any link that has no booking."""
+        if (refused := await gate(request, "page", token, True, token_re)) is not None:
+            return _gone(refused)
+        r = await run_in_threadpool(lambda: _plain(sched.public_ics, token))
+        if r.get("status") != "ok":
+            return _gone()
+        return Response(r["ics"], media_type="text/calendar; charset=utf-8",
+                        headers={"Content-Disposition": f'attachment; filename="{r["filename"]}"', "Cache-Control": "no-store"})
 
     @app.get("/jobs/{slug}")
     async def job(slug: str, request: Request) -> Response:

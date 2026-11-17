@@ -1,0 +1,7 @@
+{
+  "name": "LOCAL_AUTONOMY_CORE",
+  "version": "0.1.0",
+  "domain": "it_infrastructure",
+  "description": "LOCAL_AUTONOMY_CORE: can this node keep working with no outside help?",
+  "entrypoint": "main.py:LocalAutonomyCore"
+}

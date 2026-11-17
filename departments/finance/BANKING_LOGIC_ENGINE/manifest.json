@@ -1,0 +1,7 @@
+{
+  "name": "BANKING_LOGIC_ENGINE",
+  "version": "0.1.0",
+  "domain": "finance",
+  "description": "BANKING_LOGIC_ENGINE: arithmetic on one bank account.",
+  "entrypoint": "main.py:BankingLogicEngine"
+}

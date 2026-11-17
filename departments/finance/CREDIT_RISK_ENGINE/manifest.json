@@ -1,0 +1,7 @@
+{
+  "name": "CREDIT_RISK_ENGINE",
+  "version": "0.1.0",
+  "domain": "finance",
+  "description": "CREDIT_RISK_ENGINE: a points scorecard over a borrower's declared figures.",
+  "entrypoint": "main.py:CreditRiskEngine"
+}

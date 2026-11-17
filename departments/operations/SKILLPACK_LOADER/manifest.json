@@ -1,0 +1,7 @@
+{
+  "name": "SKILLPACK_LOADER",
+  "version": "0.1.0",
+  "domain": "operations",
+  "description": "Skillpack loader: stores named JSON skillpacks as files and reads them back; it executes nothing.",
+  "entrypoint": "main.py:SkillpackLoader"
+}
