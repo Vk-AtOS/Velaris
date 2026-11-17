@@ -12,7 +12,7 @@
     "sensitivity": "internal",
     "task_class": "worker",
     "eval": "evals/_ai_core/LYRA_VOICE_ENGINE.json",
-    "wave": "KAN-44",
+    "wave": "KAN-43",
     "status": "deterministic_tool",
     "tools": {
       "interpret_intent": {
@@ -30,11 +30,13 @@
       "speak": {
         "kind": "act"
       },
+      "stop": {
+        "kind": "act"
+      },
       "transcribe": {
         "kind": "act"
       }
     },
-    "excluded": {},
-    "reviewed": true
+    "excluded": {}
   }
 }

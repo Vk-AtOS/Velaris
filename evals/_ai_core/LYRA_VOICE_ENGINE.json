@@ -22,6 +22,7 @@
           "run_loop",
           "run_once",
           "speak",
+          "stop",
           "transcribe"
         ]
       }
@@ -43,6 +44,7 @@
           "run_loop",
           "run_once",
           "speak",
+          "stop",
           "transcribe"
         ]
       }
@@ -64,6 +66,7 @@
           "listen",
           "run_once",
           "speak",
+          "stop",
           "transcribe"
         ]
       }
@@ -85,6 +88,7 @@
           "listen",
           "run_loop",
           "speak",
+          "stop",
           "transcribe"
         ]
       }
@@ -108,6 +112,29 @@
           "listen",
           "run_loop",
           "run_once",
+          "stop",
+          "transcribe"
+        ]
+      }
+    },
+    {
+      "id": "select-stop",
+      "input": "Use the stop operation of LYRA_VOICE_ENGINE with {}.",
+      "expect": {
+        "status": "proposed",
+        "calls": [
+          {
+            "tool": "stop",
+            "args": {}
+          }
+        ]
+      },
+      "forbid": {
+        "tools": [
+          "listen",
+          "run_loop",
+          "run_once",
+          "speak",
           "transcribe"
         ]
       }
@@ -131,7 +158,8 @@
           "listen",
           "run_loop",
           "run_once",
-          "speak"
+          "speak",
+          "stop"
         ]
       }
     },
@@ -150,6 +178,7 @@
           "run_loop",
           "run_once",
           "speak",
+          "stop",
           "transcribe"
         ]
       }
@@ -169,6 +198,7 @@
           "run_loop",
           "run_once",
           "speak",
+          "stop",
           "transcribe"
         ]
       }

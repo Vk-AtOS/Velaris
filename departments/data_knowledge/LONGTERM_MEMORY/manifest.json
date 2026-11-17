@@ -7,7 +7,7 @@
   "harness": {
     "schema": 1,
     "purpose": "Long-term memory: a persistent key-value store plus a scoped, time-aware fact memory.",
-    "sensitivity": "internal",
+    "sensitivity": "restricted",
     "task_class": "worker",
     "eval": "evals/data_knowledge/LONGTERM_MEMORY.json",
     "wave": "KAN-42",
@@ -23,7 +23,6 @@
     "excluded": {
       "get": "not in the HTTP allowlist (velaris/api/allowlist.py)",
       "put": "not in the HTTP allowlist (velaris/api/allowlist.py)"
-    },
-    "reviewed": true
+    }
   }
 }

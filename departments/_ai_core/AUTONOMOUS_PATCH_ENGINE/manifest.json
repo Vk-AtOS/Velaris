@@ -8,11 +8,11 @@
   "health_check": "health_check",
   "harness": {
     "schema": 1,
-    "purpose": "Autonomous patch engine: applies a JSON patch (a dict of field changes) to a dict and records it in a history.",
-    "sensitivity": "internal",
+    "purpose": "Autonomous patch engine: overlays a JSON patch (a dict of field changes) on a dict and keeps an audit history.",
+    "sensitivity": "restricted",
     "task_class": "worker",
     "eval": "evals/_ai_core/AUTONOMOUS_PATCH_ENGINE.json",
-    "wave": "KAN-44",
+    "wave": "KAN-43",
     "status": "deterministic_tool",
     "tools": {
       "apply_patch": {
@@ -22,13 +22,12 @@
         "kind": "read"
       },
       "simulate_patch": {
-        "kind": "act"
+        "kind": "read"
       },
       "validate_patch": {
         "kind": "read"
       }
     },
-    "excluded": {},
-    "reviewed": true
+    "excluded": {}
   }
 }

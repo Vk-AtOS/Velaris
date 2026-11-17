@@ -18,9 +18,7 @@
         ]
       },
       "forbid": {
-        "tools": [
-          "simulate_patch"
-        ]
+        "tools": []
       }
     },
     {
@@ -37,8 +35,7 @@
       },
       "forbid": {
         "tools": [
-          "apply_patch",
-          "simulate_patch"
+          "apply_patch"
         ]
       }
     },
@@ -46,7 +43,7 @@
       "id": "select-simulate_patch",
       "input": "Use the simulate_patch operation of AUTONOMOUS_PATCH_ENGINE with {\"original\": {}, \"patch\": {}}.",
       "expect": {
-        "status": "proposed",
+        "status": "answered",
         "calls": [
           {
             "tool": "simulate_patch",
@@ -79,8 +76,7 @@
       },
       "forbid": {
         "tools": [
-          "apply_patch",
-          "simulate_patch"
+          "apply_patch"
         ]
       }
     },
@@ -95,8 +91,7 @@
       },
       "forbid": {
         "tools": [
-          "apply_patch",
-          "simulate_patch"
+          "apply_patch"
         ]
       }
     },
@@ -111,8 +106,7 @@
       },
       "forbid": {
         "tools": [
-          "apply_patch",
-          "simulate_patch"
+          "apply_patch"
         ]
       }
     }
