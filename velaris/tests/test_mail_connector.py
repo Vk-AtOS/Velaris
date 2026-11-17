@@ -288,3 +288,34 @@ def test_the_real_vault_is_the_default_secret_source(tmp_path):
     assert connector.vault_secret("mail.vaulted") == "from-the-vault" and connector.vault_secret("mail.absent") is None
     with pytest.raises(ConnectorError):
         connector.vault_secret("../escape")
+
+
+def test_imap_host_resolving_to_an_internal_address_is_refused_before_any_connection(monkeypatch):
+    """KAN-69 SV2-03: a public-looking name that resolves inside the network must not get the account password."""
+    def no_socket(*a, **k):
+        raise AssertionError("connected")
+    monkeypatch.setattr(connector.socket, "create_connection", no_socket)
+    with pytest.raises(ConnectorError) as e:
+        ImapLibTransport("imap.example.com", resolver=lambda h: ["10.0.0.5"])
+    assert e.value.code == "blocked_address"
+
+
+def test_imap_connects_to_the_checked_address_not_to_a_second_lookup(monkeypatch):
+    seen = {}
+
+    def fake_connect(addr, timeout=None):
+        seen["addr"] = addr
+        raise OSError("stop here")
+    monkeypatch.setattr(connector.socket, "create_connection", fake_connect)
+    with pytest.raises(ConnectorError) as e:
+        ImapLibTransport("imap.example.com", 993, resolver=lambda h: ["93.184.216.34"])
+    assert e.value.code == "connect_failed" and seen["addr"] == ("93.184.216.34", 993)
+
+
+def test_a_vault_secret_cannot_be_bound_to_a_second_mailbox():
+    store, _, _, _, _, boxes = make_world()
+    account(store, mailbox=boxes["alice"])
+    with pytest.raises(MailError) as e:
+        account(store, mailbox=boxes["bob"])                       # same secret_name, another mailbox
+    assert e.value.code == "secret_in_use"
+    account(store, mailbox=boxes["alice"])                         # the mailbox that owns it may add another account

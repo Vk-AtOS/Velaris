@@ -24,12 +24,14 @@ import ipaddress
 import os
 import re
 import smtplib
+import socket
 import ssl
 from dataclasses import asdict, dataclass
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from velaris.agents.SECRETS_VAULT.main import SecretsVault
 from velaris.core.access import Caller
+from velaris.intel.web_fetch import FetchError, check_public
 from velaris.mail.common import Clock, MailError, RelayError, audit, uid
 from velaris.mail.db import dumps, loads
 from velaris.mail.mime import parse_message
@@ -110,13 +112,35 @@ def _q(name: str) -> str:
     return '"' + name.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
+class _PinnedImapSSL(imaplib.IMAP4_SSL):
+    """IMAP over TLS to an address that was already checked: the name is not resolved a second time, and the certificate is
+    still checked against the host name."""
+
+    def __init__(self, host: str, port: int, *, address: str, **kw: Any) -> None:
+        self._address = address
+        super().__init__(host, port, **kw)
+
+    def _create_socket(self, timeout: Optional[float]) -> ssl.SSLSocket:
+        sock = socket.create_connection((self._address, self.port), timeout)
+        return self.ssl_context.wrap_socket(sock, server_hostname=self.host)
+
+
 class ImapLibTransport:
-    """imaplib over TLS with certificate and host name checks. There is no plaintext constructor."""
+    """imaplib over TLS with certificate and host name checks. There is no plaintext constructor. With the default factory
+    the host must resolve to public addresses only (an administrator names the host, and the account password is sent to
+    it), and the connection goes to the address that was checked (KAN-69 SV2-03)."""
 
     def __init__(self, host: str, port: int = 993, *, timeout: float = 30.0, factory: Any = imaplib.IMAP4_SSL,
-                 context: Optional[ssl.SSLContext] = None) -> None:
+                 context: Optional[ssl.SSLContext] = None, resolver: Any = None) -> None:
+        extra: Dict[str, Any] = {}
+        if factory is imaplib.IMAP4_SSL:
+            try:
+                addresses = check_public(f"https://{host}", *([resolver] if resolver else []))
+            except FetchError:
+                raise ConnectorError("blocked_address") from None      # one code for every refusal: no oracle for the network behind
+            factory, extra = _PinnedImapSSL, {"address": addresses[0]}
         try:
-            self._c = factory(host, port, ssl_context=context or ssl.create_default_context(), timeout=timeout)
+            self._c = factory(host, port, ssl_context=context or ssl.create_default_context(), timeout=timeout, **extra)
         except (imaplib.IMAP4.error, OSError):
             raise ConnectorError("connect_failed") from None
 
@@ -246,6 +270,9 @@ def create_account(store: MailStore, caller: Caller, mailbox_id: str, d: Any) ->
         raise MailError("forbidden", "connecting an account needs the mail_admin role", 403)
     mb, _ = store.access(caller, mailbox_id, "admin")
     cfg = validate_account(d)
+    for other in store.q("SELECT mailbox_id, config FROM account WHERE mailbox_id<>?", (mb["id"],)):
+        if loads(other["config"], {}).get("secret_name") == cfg.secret_name:       # one secret, one mailbox (SV2-03)
+            raise MailError("secret_in_use", "that secret is already bound to another mailbox's account", 409)
     aid = uid()
     store.run("INSERT INTO account(id, mailbox_id, org, config, created_by, created) VALUES (?,?,?,?,?,?)",
               (aid, mb["id"], mb["org"], dumps(asdict(cfg)), who.id, store.clock()))
