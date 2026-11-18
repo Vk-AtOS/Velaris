@@ -95,7 +95,13 @@ class VCASAutopilotAgent:
             run = {"state": "failed", "error": f"{type(e).__name__}: {e}"[:300]}
         run.update(action=task["action"], finished=time.time())
         self._runs.update(lambda s: s["runs"].__setitem__(task_id, run))
-        approvals.audit("VCAS_AUTOPILOT", "executed", request_id=task_id, by=str(task.get("principal") or ""), decision=run["state"],
-                        trace_actor=NAME, trace_action="run", task_id=task_id, action=task["action"], state=run["state"])
+        try:
+            approvals.audit("VCAS_AUTOPILOT", "executed", request_id=task_id, by=str(task.get("principal") or ""), decision=run["state"],
+                            trace_actor=NAME, trace_action="run", task_id=task_id, action=task["action"], state=run["state"])
+        except Exception as e:      # the trace is the proof of what ran: without it say so loudly, never report a clean run
+            logger.warning("VCAS_AUTOPILOT: run of %s not written to the trace: %s", task_id, e)
+            return {**base, **fail("audit_failed", "the task ran (its result is stored under its id and it will not run again) but "
+                                   "the run could not be written to the audit trace: an operator must record it"),
+                    "executed": run["state"] == "done", "run": run}
         return {**base, "executed": run["state"] == "done", "status": "ok" if run["state"] == "done" else "failed",
                 "run": run}

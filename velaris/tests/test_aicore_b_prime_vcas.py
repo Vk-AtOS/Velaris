@@ -342,3 +342,22 @@ def test_a_person_approves_the_stored_task_exactly():
     with acting_as(BOT):                                                          # only the approver may use it
         assert pilot.execute(_task(8, amount=90_000), {"trace_hash": human["hash"]})["status"] != "ok"
     assert ran == [{"invoice": 8}]
+
+
+def test_autopilot_run_that_cannot_be_traced_fails_closed_with_a_clear_error(monkeypatch):
+    """KAN-95: trace.append raising after the handler ran used to escape execute() as a bare OSError."""
+    prime = VelarisPrime()
+    _grant(prime, now=None)
+    pilot = VCASAutopilotAgent()
+    calls = []
+    pilot.register("invoice.approve", lambda p: calls.append(p) or "ok")
+    allow = VCASSupervisorAgent(prime).approve(_task())
+
+    def broken(*a, **k):
+        raise OSError("disk full")
+    monkeypatch.setattr(trace, "append", broken)
+    with acting_as(BOT):
+        r = pilot.execute(_task(), allow)
+        assert r["status"] == "audit_failed" and r["executed"] is True and "audit trace" in str(r)
+        assert len(calls) == 1 and pilot.run_of(_task()["id"])["state"] == "done"
+        assert pilot.execute(_task(), allow)["status"] == "already_run" and len(calls) == 1      # never run twice
