@@ -2,7 +2,7 @@
 
 - **Department:** `legal_compliance`
 - **Status (static inventory):** `real`
-- **Source:** `departments/legal_compliance/EACPE_HUMAN_GUARD/main.py` (184 lines)
+- **Source:** `departments/legal_compliance/EACPE_HUMAN_GUARD/main.py` (198 lines)
 
 ## Purpose
 
@@ -22,7 +22,9 @@ exempt. validate(action) answers for one concrete action, {"class": ...,
 
 Who acts is never an argument: the requester, the approver and whoever changes a class
 are the current caller (velaris.core.access). request() and decide() refuse without one;
-set_approvers() and exempt() also need the governance admin role. A legacy `by` /
+set_approvers() and exempt() also need the governance admin role. Lifting the guard from a class that is guarded
+(exempt() on it) needs TWO different governance admins: the first call records a proposal, a second admin's call within
+APPROVAL_TTL_S makes it exempt, so one admin cannot switch off the approval of an irreversible action alone. A legacy `by` /
 `approver` / `requested_by` value is accepted only when it is the caller's own id.
 
 Out of the box, DEFAULT_GUARDED classes are guarded with no approvers, so they

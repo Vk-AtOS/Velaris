@@ -348,3 +348,16 @@ def test_protocol_is_not_changed_when_the_trace_cannot_be_written(cfo, monkeypat
     monkeypatch.setattr(import_module("velaris.agents.EACPE_PROTOCOL.main"), "audit", lambda *a, **k: "")      # the ledger write fails
     assert p.define("change", CHANGE[:1])["status"] == "audit_failed"
     assert p.evaluate_protocol({"protocol": "change", "events": [ev("request", "a", 1)]})["version"] == 1
+
+
+def test_one_admin_cannot_lift_the_guard_of_an_irreversible_class():
+    """KAN-96: exempt() on a guarded class used to take one admin and one call."""
+    g = make("EACPE_HUMAN_GUARD")
+    with as_("cfo", GOVERNANCE_ADMIN):
+        assert g.exempt("transfer_funds")["status"] == "pending_second_person"
+        assert g.exempt("transfer_funds")["status"] == "pending_second_person"       # the same person again does not count
+    with as_("bot-ap"):
+        assert g.validate(PAYMENT)["status"] == "pending_approval"                  # still guarded
+    with as_("coo", GOVERNANCE_ADMIN):
+        assert g.exempt("transfer_funds")["mode"] == "exempt"
+    assert g.validate(PAYMENT)["approved"] is True
