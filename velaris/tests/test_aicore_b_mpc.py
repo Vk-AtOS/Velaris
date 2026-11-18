@@ -10,7 +10,7 @@ def test_preproc_normalises_keys_numbers_dates_and_whitespace():
          "Notes": "", "phone": "9876543210", "pin": "600042", "PIN code": "060004", "qty": "12"})
     assert r["status"] == "ok"
     assert r["record"] == {"total_amount": 120000.5, "invoice_date": "2026-11-05", "vendor_name": "Acme Ltd",
-                           "phone": "9876543210", "pin": 600042.0, "pin_code": "060004", "qty": 12.0}
+                           "phone": "9876543210", "pin": "600042", "pin_code": "060004", "qty": 12.0}
     assert r["stats"]["empty_dropped"] == 1 and r["stats"]["dates_normalised"] == 1
 
 
@@ -80,3 +80,19 @@ def test_core_real_conflict_survives_cleaning_and_bad_input():
     assert core.run([])["status"] == "invalid_input"
     assert core.run([{"source": "a", "record": "text"}])["status"] == "invalid_input"
     assert core.run(None)["record"] is None
+
+
+def test_identifier_named_fields_stay_text():
+    """KAN-106: a PIN/ZIP/phone is an identifier, not a quantity, with or without redact."""
+    from velaris.agents.MPC_PREPROC.main import MPC_PREPROCAgent
+    r = MPC_PREPROCAgent().preprocess({"PIN": "600042", "zip_code": "94105", "Phone": "12345", "qty": "600042"})["record"]
+    assert r == {"pin": "600042", "zip_code": "94105", "phone": "12345", "qty": 600042.0}
+
+
+def test_optima_normalize_refuses_non_finite_metrics():
+    import pytest
+    from velaris.agents.OPTIMA.main import OptimaAgent as Optima
+    with pytest.raises(ValueError):
+        Optima().metric_normalize({"a": float("nan"), "b": 2.0})
+    with pytest.raises(ValueError):
+        Optima().metric_normalize({"a": float("inf"), "b": 2.0})

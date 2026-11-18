@@ -2,7 +2,7 @@
 
 - **Department:** `operations`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/operations/OPTIMA/main.py` (63 lines)
+- **Source:** `departments/operations/OPTIMA/main.py` (66 lines)
 
 ## Purpose
 
@@ -34,4 +34,4 @@ after is 0 too and None otherwise. Keeps no state.
 
 - **other agents:** none found
 - **platform modules:** `velaris/api/allowlist.py`
-- **tests:** `velaris/tests/test_kan106_business_agents.py`, `velaris/tests/test_kan86_operations.py`, `velaris/tests/test_optima.py`
+- **tests:** `velaris/tests/test_aicore_b_mpc.py`, `velaris/tests/test_kan106_business_agents.py`, `velaris/tests/test_kan86_operations.py`, `velaris/tests/test_optima.py`

@@ -7,6 +7,7 @@ after) is the relative change (after - before)/|before|, and from a before of 0 
 after is 0 too and None otherwise. Keeps no state.
 """
 import logging
+import math
 from typing import Dict, Any
 
 logger = logging.getLogger("OPTIMA")
@@ -44,6 +45,8 @@ class OptimaAgent:
         """
         if not metrics:
             return {}
+        if any(isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) for v in metrics.values()):
+            raise ValueError("metrics must be finite numbers")       # NaN made max() order-dependent, inf turned every other value into 0
         max_val = max(abs(v) for v in metrics.values())      # by magnitude: dividing by a negative max flipped every sign
         if max_val == 0:
             return {k: 0 for k in metrics}
