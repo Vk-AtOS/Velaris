@@ -177,3 +177,19 @@ def test_identity_lockout_and_unknown_user_costs_the_same(monkeypatch):
     assert not idf.validate_identity(None, "x")
     stored = json.loads((agent_dir("IDENTITY_FRAMEWORK") / "throttle.json").read_text())
     assert sorted(k for k in stored if k != "schema_version") == ["\x00unknown", "al"]   # no per-ghost state
+
+
+def test_the_three_hash_only_stores_are_sealed_at_rest_and_plaintext_is_refused():
+    """KAN-88/KAN-96: the stores of PIN, owner-verification and biometric hashes were plain JSON; they are sealed with the
+    sealed-store rules (a planted plaintext file is refused outside the migration window)."""
+    import pytest
+    from velaris.core import vault
+    from velaris.agents.LOCAL_BIOMETRICS_INTERFACE.main import LocalBiometricsInterface
+    from velaris.agents.OWNER_VERIFICATION.main import OwnerVerification
+    from velaris.agents.PIN_UNLOCK_LAYER.main import PINUnlockLayer
+    for agent, fname in (("OWNER_VERIFICATION", "owner.json"), ("PIN_UNLOCK_LAYER", "pins.json"), ("LOCAL_BIOMETRICS_INTERFACE", "templates.json")):
+        p = agent_dir(agent) / fname
+        p.write_text('{"templates": {}, "pins": {}}')                          # an old plaintext file
+        with pytest.raises(vault.PlaintextRefused):
+            {"OWNER_VERIFICATION": OwnerVerification, "PIN_UNLOCK_LAYER": PINUnlockLayer,
+             "LOCAL_BIOMETRICS_INTERFACE": LocalBiometricsInterface}[agent]()._state.load()

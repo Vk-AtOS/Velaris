@@ -30,7 +30,7 @@ class OwnerVerification:
     """
 
     def __init__(self):
-        self._state = JsonState(NAME, "owner.json")
+        self._state = JsonState(NAME, "owner.json", encrypted="security:OWNER_VERIFICATION")
         self._throttle = Throttle(NAME)
 
     @property

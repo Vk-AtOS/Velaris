@@ -34,7 +34,7 @@ class LocalBiometricsInterface:
     """
 
     def __init__(self):
-        self._state = JsonState(NAME, "templates.json")
+        self._state = JsonState(NAME, "templates.json", encrypted="agent:LOCAL_BIOMETRICS_INTERFACE")
         self._throttle = Throttle(NAME)
 
     @staticmethod

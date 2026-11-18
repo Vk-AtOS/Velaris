@@ -38,7 +38,7 @@ def test_biometrics_are_hashed_gated_and_cannot_be_swapped_without_proof():
     with acting_as(asha):
         assert b.enroll("asha", {"finger": "F1", "face": "A1"}) is True and b.enroll("asha", {"face": "B"}) is False
         assert b.enroll("asha", {"bogus": "x"}) is False
-    assert "F1" not in open(agent_dir("LOCAL_BIOMETRICS_INTERFACE") / "templates.json").read()
+    assert "F1" not in (agent_dir("LOCAL_BIOMETRICS_INTERFACE") / "templates.json").read_text()
     assert B().verify("asha", {"finger": "F1"}) and not B().verify("asha", {"finger": "WRONG"})
     assert not b.verify("asha", {"voice": "x"}) and not b.verify("asha", {}) and not b.verify("ghost", {"finger": "F1"})
     with acting_as(asha):

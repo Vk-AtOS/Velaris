@@ -32,7 +32,7 @@ class PINUnlockLayer:
     """
 
     def __init__(self):
-        self._state = JsonState(NAME, "pins.json")
+        self._state = JsonState(NAME, "pins.json", encrypted="security:PIN_UNLOCK_LAYER")
         self._throttle = Throttle(NAME)
 
     def register_pin(self, user: str, pin: str) -> bool:

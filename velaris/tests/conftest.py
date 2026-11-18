@@ -55,7 +55,7 @@ def _tests_may_read_sealed_state(monkeypatch):
         except UnicodeDecodeError:
             blob = self.read_bytes()
             agent = next((p.name for p in self.parents if p.parent.name == "agents"), "")
-            for purpose in (f"hiring:{agent}", f"hr:{agent}", f"memory:{agent}", agent):
+            for purpose in (f"hiring:{agent}", f"hr:{agent}", f"memory:{agent}", f"security:{agent}", f"agent:{agent}", agent):
                 try:
                     return vault.open_bytes(blob, purpose, f"{self.parent.name}/{self.name}" if vault.is_bound(blob) else None).decode()
                 except vault.VaultError:
@@ -73,7 +73,7 @@ def _tests_may_read_sealed_state(monkeypatch):
             blob = b""
         if vault.is_sealed(blob):
             agent = next((p.name for p in self.parents if p.parent.name == "agents"), "")
-            for purpose in (f"hiring:{agent}", f"hr:{agent}", f"memory:{agent}", agent):
+            for purpose in (f"hiring:{agent}", f"hr:{agent}", f"memory:{agent}", f"security:{agent}", f"agent:{agent}", agent):
                 try:
                     ctx = f"{self.parent.name}/{self.name}" if vault.is_bound(blob) else None
                     vault.open_bytes(blob, purpose, ctx)
