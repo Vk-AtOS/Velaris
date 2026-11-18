@@ -68,7 +68,7 @@ fails when `docs/agents/` no longer matches the code (`python tools/gen_agent_do
 ## Dependencies
 
 `requirements.txt` lists exactly what the code imports unconditionally (`velaris/tests/test_requirements.py` enforces it).
-Optional packages (voice, browser rendering, DNS) are imported only where used and the feature says so when they are missing:
+Optional packages (voice, browser rendering) are imported only where used and the feature says so when they are missing:
 `playwright`, `openai-whisper` / `faster-whisper`, `sounddevice`, `pyttsx3`, `openpyxl` and `python-pptx` (tests only).
 
 ## Documents in `docs/`
