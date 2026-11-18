@@ -11,6 +11,7 @@ remembers its last offset never misses or repeats an event, across restarts.
 ponytail: one file per topic, read in full; add segment files and an index
 when a topic passes a few hundred thousand events.
 """
+import json
 import logging
 import re
 import time
@@ -18,7 +19,7 @@ from typing import Any, Dict, List
 
 from velaris.agentkit.checks import is_json
 from velaris.agentkit.results import fail, health, invalid
-from velaris.agentkit.state import append_line, iter_lines, last_line, peek_dir
+from velaris.agentkit.state import append_line, iter_lines, last_value, peek_dir
 from velaris.core.filelock import lock_for
 from velaris.intel.paths import agent_dir
 
@@ -26,6 +27,7 @@ logger = logging.getLogger("RCI_STREAM")
 NAME = "RCI_STREAM"
 _TOPIC = re.compile(r"^[a-z0-9][a-z0-9_.-]{0,63}$")
 MAX_READ = 1000
+MAX_EVENT_BYTES = 64 * 1024       # well below the tail window the newest offset is read from
 
 
 class RCI_STREAMAgent:
@@ -37,11 +39,13 @@ class RCI_STREAMAgent:
             return invalid("topic must be 1-64 characters of a-z, 0-9, '_', '.', '-'")
         if not isinstance(event, dict) or not event or not is_json(event):
             return invalid("event must be a non-empty JSON object")
+        if len(json.dumps(event, default=str)) > MAX_EVENT_BYTES:
+            return invalid(f"event is larger than {MAX_EVENT_BYTES} bytes")
         try:
             # A cross-process lock: offset = count + 1 must not interleave with another WORKER's append either
             # (a threading.Lock only covered this process, so two workers handed out the same offset).
             with lock_for(agent_dir(NAME) / f"{topic}.jsonl.lock"):
-                offset = (last_line(peek_dir(NAME) / f"{topic}.jsonl") or {}).get("offset", 0) + 1       # newest line, not a count of the file
+                offset = last_value(peek_dir(NAME) / f"{topic}.jsonl", "offset") + 1
                 entry = {"offset": offset, "ts": time.time(), "event": event}
                 append_line(agent_dir(NAME) / f"{topic}.jsonl", entry)
         except OSError as e:
@@ -63,7 +67,7 @@ class RCI_STREAMAgent:
                 batch.append(e)
                 if len(batch) >= limit:
                     break
-        return {"status": "ok", "topic": topic, "events": batch, "last_offset": (last_line(path) or {}).get("offset", 0),
+        return {"status": "ok", "topic": topic, "events": batch, "last_offset": last_value(path, "offset"),
                 "next_after": batch[-1]["offset"] if batch else after}
 
     def topics(self) -> List[str]:

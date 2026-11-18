@@ -104,6 +104,24 @@ def test_stream_offsets_are_unique_across_worker_processes(tmp_path, monkeypatch
     assert sorted(offsets) == list(range(1, 33))
 
 
+def test_stream_offset_is_never_reset_by_a_huge_or_unreadable_last_line(tmp_path, monkeypatch):
+    """The newest offset is read from the end of the file; a last line bigger than the tail window or a corrupt one used to
+    restart the sequence at 1 and reuse offsets consumers had already taken (event suppression)."""
+    from velaris.agentkit.state import append_line
+    from velaris.intel.paths import agent_dir
+    monkeypatch.setenv("VELARIS_DATA", str(tmp_path))
+    agent = mod("RCI_STREAM").RCI_STREAMAgent()
+    assert agent.publish("t", {"i": 1})["offset"] == 1
+    path = agent_dir("RCI_STREAM") / "t.jsonl"
+    append_line(path, {"offset": 2, "ts": 0, "event": {"blob": "x" * 400_000}})      # older data: bigger than the 256 KiB tail
+    assert agent.publish("t", {"i": 3})["offset"] == 3
+    with open(path, "a") as f:
+        f.write("{corrupt")                                                           # unreadable last line
+    assert agent.publish("t", {"i": 4})["offset"] == 4
+    assert agent.read("t", after=3)["last_offset"] == 4
+    assert agent.publish("t", {"blob": "x" * 100_000})["status"] == "invalid_input"  # too big to ever be accepted
+
+
 # ---- SELF_HISTORY ---------------------------------------------------------------------
 def test_self_history_is_bounded_and_survives_a_new_instance(monkeypatch):
     M = mod("SELF_HISTORY")

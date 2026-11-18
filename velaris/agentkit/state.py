@@ -248,6 +248,22 @@ def last_line(path: Path, *, encrypted: Optional[str] = None, tail: int = 262_14
     return None
 
 
+def last_value(path: Path, key: str, *, encrypted: Optional[str] = None) -> int:
+    """The highest integer `key` in a JSON-lines file (0 when empty or missing): the base of a sequence number. Read from the end
+    (O(1)); when the end gives nothing but the file is not empty (the newest record is larger than the tail window, or its line is
+    unreadable) it falls back to a full streamed scan, so an unreadable line can never reset a sequence to 1 and reuse numbers
+    already handed out."""
+    newest = last_line(path, encrypted=encrypted)
+    if newest is not None and isinstance(newest.get(key), int):
+        return newest[key]
+    try:
+        if os.path.getsize(path) == 0:
+            return 0
+    except FileNotFoundError:
+        return 0
+    return max((r[key] for r in iter_lines(path, encrypted=encrypted) if isinstance(r.get(key), int)), default=0)
+
+
 def _text_lines(path: Path) -> "Iterator[str]":
     with open(path, encoding="utf-8") as f:                    # streamed: not the whole text plus a second copy as a list of lines
         for line in f:
