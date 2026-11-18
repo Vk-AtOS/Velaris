@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `real`
-- **Source:** `departments/_ai_core/VCAS_AUTOPILOT/main.py` (102 lines)
+- **Source:** `departments/_ai_core/VCAS_AUTOPILOT/main.py` (108 lines)
 
 ## Purpose
 

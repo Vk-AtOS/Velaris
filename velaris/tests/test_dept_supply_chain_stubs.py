@@ -66,9 +66,20 @@ def test_inventory_safety_stock_rop_eoq():
     # z(95%) = 1.6449; SS = 1.6449 x 2 x 3 = 9.87 -> 10; ROP = 90 + 10 = 100; EOQ = sqrt(2 x 3650 x 100 / 2) = 604.2 -> 605
     assert (r["z"], r["safety_stock"], r["reorder_point"], r["order_quantity"]) == (1.6449, 10, 100, 605)
     assert r["orders_per_year"] == round(3650 / 605, 2)
-    priority = InventoryDecisionEngine().compute(item(constraints={"priority_item": True, "fragile": True}))
+    priority = InventoryDecisionEngine().compute(item(constraints={"priority_item": True, "fragile": False}))
     # z(99%) = 2.3263; SS = 13.96 -> 14
-    assert (priority["service_level"], priority["safety_stock"], priority["constraints_not_applied"]) == (0.99, 14, ["fragile"])
+    assert (priority["service_level"], priority["safety_stock"], priority["constraints_not_applied"]) == (0.99, 14, [])
+
+
+def test_inventory_refuses_flags_it_has_no_rule_for_and_uses_shortage_cost():
+    """KAN-70: perishable/fragile/bulk_item=true used to be accepted and ignored; shortage_cost used to be dead."""
+    for flag in ("perishable", "fragile", "bulk_item"):
+        r = InventoryDecisionEngine().compute(item(constraints={flag: True}))
+        assert r["status"] == "failed" and flag in str(r)
+    base = InventoryDecisionEngine().compute(item())
+    # sigma_L = 2 x 3 = 6; G(1.6449) = 0.0206 -> 0.1236 units short per cycle; x 50 x (3650/605) cycles = about 37.3
+    assert 0.12 < base["expected_units_short_per_cycle"] < 0.13 and 36 < base["expected_shortage_cost_per_year"] < 38.5
+    assert InventoryDecisionEngine().compute(item(), service_level=0.999)["expected_shortage_cost_per_year"] < base["expected_shortage_cost_per_year"]
 
 
 def test_inventory_caps_and_zero_holding_cost():
@@ -217,3 +228,9 @@ def test_warehouse_bad_input():
     assert eng.assess(warehouse(), opening_stock=-1)["errors"] == ["opening_stock invalid"]
     assert eng.assess(warehouse(congestion_flags={"fog": True}))["status"] == "failed"
     assert eng.assess(warehouse(inbound_units="lots"))["status"] == "failed"
+
+
+def test_route_refuses_time_windows_it_cannot_honour():
+    """KAN-70: windows were accepted, ignored, and the tour reported as fine."""
+    r = RouteOptimizationEngine().compute_route(RouteRequest("r", ["A", "B"], {"A": {"B": 1}}, {"B": [0, 5]}, {}))
+    assert r["status"] == "failed" and "time_windows" in str(r)

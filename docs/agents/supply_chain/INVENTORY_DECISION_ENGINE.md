@@ -2,7 +2,7 @@
 
 - **Department:** `supply_chain`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/supply_chain/INVENTORY_DECISION_ENGINE/main.py` (114 lines)
+- **Source:** `departments/supply_chain/INVENTORY_DECISION_ENGINE/main.py` (121 lines)
 
 ## Purpose
 
@@ -18,9 +18,9 @@ Textbook formulas, with the units they assume stated in the result:
 EOQ and ROP are capped at max_capacity. Quantities are rounded up to whole units.
 
 The service level is 95% by default, 99% for a `priority_item`. The other
-constraint flags (perishable, fragile, bulk_item) have no defined rule and are
-reported as not applied. shortage_cost is not used: the service level is given,
-not derived from it.
+constraint flags (perishable, fragile, bulk_item) have no defined rule: setting one to true is refused, never ignored.
+shortage_cost prices the expected shortage at the chosen service level (expected units short per order cycle, normal loss
+function, times orders per year); it does not change the service level, which is given.
 
 ## Class `InventoryInput`
 

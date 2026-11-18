@@ -10,9 +10,9 @@ Textbook formulas, with the units they assume stated in the result:
 EOQ and ROP are capped at max_capacity. Quantities are rounded up to whole units.
 
 The service level is 95% by default, 99% for a `priority_item`. The other
-constraint flags (perishable, fragile, bulk_item) have no defined rule and are
-reported as not applied. shortage_cost is not used: the service level is given,
-not derived from it.
+constraint flags (perishable, fragile, bulk_item) have no defined rule: setting one to true is refused, never ignored.
+shortage_cost prices the expected shortage at the chosen service level (expected units short per order cycle, normal loss
+function, times orders per year); it does not change the service level, which is given.
 """
 import logging
 import math
@@ -73,6 +73,8 @@ class InventoryDecisionEngine:
         if i.max_capacity <= 0 or i.max_capacity > self.MAX_CAP:
             e.append("max_capacity invalid")
         e += [f"unsupported constraint {k}" for k in i.constraints if k not in self.CONSTRAINT_WEIGHTS]
+        e += [f"constraint {k} has no rule in this engine; refused rather than ignored"
+              for k, on in i.constraints.items() if on and k in self.CONSTRAINT_WEIGHTS and k != "priority_item"]
         return e
 
     def compute(self, i: InventoryInput, service_level: Any = None) -> Dict[str, Any]:
@@ -99,7 +101,12 @@ class InventoryDecisionEngine:
         if rop_raw > cap:
             notes.append(f"reorder point {rop_raw} exceeds capacity {cap}: the item cannot be held at this "
                          "service level; shorten lead time or add capacity")
+        cycles = i.avg_demand * DAYS_PER_YEAR / eoq if eoq else None
+        sigma_lt = math.sqrt(i.demand_variance * i.lead_time)
+        short_units = sigma_lt * (NormalDist().pdf(z) - z * (1 - NormalDist().cdf(z)))       # E[units short per cycle] = sigma_L * G(z)
         return {
+            "expected_units_short_per_cycle": round(short_units, 4),
+            "expected_shortage_cost_per_year": round(i.shortage_cost * short_units * cycles, 2) if cycles is not None else None,
             "status": "ok", "item_id": i.item_id, "service_level": level, "z": round(z, 4),
             "safety_stock": safety, "reorder_point": min(rop_raw, cap), "order_quantity": eoq,
             "eoq_uncapped": eoq_raw, "reorder_point_uncapped": rop_raw,

@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `real`
-- **Source:** `departments/_ai_core/RCI_STREAM/main.py` (67 lines)
+- **Source:** `departments/_ai_core/RCI_STREAM/main.py` (76 lines)
 
 ## Purpose
 

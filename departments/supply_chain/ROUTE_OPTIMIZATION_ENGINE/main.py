@@ -52,6 +52,8 @@ class RouteOptimizationEngine:
                 e.append(f"distances[{a}] must be a mapping")
                 continue
             e += [f"invalid distance {a}-{b}" for b, d in row.items() if kit.number(d, 0, self.MAX_DIST) is None]
+        if r.time_windows:      # no time-window solver exists: accepting windows and ignoring them would pass off a tour that breaks them
+            e.append("time_windows are not supported by this engine; send an empty mapping")
         for k, w in r.time_windows.items():
             if not isinstance(w, (list, tuple)) or len(w) != 2 or kit.number(w[0], 0) is None \
                     or kit.number(w[1], w[0]) is None:
