@@ -30,13 +30,14 @@ next append, so it never merges with the new record.
 from __future__ import annotations
 
 import base64
+import collections
 import json
 import logging
 import os
 import threading
 import time
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, Iterator, List, Optional, Union
 
 from velaris.core import vault
 from velaris.core.filelock import FileLock, lock_for
@@ -247,10 +248,54 @@ def last_line(path: Path, *, encrypted: Optional[str] = None, tail: int = 262_14
     return None
 
 
+def _text_lines(path: Path) -> "Iterator[str]":
+    with open(path, encoding="utf-8") as f:                    # streamed: not the whole text plus a second copy as a list of lines
+        for line in f:
+            yield line.rstrip("\n")
+
+
+def iter_lines(path: Path, *, encrypted: Optional[str] = None) -> "Iterator[Dict[str, Any]]":
+    """Parseable records one at a time, so a caller that stops early or only filters never holds the whole file (a 500k-line stream
+    was a list of 500k dicts per call, KAN-136). Unreadable lines are skipped with a warning. Unlike read_lines it never rewrites
+    the file (no migration of old-format sealed lines): use read_lines once for that."""
+    try:
+        f = open(path, encoding="utf-8")
+    except FileNotFoundError:
+        return
+    with f:
+        for n, line in enumerate(f, start=1):
+            if not line.strip():
+                continue
+            try:
+                yield _parse_line(line.rstrip("\n"), encrypted, path)
+            except vault.VaultError:
+                raise
+            except ValueError as e:
+                logger.warning("Skipping unreadable line %s of %s: %s", n, path, e)
+
+
+def read_tail(path: Path, n: int, *, encrypted: Optional[str] = None) -> List[Dict[str, Any]]:
+    """The last `n` parseable records, parsing only those (memory is bounded by n, not by the file)."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            raw = collections.deque((ln for ln in f if ln.strip()), maxlen=n)
+    except FileNotFoundError:
+        return []
+    out = []
+    for line in raw:
+        try:
+            out.append(_parse_line(line.rstrip("\n"), encrypted, path))
+        except vault.VaultError:
+            raise
+        except ValueError as e:
+            logger.warning("Skipping unreadable line of %s: %s", path, e)
+    return out
+
+
 def _read_all(path: Path, encrypted: Optional[str]) -> "tuple[List[Dict[str, Any]], List[int], bool]":
     """(records, numbers of unreadable lines, whether any sealed line is in the old unbound format)."""
     out, bad, old_format = [], [], False
-    for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+    for n, line in enumerate(_text_lines(path), start=1):
         try:
             out.append(_parse_line(line, encrypted, path))
             old_format = old_format or bool(encrypted and line.startswith(_SEALED_LINE))

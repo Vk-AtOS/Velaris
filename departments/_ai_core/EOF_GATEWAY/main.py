@@ -36,7 +36,7 @@ from typing import Any, Dict, Iterator, Optional
 
 from velaris.agentkit.checks import ident, is_json, known_agents, new_id
 from velaris.agentkit.results import fail, health, invalid
-from velaris.agentkit.state import append_line, JsonState, peek_dir, read_lines
+from velaris.agentkit.state import append_line, iter_lines, JsonState, peek_dir
 from velaris.agents import DEPARTMENTS_DIR
 from velaris.core.access import check_caller
 from velaris.intel import guard, trace
@@ -79,7 +79,7 @@ class EOF_GATEWAYAgent:
 
     def backlog(self, dst_id: str) -> int:
         """Messages queued for `dst_id` and not yet taken (read-only)."""
-        return len(read_lines(peek_dir(NAME) / f"inbox_{dst_id}.jsonl")) - int(self._cursors.load().get(dst_id, 0))
+        return sum(1 for _ in iter_lines(peek_dir(NAME) / f"inbox_{dst_id}.jsonl")) - int(self._cursors.load().get(dst_id, 0))
 
     def route(self, dst: str, payload: dict, *, via: Any = None, dry_run: bool = False) -> Dict[str, Any]:
         """Queue `payload` for `dst` as the current caller, through agent `via` if given (see the module docstring).
@@ -148,10 +148,12 @@ class EOF_GATEWAYAgent:
             return {**refused, "messages": []}
 
         def take(cursors):                       # read and advance under ONE lock: two receivers never get the same message
-            queued = read_lines(peek_dir(NAME) / f"inbox_{dst_id}.jsonl")
             taken = int(cursors.get(dst_id, 0))
-            batch = queued[taken:taken + limit]
+            batch, total = [], 0
+            for total, msg in enumerate(iter_lines(peek_dir(NAME) / f"inbox_{dst_id}.jsonl"), start=1):   # streamed: only the batch is kept
+                if taken < total <= taken + limit:
+                    batch.append(msg)
             if batch:
                 cursors[dst_id] = taken + len(batch)
-            return {"status": "ok", "messages": batch, "remaining": len(queued) - taken - len(batch)}
+            return {"status": "ok", "messages": batch, "remaining": total - taken - len(batch)}
         return self._cursors.update(take)

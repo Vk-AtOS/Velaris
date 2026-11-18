@@ -19,7 +19,7 @@ from typing import Dict, Any, List
 
 from velaris.agentkit.checks import is_json, is_name
 from velaris.agentkit.infra_store import redact_json
-from velaris.agentkit.state import append_line, read_lines
+from velaris.agentkit.state import append_line, read_tail
 from velaris.core.filelock import lock_for
 from velaris.intel.paths import agent_dir
 
@@ -46,7 +46,7 @@ class TelemetrySpine:
 
     @property
     def events(self) -> List[Dict[str, Any]]:
-        return read_lines(self._path)[-MAX_QUERY:]
+        return read_tail(self._path, MAX_QUERY)
 
     def record(self, event_type: str, payload: Dict[str, Any]):
         """The stored entry, or None when the event is not a name plus a JSON object of reasonable size."""
