@@ -1,0 +1,75 @@
+{
+  "schema": 1,
+  "agent": "VALORA",
+  "cases": [
+    {
+      "id": "select-compare_assets",
+      "input": "Use the compare_assets operation of VALORA with {\"a\": {}, \"b\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "compare_assets",
+            "args": {
+              "a": {},
+              "b": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-compute_value",
+      "input": "Use the compute_value operation of VALORA with {\"metrics\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "compute_value",
+            "args": {
+              "metrics": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-value_shift",
+      "input": "Use the value_shift operation of VALORA with {\"old\": {}, \"new\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "value_shift",
+            "args": {
+              "old": {},
+              "new": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

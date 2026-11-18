@@ -1,0 +1,23 @@
+{
+  "name": "PRICING_OPTIMIZER",
+  "version": "0.1.0",
+  "description": "PRICING_OPTIMIZER: the dictionary-in, dictionary-out front for PRICING_OPTIMIZER_ENGINE.",
+  "entrypoint": "main.py:PRICING_OPTIMIZERAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "PRICING_OPTIMIZER: the dictionary-in, dictionary-out front for PRICING_OPTIMIZER_ENGINE.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/finance/PRICING_OPTIMIZER.json",
+    "wave": "KAN-38",
+    "status": "deterministic_tool",
+    "tools": {
+      "optimize": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "finance"
+}

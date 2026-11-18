@@ -41,4 +41,4 @@ task: {"id", "action", "principal", "resource" (optional), "context": {"amount",
 
 - **other agents:** `VCAS_AUTOPILOT`, `VCAS_CORE`, `VCAS_ROUTER`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_b_prime_vcas.py`, `velaris/tests/test_layer19_vcas.py`
+- **tests:** `velaris/tests/test_aicore_b_prime_vcas.py`, `velaris/tests/test_approval_audit.py`, `velaris/tests/test_kan95_core.py`, `velaris/tests/test_layer19_vcas.py`

@@ -1,0 +1,32 @@
+{
+  "name": "SKILLPACK_LOADER",
+  "version": "0.1.0",
+  "description": "Skillpack loader: stores named JSON skillpacks as files and reads them back; it executes nothing.",
+  "entrypoint": "main.py:SkillpackLoader",
+  "harness": {
+    "schema": 1,
+    "purpose": "Skillpack loader: stores named JSON skillpacks as files and reads them back; it executes nothing.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/operations/SKILLPACK_LOADER.json",
+    "wave": "KAN-41",
+    "status": "deterministic_tool",
+    "tools": {
+      "get_skillpack": {
+        "kind": "act"
+      },
+      "list_skillpacks": {
+        "kind": "act"
+      },
+      "load_skillpack": {
+        "kind": "act"
+      },
+      "unload_skillpack": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "operations"
+}

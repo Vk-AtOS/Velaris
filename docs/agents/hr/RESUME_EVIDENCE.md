@@ -1,7 +1,7 @@
 # RESUME_EVIDENCE
 
 - **Department:** `hr`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/hr/RESUME_EVIDENCE/main.py` (109 lines)
 
 ## Purpose

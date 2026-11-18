@@ -1,0 +1,28 @@
+{
+  "name": "MCFE_FIELDGEN",
+  "display_name": "Mcfe Fieldgen",
+  "version": "0.1.0",
+  "description": "MCFE_FIELDGEN: the fields a record of a given domain needs, and their values found in a text.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:MCFEFieldGenAgent",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "MCFE_FIELDGEN: the fields a record of a given domain needs, and their values found in a text.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/MCFE_FIELDGEN.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "extract": {
+        "kind": "act"
+      },
+      "generate_field": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

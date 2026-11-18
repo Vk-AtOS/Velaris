@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `real`
-- **Source:** `departments/_ai_core/CRK_CONTEXT/main.py` (59 lines)
+- **Source:** `departments/_ai_core/CRK_CONTEXT/main.py` (87 lines)
 
 ## Purpose
 
@@ -34,4 +34,4 @@ budget are listed as truncated instead of silently lost.
 
 - **other agents:** `CRK`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_a_crk.py`, `velaris/tests/test_layer12_crk.py`
+- **tests:** `velaris/tests/test_aicore_a_crk.py`, `velaris/tests/test_kan87_aicore_guards.py`, `velaris/tests/test_layer12_crk.py`

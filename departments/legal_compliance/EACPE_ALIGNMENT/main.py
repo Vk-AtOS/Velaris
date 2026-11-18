@@ -28,7 +28,7 @@ from velaris.agentkit.checks import is_name, is_number
 from velaris.agentkit.results import invalid, ok
 from velaris.agentkit.state import JsonState
 from velaris.core.access import GOVERNANCE_ADMINS, check_caller
-from velaris.intel import guard
+from velaris.intel import guard, router
 from velaris.intel.llm import LLM, LLMError, extract_json
 
 NAME = "EACPE_ALIGNMENT"
@@ -83,8 +83,8 @@ class EACPE_ALIGNMENTAgent:
                   f"action is consistent with it, conflicts with it, or it is unclear. Reply with JSON only: "
                   '{"verdicts": {"0": "consistent|conflicts|unclear", ...}}')
         try:
-            reply = extract_json((self.llm or LLM()).complete(prompt, max_tokens=300, temperature=0.0,
-                                                               purpose="alignment.review").text)
+            reply = extract_json(router.complete("worker", prompt, llm=self.llm or LLM(), sensitivity="restricted", max_tokens=300,
+                                                temperature=0.0, purpose="alignment.review").text)
         except LLMError as e:
             return {"status": "not_configured", "reason": f"no model available: {str(e)[:120]}", "verdicts": {}}
         raw = reply.get("verdicts") if isinstance(reply, dict) else None

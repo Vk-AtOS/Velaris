@@ -1,0 +1,29 @@
+{
+  "name": "FINANCIAL_AI_ENGINE",
+  "version": "0.1.0",
+  "description": "Financial AI engine: growth, a straight-line forecast and a threshold health label (plain arithmetic, no model).",
+  "entrypoint": "main.py:FinancialAIEngine",
+  "harness": {
+    "schema": 1,
+    "purpose": "Financial AI engine: growth, a straight-line forecast and a threshold health label (plain arithmetic, no model).",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/finance/FINANCIAL_AI_ENGINE.json",
+    "wave": "KAN-38",
+    "status": "deterministic_tool",
+    "tools": {
+      "compute_growth": {
+        "kind": "read"
+      },
+      "financial_health": {
+        "kind": "read"
+      },
+      "forecast_linear": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "finance"
+}

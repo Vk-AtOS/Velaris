@@ -1,7 +1,7 @@
 # EAC_COMPLIANCE
 
 - **Department:** `_ai_core`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/_ai_core/EAC_COMPLIANCE/main.py` (65 lines)
 
 ## Purpose

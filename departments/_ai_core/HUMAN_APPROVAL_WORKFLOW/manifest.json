@@ -1,0 +1,34 @@
+{
+  "name": "HUMAN_APPROVAL_WORKFLOW",
+  "display_name": "Human Approval Workflow",
+  "version": "0.1.0",
+  "description": "HUMAN_APPROVAL_WORKFLOW: an in-memory approval request book.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:HumanApproval",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "HUMAN_APPROVAL_WORKFLOW: an in-memory approval request book.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/HUMAN_APPROVAL_WORKFLOW.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "approve": {
+        "kind": "act"
+      },
+      "reject": {
+        "kind": "act"
+      },
+      "request_approval": {
+        "kind": "act"
+      },
+      "status": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

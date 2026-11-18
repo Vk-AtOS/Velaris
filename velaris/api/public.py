@@ -6,8 +6,14 @@ and a solved proof-of-work. This module serves ONLY the functions that already t
   careers   GET  /careers/forms/{form_id}   GET /careers/challenge/{form_id}   POST /careers/apply/{form_id}
             GET  /careers/status/{token}    POST /careers/withdraw/{token}
   schedule  GET  /schedule/{token}/slots    POST /schedule/{token}/pick        POST /schedule/{token}/cancel
-  interview POST /interview/{token}/consent|events|withdraw          (audio is NOT served here: it is a large upload)
+  interview POST /interview/{token}/consent|events|withdraw
+            POST /interview/{token}/audio?duration_s=N   body = the audio file itself, Content-Type audio/wav|ogg|webm|mpeg|mp4|flac
   e-sign    POST /sign/{token}/open | otp/request | otp/verify | consent | sign | decline
+
+Web pages (KAN-123..127, velaris.api.public_pages): GET /apply/{form_id} /status/{token} /withdraw/{token} /schedule/{token} /sign/{token}
+/interview/{token} (HTML shells; /static/public.js, pow-worker.js, public.css do the work against the routes above) and GET /jobs/{slug}
+(+ /jobs/{slug}/apply -> 303 to the form) rendered from a LIVE JOB_POSTINGS record with its JSON-LD. Every response carries a strict CSP
+(no inline script or style), a cross-origin POST is refused (403) by its Origin header, and no cookie is ever set.
 
 Nothing here is in the identity-authenticated API (velaris.api.app) and nothing asserts an identity: every handler runs with
 `acting_as(None)`, no Authorization, identity header or cookie is read or set, and CORS is closed unless `cors_origins` lists exact
@@ -17,7 +23,7 @@ malformed token gets the same 404 whatever the reason.
 
 Limits, per route: a body cap (413), a request rate per token (hash) and per client IP bucket (429), a JSON-only strict body: unknown or
 mistyped fields are refused (400). Errors are {"error": {"code", "message"}} with messages written here or by the agents' own
-refusals, never exception text. Rate counters live in this process's memory (one worker, like velaris.api.auth's replay cache).
+refusals, never exception text. Rate counters live in a shared sqlite file (velaris.core.shared.RateStore), so every worker process counts into the same window.
 
 Deployment
   * A separate process, port and host from the identity-authenticated API:  python3.11 -m velaris.api.public
@@ -35,11 +41,14 @@ from __future__ import annotations
 
 import base64
 import binascii
+import asyncio
 import hashlib
+import ipaddress
 import json
 import logging
 import os
 import re
+import secrets
 import sqlite3
 import time
 from dataclasses import dataclass, field
@@ -51,18 +60,26 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from velaris.agentkit import hiring_intake as intake
+from velaris.agentkit import hiring_record as record
 from velaris.agentkit import hiring_record_gateway as interview
 from velaris.agentkit import hiring_sched as sched
 from velaris.agents.ESIGN.main import Esign
-from velaris.api.observability import configure_logging
+from velaris.api import public_pages
+from velaris.api.observability import bind_request_id, configure_logging, release_request_id
 from velaris.core.access import acting_as
 from velaris.core.shared import RateStore
+from velaris.intel.paths import data_dir, private_dir
 
 logger = logging.getLogger("velaris.api.public")
 
 TOKEN = re.compile(r"[A-Za-z0-9_-]{20,100}")
 FORM_ID = re.compile(r"[A-Za-z0-9_-]{1,80}")
 KIB = 1024
+AUDIO_CONCURRENCY = int(os.environ.get("VELARIS_AUDIO_UPLOADS", "4"))     # uploads streamed at once per process; more get 503
+AUDIO_DEADLINE_S = 900.0                                                  # a whole upload must finish in 15 minutes (slow-loris cap)
+# strict: only this app's own files run or load; no inline script or style; no framing; forms and fetches go nowhere else
+CSP = ("default-src 'none'; script-src 'self'; style-src 'self'; worker-src 'self'; connect-src 'self'; img-src 'self'; "
+       "base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
 
 
 @dataclass(frozen=True)
@@ -73,11 +90,15 @@ class RouteLimit:
 
 
 DEFAULT_LIMITS: Dict[str, RouteLimit] = {
-    "form": RouteLimit(1 * KIB, 60, 120), "challenge": RouteLimit(1 * KIB, 30, 60),
-    "apply": RouteLimit(2 * KIB * KIB, 20, 10),                    # a small résumé in base64 fits; the form's own file rule applies too
+    # form routes: the "per_token" counter is keyed by the PUBLIC form id, so it is a ceiling for the whole form, not an abuse
+    # control (the per-IP limit is): set well above a real campaign's load so a few clients cannot lock every candidate out.
+    "form": RouteLimit(1 * KIB, 3000, 120), "challenge": RouteLimit(1 * KIB, 1500, 60),
+    "apply": RouteLimit(2 * KIB * KIB, 600, 10),                   # a small résumé in base64 fits; the form's own file rule applies too
     "status": RouteLimit(1 * KIB, 30, 60), "withdraw": RouteLimit(1 * KIB, 5, 10),
     "slots": RouteLimit(1 * KIB, 30, 60), "pick": RouteLimit(2 * KIB, 15, 30), "cancel": RouteLimit(1 * KIB, 5, 10),
+    "i_audio": RouteLimit(record.MAX_AUDIO, 3, 6),
     "i_consent": RouteLimit(4 * KIB, 10, 30), "events": RouteLimit(64 * KIB, 600, 1200), "i_withdraw": RouteLimit(1 * KIB, 5, 10),
+    "page": RouteLimit(1 * KIB, 60, 120), "job": RouteLimit(1 * KIB, 120, 240),
     "s_open": RouteLimit(4 * KIB, 20, 40), "s_otp_request": RouteLimit(4 * KIB, 5, 10), "s_otp_verify": RouteLimit(4 * KIB, 10, 20),
     "s_consent": RouteLimit(4 * KIB, 10, 20), "s_sign": RouteLimit(4 * KIB, 10, 20), "s_decline": RouteLimit(4 * KIB, 5, 10),
 }
@@ -112,11 +133,13 @@ class Limiter:
     (route, kind, id). Tokens are keyed by their hash, never stored raw. An unreadable store refuses."""
 
     def __init__(self, settings: PublicSettings) -> None:
+        # two tables with their own caps: client addresses fail closed when full, caller-chosen ids (token, form) never push a client out
         self._s, self._store = settings, RateStore(settings.max_keys)
+        self._soft = RateStore(settings.max_keys, "rate_ids.db", evictable=True)
 
     def allow(self, route: str, kind: str, ident: str, limit: int) -> bool:
-        try:
-            return self._store.allow(f"{route}|{kind}|{ident}", limit, self._s.window_s, self._s.clock())
+        try:        # only the client's own address is a hard key; a token or form id is chosen by the caller and may be evicted
+            return (self._store if kind == "ip" else self._soft).allow(f"{route}|{kind}|{ident}", limit, self._s.window_s, self._s.clock())
         except sqlite3.Error as e:
             logger.warning("rate store unavailable, refusing: %s", type(e).__name__)
             return False
@@ -135,18 +158,43 @@ SIGN_METHODS = {"open": "open_signing", "otp_request": "request_otp", "otp_verif
 NOT_VALID = Refusal(404, "not_found", "this link is not valid or has expired")
 # an agent's result status -> (HTTP status, code); anything unlisted is a 500 without detail
 _STATUS = {"not_found": 404, "invalid_token": 404, "invalid_input": 400, "challenge_failed": 400, "name_mismatch": 400, "otp_wrong": 400,
-           "denied": 403, "identity_mismatch": 403, "locked": 429, "rate_limited": 429, "conflict": 409, "not_open": 409,
+           "denied": 403, "identity_mismatch": 403, "locked": 429, "rate_limited": 429, "conflict": 409, "consent_outdated": 409, "not_open": 409,
            "out_of_order": 409, "otp_required": 409, "otp_unavailable": 409, "expired": 410,
            "not_configured": 503, "audit_failed": 503, "seal_failed": 503}
 _REASON_SAFE = {400, 403, 409, 410, 429}
 
 
+def _from_trusted_proxy(peer: str) -> bool:
+    """X-Forwarded-For is believed only when the TCP peer is the proxy: an address in VELARIS_PUBLIC_TRUSTED_PROXIES (CIDRs,
+    comma separated) or, by default, a loopback or private address. A client that reaches the app directly from a public
+    address could otherwise write any "last entry" and pick its own rate-limit key (KAN-64)."""
+    try:
+        ip = ipaddress.ip_address(peer)
+    except ValueError:
+        return False
+    listed = [x.strip() for x in os.environ.get("VELARIS_PUBLIC_TRUSTED_PROXIES", "").split(",") if x.strip()]
+    if listed:
+        return any(ip in ipaddress.ip_network(n, strict=False) for n in listed)
+    return ip.is_loopback or ip.is_private
+
+
 def _client_ip(request: Request, trust_proxy: bool) -> str:
-    if trust_proxy:
+    peer = request.client.host if request.client else "unknown"
+    if trust_proxy and _from_trusted_proxy(peer):
         last = request.headers.get("x-forwarded-for", "").split(",")[-1].strip()
         if re.fullmatch(r"[0-9A-Fa-f:.]{3,45}", last):
             return last
-    return request.client.host if request.client else "unknown"
+    return peer
+
+
+def _same_origin(request: Request, allowed: Tuple[str, ...]) -> bool:
+    """CSRF guard for the browser case. No cookie or header here is ambient authority (the token is the capability), but a page on
+    another site must still not be able to make a visitor's browser post to a link it learned: a browser always sends Origin on a
+    cross-origin POST, so one that is neither this host nor a listed origin is refused. No Origin (curl, mail clients) passes."""
+    origin = request.headers.get("origin")
+    if origin is None:
+        return request.headers.get("sec-fetch-site", "same-origin") in ("same-origin", "none")
+    return origin in allowed or origin.split("://", 1)[-1] == request.headers.get("host", "\0")
 
 
 def _fields(body: Dict[str, Any], spec: Mapping[str, Tuple[type, bool]]) -> Dict[str, Any]:
@@ -173,7 +221,7 @@ async def _read_json(request: Request, limit: int) -> Dict[str, Any]:
         raise Refusal(415, "unsupported_media_type", "send application/json")
     try:
         body = json.loads(raw or b"{}")
-    except (ValueError, UnicodeDecodeError):
+    except (ValueError, UnicodeDecodeError, RecursionError):
         raise Refusal(400, "invalid_input", "the request body is not valid JSON") from None
     if not isinstance(body, dict):
         raise Refusal(400, "invalid_input", "the request body must be a JSON object")
@@ -224,8 +272,16 @@ def create_public_app(settings: Optional[PublicSettings] = None) -> FastAPI:
 
     @app.middleware("http")
     async def _headers(request: Request, call_next: Callable[..., Any]) -> Any:
-        response = await call_next(request)
-        response.headers["Cache-Control"] = "no-store"
+        rid, token = bind_request_id(request.headers)             # same id format as the API (KAN-120); in every log line of the request
+        try:
+            response = await call_next(request)
+        finally:
+            release_request_id(token)
+        response.headers["X-Request-Id"] = rid
+        response.headers.setdefault("Cache-Control", "no-store")
+        response.headers["Content-Security-Policy"] = CSP
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
         response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["X-Content-Type-Options"] = "nosniff"
         if "set-cookie" in response.headers:                           # this surface never sets a cookie
@@ -246,12 +302,14 @@ def create_public_app(settings: Optional[PublicSettings] = None) -> FastAPI:
         lim = s.limit(route)
         ip, kind = _client_ip(request, s.trust_proxy), "tok" if token else "form"
         try:
-            if not limiter.allow(route, "ip", ip, lim.per_ip):
+            if not await run_in_threadpool(limiter.allow, route, "ip", ip, lim.per_ip):      # sqlite: never on the event loop
                 raise Refusal(429, "rate_limited", "too many requests; try again later")
-            if not limiter.allow(route, kind, hashlib.sha256(ident.encode()).hexdigest()[:24], lim.per_token):
-                raise Refusal(429, "rate_limited", "too many requests for this link; try again later")
-            if not (TOKEN if token else FORM_ID).fullmatch(ident):
+            if not (TOKEN if token else FORM_ID).fullmatch(ident):                          # malformed ids never reach a counter
                 raise NOT_VALID
+            if not await run_in_threadpool(limiter.allow, route, kind, hashlib.sha256(ident.encode()).hexdigest()[:24], lim.per_token):
+                raise Refusal(429, "rate_limited", "too many requests for this link; try again later")
+            if request.method == "POST" and not _same_origin(request, s.cors_origins):
+                raise Refusal(403, "denied", "this request came from another site")
             data = _fields(await _read_json(request, lim.body), body) if body is not None else {}
             return _respond(await run_in_threadpool(call, data, ip, request.headers.get("user-agent", "")[:300]))
         except Refusal as r:
@@ -268,6 +326,19 @@ def create_public_app(settings: Optional[PublicSettings] = None) -> FastAPI:
                 return _plain(getattr(esign_agent(), SIGN_METHODS[name]), token=token, ip=ip, user_agent=ua, **{**(defaults or {}), **d})
             return await handle(request, "s_" + name, token, token=True, body={"email": (str, True), **extra}, call=call)
         app.add_api_route(f"/sign/{{token}}/{name.replace('_', '/')}", route, methods=["POST"])
+
+    async def gate(request: Request, route: str, ident: str, token: bool, pattern: "re.Pattern[str]") -> Optional[int]:
+        """Rate limit for the HTML pages (same counters and same order as `handle`): None, or the status to refuse with.
+        The limiter is sqlite, so it never runs on the event loop, and a malformed id never reaches a per-id counter."""
+        lim = s.limit(route)
+        if not await run_in_threadpool(limiter.allow, route, "ip", _client_ip(request, s.trust_proxy), lim.per_ip):
+            return 429
+        if not pattern.fullmatch(ident):
+            return 404
+        ok = await run_in_threadpool(limiter.allow, route, "tok" if token else "form", hashlib.sha256(ident.encode()).hexdigest()[:24], lim.per_token)
+        return None if ok else 429
+
+    public_pages.register(app, gate, TOKEN, FORM_ID)
 
     # ---- careers ----------------------------------------------------------------------------------------------------
     @app.get("/careers/forms/{form_id}")
@@ -287,9 +358,10 @@ def create_public_app(settings: Optional[PublicSettings] = None) -> FastAPI:
                     data = base64.b64decode(d["file_base64"], validate=True)
                 except (binascii.Error, ValueError):
                     return {"status": "invalid_input", "reason": "file_base64 is not valid base64"}
-            return _plain(intake.public_submit, form_id, d["answers"], d["pow_solution"], d.get("file_name"), data)
+            return _plain(intake.public_submit, form_id, d["answers"], d["pow_solution"], d.get("file_name"), data, d.get("consent_version"))
         return await handle(request, "apply", form_id, token=False, call=call,
-                            body={"answers": (dict, True), "pow_solution": (dict, True), "file_name": (str, False), "file_base64": (str, False)})
+                            body={"answers": (dict, True), "pow_solution": (dict, True), "file_name": (str, False), "file_base64": (str, False),
+                                  "consent_version": (str, False)})
 
     @app.get("/careers/status/{token}")
     async def status(token: str, request: Request) -> JSONResponse:
@@ -309,7 +381,11 @@ def create_public_app(settings: Optional[PublicSettings] = None) -> FastAPI:
         def call(d: Dict[str, Any], ip: str, ua: str) -> Any:
             if isinstance(d["start"], bool):
                 return {"status": "invalid_input", "reason": "start must be one of the offered starts"}
-            return _plain(sched.public_pick, token, float(d["start"]))
+            try:
+                start = float(d["start"])
+            except OverflowError:
+                return {"status": "invalid_input", "reason": "start must be one of the offered starts"}
+            return _plain(sched.public_pick, token, start)
         return await handle(request, "pick", token, token=True, body={"start": ((int, float), True)}, call=call)
 
     @app.post("/schedule/{token}/cancel")
@@ -330,6 +406,66 @@ def create_public_app(settings: Optional[PublicSettings] = None) -> FastAPI:
     @app.post("/interview/{token}/withdraw")
     async def i_withdraw(token: str, request: Request) -> JSONResponse:
         return await handle(request, "i_withdraw", token, token=True, body={}, call=lambda d, ip, ua: _plain(interview.candidate_withdraw, token))
+
+    audio_slots = asyncio.Semaphore(AUDIO_CONCURRENCY)
+    uploading: set = set()
+
+    @app.post("/interview/{token}/audio")
+    async def i_audio(token: str, request: Request) -> JSONResponse:
+        """Stream an audio track to a private temp file (never into memory), then seal it chunk by chunk. Consent and the
+        one-track rule are checked before the body is read; size, rate, concurrency and total time are capped."""
+        lim, ip, tmp, added = s.limit("i_audio"), _client_ip(request, s.trust_proxy), None, False
+        try:
+            if not await run_in_threadpool(limiter.allow, "i_audio", "ip", ip, lim.per_ip):
+                raise Refusal(429, "rate_limited", "too many requests; try again later")
+            if not TOKEN.fullmatch(token):
+                raise NOT_VALID
+            if not await run_in_threadpool(limiter.allow, "i_audio", "tok", hashlib.sha256(token.encode()).hexdigest()[:24], lim.per_token):
+                raise Refusal(429, "rate_limited", "too many requests; try again later")
+            if (early := await run_in_threadpool(_plain, interview.audio_precheck, token))["status"] != "ok":
+                return _respond(early)
+            mime = request.headers.get("content-type", "").split(";")[0].strip().lower()
+            if mime not in record.AUDIO_MIMES:
+                raise Refusal(415, "unsupported_media_type", f"send the file with Content-Type one of {list(record.AUDIO_MIMES)}")
+            try:
+                duration = float(request.query_params.get("duration_s", ""))
+            except ValueError:
+                raise Refusal(400, "invalid_input", "duration_s (seconds) is required") from None
+            declared = request.headers.get("content-length", "")
+            if not declared.isdigit():
+                raise Refusal(411, "length_required", "send a Content-Length")
+            if not 0 < int(declared) <= lim.body:
+                raise Refusal(413, "too_large", "the audio must be 1 byte to 200 MB")
+            if audio_slots.locked() or ip in uploading:
+                return _err(503, "busy", "the server is receiving other recordings; retry in a minute")
+            uploading.add(ip)                                    # one upload per client address at a time: slow ones cannot hold every slot
+            added = True
+            async with audio_slots:
+                tmp = private_dir(data_dir() / "uploads") / f"audio-{secrets.token_hex(12)}.part"
+                size = 0
+                async with asyncio.timeout(AUDIO_DEADLINE_S):
+                    with open(tmp, "xb") as f:
+                        os.fchmod(f.fileno(), 0o600)
+                        async for chunk in request.stream():
+                            size += len(chunk)
+                            if size > int(declared) or size > lim.body:
+                                raise Refusal(413, "too_large", "the audio is larger than declared")
+                            await run_in_threadpool(f.write, chunk)
+                if size != int(declared):
+                    raise Refusal(400, "invalid_input", "the upload ended early")
+                return _respond(await run_in_threadpool(_plain, interview.ingest_audio_file, token, str(tmp), mime, duration))
+        except Refusal as r:
+            return _err(r.status, r.code, r.message)
+        except TimeoutError:
+            return _err(408, "timeout", "the upload took too long")
+        except Exception as e:
+            logger.warning("public route i_audio failed: %s", type(e).__name__)
+            return _err(500, "error", "the request could not be completed")
+        finally:
+            if added:
+                uploading.discard(ip)
+            if tmp is not None:
+                tmp.unlink(missing_ok=True)
 
     # ---- e-sign signer ceremony ---------------------------------------------------------------------------------------------
     for name, extra, defaults in (("open", {}, {}), ("otp_request", {}, {}), ("otp_verify", {"code": (str, True)}, {}),

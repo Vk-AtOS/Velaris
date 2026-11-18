@@ -1,3 +1,14 @@
+"""Performance review engine: OKRs, 360 reviews (self, peer, manager) and calibration, with a suggested rating.
+
+Methods: set_okr, update_okr_progress (clamped to 0..1, completed at 1), get_okrs, submit_review (type self/peer/manager,
+scores 0..5), get_360_summary (weights self 20, peer 40, manager 40 percent over the parts present, with a rating band),
+calibrate and get_calibration_report (HR administrators), plus dsr_export and dsr_erase for data-subject requests (erase is
+held as needs_review because no retention rule exists). Rule-based: averages and fixed rating bands only; the rating is a
+suggestion for a person, not a decision. Every method needs an authenticated caller: you act on your own records, HR admins
+on anyone's; no caller or the wrong role raises AccessDenied. Reviewer and calibrator must be the caller. Bad review_type or
+scores return {"error": ...}; an unknown OKR returns {"error": "okr not found"}. Rows are filtered by organisation.
+State: sqlite, encrypted at rest (velaris.core.sealed_sqlite), at <VELARIS_DATA>/agents/PERFORMANCE_REVIEW_ENGINE/reviews.db (okrs, reviews, calibration tables).
+"""
 import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
@@ -5,9 +16,10 @@ import json
 import logging
 import math
 import sqlite3
+
+from velaris.core.sealed_sqlite import connect_sealed
 from datetime import date
 from typing import Dict, Any, List, Optional
-from velaris.intel.paths import agent_file
 
 from velaris.agentkit import onboarding_retention as retention
 from velaris.agentkit.onboarding_common import dsr_gate, HR_ADMINS, gate_change, gate_read
@@ -15,17 +27,13 @@ from velaris.core.access import AccessDenied, Caller, current_caller
 from velaris.intel.paths import agent_dir
 
 logger = logging.getLogger("PERFORMANCE_REVIEW_ENGINE")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - PERFORMANCE_REVIEW_ENGINE - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 SCALE = (0.0, 5.0)                      # every score is on this scale; the rating bands below assume it
 MANAGERS = frozenset({"manager", "hiring_manager"}) | HR_ADMINS
 
 
 def _db() -> sqlite3.Connection:
-    conn = sqlite3.connect(str(agent_dir("PERFORMANCE_REVIEW_ENGINE") / "reviews.db"))
+    conn = connect_sealed(str(agent_dir("PERFORMANCE_REVIEW_ENGINE") / "reviews.db"), "hr:PERFORMANCE_REVIEW_ENGINE")
     conn.row_factory = sqlite3.Row
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS okrs (

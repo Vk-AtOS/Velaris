@@ -1,8 +1,26 @@
+"""Leave management: leave requests, approval and balances for employees, with access control.
+
+seed_balances(employee_id, year) (HR admins) creates default entitlements; get_balance(
+employee_id, year), pending_approvals() and employee_history(employee_id, year=None) read
+health-category data through authorize_read (own record or HR admin); apply(employee_id,
+leave_type, from_date, to_date, reason) files a request over weekday-only days; approve and
+reject(leave_id, reviewed_by) are HR-admin only, the reviewer must be the caller and may not
+review their own leave. dsr_export and dsr_erase(org, subject_id, ...) serve data-subject
+requests; erase is held (needs_review) while retention rules apply.
+Failure: apply and review return {"error": ...} dicts (invalid_leave_type, invalid_date,
+overlapping_leave when the days clash with a pending or approved request, no_balance_record,
+insufficient_balance, unauthenticated, denied, access_denied, not_found, already_<status>,
+self_approval_not_allowed); gated reads and changes raise through the access layer.
+State: sqlite, encrypted at rest (velaris.core.sealed_sqlite), <VELARIS_DATA>/agents/LEAVE_MANAGEMENT/leaves.db (tables leave_requests,
+leave_balances), scoped by organisation.
+"""
 import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
 import logging
 import sqlite3
+
+from velaris.core.sealed_sqlite import connect_sealed
 from datetime import date, timedelta
 from typing import Dict, Any, List, Optional
 
@@ -12,17 +30,13 @@ from velaris.core.access import Caller, authorize_read, current_caller, deployme
 from velaris.intel.paths import agent_dir
 
 logger = logging.getLogger("LEAVE_MANAGEMENT")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - LEAVE_MANAGEMENT - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 _LEAVE_TYPES = {"casual": 12, "sick": 12, "earned": 15, "maternity": 182, "paternity": 15}
 _DB = ""          # tests may point this elsewhere; empty means <VELARIS_DATA>/agents/LEAVE_MANAGEMENT/leaves.db
 
 
 def _db() -> sqlite3.Connection:
-    conn = sqlite3.connect(_DB or str(agent_dir("LEAVE_MANAGEMENT") / "leaves.db"))
+    conn = connect_sealed(_DB or str(agent_dir("LEAVE_MANAGEMENT") / "leaves.db"), "hr:LEAVE_MANAGEMENT")
     conn.row_factory = sqlite3.Row
     conn.execute("""
         CREATE TABLE IF NOT EXISTS leave_requests (
@@ -117,10 +131,21 @@ class LeaveManagement:
         who = gate_change("LEAVE_MANAGEMENT", "apply", None if mine else HR_ADMINS, {"employee": str(employee_id)[:40]})
         if leave_type not in _LEAVE_TYPES:
             return {"error": f"invalid leave_type; must be one of {list(_LEAVE_TYPES.keys())}"}
+        try:
+            from_date, to_date = date.fromisoformat(from_date).isoformat(), date.fromisoformat(to_date).isoformat()   # canonical: comparable as text
+        except (TypeError, ValueError):
+            return {"error": "invalid_date", "reason": "from_date and to_date must be YYYY-MM-DD"}
         days = _business_days(from_date, to_date)
         if days <= 0:
             return {"error": "no business days in requested range"}
         conn = _db()
+        clash = conn.execute(
+            "SELECT id, from_date, to_date, status FROM leave_requests WHERE employee_id=? AND org=? AND status IN ('pending','approved') "
+            "AND from_date<=? AND to_date>=? LIMIT 1", (employee_id, who.org, to_date, from_date)).fetchone()
+        if clash:                                   # the same days cannot be taken twice (and would be deducted twice)
+            conn.close()
+            return {"error": "overlapping_leave", "existing_id": clash["id"], "existing_from": clash["from_date"],
+                    "existing_to": clash["to_date"], "existing_status": clash["status"]}
         # check balance
         row = conn.execute(
             "SELECT entitlement, used FROM leave_balances WHERE employee_id=? AND leave_type=? AND year=?",

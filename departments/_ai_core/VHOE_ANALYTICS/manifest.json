@@ -1,0 +1,25 @@
+{
+  "name": "VHOE_ANALYTICS",
+  "display_name": "Vhoe Analytics",
+  "version": "0.1.0",
+  "description": "VHOE_ANALYTICS: how the work actually went, from completed-work records.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:VHOE_ANALYTICSAgent",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "VHOE_ANALYTICS: how the work actually went, from completed-work records.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/VHOE_ANALYTICS.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "analyse": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

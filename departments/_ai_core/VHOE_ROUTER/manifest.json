@@ -1,0 +1,25 @@
+{
+  "name": "VHOE_ROUTER",
+  "display_name": "Vhoe Router",
+  "version": "0.1.0",
+  "description": "VHOE_ROUTER: assigns one piece of work to the person or agent best placed to take it.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:VHOE_ROUTERAgent",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "VHOE_ROUTER: assigns one piece of work to the person or agent best placed to take it.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/VHOE_ROUTER.json",
+    "wave": "KAN-43",
+    "status": "deterministic_tool",
+    "tools": {
+      "route": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

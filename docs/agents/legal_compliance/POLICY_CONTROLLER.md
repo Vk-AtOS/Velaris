@@ -1,8 +1,8 @@
 # POLICY_CONTROLLER
 
 - **Department:** `legal_compliance`
-- **Status (static inventory):** `rule_based`
-- **Source:** `departments/legal_compliance/POLICY_CONTROLLER/main.py` (129 lines)
+- **Status (static inventory):** `real`
+- **Source:** `departments/legal_compliance/POLICY_CONTROLLER/main.py` (128 lines)
 
 ## Purpose
 
@@ -23,7 +23,7 @@ before allow, then id, and the first rule whose conditions all hold decides. If
 none holds, the answer is deny by the implicit "default_deny" rule. The result
 always names the deciding rule, its version and the policy-set revision.
 
-put_policy() and retire() are for governance admins only; who made a change is the
+put_policy() and retire() are for governance admins only, and a change that cannot be written to the trace is not made (audit_failed); who made a change is the
 current caller (velaris.core.access), never an argument.
 
 ## Class `POLICY_CONTROLLERAgent`
@@ -54,4 +54,4 @@ current caller (velaris.core.access), never an argument.
 
 - **other agents:** `GOVERNANCE_ADAPTATION_LOOP`, `GOVERNANCE_KERNEL`, `VIGILIS`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_dept_legal_compliance_stubs.py`, `velaris/tests/test_governance_kernel.py`
+- **tests:** `velaris/tests/test_allowlist_departments.py`, `velaris/tests/test_dept_legal_compliance_stubs.py`, `velaris/tests/test_governance_kernel.py`

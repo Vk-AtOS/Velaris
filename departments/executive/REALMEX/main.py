@@ -1,11 +1,17 @@
+"""Realmex: merges simulation output dicts into one matrix and counts its size.
+
+RealmexAgent(config): health_check(); fuse_realities(sims) collects, per key, the list of
+values across all dicts; score_reality(fused) returns the total number of values as a
+float; extract_dimensions(fused) returns the sorted keys. The score is a plain count, not
+a model.
+State: keeps no state.
+Failure: an empty input gives {} / 0.0 / []; non-dict items raise AttributeError.
+"""
+
 import logging
 from typing import Dict, Any, List
 
 logger = logging.getLogger("REALMEX")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - REALMEX - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class RealmexAgent:
     def __init__(self, config: Dict[str, Any] = None):

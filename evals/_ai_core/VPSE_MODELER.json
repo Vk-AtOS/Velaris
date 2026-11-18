@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "agent": "VPSE_MODELER",
+  "cases": [
+    {
+      "id": "select-fit",
+      "input": "Use the fit operation of VPSE_MODELER with {\"series\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "fit",
+            "args": {
+              "series": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-forecast",
+      "input": "Use the forecast operation of VPSE_MODELER with {\"series\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "forecast",
+            "args": {
+              "series": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

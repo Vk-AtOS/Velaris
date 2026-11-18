@@ -11,6 +11,8 @@
                                     (with Prime: asks Prime about a waiting step)
   POST /flows/{run_id}/decide       {"call_hash", "approve", "note"}: local mode only
   GET  /flows/{run_id}/verify       the run's own hash chain
+  POST /brain                       {"goal"}: the central brain plans it and the departments run it (as the caller)
+  GET  /brain/{run_id}              the brain run's state, moved on after an approval (owner only)
   GET  /trace/verify                the global trace's hash chain (counts only)
 
 Errors are {"error": {"code", "message"}}; messages are written here, never exception text.
@@ -23,6 +25,8 @@ import asyncio
 import json
 import logging
 import os
+import re
+import shutil
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
@@ -31,26 +35,41 @@ from typing import Any, Dict, List, Optional, Tuple
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
+from velaris.api.atlassian_api import mount_atlassian
 from velaris.api.allowlist import ACT, READ, catalog, prepare, rule_for, tool_params
 from velaris.api.auth import AuthError, Verifier, load_public_key
+from velaris.api import brain_api, providers_api
+from velaris.api.flow_policy import permit_for
 from velaris.api.background import interval, lifespan
-from velaris.api.observability import CountingLLM, Metrics, install as install_observability
+from velaris.api.observability import CountingLLM, Metrics, current_request_id, install as install_observability
 from velaris.chat.api import chat_router
+from velaris.chat.assistant import llm_from_env
 from velaris.chat.service import ChatService
 from velaris.control.api import mount as mount_control
 from velaris.api.trace_check import verify_incremental
 from velaris.core.access import GOVERNANCE_ADMINS, SECURITY_ADMINS, AccessDenied, Caller, deployment_org
 from velaris.core.prime import PrimeGate, gate_from_env, install_read_authoriser
-from velaris.intel import trace
+from velaris.intel import catalogue, trace
+from velaris.intel import health as model_health
 from velaris.intel.flow import Flow, FlowError, Tool
 from velaris.intel.llm import LLM
+from velaris.intel.paths import data_dir
 from velaris.mail.api import mount_mail
+from velaris.orchestration import identity
+from velaris.orchestration.base import record_escalation
 
 logger = logging.getLogger("velaris.api")
 
 MAX_BODY = 64 * 1024
+MAIL_DRAFT_BODY = 16 * 1024 * 1024      # a draft carries its attachments base64-encoded in the JSON body (10 MB each by default)
+_MAIL_DRAFT_PATH = re.compile(r"^/mail/mailboxes/[^/]+/drafts(/[^/]+)?$")
+
+
+def body_limit(method: str, path: str) -> int:
+    """The most bytes a request body may have: 64 KiB everywhere, except composing a mail draft with attachments."""
+    return MAIL_DRAFT_BODY if method in ("POST", "PUT") and _MAIL_DRAFT_PATH.match(path) else MAX_BODY
 CALL_TIMEOUT_S = 60.0
 ADMIN_ROLES = GOVERNANCE_ADMINS | SECURITY_ADMINS     # may verify the global trace
 FLOW_APPROVERS = frozenset({"flow_approver"})     # may decide other people's steps (local mode only)
@@ -74,14 +93,17 @@ class Settings:
 
     @classmethod
     def from_env(cls) -> "Settings":
-        """VELARIS_API_SECRET, VELARIS_IDENTITY_PUBLIC_KEY (PEM path), VELARIS_ORG; Prime: see velaris.core.prime."""
+        """VELARIS_API_SECRET, VELARIS_IDENTITY_PUBLIC_KEY (PEM path) or VELARIS_IDENTITY_PUBLIC_KEY_PEM (the PEM itself, for
+        platforms that inject environment variables, not files), VELARIS_ORG; Prime: see velaris.core.prime."""
         secret = os.environ.get("VELARIS_API_SECRET", "").encode()
         key_path = os.environ.get("VELARIS_IDENTITY_PUBLIC_KEY", "")
+        key_pem = os.environ.get("VELARIS_IDENTITY_PUBLIC_KEY_PEM", "").encode()
         org = deployment_org()
-        if not secret or not key_path or not org:
+        if not secret or not (key_path or key_pem) or not org:
             raise ValueError("VELARIS_API_SECRET, VELARIS_IDENTITY_PUBLIC_KEY and VELARIS_ORG must be set")
         install_read_authoriser()
-        return cls(secret=secret, identity_key=load_public_key(Path(key_path).read_bytes()), gate=gate_from_env(), org=org)
+        pem = Path(key_path).read_bytes() if key_path else key_pem
+        return cls(secret=secret, identity_key=load_public_key(pem), gate=gate_from_env(), org=org)
 
 
 def _error(status: int, code: str, message: str) -> JSONResponse:
@@ -89,7 +111,9 @@ def _error(status: int, code: str, message: str) -> JSONResponse:
 
 
 def _jsonable(value: Any) -> Any:
-    return json.loads(json.dumps(value, default=str))
+    """`value` as plain JSON data. JSON has no infinity or NaN (TREASURIX returns inf for "no burn"), and the
+    response encoder refuses them (a 500), so every non-finite number becomes null here, for every agent."""
+    return json.loads(json.dumps(value, default=str), parse_constant=lambda _name: None)
 
 
 def _who(caller: Caller) -> Dict[str, Any]:
@@ -99,6 +123,18 @@ def _who(caller: Caller) -> Dict[str, Any]:
 def _caller(meta: Dict[str, Any]) -> Caller:
     c = meta["caller"]
     return Caller(id=c["id"], org=c["org"], roles=frozenset(c["roles"]), employee_id=c["employee_id"])
+
+
+MIN_FREE_BYTES = 50 * 1024 * 1024
+
+
+def _data_problems() -> List[str]:
+    d = data_dir()
+    if not os.access(d, os.W_OK):
+        return ["data directory is not writable"]
+    if shutil.disk_usage(d).free < MIN_FREE_BYTES:
+        return ["less than 50 MB free in the data directory"]
+    return []
 
 
 def create_app(settings: Settings, engine: Any = None) -> FastAPI:
@@ -111,7 +147,9 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
     llm = CountingLLM(settings.llm or LLM(), metrics)      # LLM spend counters for /metrics
     app = FastAPI(title="Velaris", docs_url=None, redoc_url=None, openapi_url=None)
     chat_service = ChatService()
-    app.include_router(chat_router(verifier, settings.org, service=chat_service, llm=settings.llm))     # company chat: /chat/... (velaris/chat)
+    chat_model = settings.llm or llm_from_env()             # chat builds its own gateway when none is given: count that one too
+    app.include_router(chat_router(verifier, settings.org, service=chat_service,       # company chat: /chat/... (velaris/chat)
+                                   llm=CountingLLM(chat_model, metrics) if chat_model is not None else None))
     state: Dict[str, Any] = {}
 
     @app.exception_handler(ApiError)
@@ -138,13 +176,16 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
     # ── plumbing ─────────────────────────────────────────────────────────────
     async def authed(request: Request) -> Tuple[Caller, Any]:
         """(caller, parsed JSON body or None). Refuses anything not signed by the gateway."""
-        if int(request.headers.get("content-length") or 0) > MAX_BODY:
-            raise ApiError(413, "too_large", f"the body may be at most {MAX_BODY} bytes")
-        body = b""
+        limit = body_limit(request.method, request.url.path)
+        if int(request.headers.get("content-length") or 0) > limit:
+            raise ApiError(413, "too_large", f"the body may be at most {limit} bytes")
+        chunks, size = [], 0
         async for chunk in request.stream():
-            body += chunk
-            if len(body) > MAX_BODY:
-                raise ApiError(413, "too_large", f"the body may be at most {MAX_BODY} bytes")
+            size += len(chunk)
+            if size > limit:
+                raise ApiError(413, "too_large", f"the body may be at most {limit} bytes")
+            chunks.append(chunk)
+        body = b"".join(chunks)
         path = request.url.path + (f"?{request.url.query}" if request.url.query else "")
         try:
             caller = verifier.verify(request.method, path, request.headers, body)
@@ -165,7 +206,7 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
         metrics.on_record(action, payload)
         try:
             trace.append("api", action, {"caller": caller.id, "org": caller.org, "roles": sorted(caller.roles),
-                                         **payload})
+                                         "request_id": current_request_id(), **payload})
         except (OSError, ValueError, TypeError) as e:
             logger.warning("trace write failed for %s: %s", action, type(e).__name__)
             metrics.inc("velaris_trace_failures_total")
@@ -199,7 +240,7 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
             logger.warning("%s.%s failed in a flow: %s", agent, method, type(e).__name__)
             raise RuntimeError("the agent call failed") from e
 
-    def flow_for(owner: Caller, names: List[str]) -> Flow:
+    def flow_for(owner: Caller, names: List[str], task: str = "") -> Flow:
         tools = []
         for name in names:
             agent, _, method = name.partition(".")
@@ -210,7 +251,10 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
             tools.append(Tool(name, partial(run_tool, agent, method, owner), (fn.__doc__ or name).strip()[:300],
                               tool_params(fn, rule), needs_approval=rule.kind == ACT,
                               idempotent=rule.kind == READ))
-        return Flow(tools, llm=llm, gate=settings.gate, path=settings.flow_db)
+        # every limit of flow.default_limits() is on (VELARIS_FLOW_*); a run that hits one is handed on, not dropped
+        needs = {t.name: t.needs_approval for t in tools}
+        return Flow(tools, llm=llm, gate=settings.gate, path=settings.flow_db, permit=permit_for(task, lambda n: needs.get(n, True)),
+                    escalate=lambda info: record_escalation(owner, "flows", "a flow_approver", info))
 
     def owned_run(run_id: str, caller: Caller, *, deciding: bool = False) -> Tuple[Caller, Flow]:
         """The run's owner and a flow to move it, if `caller` may see it; else 404."""
@@ -224,20 +268,33 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
         approver = deciding and settings.gate is None and bool(caller.roles & FLOW_APPROVERS)
         if owner.id != caller.id and not approver:
             raise ApiError(404, "unknown_run", "no such run")
-        return owner, flow_for(owner, events[0]["tools"])
+        try:       # the saved roles are an upper bound; the owner's CURRENT roles decide (shared lookup, fails closed)
+            owner = identity.current_owner(owner, caller)
+        except AccessDenied as e:
+            raise ApiError(403, "owner_unverified", str(e)) from None
+        return owner, flow_for(owner, events[0]["tools"], events[0].get("task", ""))
 
     # ── endpoints ────────────────────────────────────────────────────────────
     @app.get("/health")
+    @app.get("/healthz")
     async def health() -> Dict[str, Any]:
-        return {"status": "ok"}
+        return {"status": "ok"}          # liveness: the process answers; touches nothing else
+
+    @app.get("/readyz")
+    async def ready() -> JSONResponse:
+        """Readiness: VELARIS_DATA is there, writable and has room. Without that the API cannot record a trace, and a call
+        that cannot be recorded is refused anyway (audit_unavailable), so say so to the load balancer first."""
+        problems = await asyncio.to_thread(_data_problems)
+        return JSONResponse({"ready": not problems, "problems": problems}, status_code=503 if problems else 200)
 
     @app.get("/agents")
-    async def agents(request: Request) -> Dict[str, Any]:
+    async def agents(request: Request) -> Response:
         caller, _ = await authed(request)
         record(caller, "agents.list", {})
         if "catalog" not in state:
-            state["catalog"] = await asyncio.to_thread(catalog, engine)
-        return state["catalog"]
+            built = await asyncio.to_thread(catalog, engine)
+            state["catalog"] = json.dumps(built, default=str).encode()          # serialised ONCE (346 agents: ~76 ms each time)
+        return Response(state["catalog"], media_type="application/json")
 
     @app.post("/agents/{agent}/{method}")
     async def call_agent(agent: str, method: str, request: Request) -> JSONResponse:
@@ -298,7 +355,7 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
         if undeclared:
             raise ApiError(403, "not_allowed", f"not callable over HTTP: {sorted(undeclared)[:10]}")
         record(caller, "flow.start", {"tools": sorted(names)})
-        flow = flow_for(caller, sorted(set(names)))
+        flow = flow_for(caller, sorted(set(names)), task)
         run = await in_thread(partial(flow.start, task, actor=caller.id, meta={"caller": _who(caller)}))
         record(caller, "flow.state", {"run_id": run.run_id, "status": run.status})
         return _jsonable(run.to_dict())
@@ -383,8 +440,14 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
     app.state.metrics, app.state.gauges = metrics, gauges
     mount_control(app, authed=authed, record=record, in_thread=in_thread, api_error=ApiError, llm=llm,
                   gate=settings.gate, flow_path=settings.flow_db)       # control layer: /control/... (velaris/control)
+    brain_api.mount(app, authed=authed, record=record, in_thread=in_thread, api_error=ApiError, llm=llm, engine=engine,
+                    gate=settings.gate, flow_path=settings.flow_db)                  # the central brain: /brain (KAN-32)
+    providers_api.mount(app, authed=authed, record=record, in_thread=in_thread, api_error=ApiError)   # /providers (KAN-18)
     mail = mount_mail(app, settings, authed, record, in_thread)    # company email: /mail/... (velaris/mail)
+    mount_atlassian(app, authed, record, in_thread)                # per-user Atlassian OAuth: /integrations/atlassian/...
     app.router.lifespan_context = lifespan([       # scheduled work, see velaris.api.background
         ("mail-outbox", interval("VELARIS_MAIL_WORKER_S", 30.0), mail.outbound.process_due),
-        ("chat-sweep", interval("VELARIS_CHAT_SWEEP_S", 3600.0), partial(chat_service.sweep, settings.org))])
+        ("chat-sweep", interval("VELARIS_CHAT_SWEEP_S", 3600.0), partial(chat_service.sweep, settings.org)),
+        ("provider-health", interval("VELARIS_PROVIDER_HEALTH_S", 900.0), model_health.sweep),
+        ("catalogue-refresh", interval("VELARIS_CATALOGUE_REFRESH_S", 21600.0), catalogue.refresh_all)])
     return app

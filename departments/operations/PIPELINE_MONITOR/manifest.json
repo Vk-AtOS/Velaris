@@ -4,5 +4,24 @@
   "domain": "operations",
   "entrypoint": "main.py:PipelineMonitorAgent",
   "description": "Velaris BOS agent for Knackforge Ported from VKatOS pipeline_monitor.",
-  "hitl_required": false
+  "hitl_required": false,
+  "harness": {
+    "schema": 1,
+    "purpose": "PIPELINE_MONITOR — Velaris BOS agent for Knackforge Ported from VKatOS pipeline_monitor.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/operations/PIPELINE_MONITOR.json",
+    "wave": "KAN-31",
+    "status": "deterministic_tool",
+    "tools": {
+      "log_stage": {
+        "kind": "act"
+      }
+    },
+    "excluded": {
+      "dashboard": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "morning_briefing": "not in the HTTP allowlist (velaris/api/allowlist.py)"
+    },
+    "reviewed": true
+  }
 }

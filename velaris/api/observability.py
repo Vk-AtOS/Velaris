@@ -5,8 +5,15 @@
   VELARIS_METRICS_PORT=9730   an unauthenticated listener on VELARIS_METRICS_HOST (default 127.0.0.1) serving only /metrics.
                  Never publish that port; in Kubernetes keep it out of the Service.
 
-Counters live in this process (the API runs one worker, see velaris/api/auth.py). `llm` spend is counted in calls, prompt and
-output characters and seconds per model: the gateway has no price table, so money is derived from these outside.
+Counters are added to a shared file (velaris.core.shared.MetricStore) by every worker process and read back by whichever one
+is scraped, so several workers give one set of totals; they are flushed at least once a second and survive restarts. `llm` use
+is counted in calls, prompt and output characters and seconds per model; with VELARIS_LLM_PRICES (JSON, USD per million tokens,
+{"provider:model": {"in": 3.0, "out": 15.0}, "*": {...}}) spend is also counted as velaris_llm_spend_usd_total{model} using
+the estimate 1 token = 4 characters (the gateway returns no token counts); calls to a model with no price are counted in
+velaris_llm_unpriced_calls_total so a missing price shows up instead of reading as free. The model label is the model
+that answered (Completion.model), and the same figures per caller are kept by purpose (velaris_llm_purpose_spend_usd_total{purpose="chat.assistant"},
+velaris_llm_purpose_calls_total, velaris_llm_purpose_unpriced_calls_total). The queue-depth gauge sums the
+in-flight requests of all live workers.
 
 Logs: one JSON object per line (VELARIS_LOG_JSON=0 for plain text) with `request_id`; any run of 24+ token characters and any
 value after token/secret/password/authorization/signature is masked, so link tokens in URL paths never reach a log.
@@ -19,6 +26,7 @@ import logging
 import os
 import re
 import secrets
+import sqlite3
 import threading
 import time
 from collections import Counter
@@ -28,6 +36,8 @@ from typing import Any, Callable, Dict, Optional, Tuple
 from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse
 
+from velaris.core.shared import MetricStore
+
 logger = logging.getLogger("velaris.api.observability")
 
 METRICS_ROLES = frozenset({"ops", "governance_admin"})
@@ -35,6 +45,23 @@ _request_id: contextvars.ContextVar[str] = contextvars.ContextVar("velaris_reque
 _RID = re.compile(r"[A-Za-z0-9_-]{8,64}\Z")
 _LONG = re.compile(r"[A-Za-z0-9_-]{24,}")
 _KV = re.compile(r"(?i)\b(token|secret|password|authorization|signature|api[_-]?key)(\"?\s*[:=]\s*\"?)([^\s\",&]+)")
+
+
+def current_request_id() -> str:
+    return _request_id.get()
+
+
+def bind_request_id(headers: Any) -> "tuple[str, contextvars.Token[str]]":
+    """Pick this request's id and make it the current one (the caller resets the token). AetherOS sends its trace id as X-Trace-Id
+    so one id follows a request across both systems (KAN-50). Neither header is signed, so one is used only when it has the
+    shape of an id; otherwise a fresh one."""
+    given = next((v for v in (headers.get("x-trace-id", ""), headers.get("x-request-id", "")) if _RID.match(v)), "")
+    rid = given or secrets.token_hex(8)
+    return rid, _request_id.set(rid)
+
+
+def release_request_id(token: "contextvars.Token[str]") -> None:
+    _request_id.reset(token)
 
 
 def mask(text: str) -> str:
@@ -61,14 +88,43 @@ def configure_logging() -> None:
 
 
 class Metrics:
+    FLUSH_S = 1.0
+
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self.counts: Counter = Counter()                    # (name, labels tuple) -> value
+        self.counts: Counter = Counter()                    # this process only: (name, labels tuple) -> value
+        self._pending: Dict[str, float] = {}                # added since the last flush, keyed like the shared store
+        self._last_flush = 0.0
+        self._store = MetricStore()
+        self._who = f"{os.getpid()}-{secrets.token_hex(3)}"      # one gauge row per reporting process
         self.in_flight = 0
 
+    @staticmethod
+    def _key(name: str, labels: Tuple) -> str:
+        return json.dumps([name, list(labels)], separators=(",", ":"))
+
     def inc(self, name: str, by: float = 1, **labels: str) -> None:
+        key = (name, tuple(sorted(labels.items())))
         with self._lock:
-            self.counts[(name, tuple(sorted(labels.items())))] += by
+            self.counts[key] += by
+            self._pending[self._key(*key)] = self._pending.get(self._key(*key), 0.0) + by
+            due = time.time() - self._last_flush > self.FLUSH_S
+        if due:
+            self.flush()
+
+    def flush(self) -> None:
+        with self._lock:
+            deltas, self._pending, self._last_flush = self._pending, {}, time.time()
+            in_flight = self.in_flight
+        try:
+            if deltas:
+                self._store.add(deltas)
+            self._store.set_gauge(self._who, in_flight, time.time())
+        except sqlite3.Error as e:
+            logger.warning("metrics not flushed: %s", type(e).__name__)
+            with self._lock:                                # keep them for the next try
+                for k, v in deltas.items():
+                    self._pending[k] = self._pending.get(k, 0.0) + v
 
     def on_record(self, action: str, payload: Dict[str, Any]) -> None:
         """Every trace entry the API writes: agent calls by outcome, refusals, approvals asked for."""
@@ -80,16 +136,40 @@ class Metrics:
             self.inc("velaris_approvals_requested_total")
 
     def render(self, gauges: Optional[Callable[[], Dict[str, float]]] = None) -> str:
-        with self._lock:
-            rows = dict(self.counts)
-            in_flight = self.in_flight
-        lines = ["# TYPE velaris_queue_depth gauge", f"velaris_queue_depth {in_flight}"]
+        self.flush()
+        try:
+            rows = {k: v for k, v in self._store.counters().items()}
+            queue = self._store.gauge_sum(time.time())
+        except sqlite3.Error as e:                          # the shared file is unreadable: show this process's own totals
+            logger.warning("metrics store unreadable: %s", type(e).__name__)
+            rows = {self._key(n, lab): v for (n, lab), v in self.counts.items()}
+            queue = self.in_flight
+        lines = ["# TYPE velaris_queue_depth gauge", f"velaris_queue_depth {queue:g}"]
         for name, value in (gauges() if gauges else {}).items():
             lines += [f"# TYPE {name} gauge", f"{name} {value}"]
-        for (name, labels), v in sorted(rows.items()):
-            lab = ",".join(f'{k}="{str(x).replace(chr(92), "").replace(chr(34), "")}"' for k, x in labels)
-            lines.append(f"{name}{{{lab}}} {v}" if lab else f"{name} {v}")
+        for k, v in sorted(rows.items()):
+            name, labels = json.loads(k)
+            lab = ",".join(f'{a}="{str(x).replace(chr(92), "").replace(chr(34), "")}"' for a, x in labels)
+            lines.append(f"{name}{{{lab}}} {v:g}" if lab else f"{name} {v:g}")
         return "\n".join(lines) + "\n"
+
+
+def _prices() -> Dict[str, Dict[str, float]]:
+    """VELARIS_LLM_PRICES: USD per million tokens, per model or "*"; bad JSON means no prices (spend then shows as unpriced)."""
+    try:
+        raw = json.loads(os.environ.get("VELARIS_LLM_PRICES", "") or "{}")
+        return {str(m): {"in": float(p["in"]), "out": float(p["out"])} for m, p in raw.items()}
+    except (ValueError, KeyError, TypeError, AttributeError):
+        logger.warning("VELARIS_LLM_PRICES is not valid; LLM spend will be reported as unpriced")
+        return {}
+
+
+_PURPOSE = re.compile(r"[a-z0-9_.]{1,40}\Z")
+
+
+def _purpose(raw: Any) -> str:
+    """The caller's `purpose` as a metric label: a short code like "chat.assistant"; anything else is "other" (bounded cardinality)."""
+    return raw if isinstance(raw, str) and _PURPOSE.match(raw) else ("none" if not raw else "other")
 
 
 class CountingLLM:
@@ -109,10 +189,23 @@ class CountingLLM:
         except Exception:
             self._m.inc("velaris_llm_failures_total", model=model)
             raise
-        self._m.inc("velaris_llm_calls_total", model=model)
-        self._m.inc("velaris_llm_prompt_chars_total", len(prompt), model=model)
-        self._m.inc("velaris_llm_output_chars_total", len(getattr(out, "text", "") or ""), model=model)
-        self._m.inc("velaris_llm_seconds_total", round(time.time() - start, 3), model=model)
+        used = str(getattr(out, "model", "") or model)[:60]          # the model that really answered (a call without `model` used the default)
+        text_out = getattr(out, "text", "") or ""
+        purpose = _purpose(kw.get("purpose"))
+        self._m.inc("velaris_llm_calls_total", model=used)
+        self._m.inc("velaris_llm_prompt_chars_total", len(prompt), model=used)
+        self._m.inc("velaris_llm_output_chars_total", len(text_out), model=used)
+        self._m.inc("velaris_llm_seconds_total", round(time.time() - start, 3), model=used)
+        self._m.inc("velaris_llm_purpose_calls_total", purpose=purpose)
+        prices = _prices()
+        price = prices.get(used) or prices.get("*")
+        if price is None:
+            self._m.inc("velaris_llm_unpriced_calls_total", model=used)
+            self._m.inc("velaris_llm_purpose_unpriced_calls_total", purpose=purpose)
+        else:                                               # 1 token ~ 4 characters: an estimate, labelled as such in the module doc
+            usd = (len(prompt) / 4 * price["in"] + len(text_out) / 4 * price["out"]) / 1e6
+            self._m.inc("velaris_llm_spend_usd_total", usd, model=used)
+            self._m.inc("velaris_llm_purpose_spend_usd_total", usd, purpose=purpose)      # e.g. purpose="chat.assistant" (KAN-120)
         return out
 
 
@@ -121,9 +214,7 @@ def install(app: FastAPI, metrics: Metrics, authed: Callable[..., Any], gauges: 
     """Request-id + in-flight middleware and the signed GET /metrics."""
     @app.middleware("http")
     async def _request_context(request: Request, call_next: Callable[..., Any]) -> Any:
-        given = request.headers.get("x-request-id", "")
-        rid = given if _RID.match(given) else secrets.token_hex(8)
-        token = _request_id.set(rid)
+        rid, token = bind_request_id(request.headers)
         with metrics._lock:
             metrics.in_flight += 1
         try:

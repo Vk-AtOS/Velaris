@@ -8,14 +8,22 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import json
+import logging
 import sqlite3
+
+from velaris.core import fieldseal
+from velaris.core.sqlite_util import connect as connect_db
 import threading
 from pathlib import Path
 from typing import Any, Iterator, List, Optional
 
-from velaris.intel.paths import data_dir, open_private, private_dir, read_private, write_private
+from velaris.core import vault
+from velaris.intel.paths import data_dir, open_private, private_dir, write_private
 from velaris.mail.common import MailError
 
+logger = logging.getLogger("velaris.mail.db")
+SEAL = "mail"       # purpose of the column-level encryption (velaris.core.fieldseal)
+SEALED = ("subject", "snippet", "body_text", "body_html", "headers", "from_addr", "from_name", "to_addrs", "cc_addrs", "bcc_addrs")
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS mailbox(
   id TEXT PRIMARY KEY, org TEXT NOT NULL, address TEXT NOT NULL UNIQUE, owner_id TEXT NOT NULL,
@@ -58,7 +66,7 @@ CREATE TABLE IF NOT EXISTS rule(
   position INTEGER NOT NULL, conditions TEXT NOT NULL, actions TEXT NOT NULL, created_by TEXT NOT NULL, created REAL NOT NULL);
 CREATE TABLE IF NOT EXISTS account(
   id TEXT PRIMARY KEY, mailbox_id TEXT NOT NULL, org TEXT NOT NULL, config TEXT NOT NULL, state TEXT NOT NULL DEFAULT '{}',
-  created_by TEXT NOT NULL, created REAL NOT NULL);
+  created_by TEXT NOT NULL, created REAL NOT NULL, secret_name TEXT);
 CREATE TABLE IF NOT EXISTS submission(
   id TEXT PRIMARY KEY, org TEXT NOT NULL, mailbox_id TEXT NOT NULL, draft_id TEXT NOT NULL, actor_id TEXT NOT NULL,
   on_behalf_of TEXT NOT NULL, grant_id TEXT NOT NULL DEFAULT '', origin TEXT NOT NULL, state TEXT NOT NULL,
@@ -74,6 +82,9 @@ CREATE TABLE IF NOT EXISTS domain(
   PRIMARY KEY(domain, org));
 CREATE UNIQUE INDEX IF NOT EXISTS domain_owner ON domain(domain) WHERE verified=1;
 CREATE TABLE IF NOT EXISTS org_settings(org TEXT PRIMARY KEY, data TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS legal_export(
+  id TEXT PRIMARY KEY, org TEXT NOT NULL, mailbox_id TEXT NOT NULL, requested_by TEXT NOT NULL, reason TEXT NOT NULL,
+  created REAL NOT NULL, state TEXT NOT NULL DEFAULT 'pending', decided_by TEXT NOT NULL DEFAULT '', decided_at REAL, used_at REAL);
 """
 
 
@@ -86,16 +97,88 @@ class Database:
         self.blob_dir = private_dir(self.path.parent / "blobs")
         open_private(self.path, "a").close()                      # created 0600 before sqlite touches it
         self._lock = threading.RLock()
-        self._conn = sqlite3.connect(str(self.path), check_same_thread=False)
-        self._conn.row_factory = sqlite3.Row
+        self._conn = connect_db(str(self.path), check_same_thread=False)
+        self._conn.row_factory = fieldseal.row_class(SEAL, SEALED, "message")
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA foreign_keys=ON")
+        self._conn.execute("PRAGMA secure_delete=ON")             # purged and edited text must not linger in freed pages
         self._conn.executescript(SCHEMA)
         self.fts = True
         try:
             self._conn.execute("CREATE VIRTUAL TABLE IF NOT EXISTS msg_fts USING fts5(subject, body, people)")
         except sqlite3.OperationalError:
-            self.fts = False                                      # no FTS5 in this sqlite: LIKE search
+            self.fts = False                                      # no FTS5 in this sqlite: bounded scan search
+        self._bind_at_rest()
+        self._bind_attachments()
+        self._seal_at_rest()
+        self._bind_secrets()
+
+    def _seal_at_rest(self) -> None:
+        """Seal message text written before sealing existed and rebuild the search index from blind tokens (once)."""
+        if self._conn.execute("SELECT 1 FROM org_settings WHERE org='__sealed_v1__'").fetchone():
+            return
+        raw = self._conn.cursor()
+        raw.row_factory = None
+        for tid, norm in raw.execute("SELECT id, subject_norm FROM thread WHERE subject_norm NOT LIKE 'bn1:%'").fetchall():
+            self._conn.execute("UPDATE thread SET subject_norm=? WHERE id=?", (fieldseal.blind_value(norm, SEAL), tid))
+        if self.fts:
+            self._conn.execute("DROP TABLE IF EXISTS msg_fts")
+            self._conn.execute("CREATE VIRTUAL TABLE msg_fts USING fts5(subject, body, people)")
+            for r in self._conn.execute("SELECT rowid AS rid, id, subject, body_text, body_html, from_addr, from_name, to_addrs, cc_addrs, "
+                                        "bcc_addrs FROM message").fetchall():
+                people = " ".join([r["from_addr"], r["from_name"], *loads(r["to_addrs"], []), *loads(r["cc_addrs"], []),
+                                   *loads(r["bcc_addrs"], [])])
+                self._conn.execute("INSERT INTO msg_fts(rowid, subject, body, people) VALUES (?,?,?,?)",
+                                   (r["rid"], fieldseal.blind_tokens(r["subject"], SEAL, True),
+                                    fieldseal.blind_tokens((r["body_text"] or r["body_html"])[:100_000], SEAL, True),
+                                    fieldseal.blind_tokens(people, SEAL, True)))
+        self._conn.execute("INSERT INTO org_settings(org, data) VALUES ('__sealed_v1__', '{}')")
+        self._conn.commit()
+        self._conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        self._conn.execute("VACUUM")                              # plaintext pages and the old index must not stay in the file
+
+    @staticmethod
+    def att_mac(pk: str, org: str, a: Any) -> str:
+        """MAC of an attachment's metadata bound to its message: moving the row to another message or editing it breaks it."""
+        return fieldseal.row_mac(SEAL, "attachment", pk, org, a["sha256"], a["name"], a["content_type"], int(a["size"]), a["content_id"], int(a["inline"]))
+
+    def _bind_attachments(self) -> None:
+        """Bind attachment rows (KAN-167). Rows of older releases are bound only inside the vault migration window; outside it
+        they stay unbound and are not served (a row nobody can vouch for is treated like a tampered one)."""
+        if "bind" not in {r[1] for r in self._conn.execute("PRAGMA table_info(attachment)")}:
+            self._conn.execute("ALTER TABLE attachment ADD COLUMN bind TEXT")
+        if vault.plaintext_allowed():
+            raw = self._conn.cursor()
+            raw.row_factory = sqlite3.Row
+            for a in raw.execute("SELECT rowid AS rid, * FROM attachment WHERE bind IS NULL").fetchall():
+                self._conn.execute("UPDATE attachment SET bind=? WHERE rowid=?", (self.att_mac(a["message_pk"], a["org"], a), a["rid"]))
+        self._conn.commit()
+
+    def _bind_secrets(self) -> None:
+        """Every connector account owns its vault secret: `account.secret_name` is UNIQUE (so two accounts, or two concurrent
+        requests, cannot claim one secret) and must be namespaced mail.<org>.<mailbox>.<name>. Accounts of older releases
+        keep a legacy name only inside the migration window (first claimant wins); outside it they stay unbound and sync
+        refuses them until the account is created again."""
+        if "secret_name" not in {r[1] for r in self._conn.execute("PRAGMA table_info(account)")}:
+            self._conn.execute("ALTER TABLE account ADD COLUMN secret_name TEXT")
+        self._conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS account_secret ON account(secret_name) WHERE secret_name IS NOT NULL")
+        for a in self._conn.execute("SELECT id, mailbox_id, org, config FROM account WHERE secret_name IS NULL").fetchall():
+            name = loads(a["config"], {}).get("secret_name")
+            if not isinstance(name, str) or not (name.startswith(f"mail.{a['org']}.{a['mailbox_id']}.") or vault.plaintext_allowed()):
+                continue
+            try:
+                self._conn.execute("UPDATE account SET secret_name=? WHERE id=?", (name, a["id"]))
+            except sqlite3.IntegrityError:
+                logger.warning("account %s shares its secret with another account: left unbound", a["id"])
+        self._conn.commit()
+
+    def _bind_at_rest(self) -> None:
+        """Bind every sealed message column to its row (vlv2, once). Needs the migration window while old vlv1 values exist."""
+        if self._conn.execute("SELECT 1 FROM org_settings WHERE org='__bound_v2__'").fetchone():
+            return
+        fieldseal.seal_existing(self._conn, "message", list(SEALED), SEAL, key="id")
+        self._conn.execute("INSERT INTO org_settings(org, data) VALUES ('__bound_v2__', '{}')")
+        self._conn.commit()
 
     @contextlib.contextmanager
     def tx(self) -> Iterator[sqlite3.Connection]:
@@ -124,15 +207,17 @@ class Database:
         if hashlib.sha256(data).hexdigest() != sha:
             raise MailError("bad_hash", "the content does not match its hash")
         try:
-            write_private(self._blob_path(sha), data, exclusive=True)
+            write_private(self._blob_path(sha), vault.seal_bytes(data, "mail:blob", sha), exclusive=True)
         except FileExistsError:
             pass                                                   # same content already stored
 
     def get_blob(self, sha: str) -> bytes:
         try:
-            data = read_private(self._blob_path(sha))
+            data = vault.read_sealed(self._blob_path(sha), "mail:blob", sha)     # bound to its hash; old blobs rebound in the window
         except FileNotFoundError:
             raise MailError("not_found", "no such attachment", 404) from None
+        except vault.VaultError as e:                              # tampered, or plaintext planted in its place
+            raise MailError("corrupt", "the stored attachment failed its integrity check", 500) from e
         if hashlib.sha256(data).hexdigest() != sha:
             raise MailError("corrupt", "the stored attachment failed its integrity check", 500)
         return data

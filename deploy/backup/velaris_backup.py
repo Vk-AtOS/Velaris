@@ -1,7 +1,7 @@
 #!/usr/bin/env python3.11
 """Snapshot and restore VELARIS_DATA. Standard library only.
 
-  velaris_backup.py backup  --data DIR --out DIR [--lock-file FILE]   -> velaris-data-<UTC>.tar.gz + .sha256
+  velaris_backup.py backup  --data DIR --out DIR [--lock-stores] [--lock-file FILE]   -> velaris-data-<UTC>.tar.gz + .sha256
   velaris_backup.py restore --archive FILE --target DIR [--force]
 
 Consistency, per file and across files:
@@ -9,7 +9,11 @@ Consistency, per file and across files:
   * Every other file is copied, and the copy is accepted only if the file did not change while it was read
     (size + mtime before and after); otherwise it is retried, then the backup fails. An atomic-rename store or an
     append-only log (trace.jsonl) therefore never lands half-written.
-  * Across files: --lock-file takes an exclusive flock for the whole snapshot. Point it at the lock file the stores
+  * Across files: --lock-stores takes the flock of EVERY "*.lock" file under the data directory (the cross-process locks
+    JsonState, the trace and the other stores take for writing) for the whole snapshot, all-or-nothing with retries so it can
+    never deadlock against a writer that holds two; writers simply wait the few seconds the copy takes. This is the way to a
+    consistent point-in-time copy of all stores while the services run.
+    --lock-file takes one extra exclusive flock for the whole snapshot. Point it at the lock file the stores
     take for writing (see deploy/README.md, "Backup order"). Without one, stop the writers (systemctl stop) for a
     point-in-time copy of all stores together.
 The encryption key for personal-data stores lives OUTSIDE VELARIS_DATA and is NOT in the archive: back it up separately.
@@ -20,10 +24,12 @@ staging directory and renames it into place; an existing target is refused unles
 from __future__ import annotations
 
 import argparse
+import contextlib
 import fcntl
 import hashlib
 import json
 import os
+import random
 import shutil
 import sqlite3
 import sys
@@ -31,7 +37,7 @@ import tarfile
 import tempfile
 import time
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Iterator, Optional
 
 SKIP_SUFFIXES = (".lock", ".tmp", "-wal", "-shm", "-journal")
 MANIFEST = "MANIFEST.json"
@@ -94,7 +100,33 @@ def snapshot(data: Path, stage: Path) -> Dict[str, Dict[str, object]]:
     return manifest
 
 
-def backup(data: Path, out: Path, lock_file: Optional[Path] = None) -> Path:
+@contextlib.contextmanager
+def lock_stores(data: Path, timeout: float = 60.0) -> Iterator[int]:
+    """Hold the flock of every *.lock file under `data` at once. All-or-nothing: if any is busy every lock taken so far is
+    released and the whole set is retried after a short random pause, so this cannot deadlock with a writer that nests locks."""
+    deadline, fds = time.monotonic() + timeout, []
+    while True:
+        try:
+            for p in sorted(data.rglob("*.lock")):
+                fd = os.open(p, os.O_RDWR)
+                fds.append(fd)
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            break
+        except BlockingIOError:
+            for fd in fds:
+                os.close(fd)
+            fds = []
+            if time.monotonic() > deadline:
+                raise BackupError(f"could not lock every store within {timeout:.0f}s; a writer is busy (or stop the services)") from None
+            time.sleep(random.uniform(0.02, 0.15))
+    try:
+        yield len(fds)
+    finally:
+        for fd in fds:
+            os.close(fd)
+
+
+def backup(data: Path, out: Path, lock_file: Optional[Path] = None, stores: bool = False, lock_timeout: float = 60.0) -> Path:
     if not data.is_dir():
         raise BackupError(f"{data} is not a directory")
     out.mkdir(parents=True, exist_ok=True)
@@ -107,7 +139,8 @@ def backup(data: Path, out: Path, lock_file: Optional[Path] = None) -> Path:
         try:
             if lock:
                 fcntl.flock(lock, fcntl.LOCK_EX)
-            manifest = snapshot(data, stage)
+            with (lock_stores(data, lock_timeout) if stores else contextlib.nullcontext()):
+                manifest = snapshot(data, stage)
         finally:
             if lock:
                 fcntl.flock(lock, fcntl.LOCK_UN)
@@ -175,6 +208,7 @@ def main(argv: Optional[list] = None) -> int:
     b.add_argument("--data", type=Path, default=Path(os.environ.get("VELARIS_DATA", "")))
     b.add_argument("--out", type=Path, required=True)
     b.add_argument("--lock-file", type=Path)
+    b.add_argument("--lock-stores", action="store_true", help="hold every store's write lock during the copy (consistent across stores)")
     r = sub.add_parser("restore")
     r.add_argument("--archive", type=Path, required=True)
     r.add_argument("--target", type=Path, required=True)
@@ -182,7 +216,7 @@ def main(argv: Optional[list] = None) -> int:
     a = p.parse_args(argv)
     try:
         if a.cmd == "backup":
-            print(backup(a.data, a.out, a.lock_file))
+            print(backup(a.data, a.out, a.lock_file, a.lock_stores))
         else:
             restore(a.archive, a.target, a.force)
             print(f"restored to {a.target}")

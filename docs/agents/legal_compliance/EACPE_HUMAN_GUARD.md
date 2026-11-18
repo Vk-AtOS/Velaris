@@ -1,8 +1,8 @@
 # EACPE_HUMAN_GUARD
 
 - **Department:** `legal_compliance`
-- **Status (static inventory):** `rule_based`
-- **Source:** `departments/legal_compliance/EACPE_HUMAN_GUARD/main.py` (173 lines)
+- **Status (static inventory):** `real`
+- **Source:** `departments/legal_compliance/EACPE_HUMAN_GUARD/main.py` (198 lines)
 
 ## Purpose
 
@@ -22,7 +22,9 @@ exempt. validate(action) answers for one concrete action, {"class": ...,
 
 Who acts is never an argument: the requester, the approver and whoever changes a class
 are the current caller (velaris.core.access). request() and decide() refuse without one;
-set_approvers() and exempt() also need the governance admin role. A legacy `by` /
+set_approvers() and exempt() also need the governance admin role. Lifting the guard from a class that is guarded
+(exempt() on it) needs TWO different governance admins: the first call records a proposal, a second admin's call within
+APPROVAL_TTL_S makes it exempt, so one admin cannot switch off the approval of an irreversible action alone. A legacy `by` /
 `approver` / `requested_by` value is accepted only when it is the caller's own id.
 
 Out of the box, DEFAULT_GUARDED classes are guarded with no approvers, so they
@@ -38,7 +40,7 @@ cannot be recorded does not count.
 - `exempt(action_class, by)` — Declare a class reversible: its actions need no approval. Governance admins only.
 - `request(action)` — Ask for approval of one action, as the current caller. Returns the request id the approver acts on.
 - `decide(request_id, approver, approve, now)` — The current caller approves or rejects a request. `approver`, if given, must be the caller.
-- `validate(action, now)` — May this exact action go ahead now? Consumes the approval it relies on.
+- `validate(action, now)` — May this exact action go ahead now? Consumes the approval it relies on (the requester, as the current caller, only).
 
 ## Depends on
 
@@ -56,4 +58,4 @@ cannot be recorded does not count.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_b_prime_vcas.py`, `velaris/tests/test_dept_legal_compliance_stubs.py`, `velaris/tests/test_layer32_eacpe.py`
+- **tests:** `velaris/tests/test_aicore_b_prime_vcas.py`, `velaris/tests/test_dept_legal_compliance_stubs.py`, `velaris/tests/test_kan104_unauthenticated_writes.py`, `velaris/tests/test_layer32_eacpe.py`

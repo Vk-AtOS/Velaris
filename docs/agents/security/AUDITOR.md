@@ -2,11 +2,16 @@
 
 - **Department:** `security`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/security/AUDITOR/main.py` (45 lines)
+- **Source:** `departments/security/AUDITOR/main.py` (48 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Auditor: checks a workflow against required steps and scans log lines for banned terms.
+
+check_compliance(workflow_steps, required_steps) is True only when every required step is
+present; find_violations(log_entries, banned_terms) returns the entries containing any banned
+term (case-sensitive substring). Pure functions, no policy source and no audit trail: it keeps
+no state. Non-iterable input raises TypeError.
 
 ## Class `AuditorAgent`
 
@@ -26,5 +31,5 @@ _No module docstring yet._
 ## Called by
 
 - **other agents:** none found
-- **platform modules:** none found
-- **tests:** `velaris/tests/test_auditor.py`
+- **platform modules:** `velaris/api/allowlist.py`
+- **tests:** `velaris/tests/test_allowlist_departments.py`, `velaris/tests/test_auditor.py`

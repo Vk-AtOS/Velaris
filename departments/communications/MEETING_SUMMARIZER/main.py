@@ -1,3 +1,15 @@
+"""Meeting summarizer: builds a rule-based summary, decisions and action items from a transcript and stores them.
+
+summarize(transcript, meeting_meta) takes a dict with "text" and "segments" (each segment has "text") and optional meta
+(call_id, title, participants, recorded_at, transcript_path). It returns the summary (the five highest keyword-scoring
+sentences in original order), decisions and action_items_raw (segments matching fixed regex phrase lists), word and
+segment counts. With config["llm"] (an LLM) or summarize(use_llm=True) the summary is written by the model through the router at
+sensitivity "restricted" (a meeting is personal data: never a free/community provider); the extractive summary stays in
+"extractive_summary" and a failed model call keeps it as the summary ("llm_status" says what happened). summarize_from_file(path, meta) loads
+a transcript JSON file first; a missing or invalid file raises OSError or ValueError. get_recent_meetings(limit) and
+get_meeting(id) read back rows; an unknown id returns {"error": "not_found"}.
+State: sqlite, encrypted at rest (velaris.core.sealed_sqlite), at <VELARIS_DATA>/agents/MEETING_SUMMARIZER/meetings.db, one row per summarize() call.
+"""
 import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
@@ -5,15 +17,14 @@ import logging
 import json
 import re
 import sqlite3
+
+from velaris.core.sealed_sqlite import connect_sealed
 from datetime import datetime
 from typing import Dict, Any, List, Optional
+from velaris.agentkit import biz_language
 from velaris.intel.paths import agent_file
 
 logger = logging.getLogger("MEETING_SUMMARIZER")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - MEETING_SUMMARIZER - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 
 # Phrases that signal a decision or action item in transcript text
@@ -39,7 +50,7 @@ _ACTION_SIGNALS = [
 
 
 def _db() -> sqlite3.Connection:
-    conn = sqlite3.connect(agent_file("MEETING_SUMMARIZER", "meetings.db"))
+    conn = connect_sealed(agent_file("MEETING_SUMMARIZER", "meetings.db"), "agent:MEETING_SUMMARIZER")
     conn.row_factory = sqlite3.Row
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS meetings (
@@ -122,7 +133,12 @@ class MeetingSummarizer:
     def health_check(self) -> Dict[str, Any]:
         return {"agent": "MEETING_SUMMARIZER", "status": "ok"}
 
-    def summarize(self, transcript: Dict[str, Any], meeting_meta: Optional[Dict] = None) -> Dict[str, Any]:
+    def _model_summary(self, text: str, title: str) -> Dict[str, Any]:
+        prompt = (f"Summarise this meeting ('{title[:80]}') in at most 8 sentences: outcomes, decisions, who owns what. "
+                  f"Use only what the transcript says.\n\n{biz_language.fenced(text[:20000], 'meeting transcript')}")
+        return biz_language.complete(self.config.get("llm"), prompt, purpose="meeting_summary", max_tokens=600, temperature=0.2)
+
+    def summarize(self, transcript: Dict[str, Any], meeting_meta: Optional[Dict] = None, use_llm: bool = False) -> Dict[str, Any]:
         """
         transcript: output from CALL_TRANSCRIBER (has 'text' + 'segments')
         meeting_meta: optional {"call_id", "title", "participants", "recorded_at", "transcript_path"}
@@ -133,14 +149,20 @@ class MeetingSummarizer:
 
         decisions = _extract_decisions(segments)
         action_items_raw = _extract_action_items_raw(segments)
-        summary = _rule_based_summary(text, segments)
+        summary = extractive = _rule_based_summary(text, segments)
+        llm_status = "not_used"
+        if use_llm or self.config.get("llm") is not None:
+            done = self._model_summary(text, meta.get("title", "Meeting"))
+            llm_status = done["status"]
+            if done["status"] == "ok" and done["text"]:
+                summary = done["text"]
 
         result = {
             "call_id": meta.get("call_id", ""),
             "title": meta.get("title", "Meeting"),
             "participants": meta.get("participants", []),
             "recorded_at": meta.get("recorded_at", datetime.now().isoformat()),
-            "summary": summary,
+            "summary": summary, "extractive_summary": extractive, "llm_status": llm_status,
             "decisions": decisions,
             "action_items_raw": action_items_raw,
             "word_count": len(text.split()),

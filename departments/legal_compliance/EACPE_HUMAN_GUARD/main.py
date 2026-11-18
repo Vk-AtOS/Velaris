@@ -14,7 +14,9 @@ exempt. validate(action) answers for one concrete action, {"class": ...,
 
 Who acts is never an argument: the requester, the approver and whoever changes a class
 are the current caller (velaris.core.access). request() and decide() refuse without one;
-set_approvers() and exempt() also need the governance admin role. A legacy `by` /
+set_approvers() and exempt() also need the governance admin role. Lifting the guard from a class that is guarded
+(exempt() on it) needs TWO different governance admins: the first call records a proposal, a second admin's call within
+APPROVAL_TTL_S makes it exempt, so one admin cannot switch off the approval of an irreversible action alone. A legacy `by` /
 `approver` / `requested_by` value is accepted only when it is the caller's own id.
 
 Out of the box, DEFAULT_GUARDED classes are guarded with no approvers, so they
@@ -68,8 +70,8 @@ class EACPE_HUMAN_GUARDAgent:
         by = caller.id
         if not audit(NAME, "class.guarded", {"class": action_class, "approvers": approvers, "by": by}):
             return fail("audit_failed", "the change could not be recorded, so it was not made")
-        self._state.update(lambda d: d.__setitem__("classes", {**self._classes(d),
-                                                              action_class: {"mode": "guarded", "approvers": approvers}}))
+        self._state.update(lambda d: (d.__setitem__("classes", {**self._classes(d), action_class: {"mode": "guarded", "approvers": approvers}}),
+                                      d.get("exempt_proposals", {}).pop(action_class, None)))
         return ok(action_class=action_class, approvers=approvers)
 
     def exempt(self, action_class: str, by: Optional[str] = None) -> Dict[str, Any]:
@@ -80,11 +82,23 @@ class EACPE_HUMAN_GUARDAgent:
         if refused:
             return refused
         by = caller.id
-        if not audit(NAME, "class.exempt", {"class": action_class, "by": by}):
-            return fail("audit_failed", "the change could not be recorded, so it was not made")
-        self._state.update(lambda d: d.__setitem__("classes", {**self._classes(d),
-                                                              action_class: {"mode": "exempt", "approvers": []}}))
-        return ok(action_class=action_class, mode="exempt")
+        now = time.time()
+
+        def apply(d: Dict[str, Any]) -> Dict[str, Any]:
+            if self._classes(d).get(action_class, {}).get("mode") == "guarded":      # lifting a guard needs a second person
+                prop = d.get("exempt_proposals", {}).get(action_class)
+                if prop is None or now - prop["ts"] > APPROVAL_TTL_S or prop["by"] == by:
+                    if not audit(NAME, "class.exempt_proposed", {"class": action_class, "by": by}):
+                        return fail("audit_failed", "the proposal could not be recorded")
+                    d.setdefault("exempt_proposals", {})[action_class] = {"by": by, "ts": now}
+                    return {"status": "pending_second_person", "action_class": action_class, "proposed_by": by,
+                            "reason": "a different governance admin must repeat this call to lift the guard"}
+            if not audit(NAME, "class.exempt", {"class": action_class, "by": by}):
+                return fail("audit_failed", "the change could not be recorded, so it was not made")
+            d.get("exempt_proposals", {}).pop(action_class, None)
+            d["classes"] = {**self._classes(d), action_class: {"mode": "exempt", "approvers": []}}
+            return ok(action_class=action_class, mode="exempt")
+        return self._state.update(apply)
 
     @staticmethod
     def _shape(action: Any) -> str:

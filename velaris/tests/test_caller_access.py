@@ -202,3 +202,12 @@ def test_backend_runs_async_methods_as_the_caller(monkeypatch):
     assert backend.run("ASYNC", "read", {"employee_id": "E1"}, caller=ASHA) == "u-asha"
     with pytest.raises(AccessDenied):
         backend.run("ASYNC", "read", {"employee_id": "E2"}, caller=ASHA)
+
+
+def test_scorecard_does_not_rank_withheld_data_as_zero():
+    """KAN-96: a withheld/failed section scored 0 and put the employee last as if they performed badly."""
+    engine, _ = metrics_engine()
+    cards = engine.get_team_scorecard(["E1", "E2"], 3, 2026)                    # no caller: every personal section is withheld
+    assert all(c["composite_score"] is None and c["ranked"] is False and c["missing"] for c in cards)
+    heat = engine.get_org_heatmap(["E1", "E2"], 3, 2026)
+    assert heat["unranked"] == 2 and heat["at_risk"] == [] and heat["top_performers"] == []

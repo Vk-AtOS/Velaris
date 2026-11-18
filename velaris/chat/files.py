@@ -17,8 +17,10 @@ from typing import Any, Dict, Optional, Tuple
 
 from velaris.chat.core import ChatCore
 from velaris.chat.errors import ChatError
+from velaris.chat.store import NAME_SEAL
+from velaris.core import fieldseal, vault
 from velaris.core.access import Caller
-from velaris.intel.paths import private_dir, read_private, write_private
+from velaris.intel.paths import private_dir
 
 DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -56,9 +58,19 @@ def sniff(data: bytes, name: str = "") -> Optional[str]:
     return None
 
 
+def file_name(row: Any) -> str:
+    """The plaintext file name of a `files` row (it must carry hash and uploader: the name is bound to them). Plaintext or an
+    unbound value is refused outside the migration window."""
+    return fieldseal.unseal(row["name"], NAME_SEAL, fieldseal.bind_for("files", "name", row["hash"], row["uploader"]))
+
+
 def clean_name(name: Any) -> str:
     base = re.sub(r"[\x00-\x1f\x7f/\\]", "", str(name or "")).strip().lstrip(".")
     return (base or "file")[:120]
+
+
+def _blob_purpose(digest: str) -> str:
+    return f"chat:blob:{digest}"      # bound to the content hash: a blob copied over another's path does not open
 
 
 class FilesMixin(ChatCore):
@@ -84,19 +96,21 @@ class FilesMixin(ChatCore):
         self._spend(caller, 2)
         digest = hashlib.sha256(data).hexdigest()
         with self._write() as db:
-            db.execute("INSERT OR IGNORE INTO files VALUES(?,?,?,?,?,?,?)",
-                       (digest, caller.org, len(data), found, name, caller.id, self.clock()))
+            row = {"hash": digest, "org": caller.org, "size": len(data), "ctype": found, "uploader": caller.id}
+            db.execute("INSERT OR IGNORE INTO files VALUES(?,?,?,?,?,?,?,?)",
+                       (digest, caller.org, len(data), found, fieldseal.seal(name, NAME_SEAL, fieldseal.bind_for("files", "name", digest, caller.id)),
+                        caller.id, self.clock(), self.store.file_mac(row)))
             self._audit("file.upload", caller.id, caller.org, file=digest, bytes=len(data), type=found)
             if not self._blob(digest).exists():
-                write_private(self._blob(digest), data)
+                vault.write_sealed(self._blob(digest), data, _blob_purpose(digest), digest)
         return {"hash": digest, "size": len(data), "content_type": found, "name": name}
 
     def download(self, caller: Caller, digest: Any) -> Tuple[Dict[str, Any], bytes]:
         caller = self._enter(caller)
-        meta = self.store.one("SELECT * FROM files WHERE hash=? AND org=? ORDER BY created_at LIMIT 1",
-                              (digest, caller.org)) if isinstance(digest, str) and _HASH.match(digest) else None
+        rows = self.store.file_rows(caller.org, digest) if isinstance(digest, str) and _HASH.match(digest) else []      # verified rows only
+        meta = rows[0] if rows else None
         allowed = meta is not None and (
-            self.store.one("SELECT 1 FROM files WHERE hash=? AND org=? AND uploader=?", (digest, caller.org, caller.id)) is not None
+            any(r["uploader"] == caller.id for r in rows)
             or self.store.one(
                 "SELECT 1 FROM messages m JOIN members mb ON mb.channel_id=m.channel_id WHERE mb.user_id=? AND m.org=? "
                 "AND m.deleted_at IS NULL AND m.erased=0 AND m.attachments LIKE ? LIMIT 1",
@@ -106,7 +120,9 @@ class FilesMixin(ChatCore):
                 self._denied(caller, "download", "not uploader or channel member")
             raise ChatError(404, "no_such_file", "no such file")
         try:
-            data = read_private(self._blob(digest))
+            data = vault.read_sealed(self._blob(digest), _blob_purpose(digest), digest)   # old plaintext/unbound blobs are rebound in the window
         except OSError:
             raise ChatError(404, "no_such_file", "no such file") from None
-        return {"hash": digest, "size": meta["size"], "content_type": meta["ctype"], "name": meta["name"]}, data
+        if hashlib.sha256(data).hexdigest() != digest:       # a blob swapped or damaged on disk is never served
+            raise ChatError(404, "no_such_file", "no such file")
+        return {"hash": digest, "size": meta["size"], "content_type": meta["ctype"], "name": file_name(meta)}, data

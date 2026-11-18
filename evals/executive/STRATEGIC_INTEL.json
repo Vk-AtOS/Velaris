@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "agent": "STRATEGIC_INTEL",
+  "cases": [
+    {
+      "id": "select-run",
+      "input": "Use the run operation of STRATEGIC_INTEL with {\"payload\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "run",
+            "args": {
+              "payload": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "hand-brief",
+      "input": "Brief me on pricing pressure in the logistics market.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "run",
+            "args": {
+              "payload": {
+                "question": "pricing pressure in the logistics market"
+              }
+            }
+          }
+        ],
+        "answer_contains": [
+          "brief"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "name": "FAILOVER_ROUTER",
+  "version": "0.1.0",
+  "description": "FAILOVER_ROUTER: send a service's traffic to its first working target.",
+  "entrypoint": "main.py:FAILOVER_ROUTERAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "FAILOVER_ROUTER: send a service's traffic to its first working target.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/it_infrastructure/FAILOVER_ROUTER.json",
+    "wave": "KAN-39",
+    "status": "deterministic_tool",
+    "tools": {
+      "configure": {
+        "kind": "act"
+      },
+      "report": {
+        "kind": "act"
+      },
+      "route": {
+        "kind": "act"
+      },
+      "status": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "it_infrastructure"
+}

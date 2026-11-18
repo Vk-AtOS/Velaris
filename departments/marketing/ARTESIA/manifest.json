@@ -5,5 +5,27 @@
   "description": "Public methods: fuse_styles, aesthetic_score, style_profile (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:ArtesiaAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Artesia: trivial style helpers (name fusion, weighted attribute sum, feature profile).",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/marketing/ARTESIA.json",
+    "wave": "KAN-42",
+    "status": "deterministic_tool",
+    "tools": {
+      "aesthetic_score": {
+        "kind": "read"
+      },
+      "fuse_styles": {
+        "kind": "read"
+      },
+      "style_profile": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

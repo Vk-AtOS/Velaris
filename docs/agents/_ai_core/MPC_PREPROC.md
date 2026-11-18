@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `real`
-- **Source:** `departments/_ai_core/MPC_PREPROC/main.py` (92 lines)
+- **Source:** `departments/_ai_core/MPC_PREPROC/main.py` (96 lines)
 
 ## Purpose
 
@@ -12,7 +12,7 @@ MPC is read here as "multi-source processing": MPC_PREPROC cleans each
 source's record, MPC_FUSION merges them, MPC_CORE runs both.
 
 Per record: keys become snake_case, text is unicode-normalised and
-whitespace-collapsed, empty values are dropped, numeric text ("1,200.50")
+whitespace-collapsed, empty values are dropped, numeric text ("1,200.50"; not in identifier-named fields such as pin, zip, phone)
 becomes a number, dd/mm/yyyy dates become yyyy-mm-dd. With redact=True
 secrets and personal identifiers in text are masked (velaris.intel.guard).
 In a list, exact duplicates (after cleaning) are removed. Every change is counted.

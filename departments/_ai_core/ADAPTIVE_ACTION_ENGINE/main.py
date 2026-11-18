@@ -44,6 +44,10 @@ class ADAPTIVE_ACTION_ENGINEAgent:
         passed_over = []
         for action in ranked["order"]:
             result = self.runtime.run(action, approved_by)
+            if result["status"] == "needs_approval":
+                # Stop here. The best-ranked allowed action waits for a person; running a lower-ranked one instead
+                # would quietly swap what was chosen for something nobody ranked first.
+                return {**result, "chosen": action["type"], "passed_over": passed_over, "ranking": ranked["ranking"]}
             if result["status"] not in ("ok", "failed"):       # refused or not attempted (denied, no_request, in_progress...): not a failure of the action
                 passed_over.append({"type": action["type"], "status": result["status"], "reason": result["reason"]})
                 continue

@@ -1,0 +1,74 @@
+{
+  "schema": 1,
+  "agent": "FLUXOR",
+  "cases": [
+    {
+      "id": "select-balance_load",
+      "input": "Use the balance_load operation of FLUXOR with {\"loads\": [], \"target\": 1}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "balance_load",
+            "args": {
+              "loads": [],
+              "target": 1
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-compute_throughput",
+      "input": "Use the compute_throughput operation of FLUXOR with {\"loads\": []}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "compute_throughput",
+            "args": {
+              "loads": []
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-detect_spike",
+      "input": "Use the detect_spike operation of FLUXOR with {\"loads\": []}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "detect_spike",
+            "args": {
+              "loads": []
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

@@ -17,6 +17,7 @@ import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
 import base64
+import hashlib
 import functools
 import hmac
 import logging
@@ -28,19 +29,23 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from velaris.agentkit import onboarding_dsr as dsr
 from velaris.agentkit import onboarding_esign as es
-from velaris.agentkit.onboarding_common import (dsr_gate, HR_ADMINS, Refused, Store, clean_text, iso, keyed_hash, new_id, parse_iso, reader,
+from velaris.agentkit.onboarding_common import (dsr_gate, HR_ADMINS, Refused, clean_text, iso, keyed_hash, new_id, parse_iso, reader,
                                                 sha256_hex, utcnow, writer)
+from velaris.agentkit.onboarding_shard import ShardedStore
 from velaris.agentkit.results import fail, health, invalid, ok
 from velaris.agentkit.state import append_line
 from velaris.core.access import Caller, current_caller, deployment_org
 from velaris.intel import trace
-from velaris.intel.paths import read_private, write_private
+from velaris.core import vault
 
 logger = logging.getLogger("ESIGN")
 _AGENT = "ESIGN"
 _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 MAX_DOC = 5 * 1024 * 1024
+FILE_SEAL = "hr:ESIGN:file"            # purpose of the document and sealed-PDF encryption
+OUTBOX_SEAL = "hr:ESIGN:outbox"       # purpose of the outbox encryption; an operator's relay reads it with state.read_lines(path, encrypted=OUTBOX_SEAL)
 MAX_FAILS, MAX_OTP_TRIES, OTP_MINUTES, MAX_REMINDERS = 10, 5, 10, 3
+LOCK_MINUTES = 30      # a locked signer is unlocked this long after the last wrong attempt, or at once by a new signing code
 _PENDING = ("sent", "viewed", "consented")
 
 
@@ -60,7 +65,7 @@ class Esign:
 
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         self.config = config or {}
-        self.store = Store(_AGENT)
+        self.store = ShardedStore(_AGENT, ("requests",), lambda r: [s["token_sha256"] for s in r.get("signers", []) if s.get("token_sha256")])
 
     def health_check(self) -> Dict[str, Any]:
         return health(_AGENT, sender=bool(self.config.get("sender")), platform_signature=bool(self.config.get("pdf_signer")),
@@ -76,10 +81,20 @@ class Esign:
     def _sealed_path(self, req_id: str, signed: bool = False) -> Path:
         return self.store.files_dir("sealed") / f"{req_id}{'.signed' if signed else ''}.pdf"
 
+    @staticmethod
+    def _write(path: Path, data: bytes) -> None:
+        """Contracts, offers and signed PDFs are personal data: sealed at rest and bound to their file (KAN-69 SV2-04)."""
+        vault.write_sealed(path, data, FILE_SEAL, vault.path_context(path))
+
     def _read(self, path: Path) -> Optional[bytes]:
         try:
-            return read_private(path)
+            return vault.read_sealed(path, FILE_SEAL, vault.path_context(path))
         except FileNotFoundError:
+            return None
+        except vault.PlaintextRefused:
+            raise
+        except vault.VaultError as e:                    # tampered or moved: never served; verification reports it as invalid
+            logger.warning("%s does not open: %s", path.name, e)
             return None
 
     # ---- delivery ---------------------------------------------------------------------------
@@ -95,7 +110,7 @@ class Esign:
                 logger.warning("sender failed for %s %s: %s", kind, req_id, e)
         append_line(self.store.files_dir("outbox") / "outbox.jsonl",
                     {"kind": kind, "to": to, "subject": subject, "body": body, "request": req_id, "signer": signer_id,
-                     "at": iso(self._now())})
+                     "at": iso(self._now())}, encrypted=OUTBOX_SEAL)       # signing codes and addresses: sealed at rest
         return "queued_in_outbox"
 
     def _invite_body(self, req: Dict[str, Any], signer: Dict[str, Any], token: str) -> str:
@@ -125,7 +140,7 @@ class Esign:
         except (ValueError, TypeError) as e:
             return invalid(str(e))
         sha = sha256_hex(raw)
-        write_private(self._doc_path(sha), raw)
+        self._write(self._doc_path(sha), raw)
         req = {"id": new_id("sig"), "org": who.org, "title": title, "document_ref": str(document_ref)[:80] or None,
                "document_sha256": sha, "document_size": len(raw), "status": "draft", "created_by": who.id,
                "created_at": iso(self._now()), "valid_days": int(valid_days), "expires_at": None, "signers": sg,
@@ -202,7 +217,7 @@ class Esign:
                     continue
                 token = secrets.token_urlsafe(32)
                 self.store.update("requests", r["id"], who.org, lambda x, sid=s["id"], t=token: [
-                    y.update(token_sha256=sha256_hex(t.encode()), last_notified_at=iso(now), reminders=y["reminders"] + 1)
+                    y.update(token_sha256=sha256_hex(t.encode()), last_notified_at=iso(now), reminders=y["reminders"] + 1, failed=0)
                     for y in x["signers"] if y["id"] == sid])
                 d = self._deliver("reminder", s["email"], f"Reminder: {r['title']}", self._invite_body(r, s, token), r["id"], s["id"])
                 sent.append({"request": r["id"], "signer": s["id"], "delivery": d})
@@ -260,9 +275,8 @@ class Esign:
             return None
         sha = sha256_hex(token.encode())
         dep = deployment_org()
-        for r in self.store.load().get("records", {}).get("requests", {}).values():
-            if dep is not None and r.get("org") != dep:
-                continue
+        r = self.store.by_token(sha)
+        if r is not None and not (dep is not None and r.get("org") != dep):
             for s in r["signers"]:
                 if s["token_sha256"] and hmac.compare_digest(s["token_sha256"], sha):
                     return r["id"], s["id"], r["org"]
@@ -285,10 +299,13 @@ class Esign:
             s = next(x for x in r["signers"] if x["id"] == sid)
             if r["status"] != "sent" or ctx["now"] > parse_iso(r["expires_at"]):
                 raise Refused(fail("not_open", f"the request is {r['status']}" if r["status"] != "sent" else "the request has expired"))
+            if s["failed"] >= MAX_FAILS and ctx["now"] - parse_iso(s.get("failed_at") or iso(ctx["now"])) > timedelta(minutes=LOCK_MINUTES):
+                s["failed"] = 0                        # the lock decays: someone holding a leaked link cannot lock the signer out for good
             if s["failed"] >= MAX_FAILS:
-                raise Refused(fail("locked", "too many wrong attempts; ask for a new signing code"))
-            if not isinstance(email, str) or not hmac.compare_digest(email.strip().lower(), s["email"]):
+                raise Refused(fail("locked", "too many wrong attempts; ask for a new signing code or try again later"))
+            if not isinstance(email, str) or not hmac.compare_digest(email.strip().lower().encode(), s["email"].encode()):   # bytes: non-ASCII is a mismatch, not a TypeError
                 s["failed"] += 1                       # returned (not raised) so the counter is saved
+                s["failed_at"] = iso(ctx["now"])
                 self._trace_step(req_id, sid, org, "identity_mismatch", s["state"], must=False)
                 return fail("identity_mismatch", "the e-mail does not belong to this signing code")
             if s["state"] not in need:
@@ -307,7 +324,7 @@ class Esign:
         except (OSError, ValueError, TypeError) as e:
             logger.warning("signing step of %s not traced: %s", req_id, type(e).__name__)
             if must:
-                raise Refused(fail("audit_failed", "the step could not be recorded, so it was not made"))
+                raise Refused(fail("audit_failed", "the step could not be recorded, so it was not made")) from e
 
     def _step(self, token: Any, email: Any, ip: Any, ua: Any, step: Callable[..., Any], need: Tuple[str, ...]) -> Dict[str, Any]:
         return self._ceremony(token, email, ip, ua, step, need)[0]
@@ -425,9 +442,9 @@ class Esign:
         res = es.seal(original, req["title"], evidence, req["created_at"], now)
         sig = es.platform_signature(res["sealed_pdf"], res["seal_hash"], self.config.get("pdf_signer"))
         try:
-            write_private(self._sealed_path(req_id), res["sealed_pdf"])
+            self._write(self._sealed_path(req_id), res["sealed_pdf"])
             if sig.get("signed_pdf"):
-                write_private(self._sealed_path(req_id, True), sig["signed_pdf"])
+                self._write(self._sealed_path(req_id, True), sig["signed_pdf"])
             trace.append("esign", "esign.sealed", {"request": req_id, "org": org, "seal_hash": res["seal_hash"],
                                                    "document_sha256": res["document_sha256"], "sealed_sha256": res["sealed_sha256"]})
         except (OSError, ValueError) as e:
@@ -475,9 +492,14 @@ class Esign:
 
     # ---- reads ---------------------------------------------------------------------------------------
     def request_info(self, request_id: str, org: str) -> Optional[Dict[str, Any]]:
-        """Status and document_ref of a request of `org` for another agent (OFFER_LETTERS); not an HTTP method. No names, no tokens."""
+        """Status, document_ref, the document's SHA-256 and a SHA-256 of each signer's e-mail, for another agent (OFFER_LETTERS) that
+        must check it is the right document signed by the right person; not an HTTP method. No names, no addresses, no tokens."""
         req = self.store.get("requests", request_id, org)
-        return {"status": req["status"], "document_ref": req["document_ref"]} if req else None
+        if not req:
+            return None
+        return {"status": req["status"], "document_ref": req["document_ref"], "document_sha256": req["document_sha256"],
+                "signer_email_sha256": sorted(hashlib.sha256(s["email"].lower().encode()).hexdigest() for s in req["signers"]
+                                              if s.get("state") == "signed")}
 
     # ---- data-subject support (called by EMPLOYEE_RECORDS; not an HTTP method) ----------------------
     def dsr_export(self, org: str, subject_id: str, links: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:

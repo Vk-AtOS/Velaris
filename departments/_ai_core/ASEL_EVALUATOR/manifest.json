@@ -1,0 +1,25 @@
+{
+  "name": "ASEL_EVALUATOR",
+  "display_name": "Asel Evaluator",
+  "version": "0.1.0",
+  "description": "ASEL evaluator: says whether an executed plan achieved what it was for.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:ASEL_EVALUATORAgent",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "ASEL evaluator: says whether an executed plan achieved what it was for.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/ASEL_EVALUATOR.json",
+    "wave": "KAN-43",
+    "status": "deterministic_tool",
+    "tools": {
+      "evaluate": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

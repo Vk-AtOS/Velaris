@@ -1,0 +1,34 @@
+{
+  "name": "LOCAL_BIOMETRICS_INTERFACE",
+  "display_name": "Local Biometrics Interface",
+  "version": "0.1.0",
+  "description": "Public methods: enroll, verify, update, list_users",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:LocalBiometricsInterface",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Local biometrics interface: enrols and verifies per-user biometric templates by exact string match.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/LOCAL_BIOMETRICS_INTERFACE.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "enroll": {
+        "kind": "act"
+      },
+      "list_users": {
+        "kind": "read"
+      },
+      "update": {
+        "kind": "act"
+      },
+      "verify": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

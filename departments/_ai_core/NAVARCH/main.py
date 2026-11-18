@@ -1,12 +1,15 @@
+"""Navarch: finds the cheapest path through a weighted graph and passes step lists through.
+
+compute_path(graph, start, goal) runs Dijkstra over {node: {neighbour: weight}} and returns {"path": [...], "cost": n},
+or None when the goal cannot be reached. Every weight must be a number of zero or more: a negative, NaN or non-numeric one raises ValueError. sequence_steps(steps)
+only logs the list and returns it unchanged (a stub). health_check() returns {"agent", "status": "ok", "version"}.
+Keeps no state. A malformed graph (a non-dict neighbour map) raises from the underlying dict or arithmetic.
+"""
 import logging
-from typing import Dict, List, Tuple, Any
+from typing import Dict, List, Any
 import heapq
 
 logger = logging.getLogger("NAVARCH")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - NAVARCH - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class NavarchAgent:
     def __init__(self, config: Dict[str, Any] = None):
@@ -27,6 +30,11 @@ class NavarchAgent:
             "B": {"A": 5, "D": 1}, ...
         }
         """
+        for edges in graph.values():
+            for w in edges.values():
+                # Dijkstra is only correct for non-negative edge costs; a negative or non-numeric one gave wrong paths.
+                if isinstance(w, bool) or not isinstance(w, (int, float)) or w != w or w < 0:
+                    raise ValueError("edge weights must be numbers, zero or more")
         pq = [(0, start, [])]
         visited = set()
 

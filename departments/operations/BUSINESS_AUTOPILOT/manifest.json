@@ -5,5 +5,21 @@
   "description": "Threshold rules over business metrics that PROPOSE actions.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:BusinessAutopilotAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "BUSINESS_AUTOPILOT: threshold rules over business metrics that PROPOSE actions.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/operations/BUSINESS_AUTOPILOT.json",
+    "wave": "KAN-41",
+    "status": "deterministic_tool",
+    "tools": {
+      "run": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

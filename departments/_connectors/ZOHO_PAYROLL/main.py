@@ -1,11 +1,32 @@
+"""Zoho Payroll connector: reads one employee's payslip, YTD summary, statutory deductions and cost to company from the Zoho Payroll (India) API.
+
+ZohoPayrollConnector(config): health_check() returns status "ok" or "unconfigured"
+from the Zoho connector's credentials (no network call);
+get_payslip(employee_id, year, month), get_ytd_summary(employee_id, financial_year),
+get_statutory_deductions(employee_id, year, month) (EPF, ESI, TDS, PT lines of the payslip)
+and get_cost_to_company(employee_id, year, month) all take a keyword caller=. Requests go
+through velaris.agents.ZOHO_CONNECTOR; org_id comes from config or ZOHO_ORG_ID.
+Each method first calls velaris.core.access.authorize_read("pay", employee_id, ...):
+the employee themself or a payroll or HR administrator may read; the decision is traced.
+State: keeps no state; data is fetched on every call.
+Failure: a missing or unauthorised caller raises AccessDenied before any request is made;
+a response without the expected key yields {} (or 0 for cost to company); HTTP errors
+propagate from the Zoho connector.
+"""
+
 import logging
 import os
+import re
 from typing import Dict, Any, Optional
 
 from velaris.agents.ZOHO_CONNECTOR.main import ZohoConnector
 from velaris.core.access import Caller, authorize_read
 
 logger = logging.getLogger("ZOHO_PAYROLL")
+
+
+# Whole words only: "PT" must not match "OPTIONAL BONUS" or "PF" "SPF REFUND"; a deduction is statutory by its name.
+_STATUTORY = re.compile(r"(?<![A-Z])(EPF|PF|ESI|TDS|PT|PROFESSIONAL TAX)(?![A-Z])")
 
 
 class ZohoPayrollConnector:
@@ -30,7 +51,8 @@ class ZohoPayrollConnector:
         self.org = self.config.get("org")      # Velaris organisation this payroll belongs to; None = single org
 
     def health_check(self) -> Dict[str, Any]:
-        return {"agent": "ZOHO_PAYROLL", "status": "ok"}
+        configured = self.zoho.health_check()["configured"]
+        return {"agent": "ZOHO_PAYROLL", "status": "ok" if configured else "unconfigured", "configured": configured}
 
     def _allow(self, employee_id: str, caller: Optional[Caller]) -> None:
         authorize_read("pay", employee_id, agent="ZOHO_PAYROLL", caller=caller, org=self.org)
@@ -68,7 +90,7 @@ class ZohoPayrollConnector:
         statutory = {}
         for d in deductions:
             name = d.get("name", "").upper()
-            if any(k in name for k in ["EPF", "PF", "ESI", "TDS", "PROFESSIONAL TAX", "PT"]):
+            if _STATUTORY.search(name):
                 statutory[d["name"]] = d.get("amount", 0)
         return {"employee_id": employee_id, "year": year, "month": month, "statutory": statutory}
 

@@ -1,0 +1,25 @@
+{
+  "name": "ACTION_MODELING_CORE",
+  "display_name": "Action Modeling Core",
+  "version": "0.1.0",
+  "description": "Action modelling core: orders the actions needed for an intent by their preconditions.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:ActionModelingCore",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Action modelling core: orders the actions needed for an intent by their preconditions.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/ACTION_MODELING_CORE.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "model": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

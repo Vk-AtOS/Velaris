@@ -1,0 +1,32 @@
+{
+  "name": "DISTRIBUTED_FABRIC",
+  "version": "0.1.0",
+  "description": "DISTRIBUTED_FABRIC: which node owns which key (consistent hashing).",
+  "entrypoint": "main.py:DISTRIBUTED_FABRICAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "DISTRIBUTED_FABRIC: which node owns which key (consistent hashing).",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/it_infrastructure/DISTRIBUTED_FABRIC.json",
+    "wave": "KAN-39",
+    "status": "deterministic_tool",
+    "tools": {
+      "distribution": {
+        "kind": "act"
+      },
+      "join": {
+        "kind": "act"
+      },
+      "leave": {
+        "kind": "act"
+      },
+      "locate": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "it_infrastructure"
+}

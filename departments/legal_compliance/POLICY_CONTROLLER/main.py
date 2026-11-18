@@ -15,7 +15,7 @@ before allow, then id, and the first rule whose conditions all hold decides. If
 none holds, the answer is deny by the implicit "default_deny" rule. The result
 always names the deciding rule, its version and the policy-set revision.
 
-put_policy() and retire() are for governance admins only; who made a change is the
+put_policy() and retire() are for governance admins only, and a change that cannot be written to the trace is not made (audit_failed); who made a change is the
 current caller (velaris.core.access), never an argument.
 """
 from __future__ import annotations
@@ -65,16 +65,15 @@ class POLICY_CONTROLLERAgent:
             versions = data.setdefault("policies", {}).get(pid, [])
             if policy is None and (not versions or versions[-1]["policy"] is None):
                 return fail("unknown_policy", "no active policy with this id")
+            if not audit(NAME, "policy.retire" if policy is None else "policy.put",
+                         {"policy_id": pid, "version": len(versions) + 1, "by": by}):
+                return fail("audit_failed", "the change could not be recorded, so it was not made")    # no trace, no new rule
             data["policies"][pid] = versions
             data["rev"] = data.get("rev", 0) + 1
             versions.append({"version": len(versions) + 1, "rev": data["rev"], "policy": policy, "by": by,
                              "ts": time.time()})
             return ok(policy_id=pid, version=len(versions), rev=data["rev"])
-        result = self._state.update(add)
-        if result["status"] == "ok":
-            audit(NAME, "policy.retire" if policy is None else "policy.put",
-                  {"policy_id": pid, "version": result["version"], "by": by})
-        return result
+        return self._state.update(add)
 
     def put_policy(self, pid: str, policy: Dict[str, Any], by: Optional[str] = None) -> Dict[str, Any]:
         """Store a new version of a policy, as the current caller (a governance admin)."""

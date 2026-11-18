@@ -1,12 +1,15 @@
+"""Memory fabric: in-process key-value memory shared between agents, with no persistence.
+
+MEMORY_FABRICAgent offers write_bucket(bucket, data) and read_bucket(bucket) (returns {} for an unknown bucket).
+MemoryFabric, the store other agents use (the only implementation, not a stand-in), offers get_store(namespace) (a dict, created on demand), put(namespace, key, value,
+ttl) (ttl in seconds, None means never expires), get(namespace, key) (the value, or None if absent or expired) and
+query(namespace, prefix) (unexpired {key: value}, optionally only keys starting with prefix). health_check() returns ok.
+State: Python dicts in memory only; everything is lost when the process ends. It does no validation and raises nothing
+on bad input beyond the normal TypeError for unhashable keys.
+"""
 import logging
 import time
-from typing import Any, Dict
 logger = logging.getLogger("MEMORY_FABRIC")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - MEMORY_FABRIC - %(levelname)s - %(message)s"))
-if not logger.handlers:
-    logger.addHandler(handler)
 
 class MEMORY_FABRICAgent:
     def __init__(self):
@@ -24,22 +27,22 @@ class MEMORY_FABRICAgent:
     def read_bucket(self, bucket: str):
         return self._buckets.get(bucket, {})
 
-# ---- appended stub (repair) ----
+# ---- MemoryFabric: the store other agents use (get_store / put / get / query with optional TTL) ----
 
 
 class MemoryFabric:
     """
-    Minimal MemoryFabric compatibility shim (repair).
-    Provides a simple API expected by other agents:
+    The in-process key/value store with optional expiry that other agents use. It is the only implementation (there is no other
+    "real" MemoryFabric): it lives in this process's memory and is lost on restart; durable data belongs in JsonState.
+    Provides the API other agents expect:
       - health_check()
       - get_store(name) -> dict-like object
       - put(namespace, key, value, ttl=None) / get(namespace, key) / query(namespace, prefix=None)
-    This stub will be used only if the real MemoryFabric export is missing.
     """
     def __init__(self):
         self._stores = {}
         self._expires = {}   # (namespace, key) -> monotonic deadline
-        logger.debug("MemoryFabric (shim) initialized")
+        logger.debug("MemoryFabric initialized")
 
     def health_check(self):
         return { "agent": "MEMORY_FABRIC", "status": "ok", "version": "0.1.0" }

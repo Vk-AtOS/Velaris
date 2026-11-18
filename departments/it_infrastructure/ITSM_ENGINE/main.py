@@ -13,8 +13,10 @@ extends the due time. States and allowed moves are in TRANSITIONS.
 Every change is appended to the ticket's own history (who, when, from, to, note)
 and to the hash-chained trace, so the record of a ticket cannot be quietly rewritten.
 "Who" is the current caller (velaris.core.access): any authenticated person or service
-may open and move tickets, nobody can do it anonymously, and a legacy `by` argument
-must name that same caller.
+may open a ticket and nobody can do it anonymously; a legacy `by` argument must name that
+same caller. Moving a ticket needs the infra_admin role (or security_admin); the person who
+opened a ticket may also cancel it or reopen it once resolved, nothing else. Free text
+(notes, the configuration item) is stored with secrets and personal identifiers masked.
 """
 from __future__ import annotations
 
@@ -25,8 +27,8 @@ from typing import Any, Dict, List, Optional
 from velaris.agentkit.checks import is_name, is_number
 from velaris.agentkit.results import fail, invalid, ok
 from velaris.agentkit.state import JsonState
-from velaris.core.access import check_caller, current_caller, deployment_org, org_denied
-from velaris.agentkit.infra_store import audit
+from velaris.core.access import INFRA_ADMINS, check_caller, current_caller, deployment_org, org_denied
+from velaris.agentkit.infra_store import audit, redact_json
 
 NAME = "ITSM_ENGINE"
 PRIORITY_BANDS = ((900, "P1"), (600, "P2"), (300, "P3"), (0, "P4"))
@@ -43,12 +45,15 @@ TRANSITIONS = {
 
 
 def _mine(tk: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
-    """`tk` if the current caller may see it. With VELARIS_ORG set the store is this deployment's
+    """`tk` if the current caller may see it: opened by them, or they are an infra_admin. With VELARIS_ORG set the store is this deployment's
     organisation only: an unstamped ticket, or a caller of another organisation or none, sees nothing."""
+    who = current_caller()
+    if tk is not None and who is not None and not who.roles & INFRA_ADMINS and tk["history"][0]["by"] != who.id:
+        return None                                    # a member sees the tickets they opened; infra_admin sees all (SV2-10)
     dep = deployment_org()
     if tk is None or dep is None:
         return tk
-    return tk if tk.get("org") == dep and not org_denied(current_caller()) else None
+    return tk if tk.get("org") == dep and not org_denied(who) else None
 
 
 @dataclass
@@ -74,7 +79,7 @@ class ITSMEngine:
 
     def __init__(self) -> None:
         self.name = NAME
-        self._state = JsonState(NAME, "tickets.json")
+        self._state = JsonState(NAME, "tickets.json", encrypted="agent:ITSM_ENGINE")
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": NAME, "status": "ok", "version": "1.0.0"}
@@ -134,7 +139,7 @@ class ITSMEngine:
             if t.ticket_id in tickets:
                 return fail("duplicate", "a ticket with this id already exists")
             tickets[t.ticket_id] = {
-                **asdict(t), "org": deployment_org(), "state": "new", "computed_priority": assessed["computed_priority"],
+                **asdict(t), "config_item": redact_json(t.config_item), "org": deployment_org(), "state": "new", "computed_priority": assessed["computed_priority"],
                 "score": assessed["score"], "opened_at": now, "responded_at": None, "resolved_at": None,
                 "hold_started": None, "held_s": 0.0,
                 "respond_due": now + assessed["respond_within_min"] * 60,
@@ -150,11 +155,14 @@ class ITSMEngine:
                    now: Optional[float] = None) -> Dict[str, Any]:
         if (by is not None and not is_name(by)) or not isinstance(note, str) or (now is not None and not is_number(now, 0)):
             return invalid("'by' must name who is acting, note be text and now a timestamp")
+        tk0 = _mine(self._state.load().get("tickets", {}).get(ticket_id)) if isinstance(ticket_id, str) else None
+        opener = tk0["history"][0]["by"] if tk0 and (to == "cancelled" or (to == "in_progress" and tk0["state"] == "resolved")) else None
         caller, refused = check_caller(NAME, "transition", {"ticket": str(ticket_id)[:64], "to": str(to)[:32]},
-                                       claimed=by)
+                                       claimed=by, roles=INFRA_ADMINS, also=opener)
         if refused:
             return refused
         by = caller.id
+        note = redact_json(note)
         now = time.time() if now is None else now
 
         def move(data: Dict[str, Any]) -> Dict[str, Any]:

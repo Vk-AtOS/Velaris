@@ -2,7 +2,7 @@
 """Smoke test: start the API locally with dummy credentials and check the two things that must always hold.
 
   1. GET /health answers 200.
-  2. An unsigned request, and one signed with the wrong secret, are refused (401). A correctly signed request is accepted.
+  2. An unsigned request, and one signed with the wrong secret, are refused (401). A correctly signed member is accepted but not on admin routes; a signed admin is.
 
 Usage (repository root):  python3.11 deploy/smoke.py       Exit 0 = pass. Uses a temp VELARIS_DATA; touches nothing else.
 """
@@ -46,6 +46,7 @@ def main():
         pem = Path(tmp, "identity.pem")
         pem.write_bytes(key.public_key().public_bytes(serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo))
         env = {**os.environ, "VELARIS_DATA": str(Path(tmp, "data")), "VELARIS_API_SECRET": SECRET, "VELARIS_ORG": ORG,
+               "VELARIS_VAULT_KEY": "dGVzdC12YXVsdC1rZXktMzItYnl0ZXMtLi4uLi4uLi4=",
                "VELARIS_IDENTITY_PUBLIC_KEY": str(pem), "VELARIS_API_HOST": "127.0.0.1", "VELARIS_API_PORT": str(port),
                "PYTHONPATH": str(ROOT)}
         proc = subprocess.Popen([sys.executable, "-m", "velaris.api"], env=env, cwd=tmp, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
@@ -68,7 +69,11 @@ def main():
             assert call(base + "/trace/verify", bad) == 401, "wrong-secret request was not refused"
             nonce = "smoke-nonce-good-request-1"
             good = sign(SECRET.encode(), "GET", "/trace/verify", b"", make_assertion(key, sub="u", org=ORG, nonce=nonce), nonce=nonce)
-            assert call(base + "/trace/verify", good) == 200, "a correctly signed request was refused"
+            assert call(base + "/trace/verify", good) == 403, "a signed member must not verify the global trace (admin only)"
+            nonce = "smoke-nonce-admin-request-1"
+            admin = sign(SECRET.encode(), "GET", "/trace/verify", b"",
+                         make_assertion(key, sub="a", org=ORG, roles=["security_admin"], nonce=nonce), nonce=nonce)
+            assert call(base + "/trace/verify", admin) == 200, "a correctly signed administrator request was refused"
         finally:
             proc.terminate()
             proc.wait(timeout=10)

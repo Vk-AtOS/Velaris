@@ -1,12 +1,25 @@
 # ================================================================================
 
+"""Secure action tokens: short-lived, single-use HMAC-SHA256 tokens that authorise one named action.
+
+SecureActionTokens(ttl_seconds=60): generate(action) returns base64(action:timestamp:nonce)
++ "." + signature; validate(token, action) returns {"status": "OK"} or {"status":
+"INVALID", "reason"} with reason SignatureMismatch, ActionMismatch, Expired, Replayed or
+MalformedToken. Unless the class attribute single_use is False (subclasses issuing
+reusable sessions), a signature is accepted once and refused on replay within its ttl.
+State: signing key sat.key (created owner-only by load_or_create_key) and used-token
+record JsonState("SECURE_ACTION_TOKENS", "used.json"), both under the agent data dir
+(VELARIS_DATA), shared across workers.
+Failure: validate never raises on bad tokens; every malformed input maps to INVALID.
+"""
+
 import os
 import secrets
 import hmac
 import hashlib
 import base64
 import time
-from typing import Optional, Dict
+from typing import Dict
 
 from velaris.agentkit.state import JsonState
 from velaris.intel.paths import agent_dir, load_or_create_key

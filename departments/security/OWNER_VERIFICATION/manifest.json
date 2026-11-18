@@ -1,0 +1,21 @@
+{
+  "name": "OWNER_VERIFICATION",
+  "version": "0.1.0",
+  "description": "Owner verification: checks the fingerprint, face and voice templates of the single owner by exact string match.",
+  "entrypoint": "main.py:OwnerVerification",
+  "harness": {
+    "schema": 1,
+    "status": "not_harnessed",
+    "purpose": "Owner verification: checks the fingerprint, face and voice templates of the single owner by exact string match.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "tools": {},
+    "excluded": {},
+    "reason_code": "unsafe",
+    "reason": "enroll and verify take the owner's biometric templates (fingerprint, face, voice) as arguments: biometric data must not pass through a model.",
+    "eval": "evals/security/OWNER_VERIFICATION.json",
+    "wave": "KAN-40",
+    "reviewed": true
+  },
+  "domain": "security"
+}

@@ -1,7 +1,7 @@
 # GLOBAL_STATE_MAP
 
 - **Department:** `data_knowledge`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/data_knowledge/GLOBAL_STATE_MAP/main.py` (97 lines)
 
 ## Purpose
@@ -50,4 +50,4 @@ change log are on disk; the log keeps the latest MAX_LOG changes.
 
 - **other agents:** `GCK`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_dept_data_knowledge_stubs.py`, `velaris/tests/test_layer8_gro.py`
+- **tests:** `velaris/tests/test_alias_layers.py`, `velaris/tests/test_dept_data_knowledge_stubs.py`, `velaris/tests/test_layer8_gro.py`

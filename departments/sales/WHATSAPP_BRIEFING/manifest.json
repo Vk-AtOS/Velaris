@@ -4,5 +4,30 @@
   "domain": "sales_crm",
   "entrypoint": "main.py:WhatsAppBriefingAgent",
   "description": "Velaris BOS agent for Knackforge Ported from VKatOS whatsapp_briefing.",
-  "hitl_required": false
+  "hitl_required": false,
+  "harness": {
+    "schema": 1,
+    "purpose": "WHATSAPP_BRIEFING — Velaris BOS agent for Knackforge Ported from VKatOS whatsapp_briefing.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/sales/WHATSAPP_BRIEFING.json",
+    "wave": "KAN-42",
+    "status": "deterministic_tool",
+    "tools": {
+      "get_briefing": {
+        "kind": "act"
+      },
+      "get_briefing_dict": {
+        "kind": "act"
+      },
+      "log_metric": {
+        "kind": "act"
+      },
+      "send_briefing": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

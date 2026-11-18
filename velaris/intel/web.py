@@ -22,12 +22,13 @@ import socket
 import time
 from collections import deque
 from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Sequence
 from urllib.parse import quote_plus, urlsplit
 
+from velaris.intel import router
 from velaris.intel import guard, trace
 from velaris.intel.llm import LLM, LLMError, extract_json
-from velaris.intel.web_fetch import Fetcher, FetchError
+from velaris.intel.web_fetch import Fetcher, FetchError, trace_url
 from velaris.intel.web_markdown import clean_url, html_to_markdown
 
 logger = logging.getLogger("velaris.intel.web")
@@ -83,7 +84,20 @@ def browser_args(dead_port: int) -> List[str]:
             "--force-webrtc-ip-handling-policy=disable_non_proxied_udp"]
 
 
-def _serve_browser_request(route: Any, f: Fetcher, budget: List[int]) -> None:
+def _post_ok(request: Any, post_hosts: Sequence[str]) -> str:
+    """"" when this POST may go out, else why not: the target AND the page that submits it must be on the allow-list (a form on
+    another site cannot post into an allowed one), and a body is sent only as a form or JSON."""
+    allowed = {h.lower() for h in post_hosts}
+    target = (urlsplit(request.url).hostname or "").lower()
+    origin = request.headers.get("origin") or request.headers.get("referer") or ""
+    if target not in allowed:
+        return "post_host_not_allowed"
+    if (urlsplit(origin).hostname or "").lower() not in allowed:
+        return "post_cross_site"
+    return ""
+
+
+def _serve_browser_request(route: Any, f: Fetcher, budget: List[int], post_hosts: Sequence[str] = ()) -> None:
     """Answer one browser request (navigation, redirect, script, image, XHR) from this process.
 
     The request is never handed back to the browser's own network stack. `Fetcher.get_pinned`
@@ -95,14 +109,19 @@ def _serve_browser_request(route: Any, f: Fetcher, budget: List[int]) -> None:
     request = route.request
     host = urlsplit(request.url).hostname or ""
     refused = ""
-    if request.method != "GET":
-        refused = "method_not_allowed"          # rendering reads pages; it does not submit anything
+    if request.method not in ("GET", "POST") or (request.method == "POST" and not post_hosts):
+        refused = "method_not_allowed"          # rendering reads pages; only a driver given post_hosts may submit forms
+    elif request.method == "POST" and (why := _post_ok(request, post_hosts)):
+        refused = why
     elif budget[0] <= 0:
         refused = "too_many_requests"
     else:
         budget[0] -= 1
         try:
-            r, _ = f.get_pinned(request.url)
+            if request.method == "POST":
+                r = f.post_pinned(request.url, request.post_data_buffer or b"", request.headers.get("content-type", ""))
+            else:
+                r, _ = f.get_pinned(request.url)
         except FetchError as e:
             refused = e.reason
         except Exception as e:      # anything unexpected is a refusal too (recorded below), never a pass-through
@@ -147,7 +166,7 @@ def _render_with_browser(url: str, f: Fetcher) -> Optional[str]:
                 finally:
                     browser.close()
         except Exception as e:  # the browser is best-effort; the caller keeps the static result
-            trace.append("web", "render.failed", {"url": url, "error": type(e).__name__})
+            trace.append("web", "render.failed", {"url": trace_url(url), "error": type(e).__name__})
             return None
 
 
@@ -174,7 +193,7 @@ def scrape(url: str, *, use_cache: bool = True, render_js: bool = True, f: Optio
                 needs_js=bool(out["needs_js"]), from_cache=got.from_cache, fetched_at=time.time())
     if scan.blocked:      # keep the evidence, withhold the text from any model
         page.markdown, page.error = "", "blocked_by_guard"
-    trace.append("web", "scrape", {"url": url, "chars": len(page.markdown), "risk": page.risk,
+    trace.append("web", "scrape", {"url": trace_url(url), "chars": len(page.markdown), "risk": page.risk,
                                     "sha256": hashlib.sha256(page.markdown.encode()).hexdigest()})
     return page
 
@@ -248,7 +267,7 @@ def map_site(url: str, *, limit: int = 200, f: Optional[Fetcher] = None) -> List
         if u and u not in seen and _same_site(u, url):
             seen.add(u)
             out.append(u)
-    trace.append("web", "map", {"url": url, "count": len(out[:limit])})
+    trace.append("web", "map", {"url": trace_url(url), "count": len(out[:limit])})
     return out[:limit]
 
 
@@ -281,7 +300,7 @@ def crawl(url: str, *, limit: int = 20, max_depth: int = 2, include: Optional[st
                 continue
             seen_urls.add(u)
             queue.append((u, depth + 1))
-    trace.append("web", "crawl", {"url": url, "pages": len(pages), "visited": len(seen_urls)})
+    trace.append("web", "crawl", {"url": trace_url(url), "pages": len(pages), "visited": len(seen_urls)})
     return pages
 
 
@@ -332,7 +351,7 @@ def search(query: str, *, limit: int = 8, f: Optional[Fetcher] = None) -> List[D
         used.append(name)
         results.extend(r for r in got if r["url"] not in {x["url"] for x in results})
     safe = [r for r in results if not guard.scan(f"{r['title']} {r['snippet']}", source=r["url"]).blocked][:limit]
-    trace.append("web", "search", {"query": query, "providers": used, "results": len(safe),
+    trace.append("web", "search", {"query": f"[{len(query)} chars, sha256 {hashlib.sha256(query.encode()).hexdigest()[:12]}]", "providers": used, "results": len(safe),
                                     "dropped": len(results[:limit]) - len(safe)})
     return safe
 
@@ -371,7 +390,7 @@ def extract(page: Page, fields: Dict[str, str], *, llm: Optional[LLM] = None,
               "Use null for anything the page does not state. Copy values as written; do not infer or compute. "
               "Reply with the JSON object only.")
     try:
-        raw = extract_json(llm.complete(prompt, model=model, max_tokens=800, temperature=0.0,
+        raw = extract_json(router.complete("worker", prompt, llm=llm, model=model, sensitivity="internal", max_tokens=800, temperature=0.0,
                                         purpose="web.extract").text)
     except LLMError as e:
         return {"data": {k: None for k in fields}, "ungrounded": [], "error": str(e)}
@@ -384,7 +403,7 @@ def extract(page: Page, fields: Dict[str, str], *, llm: Optional[LLM] = None,
             ungrounded.append(k)
             v = None
         data[k] = v
-    trace.append("web", "extract", {"url": page.final_url, "fields": list(fields), "ungrounded": ungrounded})
+    trace.append("web", "extract", {"url": trace_url(page.final_url), "fields": list(fields), "ungrounded": ungrounded})
     return {"data": data, "ungrounded": ungrounded, "error": ""}
 
 

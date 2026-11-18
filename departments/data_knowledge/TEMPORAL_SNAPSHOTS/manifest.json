@@ -1,0 +1,32 @@
+{
+  "name": "TEMPORAL_SNAPSHOTS",
+  "version": "0.1.0",
+  "description": "Temporal snapshots: stores labelled, timestamped copies of any JSON-serialisable data and retrieves or compares them.",
+  "entrypoint": "main.py:TemporalSnapshots",
+  "harness": {
+    "schema": 1,
+    "purpose": "Temporal snapshots: stores labelled, timestamped copies of any JSON-serialisable data and retrieves or compares them.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/data_knowledge/TEMPORAL_SNAPSHOTS.json",
+    "wave": "KAN-42",
+    "status": "deterministic_tool",
+    "tools": {
+      "compare": {
+        "kind": "read"
+      },
+      "create_snapshot": {
+        "kind": "act"
+      },
+      "list_snapshots": {
+        "kind": "read"
+      },
+      "restore": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "data_knowledge"
+}

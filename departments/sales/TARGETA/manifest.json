@@ -5,5 +5,27 @@
   "description": "Public methods: segmentation_score, match_score, target_fit (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:TargetaAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Targeta: simple targeting metrics (formulas only).",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/sales/TARGETA.json",
+    "wave": "KAN-42",
+    "status": "deterministic_tool",
+    "tools": {
+      "match_score": {
+        "kind": "read"
+      },
+      "segmentation_score": {
+        "kind": "read"
+      },
+      "target_fit": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

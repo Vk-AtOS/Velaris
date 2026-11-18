@@ -1,0 +1,27 @@
+{
+  "name": "ASEL_EXECUTOR",
+  "display_name": "Asel Executor",
+  "version": "0.1.0",
+  "description": "ASEL executor: runs the steps of a plan in dependency order through caller-supplied handlers.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:ASEL_EXECUTORAgent",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "ASEL executor: runs the steps of a plan in dependency order through caller-supplied handlers.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/ASEL_EXECUTOR.json",
+    "wave": "KAN-43",
+    "status": "deterministic_tool",
+    "tools": {
+      "get_run": {
+        "kind": "read"
+      }
+    },
+    "excluded": {
+      "execute": "required parameter 'handlers' is a collaborator or callable, wired by code"
+    },
+    "reviewed": true
+  }
+}

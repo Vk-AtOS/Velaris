@@ -2,7 +2,7 @@
 
 - **Department:** `supply_chain`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/supply_chain/MACHINE_LIFECYCLE_ENGINE/main.py` (119 lines)
+- **Source:** `departments/supply_chain/MACHINE_LIFECYCLE_ENGINE/main.py` (121 lines)
 
 ## Purpose
 
@@ -41,4 +41,4 @@ does not guess a design life and there is no composite score.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_dept_supply_chain_stubs.py`
+- **tests:** `velaris/tests/test_allowlist_departments.py`, `velaris/tests/test_dept_supply_chain_stubs.py`, `velaris/tests/test_kan85_70_finance_supply.py`

@@ -1,0 +1,26 @@
+{
+  "name": "CLAIMS_ASSESSMENT_ENGINE",
+  "version": "0.1.0",
+  "description": "CLAIMS_ASSESSMENT_ENGINE: explicit rule evaluation of an insurance claim.",
+  "entrypoint": "main.py:ClaimsAssessmentEngine",
+  "harness": {
+    "schema": 1,
+    "purpose": "CLAIMS_ASSESSMENT_ENGINE: explicit rule evaluation of an insurance claim.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/finance/CLAIMS_ASSESSMENT_ENGINE.json",
+    "wave": "KAN-38",
+    "status": "deterministic_tool",
+    "tools": {
+      "assess": {
+        "kind": "act"
+      },
+      "validate": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "finance"
+}

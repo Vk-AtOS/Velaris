@@ -1,6 +1,5 @@
 from importlib import import_module
 
-import pytest
 
 from velaris.core.access import GOVERNANCE_ADMIN, SECURITY_ADMIN, Caller, acting_as
 from velaris.intel import trace
@@ -11,7 +10,7 @@ AGENTS = [
     ("OVERSIGHT_MONITOR", "OVERSIGHT_MONITORAgent"),
     ("ACTION_SANDBOX", "ACTION_SANDBOXAgent"),
     ("POLICY_CONTROLLER", "POLICY_CONTROLLERAgent"),
-    # ETHICAL_ENGINE moved to _archived_agents/_stubs; see _archived_tests/test_removed_cases.py
+    # ETHICAL_ENGINE was removed with the archive (git tag archive/pre-reorg)
     ("ZERO_TRUST_PIPELINE", "ZERO_TRUST_PIPELINEAgent"),
 ]
 

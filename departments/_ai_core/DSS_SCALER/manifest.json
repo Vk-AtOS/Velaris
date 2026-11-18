@@ -1,0 +1,25 @@
+{
+  "name": "DSS_SCALER",
+  "display_name": "Dss Scaler",
+  "version": "0.1.0",
+  "description": "DSS scaler: decides how many nodes the cluster should run (target tracking).",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:DSS_SCALERAgent",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "DSS scaler: decides how many nodes the cluster should run (target tracking).",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/DSS_SCALER.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "decide": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

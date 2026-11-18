@@ -2,11 +2,17 @@
 
 - **Department:** `finance`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/finance/METRIX/main.py` (56 lines)
+- **Source:** `departments/finance/METRIX/main.py` (60 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Metrix: weighted KPI and performance scoring of metric dicts.
+MetrixAgent.compute_kpi(metrics, weights=None) returns the sum of weight * metric over the weights
+(argument, else config "weights"); a metric missing from metrics counts as zero, and with no weights
+the score is 0.0. normalize_metrics(metrics) divides every value by the maximum (all zeros when the
+maximum is 0, {} for empty input). performance_score(metrics) is the mean of the normalized values,
+0.0 for empty input. Rule-based arithmetic.
+State: keeps none beyond config. Failure: non-numeric values raise TypeError; nothing is caught.
 
 ## Class `MetrixAgent`
 

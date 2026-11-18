@@ -1,0 +1,25 @@
+{
+  "name": "EOF_POLICY",
+  "display_name": "Eof Policy",
+  "version": "0.1.0",
+  "description": "EOF_POLICY: checks one record (a plan step, an action) against one declared policy.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:EOF_POLICYAgent",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "EOF_POLICY: checks one record (a plan step, an action) against one declared policy.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/EOF_POLICY.json",
+    "wave": "KAN-43",
+    "status": "deterministic_tool",
+    "tools": {
+      "evaluate": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

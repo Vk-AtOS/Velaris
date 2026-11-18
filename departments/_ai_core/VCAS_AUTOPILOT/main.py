@@ -14,43 +14,27 @@ spent once (kept in the same state file), so it cannot be replayed. A task id th
 already ran is never run again: the stored result is returned instead
 (state under this agent's state directory, survives restart). Handler errors
 are caught and recorded as a failed run. Every run is written to the trace.
-ponytail: handlers live in the process; after a restart callers register them
-again. A task that crashed the process mid-run is marked "started" and needs a
+Handlers live in the process: an instance's own (register) and the deployment's, registered once at start-up in
+velaris.orchestration.handlers (the engine builds a fresh instance per call, so only those exist there). A task that crashed the process mid-run is marked "started" and needs a
 person to decide whether to run it again.
 """
 import logging
 import time
 from typing import Any, Callable, Dict, Optional
 
-from velaris.agentkit.aicore_b_authz import task_digest
+from velaris.agentkit.aicore_b_authz import approval_proven
 from velaris.agentkit.checks import ident, is_json
 from velaris.agentkit.results import fail, health, invalid
 from velaris.agentkit.state import JsonState
 from velaris.agents.VCAS_SUPERVISOR.main import task_error
-from velaris.core.access import current_caller
-from velaris.intel import trace
+from velaris.intel import approvals
+from velaris.orchestration import handlers as shared
 
 logger = logging.getLogger("VCAS_AUTOPILOT")
 NAME = "VCAS_AUTOPILOT"
 
 
-def _proven(task: Dict[str, Any], approval: Any) -> bool:
-    """Is `approval` backed by a trace entry that approves this task?"""
-    wanted = approval.get("trace_hash") if isinstance(approval, dict) else None
-    if not isinstance(wanted, str):
-        return False
-    # ponytail: linear scan of the trace; index decisions by hash if the trace grows large
-    entry = next((e for e in trace.entries() if e.get("hash") == wanted), None)
-    if entry is None:
-        return False
-    p, caller = entry["payload"], current_caller()
-    if p.get("task_digest") != task_digest(task) or caller is None:
-        return False
-    if entry["actor"] == "PRIME" and entry["action"] == "prime.decision":
-        return p.get("decision") == "allow" and caller.id == task["principal"]
-    if entry["actor"] == "VCAS_CORE" and entry["action"] == "decision":
-        return p.get("approved") is True and caller.id == p.get("by")
-    return False
+_proven = approval_proven      # the one implementation lives in aicore_b_authz (ASEL_EXECUTOR uses it too)
 
 
 class VCASAutopilotAgent:
@@ -59,7 +43,7 @@ class VCASAutopilotAgent:
         self._runs = JsonState(NAME, "runs.json", {"runs": {}})
 
     def health_check(self):
-        return health(NAME, handlers=sorted(self._handlers))
+        return health(NAME, handlers=self.handlers())
 
     def register(self, action: str, handler: Callable[[Dict[str, Any]], Any]) -> Dict[str, Any]:
         if ident(action) is None or not callable(handler):
@@ -68,7 +52,8 @@ class VCASAutopilotAgent:
         return {"status": "ok", "action": action}
 
     def handlers(self):
-        return sorted(self._handlers)
+        """This instance's handlers and the deployment's (orchestration.handlers): the engine builds a fresh instance per call."""
+        return sorted(set(self._handlers) | set(shared.names(NAME)))
 
     def run_of(self, task_id: str) -> Optional[Dict[str, Any]]:
         return self._runs.load().get("runs", {}).get(str(task_id))
@@ -81,7 +66,7 @@ class VCASAutopilotAgent:
         task_id = str(task["id"])
         if not _proven(task, approval):
             return {**base, **fail("not_approved", "execute needs a recorded approval of this task (trace_hash)")}
-        handler = self._handlers.get(task["action"])
+        handler = self._handlers.get(task["action"]) or shared.get(NAME, task["action"])
         if handler is None:
             return {**base, **fail("no_handler", f"no handler is registered for '{task['action']}'")}
         previous = self.run_of(task_id)
@@ -110,6 +95,13 @@ class VCASAutopilotAgent:
             run = {"state": "failed", "error": f"{type(e).__name__}: {e}"[:300]}
         run.update(action=task["action"], finished=time.time())
         self._runs.update(lambda s: s["runs"].__setitem__(task_id, run))
-        trace.append(NAME, "run", {"task_id": task_id, "action": task["action"], "state": run["state"]})
+        try:
+            approvals.audit("VCAS_AUTOPILOT", "executed", request_id=task_id, by=str(task.get("principal") or ""), decision=run["state"],
+                            trace_actor=NAME, trace_action="run", task_id=task_id, action=task["action"], state=run["state"])
+        except Exception as e:      # the trace is the proof of what ran: without it say so loudly, never report a clean run
+            logger.warning("VCAS_AUTOPILOT: run of %s not written to the trace: %s", task_id, e)
+            return {**base, **fail("audit_failed", "the task ran (its result is stored under its id and it will not run again) but "
+                                   "the run could not be written to the audit trace: an operator must record it"),
+                    "executed": run["state"] == "done", "run": run}
         return {**base, "executed": run["state"] == "done", "status": "ok" if run["state"] == "done" else "failed",
                 "run": run}

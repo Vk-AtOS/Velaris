@@ -1,27 +1,38 @@
+"""Time tracker: billable hours and utilization per employee and project.
+TimeTracker.start_timer(employee_id, project_id, task_id, description) starts a timer, first
+stopping and logging any running one for that employee. stop_timer(employee_id, billable=True)
+logs the elapsed hours, capped at 24 (a timer left running is not logged as days). log(employee_id, project_id, hours, log_date, task_id, description,
+billable) adds a manual entry. weekly_utilization(employee_id, week_start) returns total, billable
+and per-project hours and utilization against a billable target (config billable_target_weekly,
+default 40). team_utilization(employee_ids, week_start) maps that over employees.
+project_hours_summary(project_id, from_date, to_date) returns hours per contributor.
+State: sqlite, encrypted at rest (velaris.core.sealed_sqlite), database <VELARIS_DATA>/agents/TIME_TRACKER/timelog.db (tables timelogs and
+active_timers). Failure: stop_timer with no timer returns {"error": "no_active_timer"}; log rejects
+non-numeric, non-finite, zero, negative or over-24 hours with an error dict; other input is not
+validated, and there is no caller check. The Zoho integration is not implemented here.
+"""
 import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
 import logging
 import math
 import sqlite3
+
+from velaris.core.sealed_sqlite import connect_sealed
 from datetime import datetime, date
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from velaris.intel.paths import agent_file
 
-from velaris.intel.paths import agent_dir
 
 logger = logging.getLogger("TIME_TRACKER")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - TIME_TRACKER - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 _WORK_HOURS_PER_DAY = 8.0
 _BILLABLE_TARGET_WEEKLY = 40.0  # hours
+_MAX_DAY_HOURS = 24.0
 
 
 def _db() -> sqlite3.Connection:
-    conn = sqlite3.connect(agent_file("TIME_TRACKER", "timelog.db"))
+    conn = connect_sealed(agent_file("TIME_TRACKER", "timelog.db"), "agent:TIME_TRACKER")
     conn.row_factory = sqlite3.Row
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS timelogs (
@@ -93,6 +104,9 @@ class TimeTracker:
     def _stop_and_log(self, conn, employee_id: str, row, billable: bool = True) -> int:
         started_at = datetime.fromisoformat(row["started_at"])
         hours = round((datetime.now() - started_at).total_seconds() / 3600, 2)
+        if hours > _MAX_DAY_HOURS:        # a timer left running overnight: same ceiling as a manual entry
+            logger.warning("Timer for %s ran %.1f h; logged as %s h", employee_id, hours, _MAX_DAY_HOURS)
+            hours = _MAX_DAY_HOURS
         cur = conn.execute(
             "INSERT INTO timelogs (employee_id, project_id, task_id, description, log_date, hours, billable, created_on) VALUES (?,?,?,?,?,?,?,?)",
             (employee_id, row["project_id"], row["task_id"], row["description"],
@@ -107,7 +121,7 @@ class TimeTracker:
             log_date: str = "", task_id: str = "", description: str = "",
             billable: bool = True) -> Dict[str, Any]:
         if isinstance(hours, bool) or not isinstance(hours, (int, float)) or not math.isfinite(hours) \
-                or hours <= 0 or hours > 24:
+                or hours <= 0 or hours > _MAX_DAY_HOURS:
             return {"error": "hours must be between 0 and 24"}
         log_date = log_date or date.today().isoformat()
         conn = _db()

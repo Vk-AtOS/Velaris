@@ -3,7 +3,8 @@
 The primary is replaced only when DSS_MONITOR reports it down (a degraded
 primary stays, to avoid flapping). The successor is chosen deterministically:
 healthy before degraded, then highest priority, then lowest name. Every change
-increments a term number so stale primaries can be recognised.
+increments a term number so stale primaries can be recognised (a call that changes nothing, such as no node being
+alive while there is no primary, does not).
 State: <VELARIS_DATA>/agents/DSS_FAILOVER/state.json.
 """
 import time
@@ -47,6 +48,9 @@ class DSS_FAILOVERAgent:
                     successor = ranked[0]
                     break
             why = "no primary yet" if current is None else f"primary {current} is down or gone"
+            if successor == current:            # nobody to promote and nobody was primary: nothing changed, so no new term
+                return fail("no_candidate", f"{why} and no node is alive to take over",
+                            primary=current, term=data["term"], changed=False, previous=current)
             data["primary"] = successor
             data["term"] += 1
             data["history"] = (data["history"] + [{"term": data["term"], "from": current, "to": successor,

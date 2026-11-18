@@ -14,6 +14,7 @@ by the named approver; a legacy `by` must be the caller. Pending
 tasks are stored owner-only under this agent's state directory and survive a
 restart (handlers must be registered again on the new autopilot instance).
 """
+import logging
 import time
 from typing import Any, Dict, Optional
 
@@ -24,7 +25,9 @@ from velaris.agents.VCAS_AUTOPILOT.main import VCASAutopilotAgent
 from velaris.agents.VCAS_ROUTER.main import VCASRouterAgent
 from velaris.agents.VCAS_SUPERVISOR.main import VCASSupervisorAgent
 from velaris.core.access import check_caller
-from velaris.intel import trace
+from velaris.intel import approvals
+
+logger = logging.getLogger("VCAS_CORE")
 
 NAME = "VCAS_CORE"
 
@@ -50,6 +53,12 @@ class VCASCoreAgent:
         verdict = self.supervisor.approve(task, now=now)
         if verdict["decision"] == "needs_approval":
             entry = {"task": task, "approver": verdict["approver"], "reason": verdict["reason"], "ts": time.time()}
+            try:      # record first: a request that cannot be recorded is not queued
+                approvals.audit("VCAS_CORE", "requested", request_id=task["id"], subject=task_digest(task), by=task["principal"],
+                                decision="needs_approval", note=verdict["reason"], approver=verdict["approver"])
+            except (OSError, ValueError, TypeError) as e:
+                logger.warning("VCAS_CORE: request %s not recorded, so not queued: %s", task["id"], e)
+                return {**fail("audit_failed", "the request could not be recorded; it was not queued"), "outcome": "refused"}
             self._pending.update(lambda s: s.setdefault("pending", {}).__setitem__(str(task["id"]), entry))
             return {"status": "pending", "outcome": "pending", "approver": verdict["approver"],
                     "reason": verdict["reason"]}
@@ -74,10 +83,14 @@ class VCASCoreAgent:
             return fail("denied", f"only {entry['approver']} can decide this task")
         if not isinstance(approve, bool):
             return invalid("approve must be true or false")
+        try:      # record first: if the trace cannot be written the task stays pending and can be decided again
+            recorded = approvals.audit("VCAS_CORE", "decided", request_id=task_id, by=by, note=note,
+                                       decision="approve" if approve else "reject", trace_actor=NAME, trace_action="decision",
+                                       task_id=str(task_id), approved=approve, task_digest=task_digest(entry["task"]))
+        except (OSError, ValueError, TypeError) as e:
+            logger.warning("VCAS_CORE: decision on %s not recorded, task stays pending: %s", task_id, e)
+            return fail("audit_failed", "the decision could not be recorded; the task is still pending")
         self._pending.update(lambda s: s["pending"].pop(str(task_id), None))
-        recorded = trace.append(NAME, "decision", {"task_id": str(task_id), "approved": approve, "by": by,
-                                                   "task_digest": task_digest(entry["task"]),
-                                                   "note": str(note)[:300]})
         if not approve:
             return {"status": "rejected", "outcome": "rejected", "by": by}
         ran = self.autopilot.execute(entry["task"], {"trace_hash": recorded["hash"]})

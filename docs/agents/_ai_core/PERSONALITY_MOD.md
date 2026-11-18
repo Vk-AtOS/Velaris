@@ -1,7 +1,7 @@
 # PERSONALITY_MOD
 
 - **Department:** `_ai_core`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/_ai_core/PERSONALITY_MOD/main.py` (81 lines)
 
 ## Purpose
@@ -42,4 +42,4 @@ the current caller (velaris.core.access), who must be a governance admin.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_b_self.py`, `velaris/tests/test_layer3_selfidentity.py`
+- **tests:** `velaris/tests/test_aicore_b_self.py`, `velaris/tests/test_kan106_aicore.py`, `velaris/tests/test_layer3_selfidentity.py`

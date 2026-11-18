@@ -5,5 +5,66 @@
   "description": "Structured interviews: question banks tagged by competency, rubrics with anchored 1-5 descriptors, a kit per requisition, scorecards that each interviewer submits independently before seeing anyone else's, aggregation that shows every interviewer's score and evidence with the arithmetic and flags disagreements of two points or more, inter-rater agreement (weighted Cohen's kappa, Krippendorff's alpha, written from scratch), calibration reports, and work-sample tasks with checklists. No automated judgement of a person is made: no overall score, no recommendation, no ranking.",
   "entrypoint": "main.py:InterviewKit",
   "hitl_required": false,
-  "tags": ["hiring", "interview", "rubric", "kappa", "alpha"]
+  "tags": [
+    "hiring",
+    "interview",
+    "rubric",
+    "kappa",
+    "alpha"
+  ],
+  "harness": {
+    "schema": 1,
+    "purpose": "INTERVIEW_KIT: structured interviews and what can honestly be said about them.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/hr/INTERVIEW_KIT.json",
+    "wave": "KAN-37",
+    "status": "deterministic_tool",
+    "tools": {
+      "add_question": {
+        "kind": "act"
+      },
+      "agreement_report": {
+        "kind": "read"
+      },
+      "assign_panel": {
+        "kind": "act"
+      },
+      "calibration_report": {
+        "kind": "read"
+      },
+      "create_kit": {
+        "kind": "act"
+      },
+      "create_work_sample": {
+        "kind": "act"
+      },
+      "define_rubric": {
+        "kind": "act"
+      },
+      "get_kit": {
+        "kind": "read"
+      },
+      "list_questions": {
+        "kind": "read"
+      },
+      "list_work_samples": {
+        "kind": "read"
+      },
+      "review_work_sample": {
+        "kind": "act"
+      },
+      "scorecards": {
+        "kind": "read"
+      },
+      "submit_scorecard": {
+        "kind": "act"
+      },
+      "work_sample_reviews": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

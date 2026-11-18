@@ -99,6 +99,17 @@ def free(sch, who_, day=MON, dur=60):
     return sch.propose_slots(interviewer_ids=who_, duration_min=dur, from_date=at("00:00", day), to_date=at("23:59", day))
 
 
+
+def plain(doc):
+    """Every collection of a RecDoc as plain dicts (what is stored, opened)."""
+    v = doc.load()
+    return {c: dict(v[c]) for c in doc.collections}
+
+
+def on_disk(agent):
+    """The raw bytes of every record file of an agent: sealed, so this is what an attacker with the data directory sees."""
+    return b"".join(p.read_bytes() for p in (agent_dir(agent) / "records").rglob("*.rec")).decode("latin-1")
+
 def test_slots_with_buffers_around_an_existing_booking_hand_computed(env):
     ats, sch, rid, apps, c = env
     with as_(c["rec"]):
@@ -180,7 +191,7 @@ def test_line_folding_and_escaping_follow_rfc5545():
     parsed = parse_ics(ics)                                                      # asserts every physical line is at most 75 octets and CRLF-terminated
     assert unesc(parsed["props"]["SUMMARY"]) == title and parsed["props"]["DESCRIPTION"] == "x" * 300
     assert 'ORGANIZER;CN="Org Q  name":mailto:o@x.example' in ics.replace("\r\n ", "")
-    for kw in ({"method": "PUBLISH", "sequence": 0}, {"method": "REQUEST", "sequence": -1}):
+    for kw in ({"method": "COUNTER", "sequence": 0}, {"method": "REQUEST", "sequence": -1}):
         with pytest.raises(hc.HiringError):
             sl.build_ics(kw["method"], uid="u", sequence=kw["sequence"], start=1, end=2, stamp=0, summary="s", description="d", location="l", organizer=("o", "o@x"), attendees=[])
 
@@ -196,7 +207,7 @@ def test_invitations_are_drafts_until_approved_and_never_hold_the_candidates_ema
         assert sch.render_invitation(draft_id=did, candidate_name="X", candidate_email="a@b.c\r\nBcc: evil@x")["status"] == "invalid_input"
         assert sch.approve_draft(draft_id=did)["sent"] is False
         assert sch.approve_draft(draft_id=did)["status"] == "conflict"
-    assert "p0@example.com" not in (agent_dir("INTERVIEW_SCHEDULER") / "scheduler.json").read_text()
+    assert "p0@example.com" not in on_disk("INTERVIEW_SCHEDULER") and "p0@example.com" not in json.dumps(plain(hs.st()), default=str)
 
 
 def test_invitation_needs_an_organizer_address(env):
@@ -214,8 +225,7 @@ def test_candidate_self_schedule_token_pick_move_cancel(env, monkeypatch):
         tok = sch.issue_schedule_token(application_id=apps[0], interviewer_ids=["iv-a"], duration_min=60, title="Round 1", days=3)["token"]
         assert sch.issue_schedule_token(application_id=apps[0], interviewer_ids=["iv-zzz"], duration_min=60, title="x")["status"] == "not_found"
         assert sch.issue_schedule_token(application_id=apps[0], interviewer_ids=["iv-a"], duration_min=60, title="x", days=99)["status"] == "invalid_input"
-    raw = (agent_dir("INTERVIEW_SCHEDULER") / "scheduler.json").read_text()
-    assert tok not in raw and hc.sha(tok) in raw
+    assert tok not in json.dumps(plain(hs.st())) and tok not in on_disk("INTERVIEW_SCHEDULER") and hc.sha(tok) in plain(hs.st())["tokens"]
     offered = hs.public_slots(tok)
     assert offered["status"] == "ok" and offered["slots"] and len(offered["slots"]) == len(offered["starts"])
     first, third = offered["starts"][0], offered["starts"][2]
@@ -292,7 +302,7 @@ def test_erasure_keeps_capacity_history_and_drops_the_candidate(env):
         sch.issue_schedule_token(application_id=apps[0], interviewer_ids=["iv-a"], duration_min=60, title="x")
     with as_(c["adm"]):
         assert ats.erase_candidates(candidate_ids=[cid], reason="erasure_request")["removed_by_module"]["hiring_sched"] == 3       # draft, token, booking
-    st = json.loads((agent_dir("INTERVIEW_SCHEDULER") / "scheduler.json").read_text())
+    st = plain(hs.st())
     assert st["drafts"] == {} and st["tokens"] == {}
     b = list(st["bookings"].values())[0]
     assert b["candidate_id"] is None and b["application_id"] is None and b["notes"] == "" and b["org"] == ORG and b["start"] == ts("14:00")
@@ -313,7 +323,7 @@ def test_fair_slots_same_set_per_stage_round_and_divergence_needs_an_hr_admin_re
         t2 = tok(apps[2], ("iv-b",), divergence_reason="  ")["status"]
         assert t2 == "conflict"
         t2 = tok(apps[2], ("iv-b",), divergence_reason="candidate needs the security lead")["token"]
-    rnd = list(json.loads((agent_dir("INTERVIEW_SCHEDULER") / "scheduler.json").read_text())["rounds"].values())
+    rnd = list(plain(hs.st())["rounds"].values())
     assert len(rnd) == 1 and rnd[0]["exceptions"][0]["by"] == c["adm"].id and rnd[0]["exceptions"][0]["reason"].startswith("candidate needs")
     assert rnd[0]["exceptions"][0]["at"] > 0 and rnd[0]["panel"] == ["iv-a"]
     # a slot taken by one candidate leaves everyone else's set, nothing else changes
@@ -328,3 +338,27 @@ def test_fair_slots_same_set_per_stage_round_and_divergence_needs_an_hr_admin_re
     advance(monkeypatch, 4 * hc.DAY)
     with as_(c["rec"]):
         assert tok(apps[0], ("iv-b",))["status"] == "ok"
+
+
+def test_ics_text_fields_cannot_inject_lines():
+    """KAN-64 review: CR was not stripped from names and the e-mail was not escaped."""
+    from velaris.agentkit import hiring_slots as sl
+    ics = sl.build_ics("REQUEST", uid="u1", sequence=0, start=0, end=3600, stamp=0, summary="s", description="d", location="l",
+                       organizer=("Org", "o@x.com"), attendees=[("Eve\rATTENDEE:mailto:evil@x.com\r\nBEGIN:VALARM", "a@x.com\r\nX-EVIL:1", "REQ-PARTICIPANT")])
+    assert not any(line.startswith(("X-EVIL", "BEGIN:VALARM", "ATTENDEE;CN=\"Eve\rATTENDEE")) for line in ics.splitlines())
+    assert "\r" not in ics.replace("\r\n", "")
+
+
+def test_a_candidate_who_keeps_rescheduling_cannot_grow_the_state(env):
+    """KAN-64: every pick added a history entry and an invitation draft to the shared 1 MiB scheduler file."""
+    ats, sch, rid, apps, c = env
+    with as_(c["rec"]):
+        tok = sch.issue_schedule_token(application_id=apps[0], interviewer_ids=["iv-a"], duration_min=60, title="Round 1", days=3)["token"]
+    starts = hs.public_slots(tok)["starts"][:2]
+    for i in range(hs.MAX_HISTORY + 30):
+        assert hs.public_pick(tok, starts[i % 2])["status"] == "ok"
+    with as_(c["rec"]):
+        drafts = sch.list_drafts()["drafts"]
+    state = hs.st().load()
+    (booking,) = state["bookings"].values()
+    assert len(booking["history"]) == hs.MAX_HISTORY and len([x for x in drafts if x["kind"] == "reschedule"]) == 1

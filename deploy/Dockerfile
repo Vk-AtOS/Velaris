@@ -3,7 +3,7 @@
 #   API (8730, internal, gateway only):  python -m velaris.api
 #   Public app (8731, behind nginx):     python -m velaris.api.public
 # Runs as a non-root user with a read-only root filesystem: the only writable paths are the VELARIS_DATA volume and /tmp (tmpfs).
-FROM python:3.11-slim
+FROM python:3.11.14-slim-bookworm@sha256:65a93d69fa75478d554f4ad27c85c1e69fa184956261b4301ebaf6dbb0a3543d
 
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1 \
     VELARIS_DATA=/data VELARIS_API_HOST=0.0.0.0 VELARIS_PUBLIC_HOST=0.0.0.0
@@ -15,8 +15,7 @@ RUN groupadd --system --gid 10001 velaris \
 WORKDIR /app
 # Dependencies first (layer cache). Versions are pinned by deploy/constraints.txt.
 COPY requirements.txt deploy/constraints.txt /app/deploy/
-RUN grep -v '^pytest' /app/deploy/requirements.txt > /tmp/runtime.txt \
- && pip install -r /tmp/runtime.txt -c /app/deploy/constraints.txt && rm /tmp/runtime.txt
+RUN pip install -r /app/deploy/requirements.txt -c /app/deploy/constraints.txt
 
 COPY --chown=root:root velaris /app/velaris
 COPY --chown=root:root departments /app/departments

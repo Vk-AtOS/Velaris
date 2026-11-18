@@ -1,0 +1,22 @@
+{
+  "name": "FSCL",
+  "display_name": "Fscl",
+  "version": "0.1.0",
+  "description": "Alias agent FSCL: fronts SOUL_VELARIS, PRIME, ENGINE. See velaris.agentkit.alias.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:FSCLAgent",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Alias agent FSCL: fronts SOUL_VELARIS, PRIME, ENGINE.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/FSCL.json",
+    "wave": "KAN-44",
+    "status": "not_harnessed",
+    "reason_code": "stub",
+    "reason": "the agent is a stub (inventory: not_implemented); a harness around it would claim a capability that is not there",
+    "tools": {},
+    "reviewed": true
+  }
+}

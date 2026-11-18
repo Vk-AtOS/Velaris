@@ -5,5 +5,39 @@
   "description": "The Velaris controller, and the one place that decides what an agent or person may do.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:VelarisPrime",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "PRIME: the Velaris controller, and the one place that decides what an agent or person may do.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/PRIME.json",
+    "wave": "KAN-43",
+    "status": "deterministic_tool",
+    "tools": {
+      "authorize": {
+        "kind": "act"
+      },
+      "execute": {
+        "kind": "act"
+      },
+      "grant": {
+        "kind": "act"
+      },
+      "grants": {
+        "kind": "act"
+      },
+      "revoke": {
+        "kind": "act"
+      },
+      "run_simple_self_test": {
+        "kind": "act"
+      },
+      "system_status": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

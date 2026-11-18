@@ -5,5 +5,27 @@
   "description": "Public methods: compute_value, compare_assets, value_shift (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:ValoraAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Valora: weighted valuation score for assets.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/finance/VALORA.json",
+    "wave": "KAN-38",
+    "status": "deterministic_tool",
+    "tools": {
+      "compare_assets": {
+        "kind": "read"
+      },
+      "compute_value": {
+        "kind": "read"
+      },
+      "value_shift": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

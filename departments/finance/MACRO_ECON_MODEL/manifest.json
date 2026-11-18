@@ -1,0 +1,26 @@
+{
+  "name": "MACRO_ECON_MODEL",
+  "version": "0.1.0",
+  "description": "MACRO_ECON_MODEL: standard derived indicators from macro figures the caller supplies.",
+  "entrypoint": "main.py:MacroEconModel",
+  "harness": {
+    "schema": 1,
+    "purpose": "MACRO_ECON_MODEL: standard derived indicators from macro figures the caller supplies.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/finance/MACRO_ECON_MODEL.json",
+    "wave": "KAN-38",
+    "status": "deterministic_tool",
+    "tools": {
+      "compute_index": {
+        "kind": "read"
+      },
+      "validate": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "finance"
+}

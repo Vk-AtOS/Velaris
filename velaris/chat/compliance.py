@@ -19,7 +19,10 @@ from typing import Any, Dict, List, Optional
 
 from velaris.chat.core import ChatCore
 from velaris.chat.errors import ChatError
+from velaris.chat.files import file_name
 from velaris.chat.policy import CHAT_ADMIN
+from velaris.chat.store import SEAL
+from velaris.core import fieldseal
 from velaris.core.access import Caller
 
 DAY = 86400.0
@@ -107,9 +110,9 @@ class ComplianceMixin(ChatCore):
                "reactions": [dict(r) for r in self.store.all(
                    "SELECT message_id, emoji FROM reactions WHERE user_id=?", (user_id,))],
                "drafts": [dict(r) for r in self.store.all(
-                   "SELECT channel_id, topic, body, updated FROM drafts WHERE user_id=?", (user_id,))],
-               "files": [dict(r) for r in self.store.all(
-                   "SELECT hash, name, size, ctype, created_at FROM files WHERE uploader=?", (user_id,))],
+                   "SELECT user_id, channel_id, topic, body, updated FROM drafts WHERE user_id=?", (user_id,))],
+               "files": [{**{k: r[k] for k in ("hash", "name", "size", "ctype", "created_at")}, "name": file_name(r)}
+                         for r in self.store.file_rows(caller.org, uploader=user_id)],
                "exported_at": self.clock()}
         self._audit("user.export", caller.id, caller.org, subject=user_id, messages=len(msgs),
                     export_sha256=hashlib.sha256(json.dumps(out, sort_keys=True, default=str).encode()).hexdigest())
@@ -118,9 +121,10 @@ class ComplianceMixin(ChatCore):
     # ── erasure ───────────────────────────────────────────────────────────────
     def _erase(self, db: sqlite3.Connection, msg: sqlite3.Row, pseudonym: Optional[str] = None) -> None:
         """Remove a message's content for good; the row stays as a tombstone."""
-        db.execute("UPDATE messages SET body='', erased=1, attachments='[]', mentions='[]', "
+        db.execute("UPDATE messages SET body=?, erased=1, attachments='[]', mentions='[]', "
                    "deleted_at=COALESCE(deleted_at, ?), deleted_by=COALESCE(deleted_by, 'erasure'), "
-                   "sender=COALESCE(?, sender) WHERE id=?", (self.clock(), pseudonym, msg["id"]))
+                   "sender=COALESCE(?, sender) WHERE id=?",
+                   (fieldseal.seal("", SEAL, fieldseal.bind_for("messages", "body", msg["id"])), self.clock(), pseudonym, msg["id"]))
         for table in ("edits", "reactions"):
             db.execute(f"DELETE FROM {table} WHERE message_id=?", (msg["id"],))
         db.execute("DELETE FROM pins WHERE message_id=?", (msg["id"],))

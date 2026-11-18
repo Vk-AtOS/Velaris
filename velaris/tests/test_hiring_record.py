@@ -1,4 +1,5 @@
 """INTERVIEW_RECORD: consent-gated events, replayable pad log, audio by hash, transcriber hook, evidence view with no score of any kind."""
+from velaris.agentkit.state import append_line
 import hashlib
 import json
 import os
@@ -31,7 +32,7 @@ def env():
 
 
 def consent_all(rec, sess, tok, scopes=("events", "audio", "transcript")):
-    assert gw.candidate_consent(tok, list(scopes), "notice-v1")["status"] == "ok"
+    assert gw.candidate_consent(tok, list(scopes), "v1")["status"] == "ok"
 
 
 def stored_events(sess):
@@ -55,9 +56,9 @@ def test_nothing_is_recorded_without_consent_and_consent_is_per_participant_and_
         assert rec.give_consent(session_id=sess, scopes=["events"], notice_version="v1")["status"] == "denied"      # not a participant
     assert gw.ingest_event(itok, "join")["seq"] == 2
     assert gw.ingest_event("x" * 30, "join")["status"] == "not_found" and gw.ingest_event(None, "join")["status"] == "not_found"
-    s = json.loads((agent_dir("INTERVIEW_RECORD") / "sessions.json").read_text())
+    s = {c: dict(hr.st().load()[c]) for c in ("sessions", "tokens")}
     assert tok not in json.dumps(s) and hc.sha(tok) in s["tokens"] and s["sessions"][sess]["org"] == ORG
-    assert s["sessions"][sess]["consents"]["candidate"]["notice_version"] == "notice-v1"
+    assert s["sessions"][sess]["consents"]["candidate"]["notice_version"] == "v1"
 
 
 def test_event_types_are_whitelisted_pastes_carry_size_only(env):
@@ -96,17 +97,21 @@ def test_pad_edit_log_replays_to_any_moment_and_the_chain_detects_tampering(env)
         assert rec.replay_pad(session_id=sess, upto_seq=2)["text"] == "def f(x):\n    return x"
         assert rec.replay_pad(session_id=sess)["text"] == "def f(x):\n    return x!"
     p = agent_dir("INTERVIEW_RECORD") / "events" / f"{sess}.jsonl"
-    assert "VLV1:" in p.read_text()                                                                # events are sealed at rest
+    assert "VLV2:" in p.read_text()                                                                # events are sealed at rest
     lines = [json.dumps(e, sort_keys=True) for e in stored_events(sess)]
     forged = json.loads(lines[1])
     forged["data"]["text"] = "\n    return 0"                                                        # edit history after the fact
     lines[1] = json.dumps(forged, sort_keys=True)
-    p.write_text("\n".join(lines) + "\n")
+    def rewrite(ls):                                   # an insider with the key rewrites the sealed log
+        p.unlink()
+        for line in ls:
+            append_line(p, json.loads(line), encrypted=hr._SEAL)
+    rewrite(lines)
     assert hr.verify_chain(stored_events(sess)) is False
     with as_(c["adm"]):
         assert rec.evidence_view(session_id=sess)["hash_chain_intact"] is False
         assert rec.replay_pad(session_id=sess)["status"] == "integrity"
-    p.write_text("\n".join(lines[:1] + lines[2:]) + "\n")                                            # a removed entry is detected too
+    rewrite(lines[:1] + lines[2:])                                            # a removed entry is detected too
     assert hr.verify_chain(stored_events(sess)) is False
 
 
@@ -117,7 +122,7 @@ def test_one_audio_track_per_participant_referenced_by_hash(env):
     r = gw.ingest_audio(tok, data, "audio/wav", 61.5)
     assert r["status"] == "ok" and r["sha256"] == hashlib.sha256(data).hexdigest()
     path = agent_dir("INTERVIEW_RECORD") / "audio" / f"{r['sha256']}.bin"
-    assert path.read_bytes() != data and vault.read_sealed(path, "hiring:INTERVIEW_RECORD") == data and oct(path.stat().st_mode & 0o777) == "0o600"
+    assert path.read_bytes() != data and vault.read_sealed(path, "hiring:INTERVIEW_RECORD", vault.path_context(path)) == data and oct(path.stat().st_mode & 0o777) == "0o600"
     assert gw.ingest_audio(tok, data, "audio/wav", 61.5)["status"] == "conflict"                     # one per participant
     assert gw.ingest_audio(itok, data, "audio/wav", 5)["status"] == "denied"                         # the interviewer has not consented
     with as_(who("interviewer", id="iv-1")):
@@ -214,7 +219,9 @@ def test_close_withdraw_and_erasure(env):
     assert v["status"] == "erased" and v["events"] == 2 and v["tracks"] == 0
     assert not (agent_dir("INTERVIEW_RECORD") / "events" / f"{sess}.jsonl").exists()
     assert list((agent_dir("INTERVIEW_RECORD") / "audio").glob("*")) == []
-    assert "private pad text" not in (agent_dir("INTERVIEW_RECORD") / "sessions.json").read_text() and tok not in (agent_dir("INTERVIEW_RECORD") / "sessions.json").read_text()
+    disk = "".join(p.read_bytes().decode("latin-1") for p in (agent_dir("INTERVIEW_RECORD") / "records").rglob("*.rec"))
+    now_ = json.dumps({c: dict(hr.st().load()[c]) for c in ("sessions", "tokens")}, default=str)
+    assert "private pad text" not in disk + now_ and tok not in disk + now_
     assert gw.candidate_consent(tok, ["events"], "v1")["status"] == "not_found"
     t = trace_text()
     assert "session.closed" in t and "private pad text" not in t and "secretaudio" not in t
@@ -248,3 +255,21 @@ def test_staff_actions_on_a_session_need_a_connection_to_it(env):
         assert rec.issue_participant_token(session_id=sess)["status"] == "denied"
     with as_(c["mgr"]):
         assert rec.mark_event(session_id=sess, seq=1, mark="relevant", reason="x")["status"] == "ok"
+
+
+def test_appending_an_event_does_not_read_the_whole_log_and_heals_a_session_record_that_lags(monkeypatch):
+    """KAN-64 review: every event decrypted and parsed up to 50,000 lines under the store lock shared by all organisations."""
+    from velaris.agentkit import hiring_record as hr
+    s = {"id": "s1", "status": "open", "org": "acme", "event_count": 0, "chain_head": hr.GENESIS, "tracks": {},
+         "consents": {"candidate": {"scopes": ["events"], "notice_version": "v", "at": 1, "withdrawn_at": None}},
+         "retention_until": "2999-01-01"}
+    reads = []
+    real = hr.read_lines
+    monkeypatch.setattr(hr, "read_lines", lambda *a, **k: reads.append(1) or real(*a, **k))
+    for i in range(30):
+        hr.append_event("acme", s, "candidate", "join", None)
+    assert reads == [] and s["event_count"] == 30
+    assert hr.verify_chain(real(hr._events_path("s1"), encrypted=hr._SEAL))
+    s["event_count"], s["chain_head"] = 29, "x" * 64                  # the session record lags behind the file (crash between the two writes)
+    e = hr.append_event("acme", s, "candidate", "join", None)
+    assert reads == [1] and e["seq"] == 31 and hr.verify_chain(real(hr._events_path("s1"), encrypted=hr._SEAL))

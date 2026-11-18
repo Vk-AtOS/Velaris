@@ -1,0 +1,34 @@
+{
+  "name": "NEURAL_POLICY_MESH",
+  "display_name": "Neural Policy Mesh",
+  "version": "0.1.0",
+  "description": "NEURAL_POLICY_MESH: every registered policy must agree before an intent goes ahead.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:NeuralPolicyMesh",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "NEURAL_POLICY_MESH: every registered policy must agree before an intent goes ahead.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/NEURAL_POLICY_MESH.json",
+    "wave": "KAN-43",
+    "status": "deterministic_tool",
+    "tools": {
+      "add_policy": {
+        "kind": "act"
+      },
+      "enforce": {
+        "kind": "act"
+      },
+      "list_policies": {
+        "kind": "read"
+      },
+      "remove_policy": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

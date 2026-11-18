@@ -5,5 +5,24 @@
   "description": "Public methods: check_compliance, find_violations (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:AuditorAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Auditor: checks a workflow against required steps and scans log lines for banned terms.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/security/AUDITOR.json",
+    "wave": "KAN-40",
+    "status": "deterministic_tool",
+    "tools": {
+      "check_compliance": {
+        "kind": "read"
+      },
+      "find_violations": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

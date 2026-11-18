@@ -27,17 +27,13 @@ from typing import Any, Dict, Optional
 
 from velaris.agentkit.state import JsonState
 from velaris.core import vault
+from velaris.intel import trace
 from velaris.intel.paths import data_dir
 
 GENESIS = "0" * 64
 MAX_ENTRIES = 50_000
 FULL_EVERY_S = 24 * 3600
-_EMPTY = {"offset": 0, "prev": GENESIS, "entries": 0, "mac": "", "full_at": 0.0, "pass_at": 0.0}
-
-
-def _hash(prev: str, ts: Any, actor: str, action: str, payload: Any) -> str:
-    body = json.dumps([prev, ts, actor, action, payload], sort_keys=True, separators=(",", ":"), default=str)
-    return hashlib.sha256(body.encode()).hexdigest()
+_EMPTY = {"offset": 0, "prev": GENESIS, "entries": 0, "mac": "", "full_at": 0.0, "pass_at": 0.0, "marks": {}}
 
 
 def _prefix_mac(path: Path, length: int) -> str:
@@ -82,10 +78,20 @@ def verify_incremental(max_entries: int = MAX_ENTRIES, full: bool = False, now: 
                 cp.save(dict(_EMPTY))                    # next call walks from the start and locates the break
                 return {"ok": False, "entries": covered, "verified_now": 0, "covered_by_checkpoint": 0, "broken_at": None,
                         "reason": "trace before the checkpoint was altered or shortened", "complete": True}
+        try:
+            wanted = {h[0] for _, h in trace.heads() if h}
+        except trace.TraceHeadError:
+            wanted = set()                               # head_problem below reports the missing key
+        marks = {int(k): v for k, v in st["marks"].items()}      # hash at each signed-head position, recorded in earlier calls
         full_at, pass_at = float(st["full_at"]), float(st["pass_at"])
+        if any(w <= covered and w not in marks for w in wanted):
+            full = True                                  # a head position inside the checkpointed prefix was never recorded
         if full or (now - full_at > FULL_EVERY_S and pass_at <= full_at):   # not already part-way through a full pass
-            offset, prev, covered, pass_at = 0, GENESIS, 0, now              # re-verify from genesis; trusts nothing stored
+            offset, prev, covered, pass_at, marks = 0, GENESIS, 0, now, {}   # re-verify from genesis; trusts nothing stored
         if not size:
+            if (bad := trace.head_problem(0, {})):
+                return {"ok": False, "entries": 0, "verified_now": 0, "covered_by_checkpoint": 0, "broken_at": None,
+                        "reason": bad, "complete": True}
             return {"ok": True, "entries": 0, "verified_now": 0, "covered_by_checkpoint": 0, "broken_at": None, "reason": "",
                     "complete": True}
         done = 0
@@ -96,18 +102,25 @@ def verify_incremental(max_entries: int = MAX_ENTRIES, full: bool = False, now: 
                     break
                 try:
                     e = json.loads(raw)
-                    ok = e.get("prev") == prev and e.get("hash") == _hash(prev, e["ts"], e["actor"], e["action"], e["payload"])
-                except (ValueError, KeyError, TypeError, AttributeError):
+                    ok = trace.entry_ok(e, prev) and not (wanted and covered + done + 1 > max(wanted) and not trace.is_keyed(e))
+                except (ValueError, KeyError, TypeError, AttributeError, trace.TraceHeadError):
                     ok = False
                 if not ok:
                     cp.save(dict(_EMPTY))
                     return {"ok": False, "entries": covered + done, "verified_now": done, "covered_by_checkpoint": covered,
                             "broken_at": covered + done + 1, "reason": "entry was altered or out of order", "complete": True}
                 prev, offset, done = e["hash"], offset + len(raw), done + 1
+                if covered + done in wanted:
+                    marks[covered + done] = prev
         complete = offset >= size
+        if complete:
+            bad = trace.head_problem(covered + done, marks)
+            if bad:
+                return {"ok": False, "entries": covered + done, "verified_now": done, "covered_by_checkpoint": covered,
+                        "broken_at": None, "reason": bad, "complete": True}
         if complete and pass_at > full_at:
             full_at = pass_at                            # the from-genesis pass finished: restart the 24 h clock
         cp.save({"offset": offset, "prev": prev, "entries": covered + done, "mac": _prefix_mac(path, offset) if offset else "",
-                 "full_at": full_at, "pass_at": pass_at})
+                 "full_at": full_at, "pass_at": pass_at, "marks": {str(k): v for k, v in marks.items() if k in wanted}})
         return {"ok": True, "entries": covered + done, "verified_now": done, "covered_by_checkpoint": covered,
                 "broken_at": None, "reason": "", "complete": complete}

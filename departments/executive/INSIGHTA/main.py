@@ -1,11 +1,14 @@
+"""Insighta: simple statistics over number series for executive reporting (formulas only, no model).
+
+detect_trend(series) is (last - first)/(n - 1), 0.0 under two points; behavioral_shift(before,
+after) is mean(after) - mean(before), 0.0 if either is empty; consistency_score(values) is
+1/(1 + population variance), 0.0 if empty. config["sensitivity"] is stored but unused.
+Keeps no state. Non-numeric items raise TypeError.
+"""
 import logging
 from typing import Dict, Any, List
 
 logger = logging.getLogger("INSIGHTA")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - INSIGHTA - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class InsightaAgent:
     def __init__(self, config: Dict[str, Any] = None):

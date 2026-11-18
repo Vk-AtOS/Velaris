@@ -4,13 +4,13 @@ PIPELINE_MONITOR — Velaris BOS agent for Knackforge
 Ported from VKatOS pipeline_monitor. Statistical risk scoring for pipeline stage durations.
 """
 import logging
-import sqlite3
+
+from velaris.core.sqlite_util import connect as connect_db
 import statistics
 from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from velaris.intel.paths import agent_file
 
-from velaris.intel.paths import agent_dir
 
 logger = logging.getLogger("PIPELINE_MONITOR")
 
@@ -18,7 +18,7 @@ logger = logging.getLogger("PIPELINE_MONITOR")
 class PipelineMonitor:
     def __init__(self, db_path: str = "", config: Dict[str, Any] = None):
         self.config = config or {}
-        self.db = sqlite3.connect(db_path or agent_file("PIPELINE_MONITOR", "pipeline_data.db"))
+        self.db = connect_db(db_path or agent_file("PIPELINE_MONITOR", "pipeline_data.db"))
         self._init_db()
 
     def _init_db(self):

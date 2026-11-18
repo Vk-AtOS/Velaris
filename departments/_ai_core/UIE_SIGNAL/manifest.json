@@ -1,0 +1,25 @@
+{
+  "name": "UIE_SIGNAL",
+  "display_name": "Uie Signal",
+  "version": "0.1.0",
+  "description": "UIE_SIGNAL: first contact with an incoming message, before anything tries to interpret it.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:UIESignalAgent",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "UIE_SIGNAL: first contact with an incoming message, before anything tries to interpret it.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/UIE_SIGNAL.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "process": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

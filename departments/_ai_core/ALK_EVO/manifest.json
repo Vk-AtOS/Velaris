@@ -1,0 +1,37 @@
+{
+  "name": "ALK_EVO",
+  "display_name": "Alk Evo",
+  "version": "0.1.0",
+  "description": "ALK evo: champion/challenger selection between named versions of a configuration.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:ALK_EVOAgent",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "ALK evo: champion/challenger selection between named versions of a configuration.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/ALK_EVO.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "champion": {
+        "kind": "read"
+      },
+      "evaluate": {
+        "kind": "act"
+      },
+      "record": {
+        "kind": "act"
+      },
+      "register": {
+        "kind": "act"
+      },
+      "rollback": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

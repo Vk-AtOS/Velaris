@@ -41,16 +41,5 @@ class AgentRouter:
     def count(self):
         return len(self._agents)
 
-    def publish(self, event_name: str, data: dict = None):
-        """Publish an event to all registered agents."""
-        results = {}
-        for name, agent in self._agents.items():
-            if hasattr(agent, 'on_event'):
-                try:
-                    results[name] = agent.on_event(event_name, data or {})
-                except Exception as e:
-                    logger.warning("Agent %s on_event(%s) failed: %s", name, event_name, e)
-        return results
-
 
 router = AgentRouter()

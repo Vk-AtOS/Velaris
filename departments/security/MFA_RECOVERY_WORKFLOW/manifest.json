@@ -1,0 +1,21 @@
+{
+  "name": "MFA_RECOVERY_WORKFLOW",
+  "version": "0.1.0",
+  "description": "MFA recovery workflow: one-time recovery codes that yield a one-time reset token, used to record a new credential hash.",
+  "entrypoint": "main.py:MFARecoveryWorkflow",
+  "harness": {
+    "schema": 1,
+    "status": "not_harnessed",
+    "purpose": "MFA recovery workflow: one-time recovery codes that yield a one-time reset token, used to record a new credential hash.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "tools": {},
+    "excluded": {},
+    "reason_code": "unsafe",
+    "reason": "issue_recovery_code returns a recovery code and reset/verify take tokens: credentials would pass through the model.",
+    "eval": "evals/security/MFA_RECOVERY_WORKFLOW.json",
+    "wave": "KAN-40",
+    "reviewed": true
+  },
+  "domain": "security"
+}

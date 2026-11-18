@@ -9,7 +9,7 @@ silently lost (the page looks fine; the value is not kept): what verification mu
 from __future__ import annotations
 
 import copy
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Tuple
 
 
 class FakeDriver:

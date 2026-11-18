@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "agent": "MRF_REFLECT",
+  "cases": [
+    {
+      "id": "select-reflect",
+      "input": "Use the reflect operation of MRF_REFLECT with {\"evaluation\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "reflect",
+            "args": {
+              "evaluation": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-revise",
+      "input": "Use the revise operation of MRF_REFLECT with {\"output\": \"sample\", \"evaluation\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "revise",
+            "args": {
+              "output": "sample",
+              "evaluation": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

@@ -2,11 +2,16 @@
 
 - **Department:** `finance`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/finance/VALORA/main.py` (58 lines)
+- **Source:** `departments/finance/VALORA/main.py` (61 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Valora: weighted valuation score for assets.
+ValoraAgent.compute_value(metrics) returns the sum of weight * metric using config "weights"
+(default revenue 0.4, growth 0.3, stability 0.3); missing metrics count as zero.
+compare_assets(a, b) returns "A", "B" or "Equal" by comparing the two scores. value_shift(old, new)
+returns score(new) - score(old). Fixed-weight arithmetic, not a market valuation model.
+State: keeps none beyond config. Failure: non-numeric values raise TypeError; nothing is caught.
 
 ## Class `ValoraAgent`
 

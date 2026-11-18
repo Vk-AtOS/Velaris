@@ -1,0 +1,21 @@
+{
+  "name": "SECURE_ACTION_TOKENS",
+  "version": "0.1.0",
+  "description": "Secure action tokens: short-lived, single-use HMAC-SHA256 tokens that authorise one named action.",
+  "entrypoint": "main.py:SecureActionTokens",
+  "harness": {
+    "schema": 1,
+    "status": "not_harnessed",
+    "purpose": "Secure action tokens: short-lived, single-use HMAC-SHA256 tokens that authorise one named action.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "tools": {},
+    "excluded": {},
+    "reason_code": "unsafe",
+    "reason": "generate returns a one-time action token and validate takes one: the token would pass through the model, which could then replay it.",
+    "eval": "evals/security/SECURE_ACTION_TOKENS.json",
+    "wave": "KAN-40",
+    "reviewed": true
+  },
+  "domain": "security"
+}

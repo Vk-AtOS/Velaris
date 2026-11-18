@@ -48,6 +48,6 @@ without running it.
 
 ## Called by
 
-- **other agents:** `OFFLINE_EXECUTION_ENGINE`, `PARALLEL_CORE`
+- **other agents:** `EXECUTION_SANDBOX`, `OFFLINE_EXECUTION_ENGINE`, `PARALLEL_CORE`
 - **platform modules:** none found
 - **tests:** `velaris/tests/test_dept_it_infrastructure_stubs_2.py`, `velaris/tests/test_layer7_offline.py`

@@ -81,3 +81,97 @@ def test_cli_and_lock_file(tmp_path):
     archive = next((tmp_path / "o").glob("*.tar.gz"))
     assert vb.main(["restore", "--archive", str(archive), "--target", str(tmp_path / "r")]) == 0
     assert vb.main(["restore", "--archive", str(archive), "--target", str(tmp_path / "r")]) == 1     # not empty
+
+
+def test_lock_stores_waits_for_a_busy_writer_blocks_new_writers_and_never_deadlocks(tmp_path):
+    import fcntl
+    import threading
+    import time
+    data = make_data(tmp_path)
+    lock = data / "agents" / "hr" / "state.json.lock"
+    (data / "trace.lock").write_text("")
+    fd = lock.open("a+")
+    fcntl.flock(fd, fcntl.LOCK_EX)                                      # a writer is mid-update
+    threading.Timer(0.4, lambda: (fcntl.flock(fd, fcntl.LOCK_UN), fd.close())).start()
+    t0 = time.monotonic()
+    seen = {}
+    real = vb.snapshot
+
+    def spy(d, stage):
+        probe = open(data / "trace.lock", "a+")
+        try:
+            fcntl.flock(probe, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            seen["writer_could_lock"] = True
+        except BlockingIOError:
+            seen["writer_could_lock"] = False                           # during the copy every store lock is ours
+        probe.close()
+        return real(d, stage)
+    vb.snapshot = spy
+    try:
+        archive = vb.backup(data, tmp_path / "out", stores=True)
+    finally:
+        vb.snapshot = real
+    assert time.monotonic() - t0 >= 0.35 and seen == {"writer_could_lock": False} and archive.exists()
+    probe = open(data / "trace.lock", "a+")
+    fcntl.flock(probe, fcntl.LOCK_EX | fcntl.LOCK_NB)                   # released afterwards
+    probe.close()
+    held = (data / "trace.lock").open("a+")
+    fcntl.flock(held, fcntl.LOCK_EX)
+    with pytest.raises(vb.BackupError):
+        vb.backup(data, tmp_path / "out2", stores=True, lock_timeout=0.3)
+    held.close()
+
+
+def test_drill_of_the_real_stores_trace_with_its_signed_head_survives_restore(tmp_path, monkeypatch):
+    """KAN-117: back up a live VELARIS_DATA written by the real code, lose it, restore, and the signed trace still verifies."""
+    from velaris.agentkit.state import JsonState
+    from velaris.intel import trace
+    live = tmp_path / "live"
+    monkeypatch.setenv("VELARIS_DATA", str(live))
+    for i in range(5):
+        trace.append("drill", "act", {"i": i})
+    JsonState("DRILL", "state.json").save({"k": "v"})
+    archive = vb.backup(live, tmp_path / "out", stores=True)
+    import shutil
+    shutil.rmtree(live)                                                   # disk lost
+    restored = tmp_path / "restored"
+    vb.restore(archive, restored)
+    monkeypatch.setenv("VELARIS_DATA", str(restored))
+    assert trace.verify() == {"ok": True, "entries": 5, "broken_at": None, "reason": ""}      # entries AND the signed head came back together
+    assert JsonState("DRILL", "state.json").load()["k"] == "v"
+    trace.append("drill", "after-restore", {})                                                  # and the chain keeps going
+    assert trace.verify()["entries"] == 6
+
+
+def _drill_module():
+    p = Path(__file__).resolve().parents[2] / "deploy" / "backup" / "restore_drill.py"
+    s = importlib.util.spec_from_file_location("restore_drill", p)
+    m = importlib.util.module_from_spec(s)
+    s.loader.exec_module(m)
+    return m
+
+
+def test_drill_passes_on_a_good_archive_and_records_timings(tmp_path, monkeypatch):
+    from velaris.intel import trace
+    monkeypatch.setenv("VELARIS_DATA", str(tmp_path / "live"))
+    for i in range(3):
+        trace.append("t", f"a{i}", {})
+    data = Path(tmp_path / "live")
+    con = sqlite3.connect(data / "flow.db")
+    con.execute("CREATE TABLE e (x)")
+    con.commit()
+    con.close()
+    rec = _drill_module().drill(vb.backup(data, tmp_path / "out"))
+    assert rec["passed"] and rec["trace_entries"] == 3
+    assert [s["step"] for s in rec["steps"]][0].startswith("restore archive") and rec["total_seconds"] >= 0
+
+
+def test_drill_fails_when_the_backed_up_trace_was_tampered_with(tmp_path, monkeypatch):
+    from velaris.intel import trace
+    monkeypatch.setenv("VELARIS_DATA", str(tmp_path / "live"))
+    for i in range(3):
+        trace.append("t", f"a{i}", {})
+    tf = tmp_path / "live" / "trace.jsonl"
+    tf.write_text(tf.read_text().replace('"a1"', '"EVIL"'))              # a rewritten history inside the backup
+    rec = _drill_module().drill(vb.backup(tmp_path / "live", tmp_path / "out"))
+    assert not rec["passed"] and any(not s["ok"] and "trace" in s["step"] for s in rec["steps"])

@@ -1,0 +1,34 @@
+{
+  "name": "DSS_CLUSTER_MANAGER",
+  "display_name": "Dss Cluster Manager",
+  "version": "0.1.0",
+  "description": "DSS cluster manager: the registry of worker nodes for the DSS family.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:DSS_CLUSTER_MANAGERAgent",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "DSS cluster manager: the registry of worker nodes for the DSS family.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/DSS_CLUSTER_MANAGER.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "deregister_node": {
+        "kind": "act"
+      },
+      "heartbeat": {
+        "kind": "act"
+      },
+      "nodes": {
+        "kind": "read"
+      },
+      "register_node": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

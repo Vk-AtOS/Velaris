@@ -1,8 +1,8 @@
 # SCREENING_FORMS
 
 - **Department:** `hr`
-- **Status (static inventory):** `rule_based`
-- **Source:** `departments/hr/SCREENING_FORMS/main.py` (214 lines)
+- **Status (static inventory):** `real`
+- **Source:** `departments/hr/SCREENING_FORMS/main.py` (243 lines)
 
 ## Purpose
 
@@ -55,5 +55,5 @@ Intake forms (data), proof of work, upload checks, candidate tokens, and the sta
 ## Called by
 
 - **other agents:** none found
-- **platform modules:** `velaris/agentkit/hiring_common.py`, `velaris/agentkit/hiring_forms.py`, `velaris/api/allowlist.py`
-- **tests:** `velaris/tests/test_api_public.py`, `velaris/tests/test_hiring_api.py`, `velaris/tests/test_hiring_forms.py`
+- **platform modules:** `velaris/agentkit/hiring_common.py`, `velaris/agentkit/hiring_forms.py`, `velaris/agentkit/hiring_intake.py`, `velaris/api/allowlist.py`
+- **tests:** `velaris/tests/test_api_public.py`, `velaris/tests/test_hiring_api.py`, `velaris/tests/test_hiring_forms.py`, `velaris/tests/test_hr_data_forms.py`, `velaris/tests/test_public_pages_browser.py`, `velaris/tests/test_sealed_binding.py`

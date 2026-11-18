@@ -1,11 +1,18 @@
+"""Fluxor: load throughput, spike detection and a one-step load balancer (simple arithmetic).
+
+FluxorAgent(config; "spike_threshold" default 1.5): health_check(); compute_throughput(loads)
+is the mean load; detect_spike(loads) is True when the last value exceeds the mean of the
+earlier ones times the threshold; balance_load(loads, target) moves each load 1 closer to
+target (it does not reach the target in one call).
+State: keeps no state beyond the configured threshold.
+Failure: compute_throughput returns 0.0 for an empty list; detect_spike returns False with
+fewer than 2 values; non-numeric loads raise TypeError.
+"""
+
 import logging
 from typing import List, Dict, Any
 
 logger = logging.getLogger("FLUXOR")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - FLUXOR - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class FluxorAgent:
     def __init__(self, config: Dict[str, Any] = None):

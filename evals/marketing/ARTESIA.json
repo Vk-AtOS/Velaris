@@ -1,0 +1,74 @@
+{
+  "schema": 1,
+  "agent": "ARTESIA",
+  "cases": [
+    {
+      "id": "select-aesthetic_score",
+      "input": "Use the aesthetic_score operation of ARTESIA with {\"attributes\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "aesthetic_score",
+            "args": {
+              "attributes": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-fuse_styles",
+      "input": "Use the fuse_styles operation of ARTESIA with {\"base\": \"sample\", \"overlay\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "fuse_styles",
+            "args": {
+              "base": "sample",
+              "overlay": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-style_profile",
+      "input": "Use the style_profile operation of ARTESIA with {\"features\": []}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "style_profile",
+            "args": {
+              "features": []
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

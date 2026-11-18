@@ -1,8 +1,8 @@
 # EACPE_PROTOCOL
 
 - **Department:** `legal_compliance`
-- **Status (static inventory):** `rule_based`
-- **Source:** `departments/legal_compliance/EACPE_PROTOCOL/main.py` (96 lines)
+- **Status (static inventory):** `real`
+- **Source:** `departments/legal_compliance/EACPE_PROTOCOL/main.py` (118 lines)
 
 ## Purpose
 
@@ -24,7 +24,10 @@ checks, deterministically:
 
 protocol_safe is True only when the protocol exists and there are no findings.
 Protocols are stored on disk and can be redefined; each result names the
-protocol version it was checked against.
+protocol version it was checked against. Defining or redefining one is a governance
+decision: define() needs an authenticated governance admin (velaris.core.access) and writes
+the new version and a hash of its steps to the hash-chained trace first; if the trace cannot
+be written the protocol is not changed. Evaluating is read-only and needs no caller.
 
 ## Class `EACPE_PROTOCOLAgent`
 
@@ -36,8 +39,10 @@ protocol version it was checked against.
 ## Depends on
 
 - `velaris.agentkit.checks`
+- `velaris.agentkit.infra_store`
 - `velaris.agentkit.results`
 - `velaris.agentkit.state`
+- `velaris.core.access`
 
 ## State and configuration
 
@@ -47,4 +52,4 @@ protocol version it was checked against.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_dept_legal_compliance_stubs.py`, `velaris/tests/test_layer32_eacpe.py`
+- **tests:** `velaris/tests/test_dept_legal_compliance_stubs.py`, `velaris/tests/test_kan104_unauthenticated_writes.py`, `velaris/tests/test_layer32_eacpe.py`

@@ -38,10 +38,19 @@ class _Queue:
         self.user, self.org, self.events, self.next_id, self.touched, self.dead = user, org, [], 0, now, False
 
 
+class TooManyPolls(Exception):
+    """The user already has the maximum number of long polls waiting (each one holds a worker thread)."""
+
+
+MAX_QUEUES_PER_USER = 5      # a user who registers more loses the oldest queue (a tab that was closed without deleting it)
+MAX_POLLS_PER_USER = 4       # long polls (timeout > 0) waiting at once per user; one more is refused with 429 (KAN-69 SV2-07)
+
+
 class Hub:
     def __init__(self, *, ttl: float = 300.0, max_events: int = 1000,
                  clock: Callable[[], float] = time.monotonic) -> None:
         self.ttl, self.max_events, self._clock = ttl, max_events, clock
+        self._waiting: Dict[str, int] = {}
         self._queues: Dict[str, _Queue] = {}
         self._cond = threading.Condition()
 
@@ -49,6 +58,9 @@ class Hub:
         qid = secrets.token_urlsafe(18)
         with self._cond:
             self._gc()
+            mine = [k for k, q in self._queues.items() if q.user == user]          # insertion order: oldest first
+            for k in mine[:max(0, len(mine) - MAX_QUEUES_PER_USER + 1)]:
+                del self._queues[k]
             self._queues[qid] = _Queue(user, org, self._clock())
         return qid
 
@@ -99,16 +111,30 @@ class Hub:
         when given (a stream that has sent more than the client has confirmed)."""
         deadline = self._clock() + max(0.0, timeout)
         with self._cond:
-            while True:
-                q = self._get(queue_id, user)
-                q.events = [e for e in q.events if e["id"] > (last_event_id if acknowledged is None else acknowledged)]
-                fresh = [e for e in q.events if e["id"] > last_event_id]
-                if fresh:
-                    return fresh
-                remaining = deadline - self._clock()
-                if remaining <= 0:
-                    return []
-                self._cond.wait(min(remaining, 1.0))
+            if timeout > 0:
+                if self._waiting.get(user, 0) >= MAX_POLLS_PER_USER:
+                    raise TooManyPolls()
+                self._waiting[user] = self._waiting.get(user, 0) + 1
+            try:
+                return self._poll_locked(queue_id, user, last_event_id, acknowledged, deadline)
+            finally:
+                if timeout > 0:
+                    self._waiting[user] -= 1
+                    if not self._waiting[user]:
+                        del self._waiting[user]
+
+    def _poll_locked(self, queue_id: str, user: str, last_event_id: int, acknowledged: Optional[int],
+                     deadline: float) -> List[Dict[str, Any]]:
+        while True:
+            q = self._get(queue_id, user)
+            q.events = [e for e in q.events if e["id"] > (last_event_id if acknowledged is None else acknowledged)]
+            fresh = [e for e in q.events if e["id"] > last_event_id]
+            if fresh:
+                return fresh
+            remaining = deadline - self._clock()
+            if remaining <= 0:
+                return []
+            self._cond.wait(min(remaining, 1.0))
 
     def _get(self, queue_id: str, user: str) -> _Queue:
         q = self._queues.get(queue_id)

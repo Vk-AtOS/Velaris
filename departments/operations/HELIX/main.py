@@ -1,12 +1,17 @@
+"""Helix: stores and verifies SHA-256 signatures of "genome" data.
+HelixAgent.generate_signature(data) returns the SHA-256 hex digest of the JSON of data (sorted keys).
+store_genome(key, data) stores that signature under key and returns it. verify_genome(key, data)
+returns True when the signature of data equals the stored one, False for an unknown key or a mismatch.
+Only the hash is kept, not the data. It is a plain integrity check with no secret key, so it does
+not prove who produced the data.
+State: in-memory dict only, nothing persisted. Failure: data that is not JSON serializable raises
+TypeError.
+"""
 import logging
 import hashlib
 import json
 
 logger = logging.getLogger("HELIX")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - HELIX - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class HelixAgent:
     def __init__(self, config=None):

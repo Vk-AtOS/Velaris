@@ -1,7 +1,7 @@
 # DECISION_FIREWALL
 
 - **Department:** `security`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/security/DECISION_FIREWALL/main.py` (43 lines)
 
 ## Purpose

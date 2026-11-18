@@ -1,0 +1,28 @@
+{
+  "name": "META_REINFORCEMENT_CORE",
+  "display_name": "Meta Reinforcement Core",
+  "version": "0.1.0",
+  "description": "META_REINFORCEMENT_CORE: picks between options from their recorded outcomes (UCB1 bandit).",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:MetaReinforcementCore",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "META_REINFORCEMENT_CORE: picks between options from their recorded outcomes (UCB1 bandit).",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/META_REINFORCEMENT_CORE.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "optimize": {
+        "kind": "act"
+      },
+      "record": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

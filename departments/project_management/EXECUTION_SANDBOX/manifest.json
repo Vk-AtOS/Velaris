@@ -1,0 +1,32 @@
+{
+  "name": "EXECUTION_SANDBOX",
+  "version": "0.1.0",
+  "description": "Execution sandbox: evaluates a tiny arithmetic language (not Python) and logs every run.",
+  "entrypoint": "main.py:ExecutionSandbox",
+  "harness": {
+    "schema": 1,
+    "purpose": "Execution sandbox: evaluates a tiny arithmetic language (not Python) and logs every run.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/project_management/EXECUTION_SANDBOX.json",
+    "wave": "KAN-36",
+    "status": "deterministic_tool",
+    "tools": {
+      "get_last_error": {
+        "kind": "read"
+      },
+      "get_last_result": {
+        "kind": "read"
+      },
+      "get_log": {
+        "kind": "read"
+      },
+      "safe_exec": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "project_management"
+}

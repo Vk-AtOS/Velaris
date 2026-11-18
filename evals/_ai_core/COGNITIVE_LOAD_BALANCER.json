@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "agent": "COGNITIVE_LOAD_BALANCER",
+  "cases": [
+    {
+      "id": "select-choose",
+      "input": "Use the choose operation of COGNITIVE_LOAD_BALANCER with {\"candidates\": []}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "choose",
+            "args": {
+              "candidates": []
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

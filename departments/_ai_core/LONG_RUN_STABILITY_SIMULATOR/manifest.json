@@ -1,0 +1,31 @@
+{
+  "name": "LONG_RUN_STABILITY_SIMULATOR",
+  "display_name": "Long Run Stability Simulator",
+  "version": "0.1.0",
+  "description": "Public methods: simulate, batch_simulate, summary",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:LongRunStabilitySimulator",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Long-run stability simulator: turns a series of performance values into a heuristic stability score.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/LONG_RUN_STABILITY_SIMULATOR.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "batch_simulate": {
+        "kind": "act"
+      },
+      "simulate": {
+        "kind": "act"
+      },
+      "summary": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

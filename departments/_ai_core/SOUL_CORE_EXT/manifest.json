@@ -3,5 +3,33 @@
   "version": "1.0.0",
   "author": "Velaris",
   "description": "Versioned operating settings for this Velaris instance.",
-  "entrypoint": "main.py:SOUL_CORE_EXTAgent"
+  "entrypoint": "main.py:SOUL_CORE_EXTAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "SOUL_CORE_EXT: versioned operating settings for this Velaris instance.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/SOUL_CORE_EXT.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "at": {
+        "kind": "act"
+      },
+      "history": {
+        "kind": "act"
+      },
+      "rollback": {
+        "kind": "act"
+      },
+      "snapshot": {
+        "kind": "act"
+      },
+      "update": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

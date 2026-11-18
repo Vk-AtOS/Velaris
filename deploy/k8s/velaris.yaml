@@ -36,6 +36,8 @@ spec:
               valueFrom: {secretKeyRef: {name: velaris-secrets, key: org}}
             - name: VELARIS_API_SECRET
               valueFrom: {secretKeyRef: {name: velaris-secrets, key: api_secret}}
+            - name: VELARIS_VAULT_KEY                    # encryption at rest + signed trace head; supplied from the secret manager, never in the data volume
+              valueFrom: {secretKeyRef: {name: velaris-secrets, key: vault_key}}
           volumeMounts:
             - {name: data, mountPath: /data}
             - {name: identity, mountPath: /run/velaris, readOnly: true}
@@ -85,6 +87,8 @@ spec:
             - {name: VELARIS_PUBLIC_TRUST_PROXY, value: "1"}
             - name: VELARIS_ORG
               valueFrom: {secretKeyRef: {name: velaris-secrets, key: org}}
+            - name: VELARIS_VAULT_KEY
+              valueFrom: {secretKeyRef: {name: velaris-secrets, key: vault_key}}
             - name: VELARIS_PUBLIC_CORS_ORIGINS
               valueFrom: {secretKeyRef: {name: velaris-secrets, key: public_cors_origins, optional: true}}
           volumeMounts:
@@ -115,7 +119,9 @@ spec:
   ingress:
     - from:                               # only the AetherOS gateway pods
         - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: CHANGE_ME_AETHEROS_NAMESPACE}}
-          podSelector: {matchLabels: {app.kubernetes.io/name: aetheros, app.kubernetes.io/component: gateway}}
+          podSelector: {matchLabels: {app.kubernetes.io/name: aetheros, app.kubernetes.io/component: gateway}}   # Helm chart
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: CHANGE_ME_AETHEROS_NAMESPACE}}
+          podSelector: {matchLabels: {app.kubernetes.io/name: aetheros-api, app.kubernetes.io/component: api}}   # deploy/kubernetes/api.yaml
       ports: [{port: 8730, protocol: TCP}]
     - from:                               # Prometheus scrapes the internal metrics listener
         - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: CHANGE_ME_MONITORING_NAMESPACE}}

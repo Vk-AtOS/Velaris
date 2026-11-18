@@ -1,0 +1,38 @@
+{
+  "schema": 1,
+  "agent": "GENEFLOW",
+  "cases": [
+    {
+      "id": "select-compute_diff",
+      "input": "Use the compute_diff operation of GENEFLOW with {\"old\": \"sample\", \"new\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "compute_diff",
+            "args": {
+              "old": "sample",
+              "new": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

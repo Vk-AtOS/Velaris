@@ -1,11 +1,14 @@
+"""Auditor: checks a workflow against required steps and scans log lines for banned terms.
+
+check_compliance(workflow_steps, required_steps) is True only when every required step is
+present; find_violations(log_entries, banned_terms) returns the entries containing any banned
+term (case-sensitive substring). Pure functions, no policy source and no audit trail: it keeps
+no state. Non-iterable input raises TypeError.
+"""
 import logging
 from typing import Dict, Any, List
 
 logger = logging.getLogger("AUDITOR")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - AUDITOR - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class AuditorAgent:
     def __init__(self, config: Dict[str, Any] = None):

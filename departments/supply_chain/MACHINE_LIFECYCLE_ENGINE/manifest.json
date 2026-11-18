@@ -1,0 +1,26 @@
+{
+  "name": "MACHINE_LIFECYCLE_ENGINE",
+  "version": "0.1.0",
+  "description": "MACHINE_LIFECYCLE_ENGINE: where a machine is in its life, from usage and maintenance records.",
+  "entrypoint": "main.py:MachineLifecycleEngine",
+  "harness": {
+    "schema": 1,
+    "purpose": "MACHINE_LIFECYCLE_ENGINE: where a machine is in its life, from usage and maintenance records.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/supply_chain/MACHINE_LIFECYCLE_ENGINE.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "assess": {
+        "kind": "act"
+      },
+      "validate": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "supply_chain"
+}

@@ -5,5 +5,27 @@
   "description": "Public methods: imagine, scenario, visual_map (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:ImaginaAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Imagina: template generator for ideation prompts (stub-level, no model).",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/marketing/IMAGINA.json",
+    "wave": "KAN-42",
+    "status": "deterministic_tool",
+    "tools": {
+      "imagine": {
+        "kind": "read"
+      },
+      "scenario": {
+        "kind": "read"
+      },
+      "visual_map": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

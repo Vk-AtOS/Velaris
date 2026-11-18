@@ -1,7 +1,7 @@
 # INTERVIEW_KIT
 
 - **Department:** `hr`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/hr/INTERVIEW_KIT/main.py` (269 lines)
 
 ## Purpose
@@ -49,5 +49,5 @@ Question banks, rubrics, kits, independent scorecards, aggregation, agreement, c
 ## Called by
 
 - **other agents:** none found
-- **platform modules:** `velaris/agentkit/hiring_common.py`, `velaris/agentkit/hiring_kit.py`, `velaris/api/allowlist.py`
+- **platform modules:** `velaris/agentkit/hiring_common.py`, `velaris/agentkit/hiring_kit.py`, `velaris/api/allowlist.py`, `velaris/orchestration/autonomy.py`
 - **tests:** `velaris/tests/test_hiring_api.py`, `velaris/tests/test_hiring_kit.py`

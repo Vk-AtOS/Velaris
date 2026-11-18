@@ -5,5 +5,27 @@
   "description": "Public methods: compute_kpi, normalize_metrics, performance_score (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:MetrixAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Metrix: weighted KPI and performance scoring of metric dicts.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/finance/METRIX.json",
+    "wave": "KAN-38",
+    "status": "deterministic_tool",
+    "tools": {
+      "compute_kpi": {
+        "kind": "read"
+      },
+      "normalize_metrics": {
+        "kind": "read"
+      },
+      "performance_score": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

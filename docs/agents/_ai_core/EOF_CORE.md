@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/_ai_core/EOF_CORE/main.py` (93 lines)
+- **Source:** `departments/_ai_core/EOF_CORE/main.py` (101 lines)
 
 ## Purpose
 
@@ -40,5 +40,5 @@ A plan is either one step {"task", "target", ...} or
 ## Called by
 
 - **other agents:** `CORE_CONVERGENCE`, `EOF_POLICY`
-- **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_b_eof.py`, `velaris/tests/test_layer31_eof.py`
+- **platform modules:** `velaris/orchestration/inbox.py`
+- **tests:** `velaris/tests/test_aicore_b_eof.py`, `velaris/tests/test_layer31_eof.py`, `velaris/tests/test_r3_eof.py`

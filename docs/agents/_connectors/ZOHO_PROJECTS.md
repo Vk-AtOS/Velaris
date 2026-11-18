@@ -2,11 +2,23 @@
 
 - **Department:** `_connectors`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/_connectors/ZOHO_PROJECTS/main.py` (71 lines)
+- **Source:** `departments/_connectors/ZOHO_PROJECTS/main.py` (97 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Zoho Projects connector: reads project delivery data from the Zoho Projects REST API (India region).
+ZohoProjectsConnector.get_projects() lists active projects. get_tasks_by_owner(project_id, owner_id)
+lists a user's tasks in a project. get_timelogs(project_id, owner_id, from_date, to_date) returns that
+user's task time logs (dates MM-dd-yyyy). get_task_summary(project_id, owner_id) computes total,
+completed (status "Closed"), overdue (not closed and end date in the past), late_closed (closed
+after its end date), closed_unknown (closed tasks Zoho gave no completed_time_long or end date for: counted
+neither as on time nor as late), completion_rate, and on_time_rate (closed tasks with known timing that were not closed
+late, as a percentage of those; None when no closed task has known timing). health_check() returns status "ok" or "unconfigured" from the Zoho
+connector's credentials; it does not call Zoho. All HTTP goes through velaris.agents.ZOHO_CONNECTOR.ZohoConnector.get, using the portal id
+from config["portal_id"] or the ZOHO_PORTAL_ID environment variable.
+State: keeps none; credentials live in the Zoho connector. Failure: errors from the connector
+propagate; a missing key in the response yields an empty list. The config argument is optional
+(None means an empty dict; the portal id then comes from ZOHO_PORTAL_ID).
 
 ## Class `ZohoProjectsConnector`
 
@@ -34,6 +46,6 @@ Pulls project delivery data from Zoho Projects:
 
 ## Called by
 
-- **other agents:** `EMPLOYEE_METRICS_ENGINE`, `SPRINT_PLANNER`
+- **other agents:** `EMPLOYEE_METRICS_ENGINE`
 - **platform modules:** none found
-- **tests:** none found
+- **tests:** `velaris/tests/test_agents_coverage_a.py`, `velaris/tests/test_kan93_agents.py`

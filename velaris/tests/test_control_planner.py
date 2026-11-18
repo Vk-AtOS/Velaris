@@ -163,6 +163,7 @@ def test_loop_step_time_and_kill_limits(tmp_path, monkeypatch):
     e = env(tmp_path, monkeypatch, *[step("read", "a.txt")] * 6)
     e.inbox(a__txt="alpha")
     assert e.svc.start(U1, "files.organise", ORG)["status"] == "stopped:loop_detected"
+    monkeypatch.setenv("VELARIS_FLOW_MAX_INVALID", "0")      # the step limit, not the default invalid-reply cap, ends this run
     e = env(tmp_path / "2", monkeypatch, *["not json"] * 20)
     (tmp_path / "2" / "ws" / "acme" / "exports").mkdir(parents=True)
     r = e.svc.start(U1, "files.export_report", {"folder": "exports", "name": "r.csv", "header": ["a"], "rows": []})

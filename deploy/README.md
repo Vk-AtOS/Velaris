@@ -19,6 +19,10 @@ organisation. Raise capacity only after those two stores move to a shared store.
 | `VELARIS_API_SECRET` | API | HMAC secret shared with the gateway, at least 32 bytes (required) |
 | `VELARIS_IDENTITY_PUBLIC_KEY` | API | path of the AetherOS Ed25519 public key (PEM); mount read-only (required) |
 | `VELARIS_DATA` | both | data directory (volume, mode 0700, owned by the service user) |
+| `VELARIS_VAULT_KEY` or `VELARIS_VAULT_KEY_FILE` | both | **required.** 32-byte master key (base64) for encryption at rest of personal data (HR, hiring, mail, chat, memory, docs) and for signing the trace head. The file must be mode 0600 and OUTSIDE `VELARIS_DATA`. Missing key: those stores and the trace refuse to work (fail closed) |
+| `VELARIS_TRACE_ANCHOR_FILE` | both | optional second copy of the signed trace head on another disk/host (an NFS mount, a small volume, an object-store sync): with it even a rollback of the whole data directory cannot shorten the audit trail unseen |
+| `VELARIS_ADOPT_LEGACY` | both | `0` stops the one-time copy of databases that older releases left in the source tree, working directory or /tmp |
+| `VELARIS_AUDIO_UPLOADS` | public | audio uploads streamed at once per process (default 4; more get 503) |
 | `VELARIS_API_HOST` / `VELARIS_API_PORT` | API | bind address (default 127.0.0.1:8730; `0.0.0.0` only inside a container whose port is not published) |
 | `VELARIS_PUBLIC_HOST` / `VELARIS_PUBLIC_PORT` | public | default 127.0.0.1:8731 |
 | `VELARIS_PUBLIC_TRUST_PROXY` | public | `1` when exactly one trusted proxy (nginx) sets `X-Forwarded-For`: client IP = its last entry |
@@ -29,6 +33,27 @@ organisation. Raise capacity only after those two stores move to a shared store.
 
 Secrets (`VELARIS_API_SECRET`, Prime key, any encryption key for personal-data stores) are supplied by the environment or a secret
 manager; none is in an image or a manifest. Keys for encrypted stores must live **outside** `VELARIS_DATA`.
+
+## First start and upgrade (encryption, trace head)
+
+```
+# 1. once: make the master key, keep it OUTSIDE VELARIS_DATA, back it up separately from the data (a restore without it is unreadable by design)
+install -d -m 0700 /etc/velaris && python3.11 -c "from velaris.core import vault; print(vault.new_key())" > /etc/velaris/vault.key && chmod 0600 /etc/velaris/vault.key
+# 2. both services: VELARIS_VAULT_KEY_FILE=/etc/velaris/vault.key   (optional) VELARIS_TRACE_ANCHOR_FILE=/mnt/anchor/trace.head
+# 3. upgrading an existing deployment (a trace.jsonl without a signed head): stop the services, then
+VELARIS_DATA=/var/lib/velaris VELARIS_VAULT_KEY_FILE=/etc/velaris/vault.key python3.11 -m velaris.intel trace-rebaseline
+#    (walks the whole chain; signs a head only if the chain is intact; refuses when a valid existing head or anchor says entries are missing)
+# 4. old rows without an organisation: dry run, then apply   (VELARIS_ORG must be set)
+python3.11 -m velaris.core.backfill_org            # reports
+python3.11 -m velaris.core.backfill_org --apply
+```
+
+On the first start of a new release the mail, chat, memory and docs databases seal their existing plaintext once (and `VACUUM`);
+sqlite files that older releases left next to the code, in the working directory or in `/tmp` are copied once into
+`VELARIS_DATA/agents/<AGENT>/` (the originals are left in place: delete them after checking). HR sqlite databases
+(recruitment, onboarding, leave, performance) are sealed whole-file and are written by ONE process (a second process that changed
+the file first makes the commit fail with `SealedConflict`; run one API worker for them). Search in mail and chat is whole-word
+(mail also 3/4/6/8-letter prefixes): the full-text index holds HMAC tokens, not readable words.
 
 ## Packaging
 
@@ -91,8 +116,9 @@ python3.11 deploy/backup/velaris_backup.py restore --archive /var/backups/velari
 **Backup order.** SQLite files are copied with the online backup API; every other file is copied and accepted only if it did not
 change while it was read. For all stores to agree with each other, do one of: (a) stop both services for the few seconds the
 snapshot takes (`systemctl stop velaris-public velaris-api`, back up, start), the simplest and strictly consistent; or (b) pass
-`--lock-file` pointing at the cross-process lock the stores take for writing (the file locks the storage-hardening work adds,
-decision D4) so writers wait during the snapshot. Without either, each file is consistent but two stores may differ by a few
+`--lock-stores`: the snapshot holds the cross-process write lock of every store (every `*.lock` file under `VELARIS_DATA`, taken
+all-or-nothing with retries, so it cannot deadlock) and writers wait the few seconds the copy takes; `--lock-file FILE` adds one
+extra lock of your own. Without either, each file is consistent but two stores may differ by a few
 seconds of writes. Restore verifies the `.sha256` sidecar and every manifest hash, refuses unsafe archive members, and moves an
 existing target aside (`<target>.pre-restore-<epoch>`) only with `--force`. Stop the services before restoring.
 

@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "agent": "ASEL_ROUTER",
+  "cases": [
+    {
+      "id": "not-harnessed",
+      "input": "Do the job of ASEL_ROUTER.",
+      "expect": {
+        "status": "not_harnessed"
+      },
+      "forbid": {}
+    }
+  ]
+}

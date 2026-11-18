@@ -2,11 +2,16 @@
 
 - **Department:** `operations`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/operations/FABRICA/main.py` (48 lines)
+- **Source:** `departments/operations/FABRICA/main.py` (51 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Fabrica: simple helpers for describing and combining content layers.
+
+build_layers(layers) returns {"count", "layers"}. composition_score(layers) is the number of distinct layers times the
+layer_weight config value (default 1.0). combine(a, b) is a shallow dict merge in which b wins on shared keys. Config:
+layer_weight, version. health_check() returns status ok. Rule-based arithmetic only; keeps no state, and unhashable layer
+entries raise TypeError.
 
 ## Class `FabricaAgent`
 
@@ -27,5 +32,5 @@ _No module docstring yet._
 ## Called by
 
 - **other agents:** none found
-- **platform modules:** none found
+- **platform modules:** `velaris/api/allowlist.py`
 - **tests:** `velaris/tests/test_fabrica.py`

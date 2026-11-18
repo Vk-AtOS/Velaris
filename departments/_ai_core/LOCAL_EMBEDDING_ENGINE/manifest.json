@@ -1,0 +1,28 @@
+{
+  "name": "LOCAL_EMBEDDING_ENGINE",
+  "display_name": "Local Embedding Engine",
+  "version": "0.1.0",
+  "description": "LOCAL_EMBEDDING_ENGINE: text to vectors without sending anything off the machine, and similarity search.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:LocalEmbeddingEngine",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "LOCAL_EMBEDDING_ENGINE: text to vectors without sending anything off the machine, and similarity search.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/LOCAL_EMBEDDING_ENGINE.json",
+    "wave": "KAN-44",
+    "status": "mixed",
+    "tools": {
+      "embed": {
+        "kind": "act"
+      },
+      "nearest": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

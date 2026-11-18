@@ -1,0 +1,23 @@
+{
+  "name": "DOMAIN_REFINER",
+  "version": "0.1.0",
+  "description": "DOMAIN_REFINER: clean up free-text vertical labels against a canonical list.",
+  "entrypoint": "main.py:DOMAIN_REFINERAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "DOMAIN_REFINER: clean up free-text vertical labels against a canonical list.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/sales/DOMAIN_REFINER.json",
+    "wave": "KAN-42",
+    "status": "deterministic_tool",
+    "tools": {
+      "refine": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "sales"
+}

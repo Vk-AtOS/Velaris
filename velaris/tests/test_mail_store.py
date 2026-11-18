@@ -5,11 +5,9 @@ import stat
 import pytest
 
 from velaris.core.access import Caller
-from velaris.mail import db
 from velaris.mail.common import MailError
 from velaris.mail.mime import parse_message
-from velaris.mail.store import MailStore
-from velaris.tests.mail_helpers import ADMIN, ALICE, BOB, ORG, Clock, make_world, raw_mail
+from velaris.tests.mail_helpers import ADMIN, ALICE, BOB, CAROL, ORG, make_world, raw_mail
 
 
 def put(store, mb, **kw):
@@ -220,7 +218,7 @@ def test_cross_org_refusal_everywhere(monkeypatch):
 def test_export_and_erasure_remove_everything_but_audit_holds_ids_only():
     store, _, _, _, _, boxes = make_world()
     mb = boxes["alice"]
-    m = put(store, mb, mid="ex@x", subject="secret subject", frm="friend@ext.org")
+    put(store, mb, mid="ex@x", subject="secret subject", frm="friend@ext.org")
     out = store.export_mailbox(ALICE, mb["id"])
     assert out["messages"][0]["subject"] == "secret subject" and not out["truncated"]
     store.set_mailbox_settings(ALICE, mb["id"], {"signature": "Alice"})
@@ -252,3 +250,91 @@ def test_vacation_and_signature_validation():
         store.set_mailbox_settings(ALICE, mb["id"], {"vacation": {"enabled": True, "body": "x", "window_days": 99}})
     out = store.set_mailbox_settings(ALICE, mb["id"], {"vacation": {"enabled": True, "body": "away", "window_days": 3}})
     assert out["vacation"]["window_days"] == 3
+
+
+def test_mail_admin_cannot_export_someone_elses_mailbox():
+    """KAN-69 SV2-02: export returns every message of a mailbox; a mail_admin who is not its owner must not get it."""
+    store, _, _, _, _, boxes = make_world()
+    mb = boxes["alice"]
+    put(store, mb, mid="adm@x", subject="private subject")
+    with pytest.raises(MailError) as e:
+        store.export_mailbox(ADMIN, mb["id"])
+    assert e.value.status == 403
+    assert store.export_mailbox(ALICE, mb["id"])["messages"]            # the owner still can
+
+
+def test_legal_hold_export_needs_a_second_approver_and_is_off_by_default():
+    """KAN-69 SV2-02: owner-only by default; with legal_export on, a mail_admin exports once after another person approves."""
+    store, _, _, clock, _, boxes = make_world()
+    mb, admin2 = boxes["alice"], Caller("admin2", ORG, frozenset({"mail_admin"}))
+    H = lambda who, rid: next(p["request_hash"] for p in store.pending_legal_exports(who) if p["id"] == rid)   # noqa: E731
+    put(store, mb, mid="l1@x", subject="held")
+    with pytest.raises(MailError):
+        store.request_legal_export(ADMIN, mb["id"], "court order 42, matter X")            # off by default
+    store.set_org_settings(ADMIN, {"legal_export": True})
+    with pytest.raises(MailError):
+        store.request_legal_export(ALICE, mb["id"], "court order 42, matter X")            # not an administrator
+    with pytest.raises(MailError):
+        store.request_legal_export(ADMIN, mb["id"], "short")                               # a reason is required
+    rid = store.request_legal_export(ADMIN, mb["id"], "court order 42, matter X")["id"]
+    for bad in (lambda: store.export_mailbox(ADMIN, mb["id"]),                              # no request cited
+                lambda: store.export_mailbox(ADMIN, mb["id"], legal_request=rid),           # not approved yet
+                lambda: store.decide_legal_export(ADMIN, rid, True, "x"),                        # the requester cannot approve
+                lambda: store.decide_legal_export(BOB, rid, True, "x")):                         # nor can a plain member
+        with pytest.raises(MailError) as e:
+            bad()
+        assert e.value.status == 403
+    shown = store.pending_legal_exports(admin2)[0]                                          # the approver sees what is exported
+    assert (shown["mailbox"], shown["mailbox_owner"], shown["requested_by"]) == ("alice@acme.com", "alice", "admin")
+    assert store.pending_legal_exports(ADMIN) == []                                         # the requester decides nothing
+    with pytest.raises(MailError):
+        store.pending_legal_exports(BOB)
+    with pytest.raises(MailError) as e:
+        store.decide_legal_export(admin2, rid, True, "0" * 64)                              # blind approval: wrong hash
+    assert e.value.status == 409
+    old = shown["request_hash"]
+    store.run("UPDATE legal_export SET mailbox_id=? WHERE id=?", (boxes["bob"]["id"], rid))   # changed after viewing
+    with pytest.raises(MailError):
+        store.decide_legal_export(admin2, rid, True, old)
+    store.run("UPDATE legal_export SET mailbox_id=? WHERE id=?", (mb["id"], rid))
+    assert store.decide_legal_export(admin2, rid, True, old)["state"] == "approved"
+    with pytest.raises(MailError):
+        store.export_mailbox(admin2, mb["id"], legal_request=rid)                           # only for the requester
+    assert store.export_mailbox(ADMIN, mb["id"], legal_request=rid)["messages"]
+    with pytest.raises(MailError):
+        store.export_mailbox(ADMIN, mb["id"], legal_request=rid)                            # single use
+    other = store.request_legal_export(ADMIN, mb["id"], "court order 43, matter Y")["id"]
+    store.decide_legal_export(admin2, other, True, H(admin2, other))
+    clock.advance(25 * 3600)
+    with pytest.raises(MailError):
+        store.export_mailbox(ADMIN, mb["id"], legal_request=other)                          # expired
+    rej = store.request_legal_export(ADMIN, mb["id"], "court order 44, matter Z")["id"]
+    store.decide_legal_export(CAROL, rej, False, H(CAROL, rej))
+    with pytest.raises(MailError):
+        store.export_mailbox(ADMIN, mb["id"], legal_request=rej)
+
+
+def test_attachment_rows_and_search_index_rows_are_bound_to_their_message():
+    """KAN-167: somebody with write access to mail.db moves an attachment row (or an index row) onto another message."""
+    store, _, _, _, _, boxes = make_world()
+    mb = boxes["alice"]
+    att = (b"Content-Type: multipart/mixed; boundary=B\r\nFrom: a@x.com\r\nMessage-ID: <%s>\r\nSubject: invoice\r\n\r\n--B\r\nContent-Type: text/plain\r\n\r\nt\r\n--B\r\n"
+           b'Content-Type: application/pdf\r\nContent-Disposition: attachment; filename="f.pdf"\r\nContent-Transfer-Encoding: base64\r\n\r\nSGVsbG8=\r\n--B--\r\n')
+    a = store.deliver(mb["id"], parse_message(att.replace(b"%s", b"1@x")), received=1.0)
+    b = put(store, mb, mid="plain@x", subject="lunch plans", body="pizza on friday")
+    sha = store.get_message(ALICE, mb["id"], a)["attachment_list"][0]["sha256"]
+    store.run("UPDATE attachment SET message_pk=? WHERE message_pk=?", (b, a))                # moved to another message
+    assert store.get_message(ALICE, mb["id"], b)["attachment_list"] == []                      # not served there
+    with pytest.raises(MailError):
+        store.attachment(ALICE, mb["id"], b, sha)
+    store.run("UPDATE attachment SET message_pk=? WHERE message_pk=?", (a, b))
+    store.run("UPDATE attachment SET name='evil.exe'")                                         # edited in place
+    assert store.get_message(ALICE, mb["id"], a)["attachment_list"] == []
+    # the search index: copy the index row of "pizza" onto the invoice message
+    if store.fts:
+        rid_a = store.one("SELECT rowid AS r FROM message WHERE id=?", (a,))["r"]
+        rid_b = store.one("SELECT rowid AS r FROM message WHERE id=?", (b,))["r"]
+        row = store.one("SELECT subject AS s1, body AS b1, people AS p1 FROM msg_fts WHERE rowid=?", (rid_b,))
+        store.run("UPDATE msg_fts SET subject=?, body=?, people=? WHERE rowid=?", (row["s1"], row["b1"], row["p1"], rid_a))
+        hits = [m["id"] for m in store.list_messages(ALICE, mb["id"], q="pizza")["messages"]]
+        assert hits == [b]                                                                      # the invoice does not turn up for "pizza"

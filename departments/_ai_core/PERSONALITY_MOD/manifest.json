@@ -3,5 +3,27 @@
   "version": "1.0.0",
   "author": "Velaris",
   "description": "The house style for messages agents send, and the code that applies it.",
-  "entrypoint": "main.py:PERSONALITY_MODAgent"
+  "entrypoint": "main.py:PERSONALITY_MODAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "PERSONALITY_MOD: the house style for messages agents send, and the code that applies it.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/PERSONALITY_MOD.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "apply": {
+        "kind": "act"
+      },
+      "snapshot": {
+        "kind": "act"
+      },
+      "update": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

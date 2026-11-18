@@ -1,0 +1,74 @@
+{
+  "schema": 1,
+  "agent": "AMPLIFEX",
+  "cases": [
+    {
+      "id": "select-amplify",
+      "input": "Use the amplify operation of AMPLIFEX with {\"base_reach\": 1}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "amplify",
+            "args": {
+              "base_reach": 1
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-audience_growth",
+      "input": "Use the audience_growth operation of AMPLIFEX with {\"audience\": 1, \"rate\": 1.0}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "audience_growth",
+            "args": {
+              "audience": 1,
+              "rate": 1.0
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-signal_strength",
+      "input": "Use the signal_strength operation of AMPLIFEX with {\"interactions\": []}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "signal_strength",
+            "args": {
+              "interactions": []
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

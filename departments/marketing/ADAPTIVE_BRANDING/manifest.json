@@ -5,5 +5,21 @@
   "description": "Rewrite one brand message for a channel and audience, then check it.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:AdaptiveBrandingAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "ADAPTIVE_BRANDING: rewrite one brand message for a channel and audience, then check it.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/marketing/ADAPTIVE_BRANDING.json",
+    "wave": "KAN-42",
+    "status": "model_driven",
+    "tools": {
+      "run": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

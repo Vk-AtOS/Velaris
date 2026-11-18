@@ -1,0 +1,75 @@
+{
+  "schema": 1,
+  "agent": "FORMULA",
+  "cases": [
+    {
+      "id": "select-build_framework",
+      "input": "Use the build_framework operation of FORMULA with {\"title\": \"sample\", \"pillars\": []}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "build_framework",
+            "args": {
+              "title": "sample",
+              "pillars": []
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-merge_templates",
+      "input": "Use the merge_templates operation of FORMULA with {\"t1\": {}, \"t2\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "merge_templates",
+            "args": {
+              "t1": {},
+              "t2": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-pattern_score",
+      "input": "Use the pattern_score operation of FORMULA with {\"elements\": []}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "pattern_score",
+            "args": {
+              "elements": []
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

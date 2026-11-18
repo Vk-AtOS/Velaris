@@ -1,0 +1,28 @@
+{
+  "name": "DOCUMENT_LIBRARY",
+  "version": "0.1.0",
+  "description": "Document library agent: a company's files, searchable and answerable with citations.",
+  "entrypoint": "main.py:DocumentLibrary",
+  "harness": {
+    "schema": 1,
+    "purpose": "Document library agent: a company's files, searchable and answerable with citations.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/data_knowledge/DOCUMENT_LIBRARY.json",
+    "wave": "KAN-42",
+    "status": "deterministic_tool",
+    "tools": {
+      "ask": {
+        "kind": "read"
+      },
+      "search": {
+        "kind": "read"
+      }
+    },
+    "excluded": {
+      "ingest": "not in the HTTP allowlist (velaris/api/allowlist.py)"
+    },
+    "reviewed": true
+  },
+  "domain": "data_knowledge"
+}

@@ -1,0 +1,25 @@
+{
+  "name": "VHOE_CORE",
+  "display_name": "Vhoe Core",
+  "version": "0.1.0",
+  "description": "VHOE_CORE: one planning pass over the work queue.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:VHOE_COREAgent",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "VHOE_CORE: one planning pass over the work queue.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/VHOE_CORE.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "plan": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

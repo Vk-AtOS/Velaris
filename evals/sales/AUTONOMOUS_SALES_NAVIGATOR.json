@@ -1,0 +1,73 @@
+{
+  "schema": 1,
+  "agent": "AUTONOMOUS_SALES_NAVIGATOR",
+  "cases": [
+    {
+      "id": "select-predict_close_probability",
+      "input": "Use the predict_close_probability operation of AUTONOMOUS_SALES_NAVIGATOR with {\"lead\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "predict_close_probability",
+            "args": {
+              "lead": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-score_lead",
+      "input": "Use the score_lead operation of AUTONOMOUS_SALES_NAVIGATOR with {\"lead\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "score_lead",
+            "args": {
+              "lead": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-suggest_strategy",
+      "input": "Use the suggest_strategy operation of AUTONOMOUS_SALES_NAVIGATOR with {\"lead\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "suggest_strategy",
+            "args": {
+              "lead": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

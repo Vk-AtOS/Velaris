@@ -3,7 +3,8 @@
 route(dst, payload, via=None) checks the message and appends it to the
 destination's inbox (one owner-only file per destination under this agent's
 state directory); receive(dst) returns the messages not yet taken. It delivers
-to an inbox and nothing more: it does not call the destination agent.
+to an inbox and nothing more: it does not call the destination agent (velaris.orchestration.inbox.deliver hands the messages to
+an agent that defines on_message). An inbox holds at most MAX_BACKLOG untaken messages; after that route answers queue_full.
 
 Who sent it is never a free-text argument. Every message records:
   on_behalf_of   the current caller (velaris.core.access); routing without one is refused.
@@ -35,7 +36,7 @@ from typing import Any, Dict, Iterator, Optional
 
 from velaris.agentkit.checks import ident, is_json, known_agents, new_id
 from velaris.agentkit.results import fail, health, invalid
-from velaris.agentkit.state import append_line, JsonState, peek_dir, read_lines
+from velaris.agentkit.state import append_line, iter_lines, JsonState, peek_dir
 from velaris.agents import DEPARTMENTS_DIR
 from velaris.core.access import check_caller
 from velaris.intel import guard, trace
@@ -44,6 +45,7 @@ from velaris.intel.paths import agent_dir
 logger = logging.getLogger("EOF_GATEWAY")
 NAME = "EOF_GATEWAY"
 MAX_PAYLOAD_BYTES = 64 * 1024
+MAX_BACKLOG = 1000        # messages queued and not yet taken, per destination: an inbox nobody reads must not fill the disk
 
 
 def _strings(value: Any) -> Iterator[str]:
@@ -75,8 +77,13 @@ class EOF_GATEWAYAgent:
     def health_check(self):
         return health(NAME)
 
-    def route(self, dst: str, payload: dict, *, via: Any = None) -> Dict[str, Any]:
-        """Queue `payload` for `dst` as the current caller, through agent `via` if given (see the module docstring)."""
+    def backlog(self, dst_id: str) -> int:
+        """Messages queued for `dst_id` and not yet taken (read-only)."""
+        return sum(1 for _ in iter_lines(peek_dir(NAME) / f"inbox_{dst_id}.jsonl")) - int(self._cursors.load().get(dst_id, 0))
+
+    def route(self, dst: str, payload: dict, *, via: Any = None, dry_run: bool = False) -> Dict[str, Any]:
+        """Queue `payload` for `dst` as the current caller, through agent `via` if given (see the module docstring).
+        With `dry_run` every check runs (and is traced) but nothing is queued: status "ok", routed False, dry_run True."""
         base = {"routed": False, "src": None, "dst": dst}
         dst_id = ident(dst, 80)
         if dst_id is None:
@@ -113,6 +120,10 @@ class EOF_GATEWAYAgent:
                 logger.warning("EOF_GATEWAY could not trace a refusal: %s", e)
             return {**base, **fail("blocked", "payload text looks like instructions to a model",
                                    findings=[f["rule"] for f in scan.findings])}
+        if dry_run:
+            return {**base, "status": "ok", "dry_run": True}
+        if self.backlog(dst_id) >= MAX_BACKLOG:
+            return {**base, **fail("queue_full", f"{dst_id} has {MAX_BACKLOG} messages nobody has taken; nothing more is queued")}
         message = {"id": new_id("msg"), "ts": time.time(), "src": src_id, "sender": "agent" if sender else "caller",
                    "on_behalf_of": caller.id, "dst": dst_id, "payload": payload}
         try:
@@ -135,9 +146,14 @@ class EOF_GATEWAYAgent:
         _, refused = check_caller(NAME, "receive", {"dst": dst_id}, roles=frozenset(), also=dst_id)
         if refused:
             return {**refused, "messages": []}
-        queued = read_lines(peek_dir(NAME) / f"inbox_{dst_id}.jsonl")
-        taken = int(self._cursors.load().get(dst_id, 0))
-        batch = queued[taken:taken + limit]
-        if batch:
-            self._cursors.update(lambda c: c.__setitem__(dst_id, taken + len(batch)))
-        return {"status": "ok", "messages": batch, "remaining": len(queued) - taken - len(batch)}
+
+        def take(cursors):                       # read and advance under ONE lock: two receivers never get the same message
+            taken = int(cursors.get(dst_id, 0))
+            batch, total = [], 0
+            for total, msg in enumerate(iter_lines(peek_dir(NAME) / f"inbox_{dst_id}.jsonl"), start=1):   # streamed: only the batch is kept
+                if taken < total <= taken + limit:
+                    batch.append(msg)
+            if batch:
+                cursors[dst_id] = taken + len(batch)
+            return {"status": "ok", "messages": batch, "remaining": total - taken - len(batch)}
+        return self._cursors.update(take)

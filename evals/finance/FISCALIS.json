@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "agent": "FISCALIS",
+  "cases": [
+    {
+      "id": "select-cost_breakdown",
+      "input": "Use the cost_breakdown operation of FISCALIS with {\"costs\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "cost_breakdown",
+            "args": {
+              "costs": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-forecast_expenses",
+      "input": "Use the forecast_expenses operation of FISCALIS with {\"monthly_costs\": []}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "forecast_expenses",
+            "args": {
+              "monthly_costs": []
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

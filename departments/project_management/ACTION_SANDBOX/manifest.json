@@ -1,0 +1,23 @@
+{
+  "name": "ACTION_SANDBOX",
+  "version": "0.1.0",
+  "description": "ACTION_SANDBOX: apply an action to a COPY of some state and report what would change.",
+  "entrypoint": "main.py:ACTION_SANDBOXAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "ACTION_SANDBOX: apply an action to a COPY of some state and report what would change.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/project_management/ACTION_SANDBOX.json",
+    "wave": "KAN-36",
+    "status": "deterministic_tool",
+    "tools": {
+      "sandbox_execute": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "project_management"
+}

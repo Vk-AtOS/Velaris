@@ -25,6 +25,7 @@ from velaris.core.access import authorize_read
 
 logger = logging.getLogger("SCREENING_FORMS")
 AGENT = hf.AGENT
+ACCEPT_STUCK_S = 900        # an "accepting" submission older than this is considered abandoned by sweep_submissions
 
 
 class ScreeningForms:
@@ -129,7 +130,7 @@ class ScreeningForms:
                 raise HiringError("not_found", "no such submission")
             if r["status"] not in ("pending", "resume_retry"):
                 raise HiringError("conflict", f"submission is {r['status']}")
-            r["status"] = "accepting"
+            r["status"], r["accepting_at"] = "accepting", now()
             return dict(r, was=r.get("candidate_id"))
         s = hf._st().update(claim)
 
@@ -197,6 +198,10 @@ class ScreeningForms:
         org = caller.org
 
         def go(d: Dict[str, Any]) -> int:
+            for s in d["submissions"].values():          # an accept that died mid-way (crash, kill) is released, not stuck forever
+                if s["org"] == org and s["status"] == "accepting" and now() - s.get("accepting_at", 0) > ACCEPT_STUCK_S:
+                    s["status"] = "resume_retry" if s.get("candidate_id") else "pending"
+                    audit(AGENT, "submission.released", org, caller, submission=hid(org, s["id"]))
             gone = [k for k, s in d["submissions"].items() if s["org"] == org and s["status"] in ("pending", "resume_retry") and s["expires_at"] <= now()]
             if gone:
                 audit(AGENT, "submission.swept", org, caller, count=len(gone))

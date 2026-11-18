@@ -1,15 +1,21 @@
+"""Custos: minimal in-memory role-based access check.
+
+CustosAgent(config; "roles", "permissions"): health_check(); define_role(role, perms)
+sets the role's permission set; assign_permission(role, permission) adds one (creating the
+role if needed); check_access(role, action) is True if the action is in the role's set.
+State: in memory only (self.roles), lost on restart. A "roles" config may map to lists or
+sets; both are stored as sets.
+Failure: an unknown role or action returns False (deny); it does not identify callers.
+"""
+
 import logging
 
 logger = logging.getLogger("CUSTOS")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - CUSTOS - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class CustosAgent:
     def __init__(self, config=None):
         self.config = config or {}
-        self.roles = self.config.get("roles", {})
+        self.roles = {r: set(p) for r, p in (self.config.get("roles") or {}).items()}   # lists seeded by callers become sets
         self.permissions = self.config.get("permissions", {})
 
     def health_check(self):

@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "agent": "NEURAL_CONSTRAINT_FIELD",
+  "cases": [
+    {
+      "id": "select-constrain",
+      "input": "Use the constrain operation of NEURAL_CONSTRAINT_FIELD with {\"corrected\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "constrain",
+            "args": {
+              "corrected": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

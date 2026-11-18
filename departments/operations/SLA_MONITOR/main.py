@@ -4,18 +4,21 @@ SLA_MONITOR — Velaris BOS agent for Knackforge
 Ported from VKatOS sla_monitor. Tracks client/delivery SLA commitments and surfaces breaches.
 """
 import logging
-import sqlite3
+import math
+
+from velaris.core.sqlite_util import connect as connect_db
 from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from velaris.intel.paths import agent_file
 
 logger = logging.getLogger("SLA_MONITOR")
+PRIORITIES = ("low", "normal", "high", "critical")
 
 
 class SLAMonitor:
     def __init__(self, db_path: str = ""):
         db_path = db_path or agent_file("SLA_MONITOR", "sla_data.db")
-        self.db = sqlite3.connect(db_path)
+        self.db = connect_db(db_path)
         self._init_db()
 
     def _init_db(self):
@@ -31,6 +34,13 @@ class SLAMonitor:
         self.db.commit()
 
     def add(self, client: str, description: str, deadline_hours: float, priority: str = "normal") -> int:
+        if not (isinstance(client, str) and client.strip() and isinstance(description, str) and description.strip()):
+            raise ValueError("client and description must be non-empty text")
+        if isinstance(deadline_hours, bool) or not isinstance(deadline_hours, (int, float)) \
+                or not math.isfinite(deadline_hours) or deadline_hours <= 0:
+            raise ValueError("deadline_hours must be a positive finite number")
+        if priority not in PRIORITIES:
+            raise ValueError(f"priority must be one of {PRIORITIES}")
         deadline = (datetime.utcnow() + timedelta(hours=deadline_hours)).isoformat()
         cursor = self.db.execute(
             "INSERT INTO commitments (client,description,deadline,created_at,priority) VALUES (?,?,?,?,?)",
@@ -41,11 +51,15 @@ class SLAMonitor:
         return cursor.lastrowid
 
     def close(self, commitment_id: int) -> None:
-        self.db.execute("UPDATE commitments SET status='closed' WHERE id=?", (commitment_id,))
+        cur = self.db.execute("UPDATE commitments SET status='closed' WHERE id=? AND status='open'", (commitment_id,))
         self.db.commit()
+        if not cur.rowcount:
+            raise KeyError(f"no open commitment {commitment_id!r}")
         logger.info("Closed commitment %d", commitment_id)
 
-    def scan(self) -> List[Dict]:
+    def scan(self, record: bool = True) -> List[Dict]:
+        """Overdue open commitments not already reported in the last hour. With `record=False` nothing is written
+        (a read-only look: the same breaches are reported again by the next recording scan)."""
         now = datetime.utcnow().isoformat()
         overdue = self.db.execute(
             "SELECT id,client,description,deadline,priority FROM commitments WHERE status='open' AND deadline<?",
@@ -59,11 +73,12 @@ class SLAMonitor:
                 (cid, (datetime.utcnow() - timedelta(hours=1)).isoformat()),
             ).fetchone()
             if not recent:
-                self.db.execute(
-                    "INSERT INTO breaches (commitment_id,detected_at,hours_overdue) VALUES (?,?,?)",
-                    (cid, now, round(hours, 1)),
-                )
-                self.db.commit()
+                if record:
+                    self.db.execute(
+                        "INSERT INTO breaches (commitment_id,detected_at,hours_overdue) VALUES (?,?,?)",
+                        (cid, now, round(hours, 1)),
+                    )
+                    self.db.commit()
                 breach = {"commitment_id": cid, "client": client, "description": desc,
                           "hours_overdue": round(hours, 1), "priority": priority}
                 breaches.append(breach)
@@ -111,8 +126,8 @@ class SLAMonitorAgent:
     ) -> int:
         return self.monitor.add(client, description, deadline_hours, priority)
 
-    def check_breaches(self) -> List[Dict]:
-        return self.monitor.scan()
+    def check_breaches(self, record: bool = True) -> List[Dict]:
+        return self.monitor.scan(record)
 
     def resolve(self, commitment_id: int) -> None:
         self.monitor.close(commitment_id)

@@ -72,12 +72,16 @@ class NonceStore:
 
 
 class RateStore:
-    def __init__(self, max_keys: int = 50_000) -> None:
-        self._db = _Db("rate.db", "CREATE TABLE IF NOT EXISTS hit(k TEXT NOT NULL, ts REAL NOT NULL);"
+    def __init__(self, max_keys: int = 50_000, filename: str = "rate.db", evictable: bool = False) -> None:
+        self._evictable = evictable
+        self._db = _Db(filename, "CREATE TABLE IF NOT EXISTS hit(k TEXT NOT NULL, ts REAL NOT NULL);"
                                   "CREATE INDEX IF NOT EXISTS ix_hit_k ON hit(k, ts);")
         self._max, self._last_sweep, self._keys = max_keys, 0.0, 0
 
     def allow(self, key: str, limit: int, window: float, now: Optional[float] = None) -> bool:
+        """One more hit for `key` unless it already has `limit` in the window. A full table refuses an unknown key (fail
+        closed), or, for a store built with `evictable=True` (counters keyed by something the caller chose, such as a token
+        or form id), lets it through unrecorded, so random identifiers cannot fill the table and lock real clients out."""
         now = time.time() if now is None else now
         c = self._db.conn()
         if now - self._last_sweep > 2.0:
@@ -88,9 +92,12 @@ class RateStore:
         try:
             c.execute("DELETE FROM hit WHERE k=? AND ts<=?", (key, now - window))
             n = c.execute("SELECT count(*) FROM hit WHERE k=?", (key,)).fetchone()[0]
-            if n >= limit or (n == 0 and self._keys >= self._max):      # a full table refuses unknown clients (fail closed)
+            if n >= limit:
                 c.execute("COMMIT")
                 return False
+            if n == 0 and self._keys >= self._max:
+                c.execute("COMMIT")
+                return self._evictable                     # unknown clients are refused (fail closed); caller-chosen ids are not counted
             c.execute("INSERT INTO hit(k, ts) VALUES (?,?)", (key, now))
             c.execute("COMMIT")
             self._keys += n == 0                          # exact count is refreshed from the table at each sweep
@@ -98,3 +105,34 @@ class RateStore:
         except BaseException:
             c.execute("ROLLBACK")
             raise
+
+
+class MetricStore:
+    """Counters and gauges that every worker process adds to and any process reads (KAN-120): in-process counters gave each worker
+    its own totals, so a scrape saw whichever worker answered. Counters are cumulative and survive restarts; a gauge row belongs
+    to one reporter (process) and only counts while it is fresh, so a dead worker's in-flight figure disappears."""
+
+    def __init__(self) -> None:
+        self._db = _Db("metrics.db", "CREATE TABLE IF NOT EXISTS counter(k TEXT PRIMARY KEY, v REAL NOT NULL) WITHOUT ROWID;"
+                                     "CREATE TABLE IF NOT EXISTS gauge(who TEXT PRIMARY KEY, v REAL NOT NULL, ts REAL NOT NULL);")
+
+    def add(self, deltas: Dict[str, float]) -> None:
+        c = self._db.conn()
+        c.execute("BEGIN IMMEDIATE")
+        try:
+            c.executemany("INSERT INTO counter(k, v) VALUES (?,?) ON CONFLICT(k) DO UPDATE SET v=v+excluded.v", list(deltas.items()))
+            c.execute("COMMIT")
+        except BaseException:
+            c.execute("ROLLBACK")
+            raise
+
+    def counters(self) -> Dict[str, float]:
+        return dict(self._db.conn().execute("SELECT k, v FROM counter").fetchall())
+
+    def set_gauge(self, who: str, value: float, now: float) -> None:
+        c = self._db.conn()
+        c.execute("INSERT INTO gauge(who, v, ts) VALUES (?,?,?) ON CONFLICT(who) DO UPDATE SET v=excluded.v, ts=excluded.ts", (who, value, now))
+        c.execute("DELETE FROM gauge WHERE ts<?", (now - 300,))
+
+    def gauge_sum(self, now: float, fresh_s: float = 15.0) -> float:
+        return float(self._db.conn().execute("SELECT COALESCE(SUM(v), 0) FROM gauge WHERE ts>=?", (now - fresh_s,)).fetchone()[0])

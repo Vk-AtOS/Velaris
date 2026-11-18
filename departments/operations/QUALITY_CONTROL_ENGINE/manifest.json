@@ -1,0 +1,26 @@
+{
+  "name": "QUALITY_CONTROL_ENGINE",
+  "version": "0.1.0",
+  "description": "QUALITY_CONTROL_ENGINE: a batch checked against a u-chart and explicit disposition rules.",
+  "entrypoint": "main.py:QualityControlEngine",
+  "harness": {
+    "schema": 1,
+    "purpose": "QUALITY_CONTROL_ENGINE: a batch checked against a u-chart and explicit disposition rules.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/operations/QUALITY_CONTROL_ENGINE.json",
+    "wave": "KAN-41",
+    "status": "deterministic_tool",
+    "tools": {
+      "assess": {
+        "kind": "act"
+      },
+      "validate": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "operations"
+}

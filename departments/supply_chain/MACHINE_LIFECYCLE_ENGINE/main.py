@@ -51,7 +51,9 @@ class MachineLifecycleEngine:
         if e:
             return e
         year = as_of_year if as_of_year is not None else date.today().year
-        if m.install_year < 1900 or m.install_year > year:
+        if m.install_year != int(m.install_year):
+            e.append("install_year must be a whole year")
+        elif m.install_year < 1900 or m.install_year > year:
             e.append("install_year invalid")
         if m.operating_hours < 0 or m.operating_hours > self.MAX_HOURS:
             e.append("operating_hours invalid")

@@ -4,7 +4,6 @@ import json
 import pytest
 from velaris.agentkit.hiring_testkit import ORG, as_, bootstrap, clean_keys, consent, who
 
-from velaris.agentkit import hiring_kit as hk
 from velaris.agentkit import hiring_stats as st
 from velaris.agents.ATS_CORE.main import AtsCore
 from velaris.agents.INTERVIEW_KIT.main import InterviewKit

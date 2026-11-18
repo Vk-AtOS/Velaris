@@ -1,0 +1,38 @@
+{
+  "schema": 1,
+  "agent": "OPERATUS",
+  "cases": [
+    {
+      "id": "select-validate_inputs",
+      "input": "Use the validate_inputs operation of OPERATUS with {\"inputs\": {}, \"required\": []}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "validate_inputs",
+            "args": {
+              "inputs": {},
+              "required": []
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

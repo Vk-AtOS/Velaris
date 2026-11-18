@@ -15,6 +15,7 @@ from typing import Any, Dict, Optional
 from velaris.agentkit.checks import is_name, is_number
 from velaris.agentkit.results import fail, invalid, ok
 from velaris.agentkit.state import JsonState
+from velaris.core.access import INFRA_ADMINS, check_caller
 
 NAME = "MULTI_TENANCY_GRID"
 OPS = ("create_tenant", "set_quota", "consume", "release", "usage", "suspend", "resume")
@@ -29,7 +30,17 @@ class MultiTenancyGridAgent:
     def health_check(self) -> Dict[str, Any]:
         return {"agent": NAME, "status": "ok", "version": self.version}
 
+    @staticmethod
+    def _admin(change: str, tenant: Any, **details: Any) -> Optional[Dict[str, Any]]:
+        """The refusal, or None when the caller is an infra admin. Tenants and quotas are organisation-wide state:
+        a tenant that could call these would raise its own quota or resume itself."""
+        _, refused = check_caller(NAME, change, {"tenant": str(tenant)[:64], **details}, roles=INFRA_ADMINS)
+        return refused
+
     def create_tenant(self, tenant: str) -> Dict[str, Any]:
+        refused = self._admin("create_tenant", tenant)
+        if refused:
+            return refused
         if not is_name(tenant):
             return invalid("tenant must be a short name")
 
@@ -48,6 +59,9 @@ class MultiTenancyGridAgent:
         return self._state.update(step)
 
     def set_quota(self, tenant: str, resource: str, limit: float) -> Dict[str, Any]:
+        refused = self._admin("set_quota", tenant, resource=str(resource)[:64], limit=str(limit)[:32])
+        if refused:
+            return refused
         if not is_name(resource) or not is_number(limit, 0):
             return invalid("resource must be a short name and limit a number >= 0")
 
@@ -86,6 +100,9 @@ class MultiTenancyGridAgent:
         return self._with_tenant(tenant, give)
 
     def _set_active(self, tenant: str, active: bool) -> Dict[str, Any]:
+        refused = self._admin("resume" if active else "suspend", tenant)
+        if refused:
+            return refused
         return self._with_tenant(tenant, lambda t: (t.update(active=active), ok(tenant=tenant, active=active))[1])
 
     def suspend(self, tenant: str) -> Dict[str, Any]:

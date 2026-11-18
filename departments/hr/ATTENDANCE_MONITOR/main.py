@@ -1,3 +1,12 @@
+"""Attendance monitor: reports who is present, late or absent from Zoho People attendance records.
+
+check_today(employee_ids, date_str, caller=) returns {"present", "absent", "late", "unknown", "date"}: an employee with no
+record is absent, one whose record has IsLate == "true" is late (with check-in), and one whose fetch failed (logged) is
+"unknown", never absent. flag_absence_streaks(ids, from_date, to_date, threshold=3, caller=) flags employees with at least
+threshold records whose Status is not "Present" in the range (the days are counted, not checked for being consecutive);
+failed fetches are skipped. The shift_start_hour config is stored but not used; lateness comes from Zoho's IsLate flag.
+AccessDenied from the connector propagates. State: none kept here; data comes from ZohoPeopleConnector.
+"""
 import logging
 import datetime
 from typing import Dict, Any, List, Optional

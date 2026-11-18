@@ -1,7 +1,7 @@
 # SOUL_CORE_EXT
 
 - **Department:** `_ai_core`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/_ai_core/SOUL_CORE_EXT/main.py` (44 lines)
 
 ## Purpose

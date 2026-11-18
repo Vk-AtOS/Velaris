@@ -5,5 +5,23 @@
   "description": "Public methods: allocate_resources, choose_route (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:LogistaAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Logista: matches available resources to demand and picks the cheapest route.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/client_success/LOGISTA.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "choose_route": {
+        "kind": "read"
+      }
+    },
+    "excluded": {
+      "allocate_resources": "not in the HTTP allowlist (velaris/api/allowlist.py)"
+    },
+    "reviewed": true
+  }
 }

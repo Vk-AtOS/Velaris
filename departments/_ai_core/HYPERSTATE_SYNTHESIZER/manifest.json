@@ -1,0 +1,25 @@
+{
+  "name": "HYPERSTATE_SYNTHESIZER",
+  "display_name": "Hyperstate Synthesizer",
+  "version": "0.1.0",
+  "description": "HYPERSTATE_SYNTHESIZER: merges several partial state snapshots into one, reporting conflicts.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:HyperstateSynthesizer",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "HYPERSTATE_SYNTHESIZER: merges several partial state snapshots into one, reporting conflicts.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/HYPERSTATE_SYNTHESIZER.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "merge": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

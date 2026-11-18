@@ -12,7 +12,7 @@ import os
 import re
 
 from velaris.agentkit.results import fail, health, invalid, ok
-from velaris.intel import guard
+from velaris.intel import guard, router
 from velaris.intel.llm import LLM, LLMError, extract_json
 
 NAME = "CRK_INTENT"
@@ -82,7 +82,7 @@ class CRK_INTENTAgent:
                   f'asks for. Reply with JSON only: {{"intent": "<name>"}}. If none fits reply '
                   f'{{"intent": null}}.\n\n{fenced}')
         try:
-            reply = extract_json(llm.complete(prompt, purpose="crk_intent", max_tokens=50, temperature=0.0).text)
+            reply = extract_json(router.complete("classifier", prompt, llm=llm, sensitivity="restricted", purpose="crk_intent", max_tokens=50, temperature=0.0).text)
         except LLMError as e:
             logger.warning("intent model call failed: %s", e)
             return fail("model_error", str(e), intent=None, candidates=leaders)

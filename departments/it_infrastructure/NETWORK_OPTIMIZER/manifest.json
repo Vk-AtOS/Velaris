@@ -1,0 +1,32 @@
+{
+  "name": "NETWORK_OPTIMIZER",
+  "version": "0.1.0",
+  "description": "NETWORK_OPTIMIZER: best path through a declared network.",
+  "entrypoint": "main.py:NETWORK_OPTIMIZERAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "NETWORK_OPTIMIZER: best path through a declared network.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/it_infrastructure/NETWORK_OPTIMIZER.json",
+    "wave": "KAN-39",
+    "status": "deterministic_tool",
+    "tools": {
+      "best_path": {
+        "kind": "act"
+      },
+      "links": {
+        "kind": "read"
+      },
+      "remove_link": {
+        "kind": "act"
+      },
+      "set_link": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "it_infrastructure"
+}

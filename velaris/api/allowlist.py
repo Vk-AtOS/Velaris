@@ -23,12 +23,13 @@ extra rule here; the caller is set by BackendEngine.run.
 from __future__ import annotations
 
 import inspect
+import os
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any, Dict, FrozenSet, List, Optional, Tuple
 
 from velaris.agents.inventory import inventory
-from velaris.core.access import Caller, AccessDenied, ATLASSIAN_READERS, READ_OTHERS, acting_as, authorize_read, check_caller
+from velaris.core.access import Caller, AccessDenied, ATLASSIAN_READERS, SECURITY_ADMINS, READ_OTHERS, acting_as, authorize_read, check_caller
 
 READ, ACT = "read", "act"
 _NEVER_PARAMS = {"self", "caller"}
@@ -51,6 +52,37 @@ _DEC = frozenset({"hiring_manager", "hr_admin"})
 _HIR = frozenset({"recruiter", "hiring_manager", "hr_admin"})
 _PAN = frozenset({"recruiter", "hiring_manager", "interviewer", "hr_admin"})
 _ADM = frozenset({"hr_admin"})
+_PM = frozenset({"project_admin", "governance_admin"})       # project_management ACT rows (role names: owner decision, KAN-204)
+_OPS = frozenset({"ops_admin", "governance_admin"})          # operations ACT rows
+
+NOTES: Dict[str, str] = {}      # "AGENT.method" -> why exposing it is safe (every row of the departments added in KAN-31 follow-up has one)
+_PURE = ("pure function of its arguments: keeps no data, makes no outside call, uses no model, so it can show the caller "
+         "nothing but what the caller sent; no role needed, as for TREASURIX")
+_BOUNDED = ("pure function of its arguments and a random draw; the agent clamps `trials` to 1,000,000, so the work per call is "
+            "bounded; keeps no data, no outside call")
+_SEC = ("pure check over the arguments (nothing stored is read); limited to security staff because the department is "
+        "restricted and the result tells how the platform's checks think")
+
+
+ACT_NOTES: Dict[str, str] = {}   # "AGENT.method" -> why this ACT row is safe with a person in the loop (KAN-31 ACT pass)
+_ACT_BASE = ("changes one row of the agent's own durable store (sqlite under VELARIS_DATA, one deployment = one organisation); "
+             "reversible by a later call; no money, no personal data beyond a name typed by the requester, no outside call; ")
+
+
+def _act(agent: str, note: str, *methods: str, roles: FrozenSet[str]) -> Dict[str, Rule]:
+    """ACT rules: the call becomes a flow step that waits for a person (Prime when configured), needs `roles`, and is
+    classified `unclassified` by the autonomy table (approval; never auto). Each carries its security note (ACT_NOTES)."""
+    for m in methods:
+        ACT_NOTES[f"{agent}.{m}"] = _ACT_BASE + note
+    return {m: Rule(ACT, roles=roles) for m in methods}
+
+
+def _calc(agent: str, note: str, *methods: str, roles: Optional[FrozenSet[str]] = None) -> Dict[str, Rule]:
+    """READ rules for methods that are pure functions of their arguments, each with its security note (NOTES)."""
+    for m in methods:
+        NOTES[f"{agent}.{m}"] = note
+    return {m: Rule(READ, roles=roles) for m in methods}
+
 
 METHODS: Dict[str, Dict[str, Rule]] = {
     # HR
@@ -262,6 +294,47 @@ METHODS: Dict[str, Dict[str, Rule]] = {
         "transcribe_track": Rule(ACT, roles=_HIR),
         "withdraw_my_consent": Rule(ACT, roles=_PAN),
     },
+    # Departments reviewed for KAN-31 (client_success, executive, marketing, operations, project_management, sales,
+    # security): ONLY methods that are pure functions of their arguments, proven read by agentkit.harness_derive. An
+    # agent that keeps data (JsonState, files, instance state the engine's fresh instance would lose), calls out, asks
+    # a model, checks the caller itself, or takes an object of its own class is NOT listed (see docs/orchestrators.md).
+    # ACT rows (second KAN-31 pass): only the operational records of project_management and operations. See docs/orchestrators.md section 10
+    # for what was NOT given an ACT row and why.
+    "SPRINT_PLANNER": _act("SPRINT_PLANNER", "a sprint or task is planning data, not a commitment to anyone outside",
+                           "create_sprint", "add_task", "update_task_status", roles=_PM),
+    "SLA_MONITOR": _act("SLA_MONITOR", "an SLA commitment is a tracking row; nothing is sent to the client", "add_commitment", "resolve",
+                        roles=_OPS),
+    "OPS_REPORT": _act("OPS_REPORT", "a blocker is an internal note", "add_blocker", "resolve_blocker", roles=_OPS),
+    "PIPELINE_MONITOR": _act("PIPELINE_MONITOR", "a stage duration is an internal measurement", "log_stage", roles=_OPS),
+    "LOGISTA": _calc("LOGISTA", _PURE, "choose_route"),
+    "INSIGHTA": _calc("INSIGHTA", _PURE, "behavioral_shift", "consistency_score", "detect_trend"),
+    "ORACLE": _calc("ORACLE", _BOUNDED, "forecast"),
+    "PROBABILIS": _calc("PROBABILIS", _PURE, "bernoulli", "distribution_mean"),
+    "REALMEX": _calc("REALMEX", _PURE, "extract_dimensions", "score_reality"),
+    "STOCHASTIX": _calc("STOCHASTIX", _PURE, "expected_final"),
+    "ARTESIA": _calc("ARTESIA", _PURE, "aesthetic_score", "fuse_styles", "style_profile"),
+    "CREATIVA": _calc("CREATIVA", _PURE, "expand_concept", "idea_mix", "novelty_score"),
+    "CREATIVE_HOLODECK": _calc("CREATIVE_HOLODECK", _PURE, "compose", "random_scene"),
+    "IMAGINA": _calc("IMAGINA", _PURE, "imagine", "scenario", "visual_map"),
+    "FABRICA": _calc("FABRICA", _PURE, "build_layers", "combine", "composition_score"),
+    "FLUXOR": _calc("FLUXOR", _PURE, "balance_load", "compute_throughput", "detect_spike"),
+    "GENEFLOW": _calc("GENEFLOW", _PURE, "compute_diff"),
+    "OPERATUS": _calc("OPERATUS", _PURE, "validate_inputs"),
+    "OPTIMA": _calc("OPTIMA", _PURE, "efficiency_score", "metric_normalize", "pivot_factor"),
+    "POLARIS": _calc("POLARIS", _PURE, "best_trajectory", "compute_score", "rank_long_term"),
+    "SIMULON": _calc("SIMULON", _PURE, "run_linear"),
+    "TACTICIAN": {**_calc("TACTICIAN", _PURE, "recommend_adjustments"), **_calc("TACTICIAN", _BOUNDED, "simulate_plan")},
+    "AMPLIFEX": _calc("AMPLIFEX", _PURE, "amplify", "audience_growth", "signal_strength"),
+    "ATTRACTA": _calc("ATTRACTA", _PURE, "appeal_score", "attraction_potential", "emotional_resonance"),
+    "AUTONOMOUS_SALES_NAVIGATOR": _calc("AUTONOMOUS_SALES_NAVIGATOR", _PURE, "predict_close_probability", "score_lead", "suggest_strategy"),
+    "COHORTUS": _calc("COHORTUS", _PURE, "collaboration_clusters"),
+    "CONVERTA": _calc("CONVERTA", _PURE, "conversion_rate", "funnel_leakage", "optimization_score"),
+    "DOMAIN_ADVISOR": _calc("DOMAIN_ADVISOR", _PURE, "advise"),
+    "RETENTA": _calc("RETENTA", _PURE, "churn_probability", "engagement_decay", "retention_score"),
+    "TARGETA": _calc("TARGETA", _PURE, "match_score", "segmentation_score", "target_fit"),
+    "AUDITOR": _calc("AUDITOR", _SEC, "check_compliance", "find_violations", roles=SECURITY_ADMINS),
+    "PRAETOR": _calc("PRAETOR", _SEC, "detect_anomaly", roles=SECURITY_ADMINS),
+    "SAFETY_PERIMETER": _calc("SAFETY_PERIMETER", _SEC, "can_execute", "check_jurisdiction", "check_syscall", roles=SECURITY_ADMINS),
 }
 
 
@@ -281,6 +354,19 @@ def tool_params(fn: Any, rule: Rule) -> Dict[str, str]:
     return {p.name: ("" if p.annotation is p.empty else str(getattr(p.annotation, "__name__", p.annotation)))
             + ("" if p.default is p.empty else f" (default {p.default!r})")
             for p in http_params(fn) if p.name != rule.actor}
+
+
+def scope_allowed(scope: Any, caller: Caller) -> bool:
+    """A memory / document scope the caller may name: the organisation's own (`org`), their own (`org:user:<id>`), or
+    `org:<kind>:<name>` for a kind the operator lists in VELARIS_SHARED_SCOPE_KINDS (comma separated, default none).
+    Before, any `org:<anything>` passed, so one member could read another member's `org:user:<other>` (KAN-69 SV2-08)."""
+    if not isinstance(scope, str):
+        return False
+    if scope in (caller.org, f"{caller.org}:user:{caller.id}"):
+        return True
+    kinds = {k.strip() for k in os.environ.get("VELARIS_SHARED_SCOPE_KINDS", "").split(",") if k.strip()}
+    parts = scope.split(":")
+    return len(parts) >= 3 and ":".join(parts[:1]) == caller.org and parts[1] in kinds and parts[1] != "user"
 
 
 def prepare(agent: str, method: str, fn: Any, params: Any, caller: Caller) -> Dict[str, Any]:
@@ -305,8 +391,8 @@ def prepare(agent: str, method: str, fn: Any, params: Any, caller: Caller) -> Di
         args[rule.actor] = caller.id
     if rule.scope:
         scope = args.get(rule.scope)
-        if not (isinstance(scope, str) and (scope == caller.org or scope.startswith(caller.org + ":"))):
-            raise AccessDenied("the scope belongs to another organisation")
+        if not scope_allowed(scope, caller):
+            raise AccessDenied("the scope belongs to another organisation or another user")
     if rule.own:
         name, category = rule.own
         if args.get(name) is None:

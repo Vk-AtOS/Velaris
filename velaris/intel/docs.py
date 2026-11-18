@@ -19,15 +19,11 @@ Office files are read with zipfile + defusedxml. PDF needs `pypdf` (text PDFs; s
 """
 from __future__ import annotations
 
-import csv
-import hashlib
-import io
-import json
-import logging
-import math
-import posixpath
+import contextlib, contextvars, csv
+import hashlib, io, json, logging, math, posixpath
 import re
 import sqlite3
+
 import threading
 import time
 import uuid
@@ -37,10 +33,13 @@ from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
 
 from defusedxml.ElementTree import fromstring as safe_xml
 
+from velaris.intel import router
+from velaris.core import fieldseal
+from velaris.core.sqlite_util import connect as connect_db
 from velaris.intel import guard, trace
 from velaris.intel.llm import LLM, LLMError, cosine
 from velaris.intel.paths import data_dir
@@ -77,6 +76,25 @@ class DocTooLarge(DocError):
     no other converter is tried on it."""
 
 
+_OVERRIDE: contextvars.ContextVar = contextvars.ContextVar("docs_limits", default={})
+
+
+def _lim(name: str) -> int:
+    """A size limit: the module's, or the tighter one of an enclosing `limits(...)`."""
+    return _OVERRIDE.get().get(name, globals()[name])
+
+
+@contextlib.contextmanager
+def limits(**tighter: int) -> Iterator[None]:
+    """Lower MAX_BYTES / MAX_MEMBER / MAX_UNPACKED / MAX_PDF_PAGES inside the block (never raise them)."""
+    new = {k: min(v, globals()[k]) for k, v in tighter.items() if k in ("MAX_BYTES", "MAX_MEMBER", "MAX_UNPACKED", "MAX_PDF_PAGES")}
+    token = _OVERRIDE.set({**_OVERRIDE.get(), **new})
+    try:
+        yield
+    finally:
+        _OVERRIDE.reset(token)
+
+
 class _Zip(zipfile.ZipFile):
     """An Office file opened with limits on how much it may unpack.
 
@@ -94,19 +112,19 @@ class _Zip(zipfile.ZipFile):
 
     def part(self, member: str) -> bytes:
         info = self.getinfo(member)
-        if info.file_size > MAX_MEMBER:
-            raise DocTooLarge(f"{member} is {info.file_size} bytes unpacked (limit {MAX_MEMBER})")
-        if self.unpacked + info.file_size > MAX_UNPACKED:
-            raise DocTooLarge(f"the file unpacks to more than {MAX_UNPACKED} bytes in total")
+        if info.file_size > _lim("MAX_MEMBER"):
+            raise DocTooLarge(f"{member} is {info.file_size} bytes unpacked (limit {_lim('MAX_MEMBER')})")
+        if self.unpacked + info.file_size > _lim("MAX_UNPACKED"):
+            raise DocTooLarge(f"the file unpacks to more than {_lim('MAX_UNPACKED')} bytes in total")
         body = bytearray()
         with self.open(info) as f:
             while block := f.read(1 << 20):
                 body += block
                 self.unpacked += len(block)
-                if len(body) > MAX_MEMBER:
-                    raise DocTooLarge(f"{member} unpacks to more than {MAX_MEMBER} bytes")
-                if self.unpacked > MAX_UNPACKED:
-                    raise DocTooLarge(f"the file unpacks to more than {MAX_UNPACKED} bytes in total")
+                if len(body) > _lim("MAX_MEMBER"):
+                    raise DocTooLarge(f"{member} unpacks to more than {_lim('MAX_MEMBER')} bytes")
+                if self.unpacked > _lim("MAX_UNPACKED"):
+                    raise DocTooLarge(f"the file unpacks to more than {_lim('MAX_UNPACKED')} bytes in total")
         return bytes(body)
 
 
@@ -296,8 +314,8 @@ def _pdf(data: bytes) -> str:
     except ImportError as e:
         raise DocError("reading PDF needs the 'pypdf' package") from e
     reader = PdfReader(io.BytesIO(data))
-    if len(reader.pages) > MAX_PDF_PAGES:
-        raise DocTooLarge(f"PDF has {len(reader.pages)} pages (limit {MAX_PDF_PAGES})")
+    if len(reader.pages) > _lim("MAX_PDF_PAGES"):
+        raise DocTooLarge(f"PDF has {len(reader.pages)} pages (limit {_lim('MAX_PDF_PAGES')})")
     # ponytail: the limits are on page count and on text as it accumulates. One page whose
     # content stream alone unpacks enormously is left to pypdf's own handling.
     pages, chars = [], 0
@@ -323,6 +341,9 @@ def _ext(*exts: str) -> Callable[[str, bytes], bool]:
     return lambda name, data: name.lower().endswith(exts)
 
 
+BINARY_KINDS = ("pdf", "docx", "xlsx", "pptx")
+
+
 # Tried top to bottom; content is checked before the file name, because names lie.
 CONVERTERS: List[Tuple[str, Callable[[str, bytes], bool], Callable[[bytes], str]]] = [
     ("pdf", lambda name, data: data[:5] == b"%PDF-", _pdf),
@@ -344,8 +365,8 @@ def convert(name: str, data: bytes) -> Tuple[str, str]:
     A file that breaks a size limit (stored size, entries, unpacked size per part and in total,
     slides, PDF pages, extracted text) raises DocTooLarge at once and nothing more is tried.
     """
-    if len(data) > MAX_BYTES:
-        raise DocTooLarge(f"{name} is larger than {MAX_BYTES // 1_000_000} MB")
+    if len(data) > _lim("MAX_BYTES"):
+        raise DocTooLarge(f"{name} is larger than {_lim('MAX_BYTES') // 1_000_000} MB")
     failed: List[str] = []
     for kind, accepts, to_markdown in CONVERTERS:
         try:
@@ -357,14 +378,21 @@ def convert(name: str, data: bytes) -> Tuple[str, str]:
             if markdown.strip():
                 return markdown, kind
             failed.append(f"{kind}: no text in it")
+            if kind in BINARY_KINDS:
+                break
         except DocTooLarge as e:
             raise DocTooLarge(f"{name} refused: {e}") from e
         except Exception as e:  # a hostile or damaged file can fail anywhere in a parser; try the next one
             failed.append(f"{kind}: {type(e).__name__}: {str(e)[:80]}")
+            if kind in BINARY_KINDS:    # recognised binary file: its raw bytes must never be read as text
+                break
     raise DocError(f"could not read {name} ({'; '.join(failed)})")
 
 
 # ── the library ──────────────────────────────────────────────────────────────
+SEAL = "docs"                  # purpose of the column-level encryption (velaris.core.fieldseal)
+_SEALED = ("heading", "text", "embedding")
+_CACHE_MAX = 50_000            # decoded passages kept per process: (embedding vector, word list) by passage sha256
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS documents (
     id TEXT PRIMARY KEY, scope TEXT NOT NULL, name TEXT NOT NULL, sha256 TEXT NOT NULL,
@@ -413,11 +441,13 @@ def _bm25(query: List[str], docs: List[List[str]], k1: float = 1.5, b: float = 0
 class DocStore:
     def __init__(self, llm: Optional[LLM] = None, *, path: Optional[str] = None) -> None:
         self.llm = llm or LLM()
-        self._db = sqlite3.connect(path or str(data_dir() / "docs.db"), check_same_thread=False)
-        self._db.row_factory = sqlite3.Row
+        self._db = connect_db(path or str(data_dir() / "docs.db"), check_same_thread=False)
+        self._db.row_factory = fieldseal.row_class(SEAL, _SEALED, "chunks")     # reading unseals; ingest seals
         self._db.execute("PRAGMA secure_delete=ON")          # erased text must not linger in freed pages (DPDP)
         self._db.execute("PRAGMA busy_timeout=5000")
         self._db.executescript(_SCHEMA)
+        fieldseal.seal_existing(self._db, "chunks", list(_SEALED), SEAL, key="id")   # plaintext of older releases
+        self._cache: Dict[str, Tuple[List[float], List[str]]] = {}
         try:                                                 # two current versions of one name can never coexist
             self._db.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_documents_current ON documents (scope, name) WHERE invalid_at IS NULL")
         except sqlite3.IntegrityError as e:
@@ -441,7 +471,7 @@ class DocStore:
         shas = [hashlib.sha256(f"{p['heading']}\n{p['text']}".encode()).hexdigest() for p in parts]
         known = {}
         for s in set(shas):          # a passage seen before keeps its embedding
-            row = self._db.execute("SELECT embedding FROM chunks WHERE sha256=? LIMIT 1", (s,)).fetchone()
+            row = self._db.execute("SELECT id, embedding FROM chunks WHERE sha256=? LIMIT 1", (s,)).fetchone()
             if row:
                 known[s] = row["embedding"]
         new = [i for i, s in enumerate(shas) if s not in known]
@@ -459,8 +489,11 @@ class DocStore:
                 self._db.execute("UPDATE documents SET invalid_at=? WHERE id=?", (now, old["id"]))
             self._db.execute("INSERT INTO documents VALUES (?,?,?,?,?,?,?,NULL,?)",
                              (doc_id, scope, name, sha, kind, source, now, old["id"] if old else None))
+            cids = [uuid.uuid4().hex for _ in parts]
+            bound = lambda col, i, v: fieldseal.seal(v, SEAL, fieldseal.bind_for("chunks", col, cids[i]))     # bound to its chunk row
             self._db.executemany("INSERT INTO chunks VALUES (?,?,?,?,?,?,?,?)", [
-                (uuid.uuid4().hex, doc_id, i, p["heading"], p["text"], shas[i], known[shas[i]], flags[i])
+                (cids[i], doc_id, i, bound("heading", i, p["heading"]), bound("text", i, p["text"]), shas[i],
+                 bound("embedding", i, known[shas[i]]), flags[i])
                 for i, p in enumerate(parts)])
         out = {"action": "UPDATED" if old else "ADDED", "doc_id": doc_id, "sha256": sha, "format": kind,
                "passages": len(parts), "embedded": len(new), "withheld": sum(flags)}
@@ -504,15 +537,22 @@ class DocStore:
         # ponytail: scans every passage in the scope per query. Fine to a few tens of thousands;
         # beyond that move vectors to pgvector and wording to Postgres full-text (both already run).
         rows = self._db.execute(
-            "SELECT c.heading, c.text, c.sha256, c.embedding, d.name, d.sha256 AS doc_sha FROM chunks c "
+            "SELECT c.id, c.heading, c.text, c.sha256, c.embedding, d.name, d.sha256 AS doc_sha FROM chunks c "
             "JOIN documents d ON d.id = c.doc_id WHERE d.scope=? AND d.invalid_at IS NULL AND c.flagged=0",
             (scope,)).fetchall()
         if not rows:
             return []
         qv = self.llm.embed([query])[0]
-        vecs = [json.loads(r["embedding"]) for r in rows]
-        meaning = [cosine(qv, v) if len(v) == len(qv) else 0.0 for v in vecs]   # other-model vectors: wording only
-        wording = _bm25(_tokens(query), [_tokens(f"{r['heading']} {r['text']}") for r in rows])
+        if len(self._cache) > _CACHE_MAX:
+            self._cache.clear()
+        decoded = []
+        for r in rows:                      # a passage is decrypted and parsed once per process, not once per query
+            sha = r["sha256"]
+            if sha not in self._cache:
+                self._cache[sha] = (json.loads(r["embedding"]), _tokens(f"{r['heading']} {r['text']}"))
+            decoded.append(self._cache[sha])
+        meaning = [cosine(qv, v) if len(v) == len(qv) else 0.0 for v, _ in decoded]   # other-model vectors: wording only
+        wording = _bm25(_tokens(query), [t for _, t in decoded])
         fused = [0.0] * len(rows)
         for scores in (meaning, wording):                    # reciprocal rank fusion; a zero score earns nothing
             order = sorted((i for i, s in enumerate(scores) if s > 0), key=lambda i: scores[i], reverse=True)
@@ -544,7 +584,7 @@ class DocStore:
                   "not answer the question, say so in one sentence with no number. Add nothing of your own.")
         answer, unsupported, reason = "", [], ""
         try:
-            draft = self.llm.complete(prompt, model=model, max_tokens=700, temperature=0.0, purpose="docs.ask").text
+            draft = router.complete("worker", prompt, llm=self.llm, model=model, sensitivity="restricted", max_tokens=700, temperature=0.0, purpose="docs.ask").text
             # A sentence is kept only if it cites a passage and states no figure that passage lacks.
             answer, unsupported = verify_report(draft, set(shown), shown)
             reason = "" if answer else "the passages found do not support an answer"

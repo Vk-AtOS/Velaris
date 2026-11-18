@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "agent": "ZOHO_PROJECTS",
+  "cases": [
+    {
+      "id": "select-get_projects",
+      "input": "Use the get_projects operation of ZOHO_PROJECTS with {}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "get_projects",
+            "args": {}
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-get_task_summary",
+      "input": "Use the get_task_summary operation of ZOHO_PROJECTS with {\"project_id\": \"sample\", \"owner_id\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "get_task_summary",
+            "args": {
+              "project_id": "sample",
+              "owner_id": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-get_tasks_by_owner",
+      "input": "Use the get_tasks_by_owner operation of ZOHO_PROJECTS with {\"project_id\": \"sample\", \"owner_id\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "get_tasks_by_owner",
+            "args": {
+              "project_id": "sample",
+              "owner_id": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-get_timelogs",
+      "input": "Use the get_timelogs operation of ZOHO_PROJECTS with {\"project_id\": \"sample\", \"owner_id\": \"sample\", \"from_date\": \"sample\", \"to_date\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "get_timelogs",
+            "args": {
+              "project_id": "sample",
+              "owner_id": "sample",
+              "from_date": "sample",
+              "to_date": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

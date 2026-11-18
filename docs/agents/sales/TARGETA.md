@@ -2,11 +2,16 @@
 
 - **Department:** `sales`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/sales/TARGETA/main.py` (49 lines)
+- **Source:** `departments/sales/TARGETA/main.py` (52 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Targeta: simple targeting metrics (formulas only).
+
+segmentation_score(segment_sizes) is the population variance of the sizes (0.0 if empty);
+match_score(profile, target) is the dot product over the target's keys, missing profile keys
+counting as 0; target_fit(match, noise=0.0) is match - noise. Keeps no state. Non-numeric
+values raise.
 
 ## Class `TargetaAgent`
 
@@ -27,5 +32,5 @@ _No module docstring yet._
 ## Called by
 
 - **other agents:** none found
-- **platform modules:** none found
+- **platform modules:** `velaris/api/allowlist.py`
 - **tests:** `velaris/tests/test_targeta.py`

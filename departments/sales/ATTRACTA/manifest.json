@@ -5,5 +5,27 @@
   "description": "Public methods: appeal_score, attraction_potential, emotional_resonance (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:AttractaAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Attracta: weighted appeal score, engagement ratio and mean sentiment (simple arithmetic).",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/sales/ATTRACTA.json",
+    "wave": "KAN-42",
+    "status": "deterministic_tool",
+    "tools": {
+      "appeal_score": {
+        "kind": "read"
+      },
+      "attraction_potential": {
+        "kind": "read"
+      },
+      "emotional_resonance": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

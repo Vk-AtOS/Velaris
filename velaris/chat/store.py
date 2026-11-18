@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import re
 import sqlite3
@@ -21,8 +22,11 @@ import threading
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Sequence
 
+from velaris.core import fieldseal, vault
+from velaris.core.sqlite_util import connect as connect_db
 from velaris.intel.paths import PRIVATE_FILE, agent_dir
 
+logger = logging.getLogger("velaris.chat.store")
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY, org TEXT NOT NULL, display TEXT, first_seen REAL NOT NULL,
   last_seen REAL NOT NULL, erased INTEGER NOT NULL DEFAULT 0);
@@ -52,7 +56,7 @@ CREATE TABLE IF NOT EXISTS pins(channel_id INTEGER NOT NULL, message_id INTEGER 
 CREATE TABLE IF NOT EXISTS drafts(user_id TEXT NOT NULL, channel_id INTEGER NOT NULL, topic TEXT NOT NULL,
   body TEXT NOT NULL, updated REAL NOT NULL, PRIMARY KEY(user_id, channel_id, topic));
 CREATE TABLE IF NOT EXISTS files(hash TEXT NOT NULL, org TEXT NOT NULL, size INTEGER NOT NULL, ctype TEXT NOT NULL,
-  name TEXT NOT NULL, uploader TEXT NOT NULL, created_at REAL NOT NULL, PRIMARY KEY(hash, uploader));
+  name TEXT NOT NULL, uploader TEXT NOT NULL, created_at REAL NOT NULL, bind TEXT, PRIMARY KEY(hash, uploader));
 CREATE TABLE IF NOT EXISTS settings(org TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY(org, key));
 CREATE TABLE IF NOT EXISTS ai_drafts(id TEXT PRIMARY KEY, org TEXT NOT NULL, channel_id INTEGER NOT NULL,
   topic TEXT NOT NULL, requester TEXT NOT NULL, assistant TEXT NOT NULL, body TEXT NOT NULL,
@@ -63,6 +67,10 @@ CREATE TABLE IF NOT EXISTS ai_proposals(run_id TEXT PRIMARY KEY, org TEXT NOT NU
   source_message_id INTEGER NOT NULL, decided_by TEXT, requester_confirmed INTEGER NOT NULL DEFAULT 0,
   confirmed_hash TEXT, confirmed_at REAL, context_authors TEXT NOT NULL DEFAULT '[]');
 """
+NAME_SEAL = "chat:file-name"   # the file name column is sealed at rest, bound to (hash, uploader); the blob is sealed per content hash
+SEAL = "chat"                 # message text is sealed at rest (velaris.core.fieldseal); the search index holds blind tokens
+SEALED = ("body",)
+_SCAN_LIMIT = 2000            # no-FTS fallback: newest messages of the user's channels that are decrypted and searched
 _PROPOSAL_COLUMNS = ("requester_confirmed INTEGER NOT NULL DEFAULT 0", "confirmed_hash TEXT", "confirmed_at REAL",
                      "context_authors TEXT NOT NULL DEFAULT '[]'")
 _FTS = "CREATE VIRTUAL TABLE IF NOT EXISTS msg_fts USING fts5(body, tokenize='unicode61')"
@@ -81,10 +89,13 @@ class Store:
         os.fchmod(fd, PRIVATE_FILE)
         os.close(fd)
         self.lock = threading.RLock()
-        self.db = sqlite3.connect(self.path, check_same_thread=False, isolation_level=None)
-        self.db.row_factory = sqlite3.Row
+        self.db = connect_db(self.path, check_same_thread=False, isolation_level=None)
+        self.db.row_factory = fieldseal.row_class(SEAL, SEALED, [
+            fieldseal.RowKey("messages", ("id",), lambda v: isinstance(v[0], int)), fieldseal.RowKey("ai_drafts", ("id",)),
+            fieldseal.RowKey("edits", ("message_id", "version")), fieldseal.RowKey("drafts", ("user_id", "channel_id", "topic"))])
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.execute("PRAGMA foreign_keys=ON")
+        self.db.execute("PRAGMA secure_delete=ON")        # erased and edited text must not linger in freed pages (DPDP)
         self.db.executescript(SCHEMA)
         self._migrate()
         self.fts = False
@@ -94,10 +105,78 @@ class Store:
                 self.fts = True
             except sqlite3.OperationalError:
                 self.fts = False
+        self._bind_at_rest()
+        self._seal_at_rest()
+        self._seal_file_names()
+        self._bind_files()
         for suffix in ("-wal", "-shm"):
             side = Path(str(self.path) + suffix)
             if side.exists():
                 os.chmod(side, PRIVATE_FILE)
+
+    def _seal_at_rest(self) -> None:
+        """Seal message text written before sealing existed and rebuild the search index from blind tokens (once)."""
+        done = self.one("SELECT 1 FROM settings WHERE org='' AND key='sealed_v1'")
+        if done:
+            return
+        if self.fts:                                    # the old index holds readable words: replace it
+            self.db.execute("DROP TABLE IF EXISTS msg_fts")
+            self.db.execute(_FTS)
+            for r in self.db.execute("SELECT id, body FROM messages WHERE deleted_at IS NULL AND erased=0").fetchall():
+                self.db.execute("INSERT INTO msg_fts(rowid, body) VALUES(?,?)", (r["id"], fieldseal.blind_tokens(r["body"], SEAL)))
+        self.db.execute("INSERT OR REPLACE INTO settings VALUES('', 'sealed_v1', '1')")
+        self.db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        self.db.execute("VACUUM")                       # the plaintext pages (rows, old index) must not stay in the file
+
+    BOUND_KEYS = (("messages", "id"), ("edits", ("message_id", "version")), ("drafts", ("user_id", "channel_id", "topic")),
+                  ("ai_drafts", "id"))
+
+    def _bind_at_rest(self) -> None:
+        """Seal message text written before sealing existed and bind every body to its row (vlv2, once). Old vlv1 values
+        and plaintext need the migration window (velaris.core.vault)."""
+        if self.one("SELECT 1 FROM settings WHERE org='' AND key='bound_v2'"):
+            return
+        for table, key in self.BOUND_KEYS:
+            fieldseal.seal_existing(self.db, table, ["body"], SEAL, key=key)
+        self.db.execute("INSERT OR REPLACE INTO settings VALUES('', 'bound_v2', '1')")
+
+    def _seal_file_names(self) -> None:
+        """Seal file names stored before sealing existed (once). Blobs are sealed when first downloaded in the migration window."""
+        if self.one("SELECT 1 FROM settings WHERE org='' AND key='sealed_files_v1'"):
+            return
+        fieldseal.seal_existing(self.db, "files", ["name"], NAME_SEAL, key=("hash", "uploader"))
+        self.db.execute("INSERT OR REPLACE INTO settings VALUES('', 'sealed_files_v1', '1')")
+
+    @staticmethod
+    def file_mac(r: Any) -> str:
+        """Keyed MAC over a file row's clear metadata (hash, org, size, type, uploader): a row edited or copied under another
+        uploader or org by somebody with write access to chat.db no longer verifies. (The name is sealed and bound already.)"""
+        return fieldseal.row_mac(SEAL, "files", r["hash"], r["org"], int(r["size"]), r["ctype"], r["uploader"])
+
+    def file_rows(self, org: str, digest: Optional[str] = None, uploader: Optional[str] = None) -> List[sqlite3.Row]:
+        """The `files` rows of an organisation (optionally one hash / one uploader), oldest first, that verify. A row that does
+        not (tampered, or unbound outside the migration window) is dropped and logged: nobody can vouch for it."""
+        where, args = ["org=?"], [org]
+        for col, v in (("hash", digest), ("uploader", uploader)):
+            if v is not None:
+                where.append(f"{col}=?")
+                args.append(v)
+        good = []
+        for r in self.all(f"SELECT * FROM files WHERE {' AND '.join(where)} ORDER BY created_at", args):
+            if fieldseal.row_mac_ok(r["bind"], SEAL, "files", r["hash"], r["org"], int(r["size"]), r["ctype"], r["uploader"]):
+                good.append(r)
+            else:
+                logger.warning("chat file row %s does not verify: not used", r["hash"][:8])
+        return good
+
+    def _bind_files(self) -> None:
+        """Bind file rows (KAN-167). Rows of older releases are bound only inside the vault migration window; outside it they
+        stay unbound and are not served."""
+        if "bind" not in {r["name"] for r in self.db.execute("PRAGMA table_info(files)")}:
+            self.db.execute("ALTER TABLE files ADD COLUMN bind TEXT")
+        if vault.plaintext_allowed():
+            for r in self.db.execute("SELECT * FROM files WHERE bind IS NULL").fetchall():
+                self.db.execute("UPDATE files SET bind=? WHERE hash=? AND uploader=?", (self.file_mac(r), r["hash"], r["uploader"]))
 
     def _migrate(self) -> None:
         """Idempotent, in place. Proposals made before the two-key rule have no requester confirmation and no
@@ -175,7 +254,7 @@ class Store:
     def index(self, db: sqlite3.Connection, message_id: int, body: str) -> None:
         if self.fts:
             db.execute("DELETE FROM msg_fts WHERE rowid=?", (message_id,))
-            db.execute("INSERT INTO msg_fts(rowid, body) VALUES(?,?)", (message_id, body))
+            db.execute("INSERT INTO msg_fts(rowid, body) VALUES(?,?)", (message_id, fieldseal.blind_tokens(body, SEAL)))
 
     def unindex(self, db: sqlite3.Connection, message_id: int) -> None:
         if self.fts:
@@ -196,12 +275,11 @@ class Store:
         if self.fts:
             sql = (f"SELECT m.* FROM msg_fts JOIN messages m ON m.id = msg_fts.rowid WHERE msg_fts MATCH ? AND {scope} "
                    "ORDER BY m.id DESC LIMIT ?")
-            first: List[Any] = [" ".join(f'"{t}"' for t in terms)]      # \w+ tokens only: no query syntax can get in
-        else:
-            like = " AND ".join("lower(m.body) LIKE ? ESCAPE '\\'" for _ in terms)
-            sql = f"SELECT m.* FROM messages m WHERE {like} AND {scope} ORDER BY m.id DESC LIMIT ?"
-            first = [f"%{_escape_like(t)}%" for t in terms]
-        return self.all(sql, first + args + [limit])
+            first = " ".join(f'"{t}"' for t in fieldseal.blind_query(terms, SEAL))   # hex tokens only: no query syntax can get in
+            return self.all(sql, [first] + args + [limit]) if first else []
+        # ponytail: without FTS5 the newest _SCAN_LIMIT messages of the user's channels are decrypted and filtered here.
+        rows = self.all(f"SELECT m.* FROM messages m WHERE {scope} ORDER BY m.id DESC LIMIT {_SCAN_LIMIT}", args)
+        return [m for m in rows if all(t in (m["body"] or "").lower() for t in terms)][:limit]
 
 
 def message_view(row: sqlite3.Row, reactions: Dict[str, List[str]]) -> Dict[str, Any]:

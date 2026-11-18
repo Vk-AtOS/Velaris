@@ -1,0 +1,27 @@
+:root{color-scheme:light dark;--bg:#fff;--fg:#1a1a1a;--mut:#555;--line:#8a8a8a;--acc:#0b57d0;--err:#b3261e;--ok:#146c2e}
+@media (prefers-color-scheme:dark){:root{--bg:#161616;--fg:#f0f0f0;--mut:#b5b5b5;--line:#777;--acc:#8ab4f8;--err:#f2b8b5;--ok:#7fd49a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:1rem/1.5 system-ui,sans-serif}
+main{max-width:42rem;margin:0 auto;padding:1rem 16px 3rem}
+h1{font-size:1.5rem;line-height:1.25}
+a{color:var(--acc)}
+.skip{position:absolute;left:-999px}.skip:focus{left:8px;top:8px;background:var(--bg);padding:.5rem;z-index:1}
+label{display:block;font-weight:600;margin-top:1rem}
+.hint{color:var(--mut);font-weight:400;font-size:.9rem}
+input,select,textarea,button{font:inherit;color:inherit;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:.6rem;width:100%;min-height:44px}
+input[type=checkbox]{width:auto;min-height:0;margin-right:.5rem}
+.check{display:flex;align-items:flex-start;font-weight:400}
+button{width:auto;margin:1rem .5rem 0 0;padding:.6rem 1.2rem;background:var(--acc);color:var(--bg);border-color:var(--acc);cursor:pointer;font-weight:600}
+button.secondary{background:var(--bg);color:var(--acc)}
+button:disabled{opacity:.6;cursor:progress}
+:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.notice{border:1px solid var(--line);border-radius:6px;padding:.75rem 1rem;margin-top:1rem;white-space:pre-wrap}
+.field-error,[role=alert]{color:var(--err);font-weight:600}
+[role=status]{color:var(--ok);font-weight:600}
+fieldset{border:1px solid var(--line);border-radius:6px;margin-top:1rem}
+.slot{display:flex;gap:.5rem;align-items:center;font-weight:400}.slot input{width:auto;min-height:0}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+dialog{max-width:30rem;width:calc(100% - 32px);background:var(--bg);color:var(--fg);border:2px solid var(--line);border-radius:8px;padding:1rem 1.25rem}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+dialog h2{margin-top:0;font-size:1.25rem}
+dialog .actions{display:flex;flex-wrap:wrap;justify-content:flex-end;margin-top:1rem}

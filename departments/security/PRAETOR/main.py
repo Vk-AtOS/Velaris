@@ -1,11 +1,14 @@
+"""Praetor: z-score anomaly detector for a series of numbers.
+
+detect_anomaly(values) is True when the last value lies more than config["threshold"] (default
+3.0) standard deviations from the mean of the values before it. Fewer than 3 values give False;
+a flat baseline (zero deviation) flags any different latest value. A statistical rule, not a
+learned model. Keeps no state. Non-numeric values raise.
+"""
 import logging
 import statistics
 
 logger = logging.getLogger("PRAETOR")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - PRAETOR - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class PraetorAgent:
     def __init__(self, config=None):

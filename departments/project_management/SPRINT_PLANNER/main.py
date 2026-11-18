@@ -1,26 +1,34 @@
+"""Sprint planner: creates sprints, holds their tasks and story points, and reports velocity.
+
+create_sprint(project_id, sprint_number, name, start_date, velocity_target) sets the end date from the sprint_weeks config
+(default 2); a bad ISO date raises ValueError and a duplicate number returns {"error": ...}. add_task(sprint_id, task_id,
+title, assignee, story_points) rejects negative, non-finite or non-numeric points with {"error": ...}. update_task_status
+accepts todo, in_progress, review, done. get_sprint_board(id) groups tasks by status with total and completed points and a
+velocity percentage ({"error": "sprint_not_found"} if unknown). close_sprint(id) marks it completed and returns points done.
+project_velocity_trend(project) compares target and achieved for completed sprints. It does not sync with Zoho Projects.
+add_task and close_sprint return {"error": "sprint_not_found"} for an unknown sprint, and update_task_status returns
+{"error": "task_not_found"} for an unknown task. No caller check is made.
+State: sqlite at <VELARIS_DATA>/agents/SPRINT_PLANNER/sprints.db.
+"""
 import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
 import logging
 import math
 import sqlite3
-import json
+
+from velaris.core.sqlite_util import connect as connect_db
 from datetime import date, timedelta
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from velaris.intel.paths import agent_file
 
-from velaris.intel.paths import agent_dir
 
 logger = logging.getLogger("SPRINT_PLANNER")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - SPRINT_PLANNER - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 
 
 def _db() -> sqlite3.Connection:
-    conn = sqlite3.connect(agent_file("SPRINT_PLANNER", "sprints.db"))
+    conn = connect_db(agent_file("SPRINT_PLANNER", "sprints.db"))
     conn.row_factory = sqlite3.Row
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS sprints (
@@ -53,7 +61,7 @@ def _db() -> sqlite3.Connection:
 class SprintPlanner:
     """
     Scrum/Kanban sprint management: create sprints, assign tasks, track velocity.
-    Integrates with ZOHO_PROJECTS for task sync when configured.
+    Standalone: no Zoho or Jira sync exists in this agent.
     """
 
     def __init__(self, config: Dict[str, Any] = None):
@@ -91,6 +99,9 @@ class SprintPlanner:
                 or not math.isfinite(story_points) or story_points < 0:
             return {"error": "story_points must be a finite number, zero or more"}
         conn = _db()
+        if not conn.execute("SELECT 1 FROM sprints WHERE id=?", (sprint_id,)).fetchone():
+            conn.close()
+            return {"error": "sprint_not_found"}
         cur = conn.execute(
             "INSERT INTO sprint_tasks (sprint_id, task_id, title, assignee, story_points) VALUES (?,?,?,?,?)",
             (sprint_id, task_id, title, assignee, story_points)
@@ -107,9 +118,11 @@ class SprintPlanner:
         if status not in valid:
             return {"error": f"status must be one of {valid}"}
         conn = _db()
-        conn.execute("UPDATE sprint_tasks SET status=? WHERE id=?", (status, item_id))
+        changed = conn.execute("UPDATE sprint_tasks SET status=? WHERE id=?", (status, item_id)).rowcount
         conn.commit()
         conn.close()
+        if not changed:
+            return {"error": "task_not_found"}
         return {"id": item_id, "status": status}
 
     def get_sprint_board(self, sprint_id: int) -> Dict[str, Any]:
@@ -142,6 +155,9 @@ class SprintPlanner:
     def close_sprint(self, sprint_id: int) -> Dict[str, Any]:
         """Mark sprint done; returns velocity achieved."""
         conn = _db()
+        if not conn.execute("SELECT 1 FROM sprints WHERE id=?", (sprint_id,)).fetchone():
+            conn.close()
+            return {"error": "sprint_not_found"}
         tasks = conn.execute(
             "SELECT story_points, status FROM sprint_tasks WHERE sprint_id=?", (sprint_id,)
         ).fetchall()

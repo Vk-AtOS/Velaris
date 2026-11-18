@@ -15,6 +15,7 @@ import secrets
 from typing import Any, Dict, List, Optional
 
 from velaris.agentkit import hiring_slots as sl
+from velaris.agentkit.recdoc import RecDoc
 from velaris.agentkit.hiring_common import DAY, HiringError, application_known, audit, bad, hid, new_id, now, sha, store
 
 AGENT = "INTERVIEW_SCHEDULER"
@@ -23,8 +24,13 @@ REMINDERS = (("T-24h", 24 * 3600), ("T-1h", 3600))
 MAX_TOKEN_DAYS = 30
 
 
+COLLECTIONS = ("interviewers", "bookings", "drafts", "tokens", "reminders_sent", "rounds")
+
+
 def st() -> Any:
-    return store(AGENT, "scheduler.json", {"interviewers": {}, "bookings": {}, "drafts": {}, "tokens": {}, "reminders_sent": {}, "rounds": {}})
+    """One sealed file per interviewer, booking, draft, token, round and reminder; a booking, its token and its draft change in one
+    transaction (KAN-64). The old scheduler.json is folded into records on first use."""
+    return RecDoc(AGENT, f"hiring:{AGENT}", COLLECTIONS, legacy=("scheduler.json", {c: {} for c in COLLECTIONS}))
 
 
 def key(org: str, ident: str) -> str:
@@ -62,6 +68,9 @@ def make_ics(b: Dict[str, Any], method: str, panel: List[Dict[str, Any]], org: s
                         organizer=(org_["name"], org_["email"]), attendees=people)
 
 
+MAX_HISTORY = 50      # events kept per booking (the newest): a candidate who keeps rescheduling cannot grow the shared state file
+
+
 def draft(d: Dict[str, Any], b: Dict[str, Any], kind: str, panel: List[Dict[str, Any]], by: str, at: float) -> Dict[str, Any]:
     """An invitation e-mail as a DRAFT (nothing is sent; a person approves, the mail layer sends)."""
     when = sl.datetime.fromtimestamp(b["start"], sl.IST).strftime("%A %d %B %Y, %H:%M IST")
@@ -75,6 +84,8 @@ def draft(d: Dict[str, Any], b: Dict[str, Any], kind: str, panel: List[Dict[str,
           "subject": f"{'Cancelled: ' if kind == 'cancel' else ''}{b['title']} on {when}", "body": body,
           "ics": make_ics(b, method, panel, b["org"], at) if kind in ("invite", "reschedule", "cancel") else None,
           "placeholders": [PLACEHOLDER_NAME, PLACEHOLDER_EMAIL, "{schedule_link}"], "sent": False}
+    for k in [k for k, x in d["drafts"].items() if x["booking_id"] == b["id"] and x["kind"] == kind and x["status"] == "draft" and not x["sent"]]:
+        del d["drafts"][k]                   # a newer unsent draft of the same kind replaces the older one: a rescheduling loop cannot grow the file
     d["drafts"][dr["id"]] = dr
     return dr
 
@@ -177,7 +188,7 @@ def create_booking(d: Dict[str, Any], org: str, by: str, application_id: str, id
              "status": "confirmed", "created_by": by, "created_at": at, "history": []}
         d["bookings"][bid] = b
         kind = "invite"
-    b["history"].append({"at": at, "by": by, "event": kind, "start": start})
+    b["history"] = (b["history"] + [{"at": at, "by": by, "event": kind, "start": start}])[-MAX_HISTORY:]
     dr = draft(d, b, kind, panel, by, at)
     return {"booking": b, "draft_id": dr["id"]}
 
@@ -185,6 +196,16 @@ def create_booking(d: Dict[str, Any], org: str, by: str, application_id: str, id
 def _token(d: Dict[str, Any], raw: Any, at: float) -> Optional[Dict[str, Any]]:
     t = d["tokens"].get(sha(raw)) if isinstance(raw, str) and 20 <= len(raw) <= 80 else None
     return t if t and t["expires"] > at else None
+
+
+def revoke_tokens(org: str, application_ids: List[str]) -> int:
+    """Remove every self-scheduling link of these applications (a withdrawal: the candidate must not be able to book again)."""
+    def go(d: Dict[str, Any]) -> int:
+        gone = [h for h, t in d["tokens"].items() if t["org"] == org and t["application_id"] in application_ids]
+        for h in gone:
+            del d["tokens"][h]
+        return len(gone)
+    return st().update(go)
 
 
 def public_slots(token: str) -> Dict[str, Any]:
@@ -226,6 +247,23 @@ def public_pick(token: str, start: float) -> Dict[str, Any]:
         return {"status": e.status, "reason": e.reason}
 
 
+def public_ics(token: str) -> Dict[str, Any]:
+    """Candidate side: the booked slot as a calendar file (KAN-124). METHOD:PUBLISH with no attendee list, so the interviewers'
+    addresses are not handed to the candidate and the file asks for no reply. Only a CONFIRMED booking of this token has one."""
+    at, d = now(), st().load()
+    t = _token(d, token, at)
+    b = d["bookings"].get(t["booking_id"]) if t and t.get("booking_id") else None
+    if not b or b["status"] != "confirmed":
+        return {"status": "not_found", "reason": "there is no booking on this link"}
+    try:
+        org_ = organizer(t["org"])
+    except HiringError as e:
+        return {"status": e.status, "reason": e.reason}
+    ics = sl.build_ics("PUBLISH", uid=b["uid"], sequence=b["sequence"], start=b["start"], end=b["end"], stamp=at, summary=b["title"],
+                       description=b["notes"] or "Interview", location=b["location"], organizer=(org_["name"], org_["email"]), attendees=[])
+    return {"status": "ok", "ics": ics, "filename": "interview.ics"}
+
+
 def public_cancel(token: str) -> Dict[str, Any]:
     at = now()
     try:
@@ -235,7 +273,7 @@ def public_cancel(token: str) -> Dict[str, Any]:
                 raise HiringError("not_found", "nothing to cancel on this link")
             b = d["bookings"][t["booking_id"]]
             b.update(status="cancelled", sequence=b["sequence"] + 1)
-            b["history"].append({"at": at, "by": "candidate-token", "event": "cancel"})
+            b["history"] = (b["history"] + [{"at": at, "by": "candidate-token", "event": "cancel"}])[-MAX_HISTORY:]
             draft(d, b, "cancel", panel_for(d, t["org"], t["interviewers"]), "candidate-token", at)
             audit(AGENT, "booking.cancelled", t["org"], None, booking=hid(t["org"], b["id"]), by_candidate=True)
             t["booking_id"] = None

@@ -1,5 +1,4 @@
 """KAN-106 (finance, operations, project management, marketing, executive agents)."""
-import math
 from importlib import import_module
 
 import pytest

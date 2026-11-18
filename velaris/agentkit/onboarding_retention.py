@@ -50,6 +50,8 @@ PARAMS: Dict[str, List[Entry]] = {
     "retention:attendance_leave_records": _st(8, "Attendance and leave registers"),
     "retention:employment_contract": _st(8, "Signed offer, appointment letter and e-sign evidence"),
     "retention:employee_master_core": _st(8, "Name and employee id needed to read the statutory records above"),
+    "retention:performance_records": _st(3, "OKRs, performance reviews and calibration rows (planning figure: the limitation period "
+                                          "for employment disputes); the owner/lawyer confirms it, until then they are held"),
     "retention:candidate_unsuccessful": _pol(0.5, "application outcome", "CV and screening data of people not hired"),
     "retention:onboarding_documents": _pol(1, "start of employment", "scans collected during onboarding"),
     "retention:onboarding_identifiers": _pol(1, "end of employment", "masked/sealed PAN, bank and Aadhaar digest"),

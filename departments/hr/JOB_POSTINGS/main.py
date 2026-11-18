@@ -23,7 +23,8 @@ from velaris.agentkit import hiring_common as hc
 from velaris.agentkit import hiring_posting as hp
 from velaris.agentkit import hiring_skills as sk
 from velaris.agentkit.hiring_common import DAY, DECIDERS, HIRING, RECRUITING, HiringError, acts, audit, bad, hid, mine, now, reads
-from velaris.agentkit.results import ok
+from velaris.agentkit import hiring_forms as hf
+from velaris.agentkit.results import ok, fail
 from velaris.agents.SECRETS_VAULT.main import SecretsVault
 from velaris.agents.JIRA.atlassian import refuse_unless_approved
 from velaris.intel.web_fetch import FetchError, _resolve, check_public, pinned
@@ -294,3 +295,16 @@ class JobPostings:
             if k["tracking_code"] == code:
                 return ok(source=k["board"], requisition_id=k["requisition_id"], tracking_code=code)
         return ok(source="careers_page", requisition_id=None, tracking_code=None)
+
+
+def public_job(slug: str) -> Dict[str, Any]:
+    """Public, token-less read for GET /jobs/<slug>: only a LIVE posting that has not passed its validThrough date. Returns the stored
+    JSON-LD and fragment (built and validated when prepared) and the published application form of the same requisition, if any.
+    Anything else is the one generic not_found, so a draft, a taken-down or an expired job cannot be told apart from an unknown slug."""
+    d = _st().load()
+    p = next((p for p in d["postings"].values() if p["slug"] == slug and p["status"] == "live"), None)
+    if not isinstance(slug, str) or not p or p["valid_through"] < hc.iso(now())[:10]:
+        return fail("not_found", "this job is not available")
+    form = next((f["id"] for f in hf._st().load()["forms"].values()
+                 if f["org"] == p["org"] and f["requisition_id"] == p["requisition_id"] and f["status"] == "published"), None)
+    return ok(title=p["jsonld"]["title"], fragment_html=p["fragment_html"], jsonld=p["jsonld"], form_id=form)

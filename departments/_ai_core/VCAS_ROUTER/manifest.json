@@ -1,0 +1,25 @@
+{
+  "name": "VCAS_ROUTER",
+  "display_name": "Vcas Router",
+  "version": "0.1.0",
+  "description": "VCAS_ROUTER: can this task run on autopilot at all?",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:VCASRouterAgent",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "VCAS_ROUTER: can this task run on autopilot at all?",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/VCAS_ROUTER.json",
+    "wave": "KAN-43",
+    "status": "deterministic_tool",
+    "tools": {
+      "route": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

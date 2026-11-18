@@ -1,0 +1,26 @@
+{
+  "name": "INITIATIVE_ENGINE",
+  "version": "0.1.0",
+  "description": "INITIATIVE_ENGINE: rank proposed initiatives by RICE and keep the register.",
+  "entrypoint": "main.py:InitiativeEngine",
+  "harness": {
+    "schema": 1,
+    "purpose": "INITIATIVE_ENGINE: rank proposed initiatives by RICE and keep the register.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/project_management/INITIATIVE_ENGINE.json",
+    "wave": "KAN-36",
+    "status": "deterministic_tool",
+    "tools": {
+      "propose": {
+        "kind": "act"
+      },
+      "register": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "project_management"
+}

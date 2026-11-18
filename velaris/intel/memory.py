@@ -34,10 +34,14 @@ import uuid
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
+from velaris.intel import router
+from velaris.core import fieldseal
+from velaris.core.sqlite_util import connect as connect_db
 from velaris.intel import guard, trace
 from velaris.intel.llm import LLM, LLMError, cosine, extract_json
 from velaris.intel.paths import data_dir
 
+SEAL = "memory"           # purpose of the column-level encryption (velaris.core.fieldseal)
 RELATED_AT = 0.60        # cosine at or above this: ask whether it updates an old memory
 HALF_LIFE_DAYS = 180.0   # recency weight halves over this period
 _SCHEMA = """
@@ -76,11 +80,12 @@ def _words(text: str) -> set:
 class MemoryStore:
     def __init__(self, llm: Optional[LLM] = None, *, path: Optional[str] = None) -> None:
         self.llm = llm or LLM()
-        self._db = sqlite3.connect(path or str(data_dir() / "memory.db"), check_same_thread=False)
-        self._db.row_factory = sqlite3.Row
+        self._db = connect_db(path or str(data_dir() / "memory.db"), check_same_thread=False)
+        self._db.row_factory = fieldseal.row_class(SEAL, ("text", "embedding"), "memories")   # reading unseals; writing seals below
         self._db.execute("PRAGMA secure_delete=ON")          # erased text must not linger in freed pages (DPDP)
         self._db.execute("PRAGMA busy_timeout=5000")
         self._db.executescript(_SCHEMA)
+        fieldseal.seal_existing(self._db, "memories", ["text", "embedding"], SEAL, key="id")   # plaintext of older releases
         self._lock = threading.Lock()
 
     # ── reading ──────────────────────────────────────────────────────────────
@@ -150,7 +155,7 @@ class MemoryStore:
                   "the names). Skip greetings, opinions about the conversation and anything temporary. "
                   'Reply with JSON only: {"facts": ["...", "..."]}')
         try:
-            data = extract_json(self.llm.complete(prompt, max_tokens=700, temperature=0.0,
+            data = extract_json(router.complete("worker", prompt, llm=self.llm, sensitivity="restricted", max_tokens=700, temperature=0.0,
                                                   purpose="memory.extract").text)
             facts = [f.strip() for f in data.get("facts", []) if isinstance(f, str) and len(f.strip()) > 8]
             if facts:
@@ -168,7 +173,7 @@ class MemoryStore:
                   "(give its number). The new fact wins.\n- ADD: it is a separate fact.\n"
                   'Reply with JSON only: {"action": "ADD|UPDATE|NONE", "target": <number or null>}')
         try:
-            d = extract_json(self.llm.complete(prompt, max_tokens=60, temperature=0.0, purpose="memory.decide").text)
+            d = extract_json(router.complete("classifier", prompt, llm=self.llm, sensitivity="restricted", max_tokens=60, temperature=0.0, purpose="memory.decide").text)
             action = str(d.get("action", "")).upper()
             target = d.get("target")
             if action == "UPDATE" and isinstance(target, int) and 0 <= target < len(related):
@@ -194,20 +199,24 @@ class MemoryStore:
             return []
         vectors = self.llm.embed(facts)
         results: List[Dict[str, Any]] = []
-        with self._lock:
-            for fact, vec in zip(facts, vectors):
+        for fact, vec in zip(facts, vectors):
+            with self._lock:
                 near = self._nearest(scope, vec, 5)
-                # Only the same words in the same order count as a duplicate. A near-identical
-                # sentence can still be a correction ("50,000" -> "75,000", "need" -> "need not"),
-                # so anything else that is close goes to the model below.
-                if near and _tokens(fact) == _tokens(near[0][1]["text"]):
-                    results.append({"action": "NONE", "text": fact, "id": near[0][1]["id"]})
-                    continue
-                related = [r for sim, r in near if sim >= RELATED_AT]
-                decision = self._decide(fact, related) if related else {"action": "ADD", "target": None}
-                if decision["action"] == "NONE":
-                    results.append({"action": "NONE", "text": fact, "id": None})
-                    continue
+            # Only the same words in the same order count as a duplicate. A near-identical
+            # sentence can still be a correction ("50,000" -> "75,000", "need" -> "need not"),
+            # so anything else that is close goes to the model below.
+            if near and _tokens(fact) == _tokens(near[0][1]["text"]):
+                results.append({"action": "NONE", "text": fact, "id": near[0][1]["id"]})
+                continue
+            related = [r for sim, r in near if sim >= RELATED_AT]
+            decision = self._decide(fact, related) if related else {"action": "ADD", "target": None}   # model call: no lock held
+            if decision["action"] == "NONE":
+                results.append({"action": "NONE", "text": fact, "id": None})
+                continue
+            with self._lock:
+                if decision["action"] == "UPDATE" and not self._db.execute(
+                        "SELECT 1 FROM memories WHERE id=? AND invalid_at IS NULL", (decision["target"],)).fetchone():
+                    decision = {"action": "ADD", "target": None}   # someone closed it while the model was thinking
                 now, new_id = time.time(), str(uuid.uuid4())
                 entry = trace.append("memory", "write", {"scope": scope, "id": new_id, "source": source,
                                                          "action": decision["action"],
@@ -217,10 +226,12 @@ class MemoryStore:
                 self._db.execute(
                     "INSERT INTO memories (id, scope, text, embedding, source, created_at, supersedes, trace_hash) "
                     "VALUES (?,?,?,?,?,?,?,?)",
-                    (new_id, scope, fact, json.dumps(vec), source, now, decision["target"], entry["hash"]))
+                    (new_id, scope, fieldseal.seal(fact, SEAL, fieldseal.bind_for("memories", "text", new_id)),
+                     fieldseal.seal(json.dumps(vec), SEAL, fieldseal.bind_for("memories", "embedding", new_id)), source, now,
+                     decision["target"], entry["hash"]))
                 self._db.commit()
-                results.append({"action": decision["action"], "text": fact, "id": new_id,
-                                "supersedes": decision["target"]})
+            results.append({"action": decision["action"], "text": fact, "id": new_id,
+                            "supersedes": decision["target"]})
         if masked:
             trace.append("memory", "redacted", {"scope": scope, "kinds": masked})
         return results

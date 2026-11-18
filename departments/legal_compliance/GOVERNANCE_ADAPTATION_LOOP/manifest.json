@@ -1,0 +1,29 @@
+{
+  "name": "GOVERNANCE_ADAPTATION_LOOP",
+  "version": "0.1.0",
+  "description": "GOVERNANCE_ADAPTATION_LOOP: learns from human overrides which rules need review.",
+  "entrypoint": "main.py:GovernanceAdaptationLoop",
+  "harness": {
+    "schema": 1,
+    "purpose": "GOVERNANCE_ADAPTATION_LOOP: learns from human overrides which rules need review.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/legal_compliance/GOVERNANCE_ADAPTATION_LOOP.json",
+    "wave": "KAN-42",
+    "status": "deterministic_tool",
+    "tools": {
+      "adapt": {
+        "kind": "act"
+      },
+      "record": {
+        "kind": "act"
+      },
+      "resolve": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "legal_compliance"
+}

@@ -1,12 +1,15 @@
+"""Sentinel DNA: hash baselines to detect drift in data.
+
+compute_hash(data) is the SHA-256 of the JSON form (sorted keys; non-JSON data raises
+TypeError). set_baseline(key, data) stores and returns the hash; drift_detected(key, new_data)
+is True when the hash differs from the baseline, or when no baseline exists for the key.
+State: a dict in memory only, so baselines are lost on restart.
+"""
 import logging
 import hashlib
 import json
 
 logger = logging.getLogger("SENTINELDNA")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - SENTINELDNA - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class SentinelDNAAgent:
     def __init__(self, config=None):

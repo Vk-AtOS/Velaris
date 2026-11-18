@@ -4,5 +4,32 @@
   "domain": "connectors",
   "entrypoint": "main.py:ZohoPeopleConnector",
   "description": "Zoho People connector — pulls employee profiles, attendance, leave balances, and appraisal scores.",
-  "hitl_required": false
+  "hitl_required": false,
+  "harness": {
+    "schema": 1,
+    "purpose": "Zoho People connector: reads employee, attendance, leave and appraisal data from the Zoho People API.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/_connectors/ZOHO_PEOPLE.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "get_attendance": {
+        "kind": "read"
+      },
+      "get_attendance_summary": {
+        "kind": "read"
+      },
+      "get_employees": {
+        "kind": "read"
+      },
+      "get_leave_summary": {
+        "kind": "read"
+      }
+    },
+    "excluded": {
+      "get_performance": "not in the HTTP allowlist (velaris/api/allowlist.py)"
+    },
+    "reviewed": true
+  }
 }

@@ -12,18 +12,24 @@ import base64
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from velaris.agentkit import hiring_common as hc
 from velaris.agentkit import hiring_forms as hf
+from velaris.agentkit import hiring_sched as sched
 from velaris.agentkit.hiring_common import DAY, HiringError, application_known, audit, hid, iso, new_id, now
 from velaris.agentkit.results import fail, ok
 from velaris.core import vault
 from velaris.intel.paths import agent_dir, private_dir
 
 MAX_PER_HOUR = 300
+MAX_PENDING_PER_FORM = 500       # unreviewed submissions one form may hold (each is a record in the shared 1 MiB state file)
 
 
 def _form(form_id: Any) -> Dict[str, Any]:
     f = hf._st().load()["forms"].get(str(form_id))
     if not f or f["status"] != "published":
+        raise HiringError("not_found", "no such form")
+    req = hc.load_requisition(f["org"], f["requisition_id"])
+    if not req or req.get("state") != "open":            # a closed or filled requisition no longer takes applications (KAN-64)
         raise HiringError("not_found", "no such form")
     return f
 
@@ -47,12 +53,16 @@ def public_challenge(form_id: str) -> Dict[str, Any]:
 
 
 def public_submit(form_id: str, answers: Dict[str, Any], pow_solution: Dict[str, Any], file_name: Optional[str] = None,
-                  file_bytes: Optional[bytes] = None) -> Dict[str, Any]:
+                  file_bytes: Optional[bytes] = None, consent_version: Optional[str] = None) -> Dict[str, Any]:
+    """`consent_version` is the notice version the applicant was shown (public_form). It must equal the form's CURRENT one:
+    consent given to an older text is not consent to the new one, and a caller that sends none is refused (KAN-64)."""
     try:
         f = _form(form_id)
         org, at = f["org"], now()
         if (why := hf.check_solution(pow_solution, f["id"])):
             raise HiringError("challenge_failed", why)
+        if consent_version != f["consent_version"]:
+            raise HiringError("consent_outdated", "the consent notice changed or was not shown; reload the form and read it again")
         hour = iso(at)[:13]
         clean, errors = hf.validate_answers(f, answers)
         has_file_field = any(x["type"] == "file" for x in f["fields"])
@@ -69,7 +79,7 @@ def public_submit(form_id: str, answers: Dict[str, Any], pow_solution: Dict[str,
         sid = new_id("sub")
         if file_info:
             path = private_dir(agent_dir(hf.AGENT) / "uploads") / f"{sid}.bin"
-            vault.write_sealed(path, bytes(file_bytes), "hiring:SCREENING_FORMS")
+            vault.write_sealed(path, bytes(file_bytes), "hiring:SCREENING_FORMS", vault.path_context(path))
             file_info["path"] = str(path)
         consent = {"purpose": f"recruitment: {f['title']}"[:300], "notice_version": f["consent_version"],
                    "retention_until": iso(at + f["retention_days"] * DAY)[:10], "channel": "web_form",
@@ -77,20 +87,30 @@ def public_submit(form_id: str, answers: Dict[str, Any], pow_solution: Dict[str,
         rec = {"id": sid, "org": org, "form_id": f["id"], "requisition_id": f["requisition_id"], "answers": clean, "consent": consent,
                "file": file_info, "received_at": at, "expires_at": at + hf.SUBMISSION_TTL_DAYS * DAY, "status": "pending", "candidate_id": None}
 
-        def accept(d: Dict[str, Any]) -> bool:
+        def accept(d: Dict[str, Any]) -> str:
             """ONE write: the hourly cap counts accepted applications only (an invalid post no longer uses up the hour),
-            and the cap check and the insert are atomic."""
+            and the cap check and the insert are atomic. Unreviewed submissions per form are capped too: they all live in one
+            size-limited state file shared by every organisation, and a flood must not be able to fill it."""
             d["hourly"] = {k: v for k, v in d["hourly"].items() if k.startswith(hour[:10])}
             key = f"{hour}|{f['id']}"          # date first: the sweep above keeps today's keys only
             if d["hourly"].get(key, 0) >= MAX_PER_HOUR:
-                return False
+                return "hour"
+            if sum(1 for x in d["submissions"].values() if x["form_id"] == f["id"] and x["status"] == "pending") >= MAX_PENDING_PER_FORM:
+                return "full"
             d["hourly"][key] = d["hourly"].get(key, 0) + 1
             d["submissions"][sid] = rec
-            return True
-        if not hf._st().update(accept):
+            return "ok"
+        try:
+            verdict = hf._st().update(accept)
+        except Exception:                      # e.g. the state file is full: the sealed upload must not be left behind
             if file_info:
                 Path(file_info["path"]).unlink(missing_ok=True)
-            raise HiringError("rate_limited", "too many applications this hour; try again later")
+            raise
+        if verdict != "ok":
+            if file_info:
+                Path(file_info["path"]).unlink(missing_ok=True)
+            raise HiringError("rate_limited", "too many applications this hour; try again later" if verdict == "hour"
+                              else "this form is not taking more applications until the recruiter reviews the ones waiting")
         audit(hf.AGENT, "submission.received", org, None, submission=hid(org, sid), form=hid(org, f["id"]),
               consent=hf.digest(consent), file_sha256=file_info["sha256"] if file_info else None)
         return ok(reference=sid, message="Thank you. Your application was received.")
@@ -116,11 +136,13 @@ def public_withdraw(token: str) -> Dict[str, Any]:
         return fail("not_found", "this link is not valid or has expired")
 
     def go(d: Dict[str, Any]) -> None:
-        d["withdrawals"][t["application_id"]] = {"org": t["org"], "application_id": t["application_id"], "requested_at": now(), "done": False}
+        if t["application_id"] not in d["withdrawals"]:      # asking again must not move the date or reopen a completed request
+            d["withdrawals"][t["application_id"]] = {"org": t["org"], "application_id": t["application_id"], "requested_at": now(), "done": False}
     hf._st().update(go)
+    sched.revoke_tokens(t["org"], [t["application_id"]])     # no new booking after a withdrawal; the status/withdraw links keep working
     audit(hf.AGENT, "withdrawal.requested", t["org"], None, application=hid(t["org"], t["application_id"]))
     return ok(message="Your request was received. Your data will be erased; a recruiter reviews and completes it. No confirmation e-mail is sent automatically.")
 
 
 def file_b64(path: str) -> str:
-    return base64.b64encode(vault.read_sealed(path, "hiring:SCREENING_FORMS")).decode()
+    return base64.b64encode(vault.read_sealed(path, "hiring:SCREENING_FORMS", vault.path_context(path))).decode()

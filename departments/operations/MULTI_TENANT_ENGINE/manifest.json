@@ -1,0 +1,38 @@
+{
+  "name": "MULTI_TENANT_ENGINE",
+  "version": "0.1.0",
+  "description": "Multi-tenant engine: an in-memory key/value store partitioned by tenant id.",
+  "entrypoint": "main.py:MultiTenantEngine",
+  "harness": {
+    "schema": 1,
+    "purpose": "Multi-tenant engine: an in-memory key/value store partitioned by tenant id.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/operations/MULTI_TENANT_ENGINE.json",
+    "wave": "KAN-41",
+    "status": "deterministic_tool",
+    "tools": {
+      "create_tenant": {
+        "kind": "act"
+      },
+      "delete_tenant": {
+        "kind": "act"
+      },
+      "get_value": {
+        "kind": "act"
+      },
+      "list_tenants": {
+        "kind": "read"
+      },
+      "set_value": {
+        "kind": "act"
+      },
+      "tenant_snapshot": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "operations"
+}

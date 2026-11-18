@@ -1,0 +1,26 @@
+{
+  "name": "FLEET_HEALTH_ENGINE",
+  "version": "0.1.0",
+  "description": "FLEET_HEALTH_ENGINE: a vehicle's condition from its usage, wear and service records.",
+  "entrypoint": "main.py:FleetHealthEngine",
+  "harness": {
+    "schema": 1,
+    "purpose": "FLEET_HEALTH_ENGINE: a vehicle's condition from its usage, wear and service records.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/supply_chain/FLEET_HEALTH_ENGINE.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "assess": {
+        "kind": "act"
+      },
+      "validate": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "supply_chain"
+}

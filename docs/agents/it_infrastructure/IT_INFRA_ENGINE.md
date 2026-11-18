@@ -1,7 +1,7 @@
 # IT_INFRA_ENGINE
 
 - **Department:** `it_infrastructure`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/it_infrastructure/IT_INFRA_ENGINE/main.py` (129 lines)
 
 ## Purpose
@@ -48,4 +48,4 @@ health_check() with no arguments is the agent's own liveness answer.
 
 - **other agents:** `LYRA_VOICE_ENGINE`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_dept_it_infrastructure_stubs_2.py`
+- **tests:** `velaris/tests/test_agents_coverage_c.py`, `velaris/tests/test_dept_it_infrastructure_stubs_2.py`, `velaris/tests/test_r3_voice_sim_lang.py`

@@ -1,0 +1,28 @@
+{
+  "name": "VPSE_MODELER",
+  "display_name": "Vpse Modeler",
+  "version": "0.1.0",
+  "description": "VPSE_MODELER: fits a straight-line trend to a numeric series and projects it forward.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:VPSE_MODELERAgent",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "VPSE_MODELER: fits a straight-line trend to a numeric series and projects it forward.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/VPSE_MODELER.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "fit": {
+        "kind": "read"
+      },
+      "forecast": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

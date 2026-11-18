@@ -1,0 +1,35 @@
+{
+  "name": "THREAT_DETECTION_MESH",
+  "version": "0.1.0",
+  "description": "Threat detection mesh: rule-based event scorer that counts matches against registered signatures; not machine learning.",
+  "entrypoint": "main.py:ThreatDetectionMesh",
+  "harness": {
+    "schema": 1,
+    "purpose": "Threat detection mesh: rule-based event scorer that counts matches against registered signatures; not machine learning.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/security/THREAT_DETECTION_MESH.json",
+    "wave": "KAN-40",
+    "status": "deterministic_tool",
+    "tools": {
+      "add_signature": {
+        "kind": "act"
+      },
+      "detect": {
+        "kind": "read"
+      },
+      "record_event": {
+        "kind": "act"
+      },
+      "score_event": {
+        "kind": "read"
+      },
+      "summary": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "security"
+}

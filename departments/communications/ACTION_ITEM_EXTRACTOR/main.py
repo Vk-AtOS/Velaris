@@ -1,3 +1,15 @@
+"""Action item extractor: finds action items in meeting text with fixed regex patterns and stores them (no LLM).
+
+extract_from_segments(segments, meeting_id="") keeps each {"text", "start", "end"} segment that matches an action phrase
+("will ... by", "needs to", "follow up", "deadline", ...), guesses an owner from patterns such as "Asha will" or
+"assigned to Asha", and a due date: an ISO date after "by", today / tomorrow / next week resolved to ISO dates, or a text
+hint such as "oct 15" or "friday" kept as written. Each item is saved and returned as {id, text, owner, due_date, status,
+meeting_id}. extract_from_text(text, meeting_id="") splits the text into sentences first. close_item(item_id) marks an
+item closed (an unknown id is not reported). get_open_items(owner=None) lists open items; get_overdue() lists open items
+whose due date is an ISO date before today (a text hint is never overdue). health_check() returns status ok.
+State: sqlite, encrypted at rest (velaris.core.sealed_sqlite), <VELARIS_DATA>/agents/ACTION_ITEM_EXTRACTOR/action_items.db (table action_items). No caller check is made.
+Failure: a segment that is not a dict, or non-text input, raises AttributeError or TypeError; sqlite errors propagate.
+"""
 import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
@@ -5,15 +17,13 @@ import logging
 import json
 import re
 import sqlite3
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
+
+from velaris.core.sealed_sqlite import connect_sealed
 from typing import Dict, Any, List, Optional
 from velaris.intel.paths import agent_file
 
 logger = logging.getLogger("ACTION_ITEM_EXTRACTOR")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - ACTION_ITEM_EXTRACTOR - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 
 # Relative date resolution keywords
@@ -30,7 +40,7 @@ _OWNER_PATTERNS = [
 
 
 def _db() -> sqlite3.Connection:
-    conn = sqlite3.connect(agent_file("ACTION_ITEM_EXTRACTOR", "action_items.db"))
+    conn = connect_sealed(agent_file("ACTION_ITEM_EXTRACTOR", "action_items.db"), "agent:ACTION_ITEM_EXTRACTOR")
     conn.row_factory = sqlite3.Row
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS action_items (
@@ -70,8 +80,7 @@ def _extract_due_hint(text: str) -> Optional[str]:
     for keyword in _DAY_MAP:
         if keyword in lower:
             if _DAY_MAP[keyword] is not None:
-                from datetime import timedelta
-                due = date.today() + datetime.timedelta(days=_DAY_MAP[keyword])
+                due = date.today() + timedelta(days=_DAY_MAP[keyword])
                 return due.isoformat()
             return keyword
     return None
@@ -172,7 +181,8 @@ class ActionItemExtractor:
         today = date.today().isoformat()
         conn = _db()
         rows = conn.execute(
-            "SELECT * FROM action_items WHERE status='open' AND due_date IS NOT NULL AND due_date < ?",
+            # ISO dates only: a hint such as "oct 15" is text, and comparing it with an ISO date as strings gave wrong answers
+            "SELECT * FROM action_items WHERE status='open' AND due_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND due_date < ?",
             (today,)
         ).fetchall()
         conn.close()

@@ -1,0 +1,57 @@
+{
+  "schema": 1,
+  "agent": "DOCUMENT_LIBRARY",
+  "cases": [
+    {
+      "id": "select-ask",
+      "input": "Use the ask operation of DOCUMENT_LIBRARY with {\"question\": \"sample\", \"scope\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "ask",
+            "args": {
+              "question": "sample",
+              "scope": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-search",
+      "input": "Use the search operation of DOCUMENT_LIBRARY with {\"query\": \"sample\", \"scope\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "search",
+            "args": {
+              "query": "sample",
+              "scope": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

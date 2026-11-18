@@ -1,0 +1,25 @@
+{
+  "name": "DECISION_COLLAPSE_ENGINE",
+  "display_name": "Decision Collapse Engine",
+  "version": "0.1.0",
+  "description": "Decision collapse engine: reduces several scored options to one decision, or says it cannot.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:DecisionCollapseEngine",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Decision collapse engine: reduces several scored options to one decision, or says it cannot.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/DECISION_COLLAPSE_ENGINE.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "collapse": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

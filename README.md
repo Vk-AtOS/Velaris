@@ -1,173 +1,80 @@
-# Velaris BOS — Organisational Brain
+# Velaris BOS — organisational brain
 
-**343 domain-classified agents. One unified intelligence layer for AI-native enterprises.**
+Velaris is the organisation-side service of the AetherOS platform: a registry of rule-based and model-assisted business agents
+(one folder per agent), an HTTP API the AetherOS gateway calls with signed requests, and a public app for forms and links.
+One deployment serves one organisation (`VELARIS_ORG`). Everything stateful lives under `VELARIS_DATA`.
 
-Velaris BOS (Business Operating System) is a modular multi-agent framework designed to give organisations a structured, auditable, and extensible AI brain. Every business function — from cash flow forecasting to zero-trust security — is represented as an independently deployable agent. Together, they form a connected organisational intelligence layer.
+Every number below can be reproduced with the command next to it. Nothing here is a target: it is what the code does today.
 
----
+## What is in the repository
 
-## Architecture
+| Path | What it is | Reproduce |
+|---|---|---|
+| `departments/<department>/<AGENT>/main.py` | the agents: 346 in 16 departments | `python main.py` prints `Agents loaded : 346`, `Agents failed : 0` |
+| `velaris/agents` | the router that finds agents in `departments/` by name, and the inventory | `python main.py --inventory` |
+| `velaris/api` | the HTTP API (`python -m velaris.api`, port 8730) and the public app (`python -m velaris.api.public`, port 8731) | `deploy/README.md` |
+| `velaris/core` | access control (`access.py`), configuration, the vault for personal-data keys, file locks, the Prime client | `ls velaris/core` |
+| `velaris/agentkit` | helpers the agents share: JSON state, results, hiring and HR records, checks | `ls velaris/agentkit` |
+| `velaris/intel` | model gateway, documents and search, memory, flows with human approval, web fetch | `ls velaris/intel` |
+| `velaris/control` | the control layer: scripted, approved work on files, a terminal, a browser | `ls velaris/control` |
+| `velaris/chat`, `velaris/mail` | company chat and company email | `ls velaris/chat velaris/mail` |
+| `velaris/backend`, `velaris/memory`, `velaris/security` | the agent engine, an in-process key/value mesh, a deny-by-default security stub | `ls velaris` |
+| `deploy/` | Dockerfile, compose, nginx, Kubernetes, systemd, backup and smoke scripts | `deploy/README.md` |
+| `docs/agents/` | one generated page per agent (purpose, methods, state, dependencies, callers) | `python tools/gen_agent_docs.py` |
+| `tools/` | `gen_agent_docs.py` (agent pages, `--check`, `--against`), `check_structure.py` (CI gate) | `python tools/check_structure.py` |
 
-```
-                        ┌─────────────────────────────────┐
-                        │         SOUL_VELARIS             │
-                        │   Identity · Intent · Mission    │
-                        └──────────────┬──────────────────┘
-                                       │
-                        ┌──────────────▼──────────────────┐
-                        │              PRIME               │
-                        │      Primary System Controller   │
-                        └──────────────┬──────────────────┘
-                                       │
-                        ┌──────────────▼──────────────────┐
-                        │             ENGINE               │
-                        │   Agent Registry · Pipeline      │
-                        └─────┬──────────────────┬────────┘
-                              │                  │
-              ┌───────────────▼──┐           ┌───▼──────────────────┐
-              │   ORCHESTRIX     │           │      REGISTRY         │
-              │  Task Ordering   │           │  Manifest Discovery   │
-              └───────┬──────────┘           └──────────────────────┘
-                      │
-       ┌──────────────┴──────────────────────────────────────────────┐
-       │                    DOMAIN AGENTS                             │
-       │                                                              │
-  ┌────▼────┐ ┌────────┐ ┌──────────┐ ┌──────────┐ ┌─────────────┐ │
-  │SECURITY │ │FINANCE │ │ SALES    │ │OPERATIONS│ │  BI / INTEL │ │
-  │         │ │        │ │  & CRM   │ │          │ │             │ │
-  │VIGILIS  │ │CASHFLOW│ │CONVERTA  │ │BUSINESS  │ │ORACLE       │ │
-  │AEGIS    │ │ECONOVA │ │RETENTA   │ │AUTOPILOT │ │INSIGHTA     │ │
-  │ARGUS    │ │FISCALIS│ │ATTRACTA  │ │LOGISTA   │ │STRATEGIC    │ │
-  │...13    │ │...13   │ │...12     │ │...31     │ │...12        │ │
-  └─────────┘ └────────┘ └──────────┘ └──────────┘ └─────────────┘ │
-       │                                                              │
-  ┌────▼──────────┐ ┌──────────────┐ ┌────────────┐ ┌────────────┐ │
-  │   MEMORY &    │ │INFRASTRUCTURE│ │  NEURAL AI │ │  ETHICS &  │ │
-  │  KNOWLEDGE    │ │              │ │            │ │ GOVERNANCE │ │
-  │               │ │DSS_* cluster │ │NEURAL_ALIGN│ │ETHICAL_ENG │ │
-  │MEMORY_FABRIC  │ │DISTRIBUTED   │ │AUTO_LEARN  │ │GOV_KERNEL  │ │
-  │CHROMOS        │ │COMPUTE_SCALER│ │BEHAVIOR_SH │ │EAC_* suite │ │
-  │...11          │ │...15         │ │...13       │ │...6        │ │
-  └───────────────┘ └──────────────┘ └────────────┘ └────────────┘ │
-       │                                                              │
-  ┌────▼──────────┐ ┌──────────────┐ ┌────────────────────────────┐ │
-  │   RESEARCH &  │ │   LOCAL /    │ │     CROSS-DOMAIN           │ │
-  │  SIMULATION   │ │   OFFLINE    │ │      FRAMEWORKS            │ │
-  │               │ │              │ │                            │ │
-  │QUANTUM_BRIDGE │ │LOCAL_AUTONOMY│ │ ACF · AAE · ASEL · CLBPP  │ │
-  │SIM_ENGINE     │ │OFFLINE_EXEC  │ │ CRK · VCAS · VHOE · VPSE  │ │
-  │...10          │ │...6          │ │ MCFE · MPC · UIE · DSS    │ │
-  └───────────────┘ └──────────────┘ └────────────────────────────┘ │
-       └──────────────────────────────────────────────────────────────┘
-```
+## How many agents are real
 
----
+`python main.py --inventory` classifies each agent from its source (a static check, not a quality judgement):
 
-## Domain Map
+| | real | rule-based | not implemented | total |
+|---|---|---|---|---|
+| all departments | 161 | 173 | 12 | 346 |
 
-| Domain | Agents | Purpose |
-|--------|--------|---------|
-| **core_brain** | 14 | Central orchestration — PRIME, ENGINE, ORCHESTRIX, SOUL_VELARIS, AUTONOMOUS_PATCH/RESEARCH |
-| **security** | 29 | Zero-trust, audit trails, threat detection, lockdown modes, secrets, biometrics |
-| **ethics_governance** | 8 | Policy enforcement, ethical assessment, compliance alignment, legal intelligence |
-| **finance** | 23 | Banking, credit risk, insurance, portfolio sim, macro econ, claims, pricing |
-| **business_intelligence** | 12 | Strategic insights, competitive scanning, forecasting, analytics |
-| **sales_crm** | 12 | Lead conversion, churn prediction, pipeline management |
-| **marketing_brand** | 12 | Brand narrative, creative generation, autonomous marketing, sales navigator |
-| **operations** | 40 | Supply chain, fleet, quality, logistics, ITSM, IT infra, HR talent, multi-tenant |
-| **memory_knowledge** | 13 | Short/long-term memory, drift detection, temporal snapshots, knowledge mesh |
-| **infrastructure** | 18 | Distributed compute, scaling, telemetry spine, offline runtime packager |
-| **cognition** | 18 | Reasoning, planning, coherence sync, human approval, inter-agent cohesion |
-| **neural_ai** | 22 | LYRA voice, multilingual brain, model registry canary, local biometrics |
-| **self_management** | 5 | Self-consistency, correction loops, identity, introspection |
-| **local_offline** | 6 | Local execution, offline registry, autonomous local ops |
-| **research_simulation** | 13 | Digital twin XR, military strategy cortex, quantum, simulation environments |
-| **healthcare** | 5 | Clinical protocols, diagnostics, pharma trials, medical knowledge, heartline |
-| **agri_environment** | 8 | Agri pest, crop model, plant sim, renewable yield, grid balance, sustainability |
-| **real_estate** | 2 | Property valuation, rental flow |
-| **frameworks/** | 83 | ACF, AAE, ASEL, CLBPP, CRK, VCAS, VHOE, VPSE, MCFE, MPC, UIE, DSS, EAC, EOF, CSM, CSG, MRF, RCI, Coherence |
-| **TOTAL** | **343** | |
+"real" means the agent delegates to `velaris.intel` or has logic and touches something outside the process (files, a database, the network,
+the OS); "rule-based" means it has logic that stays in memory; "not implemented" means it says so, or has no logic beyond
+`__init__` and `health_check`. The rules are in the docstring of `velaris/agents/inventory.py`; they are a heuristic and cannot tell
+correct logic from wrong. About half of the agents are real (state kept through `velaris.agentkit.state` counts as touching the outside). The per-department
+counts are in the same command's output and in `docs/agents/INDEX.md`.
 
----
+## Departments (agents per department, from `--inventory`)
 
-## Quick Start
+`_ai_core` 133 (reasoning, memory and governance frameworks: ACF, AAE, ASEL, CRK, VCAS and the like, PRIME, ENGINE, REGISTRY),
+`security` 29, `it_infrastructure` 26, `finance` 25, `operations` 25, `hr` 20, `data_knowledge` 14, `project_management` 14,
+`sales` 13, `executive` 12, `marketing` 11, `legal_compliance` 7, `_connectors` 6 (Jira, Confluence, Zoho), `supply_chain` 6,
+`communications` 4, `client_success` 1. The old `domains/` layout, the 19-domain table and the archived vertical folders
+(healthcare, agriculture, real estate, research simulation) no longer exist; they are in git history under the tag
+`archive/pre-reorg`.
+
+## Run it
 
 ```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Run system status
-python main.py
-
-# The output shows all agents loaded:
-# VELARIS CORE V11 — ONLINE
-# Status        : active
+pip install -r requirements.txt -c deploy/constraints.txt   # pinned, audited set
+python main.py                 # loads every agent and prints the status
+python main.py --inventory     # real / rule-based / not implemented per department
+python -m pytest -q            # the test suite (count: python -m pytest --collect-only -q | tail -1)
+python deploy/smoke.py         # starts the API with dummy credentials and checks that signed requests are judged correctly
 ```
 
----
+The API needs `VELARIS_ORG`, `VELARIS_API_SECRET` and `VELARIS_IDENTITY_PUBLIC_KEY`; see `deploy/README.md` for every setting,
+the single-worker rule and the backup and restore scripts.
 
-## Agent Status Legend
+## Checks that run in CI (`.github/workflows/ci.yml`)
 
-- **Implemented** — Full business logic, production-ready
-- **Scaffold** — Structure complete, domain logic pending
-- **Research** — Experimental, not for production
+tests and smoke, `ruff` (real errors only), `tools/check_structure.py` (file size, broad excepts, unresolved imports, import cycles),
+`pip-audit` on `deploy/constraints.txt`, `gitleaks` (allowlist `.gitleaks.toml`, three reviewed test fixtures), and the test that
+fails when `docs/agents/` no longer matches the code (`python tools/gen_agent_docs.py --check`).
 
-~60% of agents are fully implemented (>40 lines of business logic). The remaining 40% are well-structured scaffolds ready for domain logic to be wired in.
+## Dependencies
 
----
+`requirements.txt` lists exactly what the code imports unconditionally (`velaris/tests/test_requirements.py` enforces it).
+Optional packages (voice, browser rendering) are imported only where used and the feature says so when they are missing:
+`playwright`, `openai-whisper` / `faster-whisper`, `sounddevice`, `pyttsx3`, `openpyxl` and `python-pptx` (tests only).
 
-## Combining with AetherOS
+## Documents in `docs/`
 
-Velaris BOS is designed to pair with **AetherOS** (app generation platform):
-
-- Velaris provides the **organisational intelligence layer** — decisions, memory, governance
-- AetherOS provides the **build layer** — generates custom internal tools on demand from specs
-- Together they form a complete AI-native enterprise platform: intelligence + execution
-
----
-
-## Repository Structure
-
-```
-velaris/
-├── main.py                  # Entry point — boots ENGINE, prints status
-├── requirements.txt
-├── velaris/                 # Core framework
-│   ├── backend/             # BackendEngine + FlowEngine
-│   ├── core/                # ModelInterface + Startup
-│   ├── memory/              # MemoryMesh (in-process KV store)
-│   ├── security/            # Security stubs
-│   └── agents/router.py    # Dynamic agent discovery
-├── domains/                 # All 343 agents, domain-classified
-│   ├── core_brain/
-│   ├── security/
-│   ├── ethics_governance/
-│   ├── finance/
-│   ├── business_intelligence/
-│   ├── sales_crm/
-│   ├── marketing_brand/
-│   ├── operations/
-│   ├── memory_knowledge/
-│   ├── infrastructure/
-│   ├── cognition/
-│   ├── neural_ai/
-│   ├── self_management/
-│   ├── local_offline/
-│   ├── research_simulation/
-│   ├── healthcare/
-│   ├── agri_environment/
-│   ├── real_estate/
-│   └── frameworks/
-│       ├── acf/   ├── aae/   ├── asel/  ├── clbpp/
-│       ├── crk/   ├── vcas/  ├── vhoe/  ├── vpse/
-│       ├── mcfe/  ├── mpc/   ├── uie/   ├── dss/
-│       ├── eac/   ├── eof/   ├── csm/   ├── csg/
-│       ├── mrf/   ├── rci/   └── coherence/
-└── docs/
-    └── domain_map.md
-```
-
----
+`docs/agents/` and `docs/DEAD_CODE_REVIEW.md` describe the current code. `docs/archive/` holds dated snapshots (the November
+codebase map, the HR research notes, the design brief): they describe the repository as it was on their date and are not kept up to date.
 
 ## Licence
 

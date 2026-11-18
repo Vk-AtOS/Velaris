@@ -1,0 +1,26 @@
+{
+  "name": "COMPUTE_SCALER",
+  "version": "0.1.0",
+  "description": "COMPUTE_SCALER: decides how many replicas a workload group should have.",
+  "entrypoint": "main.py:COMPUTE_SCALERAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "COMPUTE_SCALER: decides how many replicas a workload group should have.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/it_infrastructure/COMPUTE_SCALER.json",
+    "wave": "KAN-39",
+    "status": "deterministic_tool",
+    "tools": {
+      "decide": {
+        "kind": "act"
+      },
+      "set_policy": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "it_infrastructure"
+}

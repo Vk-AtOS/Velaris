@@ -1,0 +1,25 @@
+{
+  "name": "ACF_FUSION",
+  "display_name": "Acf Fusion",
+  "version": "0.1.0",
+  "description": "ACF fusion: merges two records about the same thing and reports where they disagree.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:ACFFusionAgent",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "ACF fusion: merges two records about the same thing and reports where they disagree.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/ACF_FUSION.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "fuse": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

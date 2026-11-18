@@ -73,7 +73,7 @@ def test_unknown_skills_are_reported_never_guessed_and_the_alias_flow_is_reviewe
     p2 = parse(res, c, cid)["parsed"]
     assert "Terraform" in [s["label"] for s in p2["skills"]] and p2["unknown_skill_phrases"] == ["Ansible"]
     with as_(c["rec"]):
-        again = res.propose_alias(surface="Ansible", new_skill="Ansible")["proposal"]
+        res.propose_alias(surface="Ansible", new_skill="Ansible")["proposal"]
     with as_(who("hr_admin", id="proposer")):
         again2 = res.propose_alias(surface="Ansible Tower", new_skill="Ansible Tower")["proposal"]
         assert res.review_alias(proposal_id=again2["id"], approve=True, no_esco_match=True)["status"] == "denied"  # nobody reviews their own proposal
@@ -193,3 +193,35 @@ def test_four_fifths_audit_with_hand_computed_rates(env):
         assert res.bias_audit(records=[{"group": "A", "furthest_stage": "nope"}], stages=["applied", "screening"])["status"] == "invalid_input"
     with as_(who("interviewer")):
         assert res.bias_audit(records=recs, stages=["applied", "screening"])["status"] == "denied"
+
+
+def test_a_hostile_line_cannot_stall_the_parser():
+    """KAN-64 review: '\\s*\\+?\\s*' was quadratic on a digit followed by thousands of spaces (20,000 took 5 s)."""
+    import time
+    from velaris.agentkit import hiring_resume as r
+    t = time.time()
+    r.parse("acme", "Skills\n" + "1" + " " * 20_000 + "\nPython 5 years\n")
+    assert time.time() - t < 1.0
+    out = r.parse("acme", "Skills\nPython 5 years\n")
+    assert out["skills"] and out["skills"][0]["mentions"][0]["years"] == 5.0
+
+
+def test_a_resume_is_parsed_under_resume_limits_not_the_library_limits():
+    """KAN-64: an anonymous upload could unpack 64 MB per part and 256 MB in total, like a trusted library file."""
+    import io
+    import zipfile
+    from velaris.agentkit import hiring_resume as hr
+    from velaris.intel import docs
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("[Content_Types].xml", "<x/>")
+        z.writestr("word/document.xml", "<w:document>" + "a" * 20_000_000 + "</w:document>")      # 20 MB unpacked, tiny when packed
+    data = buf.getvalue()
+    assert len(data) < 1_000_000
+    with docs.limits(**hr.RESUME_LIMITS):
+        with pytest.raises(docs.DocTooLarge):
+            docs.convert("cv.docx", data)
+    with pytest.raises(Exception) as e:                                     # the real entry point applies them
+        hr.read_text("cv.docx", None, base64.b64encode(data).decode())
+    assert "refused" in str(e.value) or "larger" in str(e.value) or "unpack" in str(e.value)
+    assert docs._lim("MAX_MEMBER") == docs.MAX_MEMBER                       # the tighter limit applies only inside the block

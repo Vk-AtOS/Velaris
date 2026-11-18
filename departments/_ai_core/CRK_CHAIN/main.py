@@ -3,8 +3,10 @@
 A step is {"id", "claim", "kind": premise|inference|conclusion, "depends_on",
 "evidence"}. build() rejects duplicate ids, unknown or circular dependencies,
 orders the steps so every step follows what it depends on, and gives each a
-digest that covers the step and everything before it. verify() recomputes the
-digests, so a step edited, dropped or reordered afterwards is detected.
+digest that covers the step, its position (seq) and everything before it. verify() recomputes the
+digests and checks seq runs 1..n, so a step edited, dropped, reordered or renumbered afterwards is detected. A step
+keeps only the sealed fields (id, claim, kind, depends_on, evidence, check): anything else a caller adds is dropped, so
+nothing unsealed travels with a sealed chain. `check` must be an object ({"left", "op", "right"}, see CRK_VALIDATOR) of at most 2000 characters as JSON when given.
 It checks structure only; CRK_VALIDATOR checks whether the steps are justified.
 """
 import hashlib
@@ -16,7 +18,7 @@ from velaris.agentkit.graph import order as dependency_order
 
 NAME = "CRK_CHAIN"
 KINDS = ("premise", "inference", "conclusion")
-FIELDS = ("id", "claim", "kind", "depends_on", "evidence", "check")
+FIELDS = ("id", "claim", "kind", "depends_on", "evidence", "check", "seq")
 
 
 def _digest(previous, step):
@@ -46,9 +48,12 @@ class CRK_CHAINAgent:
             elif not all(isinstance(step.get(k, []), list) and all(isinstance(x, str) for x in step.get(k, []))
                          for k in ("depends_on", "evidence")):
                 problems.append({"step": sid, "reason": "'depends_on' and 'evidence' must be lists of strings"})
+            elif step.get("check") is not None and not (isinstance(step["check"], dict)
+                                                         and len(json.dumps(step["check"], default=str)) <= 2000):
+                problems.append({"step": sid, "reason": "'check' must be an object of at most 2000 characters"})
             else:
-                by_id[sid] = {**step, "id": sid, "depends_on": list(step.get("depends_on", [])),
-                              "evidence": list(step.get("evidence", []))}
+                by_id[sid] = {"id": sid, "claim": step["claim"], "kind": step["kind"], "check": step.get("check"),
+                              "depends_on": list(step.get("depends_on", [])), "evidence": list(step.get("evidence", []))}
         if not problems:
             graph = dependency_order({sid: s["depends_on"] for sid, s in by_id.items()})
             problems += [{"step": sid, "reason": f"depends on unknown step(s) {deps}"}
@@ -58,8 +63,9 @@ class CRK_CHAINAgent:
             return fail("invalid_chain", problems[0]["reason"], problems=problems)
         ordered, previous = [], ""
         for seq, sid in enumerate(graph["order"], start=1):
-            previous = _digest(previous, by_id[sid])
-            ordered.append({**by_id[sid], "seq": seq, "digest": previous})
+            sealed = {**by_id[sid], "seq": seq}
+            previous = _digest(previous, sealed)
+            ordered.append({**sealed, "digest": previous})
         return ok(steps=ordered, head=previous, length=len(ordered))
 
     def verify(self, chain):
@@ -68,9 +74,9 @@ class CRK_CHAINAgent:
         if not isinstance(steps, list) or not steps or not all(isinstance(s, dict) for s in steps):
             return invalid("chain must be the result of build()", intact=False)
         previous = ""
-        for step in steps:
+        for position, step in enumerate(steps, start=1):
             previous = _digest(previous, step)
-            if step.get("digest") != previous:
+            if step.get("seq") != position or step.get("digest") != previous:
                 return fail("tampered", f"step {step.get('id')!r} does not match its digest",
                             intact=False, broken_at=step.get("id"))
         if chain.get("head") != previous:

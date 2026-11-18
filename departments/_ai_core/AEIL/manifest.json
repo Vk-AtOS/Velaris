@@ -1,0 +1,22 @@
+{
+  "name": "AEIL",
+  "display_name": "Aeil",
+  "version": "0.1.0",
+  "description": "Alias agent AEIL: fronts ECON_INTEL_CORE, MARKET_GAP_ANALYZER, ECONOVA. See velaris.agentkit.alias.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:AEILAgent",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Alias agent AEIL: fronts ECON_INTEL_CORE, MARKET_GAP_ANALYZER, ECONOVA.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/AEIL.json",
+    "wave": "KAN-44",
+    "status": "not_harnessed",
+    "reason_code": "stub",
+    "reason": "the agent is a stub (inventory: not_implemented); a harness around it would claim a capability that is not there",
+    "tools": {},
+    "reviewed": true
+  }
+}

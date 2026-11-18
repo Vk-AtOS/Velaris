@@ -1,0 +1,32 @@
+{
+  "name": "ROLLBACK_ENGINE",
+  "version": "0.1.0",
+  "description": "Rollback engine: saves named state snapshots to disk and returns them on rollback.",
+  "entrypoint": "main.py:RollbackEngine",
+  "harness": {
+    "schema": 1,
+    "purpose": "Rollback engine: saves named state snapshots to disk and returns them on rollback.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/project_management/ROLLBACK_ENGINE.json",
+    "wave": "KAN-36",
+    "status": "deterministic_tool",
+    "tools": {
+      "create_snapshot": {
+        "kind": "act"
+      },
+      "get_log": {
+        "kind": "read"
+      },
+      "load_snapshot": {
+        "kind": "read"
+      },
+      "rollback": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "project_management"
+}

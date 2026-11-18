@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "agent": "STOCHASTIX",
+  "cases": [
+    {
+      "id": "select-expected_final",
+      "input": "Use the expected_final operation of STOCHASTIX with {\"paths\": []}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "expected_final",
+            "args": {
+              "paths": []
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "name": "NEURAL_CONSTRAINT_FIELD",
+  "display_name": "Neural Constraint Field",
+  "version": "0.1.0",
+  "description": "NEURAL_CONSTRAINT_FIELD: evaluates declared constraints over a proposed action.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:NeuralConstraintField",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "NEURAL_CONSTRAINT_FIELD: evaluates declared constraints over a proposed action.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/NEURAL_CONSTRAINT_FIELD.json",
+    "wave": "KAN-43",
+    "status": "deterministic_tool",
+    "tools": {
+      "constrain": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

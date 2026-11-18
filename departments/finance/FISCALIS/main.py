@@ -1,11 +1,15 @@
+"""Fiscalis: budget bookkeeping and basic expense arithmetic.
+FiscalisAgent.set_budget(category, amount) stores float(amount) and returns True; get_budget(category)
+returns it, or 0.0 for an unknown category. cost_breakdown(costs) returns the sum of the dict values.
+forecast_expenses(monthly_costs, growth_rate=0.0) returns last month * (1 + growth_rate), or 0.0 for
+an empty list. Plain arithmetic, not a statistical forecast.
+State: the budgets live in an in-memory dict only; nothing is persisted.
+Failure: a non-numeric amount raises ValueError or TypeError; nothing else is validated.
+"""
 import logging
 from typing import Dict, List, Any
 
 logger = logging.getLogger("FISCALIS")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - FISCALIS - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class FiscalisAgent:
     def __init__(self, config: Dict[str, Any] = None):

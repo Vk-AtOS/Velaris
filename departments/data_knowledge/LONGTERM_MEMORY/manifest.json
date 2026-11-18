@@ -3,5 +3,26 @@
   "version": "0.1.0",
   "author": "Velaris",
   "description": "Public methods: put, get, remember, recall (the module has no docstring).",
-  "entrypoint": "main.py:LONGTERM_MEMORYAgent"
+  "entrypoint": "main.py:LONGTERM_MEMORYAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "Long-term memory: a persistent key-value store plus a scoped, time-aware fact memory.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/data_knowledge/LONGTERM_MEMORY.json",
+    "wave": "KAN-42",
+    "status": "deterministic_tool",
+    "tools": {
+      "recall": {
+        "kind": "read"
+      },
+      "remember": {
+        "kind": "act"
+      }
+    },
+    "excluded": {
+      "get": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "put": "not in the HTTP allowlist (velaris/api/allowlist.py)"
+    }
+  }
 }

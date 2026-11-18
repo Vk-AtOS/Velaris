@@ -1,0 +1,73 @@
+{
+  "schema": 1,
+  "agent": "IMAGINA",
+  "cases": [
+    {
+      "id": "select-imagine",
+      "input": "Use the imagine operation of IMAGINA with {\"seed\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "imagine",
+            "args": {
+              "seed": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-scenario",
+      "input": "Use the scenario operation of IMAGINA with {\"topic\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "scenario",
+            "args": {
+              "topic": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-visual_map",
+      "input": "Use the visual_map operation of IMAGINA with {\"nodes\": []}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "visual_map",
+            "args": {
+              "nodes": []
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

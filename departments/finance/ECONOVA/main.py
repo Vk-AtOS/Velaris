@@ -1,11 +1,17 @@
+"""Econova: elasticity-based market sensitivity, demand projection and macro index (simple arithmetic).
+
+EconovaAgent(config; "elasticity" default 1.0, "version"): health_check();
+market_sensitivity(price_change) = elasticity * price_change; demand_projection(base_demand,
+price_change) = base_demand * (1 - elasticity * price_change), floored at 0;
+macro_index(metrics) = mean of the metric values.
+State: keeps no state beyond the configured elasticity.
+Failure: macro_index returns 0.0 for an empty dict; non-numeric inputs raise TypeError.
+"""
+
 import logging
-from typing import List, Dict, Any
+from typing import Dict, Any
 
 logger = logging.getLogger("ECONOVA")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - ECONOVA - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class EconovaAgent:
     def __init__(self, config: Dict[str, Any] = None):
@@ -30,7 +36,7 @@ class EconovaAgent:
         """
         demand = base_demand * (1 - elasticity * price_change)
         """
-        demand = base_demand * (1 - self.elasticity * price_change)
+        demand = max(0.0, base_demand * (1 - self.elasticity * price_change))      # demand cannot be negative
         logger.debug("Demand projection=%s", demand)
         return demand
 

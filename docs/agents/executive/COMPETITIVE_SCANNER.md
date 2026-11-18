@@ -2,7 +2,7 @@
 
 - **Department:** `executive`
 - **Status (static inventory):** `real`
-- **Source:** `departments/executive/COMPETITIVE_SCANNER/main.py` (86 lines)
+- **Source:** `departments/executive/COMPETITIVE_SCANNER/main.py` (89 lines)
 
 ## Purpose
 
@@ -40,4 +40,4 @@ State: <VELARIS_DATA>/agents/COMPETITIVE_SCANNER/snapshots.json (owner-only).
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_dept_executive_stubs.py`, `velaris/tests/test_layer14_aeil.py`
+- **tests:** `velaris/tests/test_dept_executive_stubs.py`, `velaris/tests/test_kan106_business_agents.py`, `velaris/tests/test_layer14_aeil.py`

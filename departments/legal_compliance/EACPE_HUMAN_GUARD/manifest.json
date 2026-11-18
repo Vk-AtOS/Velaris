@@ -1,0 +1,35 @@
+{
+  "name": "EACPE_HUMAN_GUARD",
+  "version": "0.1.0",
+  "description": "EACPE_HUMAN_GUARD: irreversible actions wait for a named person.",
+  "entrypoint": "main.py:EACPE_HUMAN_GUARDAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "EACPE_HUMAN_GUARD: irreversible actions wait for a named person.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/legal_compliance/EACPE_HUMAN_GUARD.json",
+    "wave": "KAN-42",
+    "status": "deterministic_tool",
+    "tools": {
+      "decide": {
+        "kind": "act"
+      },
+      "exempt": {
+        "kind": "act"
+      },
+      "request": {
+        "kind": "act"
+      },
+      "set_approvers": {
+        "kind": "act"
+      },
+      "validate": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "legal_compliance"
+}

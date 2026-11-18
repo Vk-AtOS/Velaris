@@ -2,7 +2,7 @@
 
 - **Department:** `hr`
 - **Status (static inventory):** `real`
-- **Source:** `departments/hr/EMPLOYEE_RECORDS/main.py` (416 lines)
+- **Source:** `departments/hr/EMPLOYEE_RECORDS/main.py` (458 lines)
 
 ## Purpose
 
@@ -51,9 +51,14 @@ The employee master with conversion, history, exit and data-subject rights. See 
 - `velaris.agentkit`
 - `velaris.agentkit.onboarding_common`
 - `velaris.agentkit.results`
+- `velaris.agents.ESIGN.main`
+- `velaris.agents.LEAVE_MANAGEMENT.main`
+- `velaris.agents.OFFER_LETTERS.main`
 - `velaris.agents.ONBOARDING_FLOW.main`
+- `velaris.agents.PERFORMANCE_REVIEW_ENGINE.main`
 - `velaris.agents.POLICY_ACKS.main`
 - `velaris.core.access`
+- `velaris.core.offboarding`
 - `velaris.intel`
 
 ## State and configuration
@@ -62,6 +67,6 @@ The employee master with conversion, history, exit and data-subject rights. See 
 
 ## Called by
 
-- **other agents:** `ATS_CORE`, `OFFER_LETTERS`, `ONBOARDING_FLOW`, `POLICY_ACKS`
-- **platform modules:** `velaris/agentkit/hr_wiring.py`, `velaris/agentkit/onboarding_common.py`, `velaris/agentkit/onboarding_directory.py`, `velaris/api/allowlist.py`
-- **tests:** `velaris/tests/test_hr_wiring.py`, `velaris/tests/test_onboarding_records.py`
+- **other agents:** `ATS_CORE`, `ESIGN`, `LEAVE_MANAGEMENT`, `OFFER_LETTERS`, `ONBOARDING_FLOW`, `PERFORMANCE_REVIEW_ENGINE`, `POLICY_ACKS`
+- **platform modules:** `velaris/agentkit/hr_wiring.py`, `velaris/agentkit/onboarding_common.py`, `velaris/agentkit/onboarding_directory.py`, `velaris/agentkit/onboarding_dsr.py`, `velaris/api/allowlist.py`
+- **tests:** `velaris/tests/test_autonomy.py`, `velaris/tests/test_hr_data_records.py`, `velaris/tests/test_hr_wiring.py`, `velaris/tests/test_manifests_health.py`, `velaris/tests/test_onboarding_records.py`

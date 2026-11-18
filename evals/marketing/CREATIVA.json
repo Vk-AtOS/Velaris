@@ -1,0 +1,74 @@
+{
+  "schema": 1,
+  "agent": "CREATIVA",
+  "cases": [
+    {
+      "id": "select-expand_concept",
+      "input": "Use the expand_concept operation of CREATIVA with {\"concept\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "expand_concept",
+            "args": {
+              "concept": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-idea_mix",
+      "input": "Use the idea_mix operation of CREATIVA with {\"idea_a\": \"sample\", \"idea_b\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "idea_mix",
+            "args": {
+              "idea_a": "sample",
+              "idea_b": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-novelty_score",
+      "input": "Use the novelty_score operation of CREATIVA with {\"keywords\": []}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "novelty_score",
+            "args": {
+              "keywords": []
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

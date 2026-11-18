@@ -1,7 +1,7 @@
 """OFFER_LETTERS: templates, compensation arithmetic, four-eyes approval, versions, expiry, responses, rendering, org scoping."""
 import base64
+import hashlib
 
-import pytest
 
 from velaris.tests.onboarding_helpers import CANDIDATE, HR1, HR2, MGR, ORG, OTHER_ORG_HR, PAYROLL, Clock, FakeAts, FakeEsign, FakeSender, person
 from velaris.agents.OFFER_LETTERS.main import OfferLetters
@@ -194,14 +194,19 @@ def test_expiry_response_and_ats_notification():
     with acting_as(HR1):
         full = o.get_offer(oid)["offer"]
     assert full["candidate"]["name"] == "Asha Raman" and full["candidate"]["consent"]["purpose"] == "recruitment"      # from the ATS
-    esign.requests.update({"sig-123": {"status": "sealed", "document_ref": oid}, "sig-draft": {"status": "sent", "document_ref": oid},
-                           "sig-other": {"status": "sealed", "document_ref": "ofr-x"}})
     approve_all(o, oid)
     with acting_as(HR1):
         assert o.record_response(oid, "accept")["status"] == "conflict"            # not sent yet
         o.send_offer(oid)
+        sha = o.render_offer(oid)["sha256"]
+        who = [hashlib.sha256(CANDIDATE["email"].lower().encode()).hexdigest()]
+        esign.requests.update({"sig-123": {"status": "sealed", "document_ref": oid, "document_sha256": sha, "signer_email_sha256": who},
+                               "sig-draft": {"status": "sent", "document_ref": oid, "document_sha256": sha, "signer_email_sha256": who},
+                               "sig-other": {"status": "sealed", "document_ref": "ofr-x", "document_sha256": sha, "signer_email_sha256": who},
+                               "sig-doc": {"status": "sealed", "document_ref": oid, "document_sha256": "0" * 64, "signer_email_sha256": who},
+                               "sig-who": {"status": "sealed", "document_ref": oid, "document_sha256": sha, "signer_email_sha256": ["1" * 64]}})
         assert o.record_response(oid, "maybe")["status"] == "invalid_input"
-        for bad in ("made-up", "sig-draft", "sig-other"):                      # unknown, not sealed, sealed for another offer
+        for bad in ("made-up", "sig-draft", "sig-other", "sig-doc", "sig-who"):   # unknown, not sealed, other offer, other document, other signer
             assert o.record_response(oid, "accept", evidence_ref=bad)["status"] == "evidence_mismatch"
         assert o.get_offer(oid)["offer"]["status"] == "sent"
         r = o.record_response(oid, "accept", evidence_ref="sig-123")
@@ -343,3 +348,30 @@ def test_record_response_evidence_fails_closed_without_an_esign_view():
         assert o.get_offer(oid)["offer"]["status"] == "sent"
         r = o.record_response(oid, "accept")                                        # no claim, no check: the weaker basis
         assert r["status"] == "ok" and o.get_offer(oid)["offer"]["response"]["basis"] == "recorded_by_hr"
+
+
+def test_a_second_send_cannot_deliver_while_the_first_is_going_out_and_a_failed_send_releases_the_offer():
+    """KAN-96: the state used to change only AFTER the message left, so two senders could both deliver."""
+    class Reentrant(FakeSender):
+        def send(self, to, subject, body):
+            if not self.messages:                                   # a second HR admin clicks send while the first is in flight
+                with acting_as(HR2):
+                    self.inner = o.send_offer(oid)
+            return super().send(to, subject, body)
+    sender = Reentrant()
+    o, _ = make(sender=sender)
+    oid = draft(o)["offer"]["id"]
+    approve_all(o, oid)
+    with acting_as(HR1):
+        assert o.send_offer(oid)["offer"]["status"] == "sent"
+    assert sender.inner["status"] == "conflict" and len(sender.messages) == 1          # exactly one message left the building
+    refusing = FakeSender(accept=False)
+    o2, _ = make(sender=refusing)
+    oid2 = draft(o2)["offer"]["id"]
+    approve_all(o2, oid2)
+    with acting_as(HR1):
+        assert o2.send_offer(oid2)["status"] == "delivery_failed"
+        assert o2.get_offer(oid2)["offer"]["status"] == "approved"                      # released: HR can retry
+    refusing.accept = True
+    with acting_as(HR1):
+        assert o2.send_offer(oid2)["offer"]["status"] == "sent"

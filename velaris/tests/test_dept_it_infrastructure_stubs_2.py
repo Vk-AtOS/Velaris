@@ -7,7 +7,7 @@ from importlib import import_module
 
 import pytest
 
-from velaris.core.access import Caller, acting_as
+from velaris.core.access import INFRA_ADMIN, Caller, acting_as
 from velaris.intel import trace
 
 
@@ -17,9 +17,16 @@ def data_dir(tmp_path, monkeypatch):
     return tmp_path
 
 
+@pytest.fixture(autouse=True)
+def infra_admin():
+    """Tenants, quotas, pools, limits and ticket moves are admin-only (KAN-90); tests that check refusals override this."""
+    with acting_as(Caller("ops", "kf", frozenset({INFRA_ADMIN}))):
+        yield
+
+
 def run_as(who, fn):
     """Call fn() as the named caller (an empty name still needs someone calling)."""
-    with acting_as(Caller(who or "someone", "kf")):
+    with acting_as(Caller(who or "someone", "kf", frozenset({INFRA_ADMIN}))):
         return fn()
 
 
@@ -347,13 +354,14 @@ def test_engine_runs_once_per_task_id(data_dir):
     assert len([x for x in trace.entries() if x["actor"] == "OFFLINE_SANDBOX" and x["action"] == "run"]) == 1
 
 
-def test_engine_records_refusals_and_passes_files():
+def test_engine_does_not_journal_refusals_and_passes_files():
     e = make("OFFLINE_EXECUTION_ENGINE", "OfflineExecutionEngine")
     refused = e.execute({"id": "bad", "argv": ["curl", "example.com"]})
     assert refused["status"] == "refused" and refused["executed"] is False
-    assert e.get("bad")["status"] == "refused"
+    assert e.get("bad")["status"] == "unknown_task"      # nothing ran, so nothing is journaled under the id (KAN-90):
+    # a corrected retry is a fresh request. The refusal itself is in the trace (OFFLINE_SANDBOX).
     out = e.execute({"argv": ["head", "-n", "1", "f.txt"], "files": {"f.txt": "top\nrest\n"}})
-    assert out["stdout"] == "top\n" and len(e.history()) == 2
+    assert out["stdout"] == "top\n" and len(e.history()) == 1
 
 
 def test_engine_bad_input():
@@ -473,12 +481,14 @@ def test_itsm_denies_illegal_moves_and_bad_input():
 
 def test_itsm_records_the_caller_and_refuses_anonymous_or_borrowed_names():
     e = make("ITSM_ENGINE", "ITSMEngine")
-    assert e.open_ticket(ticket(), now=0)["status"] == "unauthenticated"
+    with acting_as(None):
+        assert e.open_ticket(ticket(), now=0)["status"] == "unauthenticated"
     with acting_as(Caller("asha", "kf")):
         assert e.open_ticket(ticket(), by="ravi", now=0)["status"] == "denied"      # cannot open in ravi's name
         assert e.open_ticket(ticket(), now=0)["status"] == "ok"                     # no name needed: the caller is asha
-    assert e.transition("INC-1", "assigned", now=1)["status"] == "unauthenticated"
-    with acting_as(Caller("ravi", "kf")):
+    with acting_as(None):
+        assert e.transition("INC-1", "assigned", now=1)["status"] == "unauthenticated"
+    with acting_as(Caller("ravi", "kf", frozenset({INFRA_ADMIN}))):
         assert e.transition("INC-1", "assigned", by="asha", now=1)["status"] == "denied"
         assert e.transition("INC-1", "assigned", now=1)["status"] == "ok"
     assert [(h["by"], h["to"]) for h in e.get_ticket("INC-1")["ticket"]["history"]] == [("asha", "new"),
@@ -527,3 +537,28 @@ def test_infra_rejects_bad_requests():
     assert e.provision({"name": "web"})["status"] == "failed"
     assert e.health_check("infra-unknown", [])["status"] == "unknown_infra"
     assert e.health_check("x", "all fine")["status"] == "invalid_input"
+
+
+def test_itsm_a_member_reads_only_their_own_tickets_and_the_store_is_sealed(tmp_path):
+    """KAN-69 SV2-10: reads listed every ticket of the organisation to any employee, and the file was plain JSON."""
+    e = make("ITSM_ENGINE", "ITSMEngine")
+    run_as("asha", lambda: e.open_ticket(ticket("INC-A"), by="asha", now=0))
+    run_as("ravi", lambda: e.open_ticket(ticket("INC-B"), by="ravi", now=0))
+    def as_(who, roles, fn):
+        with acting_as(Caller(who, "kf", frozenset(roles))):
+            return fn()
+    ids = lambda who, roles=(): as_(who, roles, lambda: [t["ticket_id"] for t in e.list_tickets()])   # noqa: E731
+    assert ids("asha") == ["INC-A"] and ids("ravi") == ["INC-B"]
+    assert sorted(ids("boss", (INFRA_ADMIN,))) == ["INC-A", "INC-B"]
+    assert as_("asha", (), lambda: e.get_ticket("INC-B"))["status"] == "unknown_ticket"
+    assert as_("asha", (), lambda: e.sla_status("INC-B", now=1))["status"] == "unknown_ticket"
+    raw = next((tmp_path / "agents" / "ITSM_ENGINE").glob("tickets.json")).read_bytes()
+    assert raw[:3] == b"VLV" and b"db-prod-1" not in raw
+
+
+def test_meeting_action_item_and_time_stores_are_sealed_at_rest(tmp_path):
+    """KAN-69 SV2-10: these sqlite stores held personal data as plain files."""
+    for name, fn in (("MEETING_SUMMARIZER", "meetings.db"), ("ACTION_ITEM_EXTRACTOR", "action_items.db"), ("TIME_TRACKER", "timelog.db")):
+        c = import_module(f"velaris.agents.{name}.main")._db()
+        c.close()
+        assert (tmp_path / "agents" / name / fn).read_bytes()[:3] == b"VLV", name

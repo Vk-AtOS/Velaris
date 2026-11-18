@@ -5,5 +5,51 @@
   "description": "Turns a resume (txt, pdf, docx via velaris.intel.docs) into structured facts, each with the passage it came from; skills are normalised through a reviewed alias table (unknown skills are reported and queued for review, never guessed); lays a requisition's must/nice skills against the facts as evidence and gaps with the arithmetic shown. Resume text is screened for hidden text and prompt injection and flagged for the human, never obeyed. It produces no hire/reject decision, no ranking and no single score. Includes a four-fifths impact-ratio audit aid over funnel stages.",
   "entrypoint": "main.py:ResumeEvidence",
   "hitl_required": false,
-  "tags": ["hiring", "resume", "skills", "evidence", "bias-audit"]
+  "tags": [
+    "hiring",
+    "resume",
+    "skills",
+    "evidence",
+    "bias-audit"
+  ],
+  "harness": {
+    "schema": 1,
+    "purpose": "RESUME_EVIDENCE: résumé facts with their source passages, skills through a reviewed alias table, evidence against a requisition, and a four-fifths audit aid.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/hr/RESUME_EVIDENCE.json",
+    "wave": "KAN-37",
+    "status": "deterministic_tool",
+    "tools": {
+      "alias_proposals": {
+        "kind": "read"
+      },
+      "bias_audit": {
+        "kind": "read"
+      },
+      "get_evidence": {
+        "kind": "read"
+      },
+      "list_skills": {
+        "kind": "read"
+      },
+      "match_requisition": {
+        "kind": "read"
+      },
+      "parse_resume": {
+        "kind": "act"
+      },
+      "propose_alias": {
+        "kind": "act"
+      },
+      "review_alias": {
+        "kind": "act"
+      },
+      "unknown_skills": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

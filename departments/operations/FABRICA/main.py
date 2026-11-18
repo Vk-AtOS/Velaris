@@ -1,11 +1,14 @@
+"""Fabrica: simple helpers for describing and combining content layers.
+
+build_layers(layers) returns {"count", "layers"}. composition_score(layers) is the number of distinct layers times the
+layer_weight config value (default 1.0). combine(a, b) is a shallow dict merge in which b wins on shared keys. Config:
+layer_weight, version. health_check() returns status ok. Rule-based arithmetic only; keeps no state, and unhashable layer
+entries raise TypeError.
+"""
 import logging
 from typing import Dict, Any, List
 
 logger = logging.getLogger("FABRICA")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - FABRICA - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class FabricaAgent:
     def __init__(self, config: Dict[str, Any] = None):

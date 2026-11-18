@@ -1,0 +1,31 @@
+{
+  "name": "AAE_POLICY",
+  "display_name": "Aae Policy",
+  "version": "0.1.0",
+  "description": "AAE policy: decides whether a proposed action may run.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:AAE_POLICYAgent",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "AAE policy: decides whether a proposed action may run.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/AAE_POLICY.json",
+    "wave": "KAN-43",
+    "status": "deterministic_tool",
+    "tools": {
+      "decide": {
+        "kind": "read"
+      },
+      "rules": {
+        "kind": "read"
+      },
+      "set_rules": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

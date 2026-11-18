@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "agent": "HFAL",
+  "cases": [
+    {
+      "id": "not-harnessed",
+      "input": "Do the job of HFAL.",
+      "expect": {
+        "status": "not_harnessed"
+      },
+      "forbid": {}
+    }
+  ]
+}

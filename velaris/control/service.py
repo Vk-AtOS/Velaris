@@ -27,6 +27,7 @@ from velaris.control.planner import ControlRun, Limits, set_kill
 from velaris.control.terminal import Runner, TerminalSurface
 from velaris.core.access import AccessDenied, Caller, org_denied
 from velaris.intel import trace
+from velaris.orchestration import identity
 from velaris.intel.flow import Flow, FlowError
 from velaris.intel.llm import LLM
 from velaris.intel.paths import data_dir, private_dir
@@ -99,8 +100,9 @@ class ControlService:
         if task.surface == "terminal":
             return TerminalSurface(root, runner=self.runner, journal=journal)
         if task.surface == "browser":
-            driver = self.driver_factory() if self.driver_factory else PlaywrightDriver()
-            return BrowserSurface(driver, task.hosts(params) if task.hosts else [], journal=journal, resolver=self.resolver)
+            hosts = task.hosts(params) if task.hosts else []
+            driver = self.driver_factory() if self.driver_factory else PlaywrightDriver(post_hosts=hosts, readback_url=params.get("readback_url", ""))
+            return BrowserSurface(driver, hosts, journal=journal, resolver=self.resolver)
         raise Refused("unknown_surface", task.surface)
 
     def _guard_org(self, caller: Caller) -> None:
@@ -142,6 +144,19 @@ class ControlService:
             raise LookupError("no such run")
         return row
 
+    def _owner(self, caller: Caller, row: Dict[str, Any]) -> Caller:
+        """The run's owner as they are NOW: the roles recorded when the run started (flow meta) are an upper bound, narrowed by
+        the owner's current roles (velaris.orchestration.identity: the asking person's signed roles when it is the owner,
+        else the deployment's resolver). When the owner's current identity cannot be established, AccessDenied: only the owner
+        can move the run (KAN-69 SV2-09: an approver used to run it with a snapshot that a demotion had not changed).
+        No record means no roles (agent calls fail closed)."""
+        events = Flow([], llm=self.llm, path=self.flow_path).history(row["flow_run_id"]) if row["flow_run_id"] else []
+        meta = (events[0].get("meta") or {}).get("caller") if events else None
+        if not (isinstance(meta, dict) and meta.get("id") == row["owner"] and meta.get("org") == row["org"]):
+            return Caller(id=row["owner"], org=row["org"], roles=frozenset())
+        saved = Caller(id=row["owner"], org=row["org"], roles=frozenset(meta.get("roles") or ()), employee_id=meta.get("employee_id"))
+        return identity.current_owner(saved, caller)
+
     def _run(self, caller: Caller, run_id: str) -> ControlRun:
         row = self._row(caller, run_id)
         run = self._runs.get(run_id)
@@ -149,7 +164,7 @@ class ControlService:
             task = tasks.get(row["task"])
             if task.surface == "browser":
                 raise ControlError("session_lost", "this run's browser session ended; it can only be reported and undone")
-            owner = Caller(id=row["owner"], org=row["org"])
+            owner = self._owner(caller, row)
             run = self._build(task, row["params"], owner, run_id, expected=row["expected"])
             run.flow_run_id, run.active_s = row["flow_run_id"], float(row["active_s"])
             self._runs[run_id] = run
@@ -170,7 +185,7 @@ class ControlService:
         return out
 
     def report(self, caller: Caller, run_id: str) -> Dict[str, Any]:
-        row = self._row(caller, run_id)
+        self._row(caller, run_id)
         flow = self._runs[run_id].flow if run_id in self._runs else Flow([], llm=self.llm, path=self.flow_path)
         return R.build(self.store, run_id, caller.org, flow)
 
@@ -197,7 +212,7 @@ class ControlService:
             raise ControlError("not_waiting", "the run is not waiting for a decision on that step") from None
 
     def undo(self, caller: Caller, run_id: str) -> Dict[str, Any]:
-        row = self._row(caller, run_id)
+        self._row(caller, run_id)
         run = self._runs.get(run_id)
         if run is None:                                               # a browser session may be gone: files/terminal rebuild
             try:

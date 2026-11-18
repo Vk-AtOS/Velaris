@@ -1,12 +1,20 @@
+"""Riskon: heuristic weighted risk score from volatility, exposure and uncertainty.
+
+RiskonAgent(config; "weights" default volatility 0.5, exposure 0.3, uncertainty 0.2):
+health_check(); volatility(values) is the population standard deviation; exposure(assets)
+is the sum of absolute position amounts; risk_score(data) with keys "values", "assets",
+"uncertainty" returns the weighted sum; compare_risk(a, b) returns "A", "B" or "Equal".
+The score is a fixed formula, not a statistical risk model.
+State: keeps no state beyond the configured weights.
+Failure: empty values give volatility 0.0; missing keys default to empty/0.0; a custom
+weights dict lacking a key raises KeyError; non-numeric data raises TypeError or ValueError.
+"""
+
 import logging
 from typing import Dict, List, Any
 import math
 
 logger = logging.getLogger("RISKON")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - RISKON - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class RiskonAgent:
     def __init__(self, config: Dict[str, Any] = None):

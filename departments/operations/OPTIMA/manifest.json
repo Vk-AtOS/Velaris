@@ -5,5 +5,27 @@
   "description": "Public methods: efficiency_score, metric_normalize, pivot_factor (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:OptimaAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Optima: weighted scoring of marketing efficiency metrics (fixed formulas, no optimisation).",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/operations/OPTIMA.json",
+    "wave": "KAN-41",
+    "status": "deterministic_tool",
+    "tools": {
+      "efficiency_score": {
+        "kind": "read"
+      },
+      "metric_normalize": {
+        "kind": "read"
+      },
+      "pivot_factor": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

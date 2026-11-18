@@ -1,0 +1,3120 @@
+{
+ "agents": {
+  "AAE_POLICY": {
+   "cases": 5,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "AAE_RUNTIME": {
+   "cases": 5,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "ACF_CONTEXT": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "ACF_CORE": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "ACF_FUSION": {
+   "cases": 2,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 2,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "ACF_ROUTER": {
+   "cases": 4,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "ACTION_ITEM_EXTRACTOR": {
+   "cases": 7,
+   "department": "communications",
+   "failed": [],
+   "passed": 7,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "ACTION_MODELING_CORE": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "ACTION_SANDBOX": {
+   "cases": 3,
+   "department": "project_management",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "ADAPTIVE_ACTION_ENGINE": {
+   "cases": 5,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "ADAPTIVE_BRANDING": {
+   "cases": 2,
+   "department": "marketing",
+   "failed": [],
+   "passed": 2,
+   "rate": 1.0,
+   "ready": false,
+   "status": "model_driven"
+  },
+  "ADVANCED_SEARCH_ENGINE": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "AEGIS": {
+   "cases": 6,
+   "department": "security",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "AEIL": {
+   "cases": 1,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 1,
+   "rate": 1.0,
+   "ready": false,
+   "status": "not_harnessed"
+  },
+  "AGENT_CONTAINMENT_MODES": {
+   "cases": 7,
+   "department": "security",
+   "failed": [],
+   "passed": 7,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "AGENT_EVOLUTION": {
+   "cases": 4,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "AGENT_LIFECYCLE": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "AGENT_LIFECYCLE_MANAGER": {
+   "cases": 6,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "AIIE_KERNEL": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "ALK_ADAPT": {
+   "cases": 5,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "ALK_EVO": {
+   "cases": 7,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 7,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "AMPLIFEX": {
+   "cases": 4,
+   "department": "sales",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "ARGUS": {
+   "cases": 6,
+   "department": "security",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "ARTESIA": {
+   "cases": 4,
+   "department": "marketing",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "ASEL": {
+   "cases": 1,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 1,
+   "rate": 1.0,
+   "ready": false,
+   "status": "not_harnessed"
+  },
+  "ASEL_EVALUATOR": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "ASEL_EXECUTOR": {
+   "cases": 2,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 2,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "ASEL_PLANNER": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "ASEL_ROUTER": {
+   "cases": 1,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 1,
+   "rate": 1.0,
+   "ready": false,
+   "status": "not_harnessed"
+  },
+  "ASEL_STRATEGIST": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "ATS_CORE": {
+   "cases": 10,
+   "department": "hr",
+   "failed": [],
+   "passed": 10,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "ATTENDANCE_MONITOR": {
+   "cases": 4,
+   "department": "hr",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "ATTRACTA": {
+   "cases": 4,
+   "department": "sales",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "AUDITOR": {
+   "cases": 3,
+   "department": "security",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "AUTONOMOUS_MARKETING_ENGINE": {
+   "cases": 6,
+   "department": "marketing",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "AUTONOMOUS_PATCH_ENGINE": {
+   "cases": 6,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "AUTONOMOUS_RESEARCH_ENGINE": {
+   "cases": 2,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 2,
+   "rate": 1.0,
+   "ready": false,
+   "status": "model_driven"
+  },
+  "AUTONOMOUS_SALES_NAVIGATOR": {
+   "cases": 4,
+   "department": "sales",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "AUTO_LEARN_CORE": {
+   "cases": 5,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "BANKING_LOGIC_ENGINE": {
+   "cases": 5,
+   "department": "finance",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "BEHAVIOR_SHAPING_NETWORK": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "BRAND_NARRATIVE": {
+   "cases": 3,
+   "department": "marketing",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "mixed"
+  },
+  "BUDGET_GUARDRAILS": {
+   "cases": 6,
+   "department": "project_management",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "BUSINESS_AUTOPILOT": {
+   "cases": 3,
+   "department": "operations",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "BUSINESS_DNA": {
+   "cases": 3,
+   "department": "executive",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "BUSINESS_FUNNEL_DESIGNER": {
+   "cases": 6,
+   "department": "marketing",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "BUSINESS_MODEL_ENGINE": {
+   "cases": 3,
+   "department": "executive",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "BUSINESS_OPS_ENGINE": {
+   "cases": 8,
+   "department": "operations",
+   "failed": [],
+   "passed": 8,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "CALL_RECORDER": {
+   "cases": 6,
+   "department": "communications",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "CALL_TRANSCRIBER": {
+   "cases": 5,
+   "department": "communications",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "CASHFLOW_AI": {
+   "cases": 4,
+   "department": "finance",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "CAUSALITY_RESOLVER": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "CCSF_CORE": {
+   "cases": 4,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "CCSF_FUSION": {
+   "cases": 2,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 2,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "CCSF_RESOLVER": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "CHROMOS": {
+   "cases": 6,
+   "department": "data_knowledge",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "CLAIMS_ASSESSMENT_ENGINE": {
+   "cases": 4,
+   "department": "finance",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "CLBPP_CORE": {
+   "cases": 7,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 7,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "CLBPP_DISTRIBUTOR": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "CLBPP_OVERLOAD_MONITOR": {
+   "cases": 5,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "CLBPP_PREDICTIVE_BALANCER": {
+   "cases": 4,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "CLOUD_HANDOFF_CONTROLLER": {
+   "cases": 5,
+   "department": "it_infrastructure",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "CODEX": {
+   "cases": 6,
+   "department": "operations",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "COGNITIVE_INTENT_FIREWALL": {
+   "cases": 6,
+   "department": "security",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "COGNITIVE_LOAD_BALANCER": {
+   "cases": 2,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 2,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "COHERENCE_SYNC_CORE": {
+   "cases": 5,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "COHORTUS": {
+   "cases": 2,
+   "department": "sales",
+   "failed": [],
+   "passed": 2,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "COMPETITIVE_SCANNER": {
+   "cases": 3,
+   "department": "executive",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "COMPLIANCE_GUARD": {
+   "cases": 6,
+   "department": "security",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "COMPUTE_KERNEL": {
+   "cases": 6,
+   "department": "it_infrastructure",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "COMPUTE_SCALER": {
+   "cases": 4,
+   "department": "it_infrastructure",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "CONFLUENCE": {
+   "cases": 6,
+   "department": "_connectors",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "CONNECTOR_LAYER": {
+   "cases": 7,
+   "department": "operations",
+   "failed": [],
+   "passed": 7,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "CONTEXTUAL_SELF_MODEL": {
+   "cases": 4,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "CONTROL_LAYER": {
+   "cases": 7,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 7,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "CONVERGENCE_BRIDGE": {
+   "cases": 1,
+   "department": "operations",
+   "failed": [],
+   "passed": 1,
+   "rate": 1.0,
+   "ready": false,
+   "status": "not_harnessed"
+  },
+  "CONVERTA": {
+   "cases": 4,
+   "department": "sales",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "CORE_CONVERGENCE": {
+   "cases": 1,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 1,
+   "rate": 1.0,
+   "ready": false,
+   "status": "not_harnessed"
+  },
+  "CREATIVA": {
+   "cases": 4,
+   "department": "marketing",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "CREATIVE_ENGINE": {
+   "cases": 6,
+   "department": "marketing",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "mixed"
+  },
+  "CREATIVE_HOLODECK": {
+   "cases": 3,
+   "department": "marketing",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "CREDIT_RISK_ENGINE": {
+   "cases": 3,
+   "department": "finance",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "CRK": {
+   "cases": 1,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 1,
+   "rate": 1.0,
+   "ready": false,
+   "status": "not_harnessed"
+  },
+  "CRK_CHAIN": {
+   "cases": 4,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "CRK_CONTEXT": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "CRK_INTENT": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "mixed"
+  },
+  "CRK_REASONER": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "CRK_VALIDATOR": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "CSG_STATEALIGN": {
+   "cases": 4,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "CSG_TEMPORAL": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "CSM_CORE": {
+   "cases": 5,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "CSM_LINKER": {
+   "cases": 6,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "CSM_POLICY": {
+   "cases": 4,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "CSM_REASONER": {
+   "cases": 2,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 2,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "CUSTOMER_BEHAVIOR_ENGINE": {
+   "cases": 4,
+   "department": "marketing",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "CUSTOS": {
+   "cases": 6,
+   "department": "security",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "CYBER_RISK_ENGINE": {
+   "cases": 6,
+   "department": "security",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "DECISION_COLLAPSE_ENGINE": {
+   "cases": 2,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 2,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "DECISION_FIREWALL": {
+   "cases": 4,
+   "department": "security",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "DECISION_GRAPH_ENGINE": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "DEEP_AUDIT_ENGINE": {
+   "cases": 6,
+   "department": "security",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "DIGITAL_TWIN_XR_ENGINE": {
+   "cases": 7,
+   "department": "project_management",
+   "failed": [],
+   "passed": 7,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "DISTRIBUTED_FABRIC": {
+   "cases": 6,
+   "department": "it_infrastructure",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "DOCUMENT_LIBRARY": {
+   "cases": 3,
+   "department": "data_knowledge",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "DOMAIN_ADVISOR": {
+   "cases": 2,
+   "department": "sales",
+   "failed": [],
+   "passed": 2,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "DOMAIN_EXPANSION": {
+   "cases": 3,
+   "department": "sales",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "DOMAIN_MASTERY": {
+   "cases": 3,
+   "department": "sales",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "DOMAIN_REFINER": {
+   "cases": 3,
+   "department": "sales",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "DOMAIN_SCOUT": {
+   "cases": 3,
+   "department": "sales",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "DRY_RUN_SIMULATION": {
+   "cases": 6,
+   "department": "project_management",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "DSS_CLUSTER_MANAGER": {
+   "cases": 6,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "DSS_FAILOVER": {
+   "cases": 4,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "DSS_LOAD_BALANCER": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "DSS_MONITOR": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "DSS_REPLICATION": {
+   "cases": 4,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "DSS_SCALER": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "DYNAMICA": {
+   "cases": 3,
+   "department": "operations",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "EACPE_ALIGNMENT": {
+   "cases": 5,
+   "department": "legal_compliance",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "mixed"
+  },
+  "EACPE_HUMAN_GUARD": {
+   "cases": 7,
+   "department": "legal_compliance",
+   "failed": [],
+   "passed": 7,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "EACPE_PROTOCOL": {
+   "cases": 4,
+   "department": "legal_compliance",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "EAC_AUDIT": {
+   "cases": 6,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "EAC_COMPLIANCE": {
+   "cases": 6,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "EAC_CORE": {
+   "cases": 4,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "ECONOMIC_INTELLIGENCE_MESH": {
+   "cases": 6,
+   "department": "finance",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "ECONOVA": {
+   "cases": 4,
+   "department": "finance",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "ECON_INTEL_CORE": {
+   "cases": 6,
+   "department": "finance",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "mixed"
+  },
+  "EMPLOYEE_METRICS_ENGINE": {
+   "cases": 5,
+   "department": "hr",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "EMPLOYEE_ONBOARDING": {
+   "cases": 6,
+   "department": "hr",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "EMPLOYEE_RECORDS": {
+   "cases": 10,
+   "department": "hr",
+   "failed": [],
+   "passed": 10,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "ENERGY_MANAGER": {
+   "cases": 6,
+   "department": "it_infrastructure",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "ENGINE": {
+   "cases": 5,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "EOF_CORE": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "EOF_GATEWAY": {
+   "cases": 4,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "EOF_POLICY": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "EPISODIC_MEMORY": {
+   "cases": 7,
+   "department": "data_knowledge",
+   "failed": [],
+   "passed": 7,
+   "rate": 1.0,
+   "ready": false,
+   "status": "mixed"
+  },
+  "ESIGN": {
+   "cases": 10,
+   "department": "hr",
+   "failed": [],
+   "passed": 10,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "EXECUTION_SANDBOX": {
+   "cases": 6,
+   "department": "project_management",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "FABRICA": {
+   "cases": 4,
+   "department": "operations",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "FAILOVER_ROUTER": {
+   "cases": 6,
+   "department": "it_infrastructure",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "FAILPATH_CONTROL_ENGINE": {
+   "cases": 7,
+   "department": "project_management",
+   "failed": [],
+   "passed": 7,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "FEASIBILITY_ENGINE": {
+   "cases": 3,
+   "department": "project_management",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "FINANCIAL_AI_ENGINE": {
+   "cases": 4,
+   "department": "finance",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "FISCALIS": {
+   "cases": 3,
+   "department": "finance",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "FLEET_HEALTH_ENGINE": {
+   "cases": 4,
+   "department": "supply_chain",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "FLUXOR": {
+   "cases": 4,
+   "department": "operations",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "FORECASTA": {
+   "cases": 5,
+   "department": "finance",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "FORMULA": {
+   "cases": 4,
+   "department": "finance",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "FSCL": {
+   "cases": 1,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 1,
+   "rate": 1.0,
+   "ready": false,
+   "status": "not_harnessed"
+  },
+  "GCK": {
+   "cases": 1,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 1,
+   "rate": 1.0,
+   "ready": false,
+   "status": "not_harnessed"
+  },
+  "GENEFLOW": {
+   "cases": 2,
+   "department": "operations",
+   "failed": [],
+   "passed": 2,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "GLOBAL_STATE_MAP": {
+   "cases": 7,
+   "department": "data_knowledge",
+   "failed": [],
+   "passed": 7,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "GOVERNANCE_ADAPTATION_LOOP": {
+   "cases": 5,
+   "department": "legal_compliance",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "GOVERNANCE_KERNEL": {
+   "cases": 5,
+   "department": "legal_compliance",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "GST_ENGINE": {
+   "cases": 7,
+   "department": "finance",
+   "failed": [],
+   "passed": 7,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "HARD_LOCKDOWN_MODE": {
+   "cases": 8,
+   "department": "security",
+   "failed": [],
+   "passed": 8,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "HELIX": {
+   "cases": 5,
+   "department": "operations",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "HFAL": {
+   "cases": 1,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 1,
+   "rate": 1.0,
+   "ready": false,
+   "status": "not_harnessed"
+  },
+  "HR_TALENT_ENGINE": {
+   "cases": 4,
+   "department": "hr",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "HUMAN_APPROVAL_WORKFLOW": {
+   "cases": 6,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "HYPERSTATE_SYNTHESIZER": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "HYPERSYNC": {
+   "cases": 1,
+   "department": "operations",
+   "failed": [],
+   "passed": 1,
+   "rate": 1.0,
+   "ready": false,
+   "status": "not_harnessed"
+  },
+  "HYPER_REASONER": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "IDENTITY_FRAMEWORK": {
+   "cases": 4,
+   "department": "security",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "IMAGINA": {
+   "cases": 4,
+   "department": "marketing",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "INITIATIVE_ENGINE": {
+   "cases": 4,
+   "department": "project_management",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "INSIGHTA": {
+   "cases": 5,
+   "department": "executive",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "INSURANCE_POLICY_ENGINE": {
+   "cases": 4,
+   "department": "finance",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "INTENT_SYNTHESIZER": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "mixed"
+  },
+  "INTERVIEW_KIT": {
+   "cases": 10,
+   "department": "hr",
+   "failed": [],
+   "passed": 10,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "INTERVIEW_RECORD": {
+   "cases": 10,
+   "department": "hr",
+   "failed": [],
+   "passed": 10,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "INTERVIEW_SCHEDULER": {
+   "cases": 10,
+   "department": "hr",
+   "failed": [],
+   "passed": 10,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "INTER_AGENT_COHESION": {
+   "cases": 6,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "INVENTORY_DECISION_ENGINE": {
+   "cases": 4,
+   "department": "supply_chain",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "ITSM_ENGINE": {
+   "cases": 7,
+   "department": "it_infrastructure",
+   "failed": [],
+   "passed": 7,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "IT_INFRA_ENGINE": {
+   "cases": 5,
+   "department": "it_infrastructure",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "JIRA": {
+   "cases": 8,
+   "department": "_connectors",
+   "failed": [],
+   "passed": 8,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "JOB_POSTINGS": {
+   "cases": 10,
+   "department": "hr",
+   "failed": [],
+   "passed": 10,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "LATENCY_CONTROLLER": {
+   "cases": 6,
+   "department": "it_infrastructure",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "LEAVE_MANAGEMENT": {
+   "cases": 11,
+   "department": "hr",
+   "failed": [],
+   "passed": 11,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "LEDGERON": {
+   "cases": 6,
+   "department": "finance",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "LEGAL_INTELLIGENCE_ENGINE": {
+   "cases": 6,
+   "department": "legal_compliance",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "LOAD_DISTRIBUTOR": {
+   "cases": 7,
+   "department": "it_infrastructure",
+   "failed": [],
+   "passed": 7,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "LOCAL_ACCELERATOR": {
+   "cases": 5,
+   "department": "it_infrastructure",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "LOCAL_AUTONOMY_CORE": {
+   "cases": 4,
+   "department": "it_infrastructure",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "LOCAL_BIOMETRICS_INTERFACE": {
+   "cases": 6,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "LOCAL_EMBEDDING_ENGINE": {
+   "cases": 4,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "mixed"
+  },
+  "LOCAL_MEMORY_STORE": {
+   "cases": 6,
+   "department": "data_knowledge",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "LOCAL_REGISTRY_CACHE": {
+   "cases": 6,
+   "department": "it_infrastructure",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "LOCAL_ROUTER": {
+   "cases": 4,
+   "department": "it_infrastructure",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "LOGISTA": {
+   "cases": 2,
+   "department": "client_success",
+   "failed": [],
+   "passed": 2,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "LONGTERM_MEMORY": {
+   "cases": 4,
+   "department": "data_knowledge",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "LONG_RUN_STABILITY_SIMULATOR": {
+   "cases": 5,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "LYRA": {
+   "cases": 4,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "LYRA_VOICE_ENGINE": {
+   "cases": 9,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 9,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "MACHINE_LIFECYCLE_ENGINE": {
+   "cases": 4,
+   "department": "supply_chain",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "MACRO_ECON_MODEL": {
+   "cases": 3,
+   "department": "finance",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "MARKET_GAP_ANALYZER": {
+   "cases": 3,
+   "department": "executive",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "MCD": {
+   "cases": 4,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "MCFE_CLASSIFIER": {
+   "cases": 2,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 2,
+   "rate": 1.0,
+   "ready": false,
+   "status": "model_driven"
+  },
+  "MCFE_CORE": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "mixed"
+  },
+  "MCFE_FIELDGEN": {
+   "cases": 4,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "MCFE_ROUTER": {
+   "cases": 2,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 2,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "MEETING_SUMMARIZER": {
+   "cases": 6,
+   "department": "communications",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "MEMORY_CLOUD_EXPAND": {
+   "cases": 7,
+   "department": "data_knowledge",
+   "failed": [],
+   "passed": 7,
+   "rate": 1.0,
+   "ready": false,
+   "status": "mixed"
+  },
+  "MEMORY_DRIFT_DETECTOR": {
+   "cases": 6,
+   "department": "data_knowledge",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "MEMORY_FABRIC": {
+   "cases": 4,
+   "department": "data_knowledge",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "MEMORY_MESH": {
+   "cases": 8,
+   "department": "data_knowledge",
+   "failed": [],
+   "passed": 8,
+   "rate": 1.0,
+   "ready": false,
+   "status": "mixed"
+  },
+  "MEMORY_REALLOCATOR": {
+   "cases": 5,
+   "department": "data_knowledge",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "META_REASONING_CORE": {
+   "cases": 4,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "mixed"
+  },
+  "META_REINFORCEMENT_CORE": {
+   "cases": 4,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "METRIX": {
+   "cases": 4,
+   "department": "finance",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "MFA_RECOVERY_WORKFLOW": {
+   "cases": 1,
+   "department": "security",
+   "failed": [],
+   "passed": 1,
+   "rate": 1.0,
+   "ready": false,
+   "status": "not_harnessed"
+  },
+  "MODEL_COUNCIL": {
+   "cases": 2,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 2,
+   "rate": 1.0,
+   "ready": false,
+   "status": "model_driven"
+  },
+  "MODEL_REGISTRY_CANARY": {
+   "cases": 7,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 7,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "MPC_CORE": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "MPC_FUSION": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "MPC_PREPROC": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "MRF_EVAL": {
+   "cases": 2,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 2,
+   "rate": 1.0,
+   "ready": false,
+   "status": "model_driven"
+  },
+  "MRF_REFLECT": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "model_driven"
+  },
+  "MULTILINGUAL_BRAIN": {
+   "cases": 5,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "MULTI_TENANCY_GRID": {
+   "cases": 10,
+   "department": "it_infrastructure",
+   "failed": [],
+   "passed": 10,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "MULTI_TENANT_ENGINE": {
+   "cases": 8,
+   "department": "operations",
+   "failed": [],
+   "passed": 8,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "NAVARCH": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "NETWORK_OPTIMIZER": {
+   "cases": 6,
+   "department": "it_infrastructure",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "NEURAL_ALIGNMENT_ENGINE": {
+   "cases": 4,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "NEURAL_CONSTRAINT_FIELD": {
+   "cases": 2,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 2,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "NEURAL_CREATIVITY_ENGINE": {
+   "cases": 5,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "NEURAL_DRIFT_MONITOR": {
+   "cases": 4,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "NEURAL_ECONOMY": {
+   "cases": 3,
+   "department": "finance",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "NEURAL_MESH": {
+   "cases": 5,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "NEURAL_POLICY_MESH": {
+   "cases": 6,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "NIRVANA": {
+   "cases": 1,
+   "department": "operations",
+   "failed": [],
+   "passed": 1,
+   "rate": 1.0,
+   "ready": false,
+   "status": "not_harnessed"
+  },
+  "OFFER_LETTERS": {
+   "cases": 10,
+   "department": "hr",
+   "failed": [],
+   "passed": 10,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "OFFLINE_EXECUTION_ENGINE": {
+   "cases": 5,
+   "department": "it_infrastructure",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "OFFLINE_REGISTRY": {
+   "cases": 4,
+   "department": "it_infrastructure",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "OFFLINE_RUNTIME_PACKAGER": {
+   "cases": 4,
+   "department": "it_infrastructure",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "OFFLINE_SANDBOX": {
+   "cases": 5,
+   "department": "it_infrastructure",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "ONBOARDING_FLOW": {
+   "cases": 10,
+   "department": "hr",
+   "failed": [],
+   "passed": 10,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "OPERATUS": {
+   "cases": 2,
+   "department": "operations",
+   "failed": [],
+   "passed": 2,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "OPPORTUNITY_RADAR": {
+   "cases": 3,
+   "department": "executive",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "OPS_REPORT": {
+   "cases": 4,
+   "department": "operations",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "OPTIMA": {
+   "cases": 4,
+   "department": "operations",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "ORACLE": {
+   "cases": 2,
+   "department": "executive",
+   "failed": [],
+   "passed": 2,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "ORCHESTRIX": {
+   "cases": 4,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "OVERSIGHT_MONITOR": {
+   "cases": 4,
+   "department": "security",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "OVERWATCH": {
+   "cases": 5,
+   "department": "security",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "OWNER_VERIFICATION": {
+   "cases": 1,
+   "department": "security",
+   "failed": [],
+   "passed": 1,
+   "rate": 1.0,
+   "ready": false,
+   "status": "not_harnessed"
+  },
+  "PARALLEL_CORE": {
+   "cases": 3,
+   "department": "it_infrastructure",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "PAYROLL_ENGINE": {
+   "cases": 7,
+   "department": "hr",
+   "failed": [],
+   "passed": 7,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "PERFORMANCE_REVIEW_ENGINE": {
+   "cases": 10,
+   "department": "hr",
+   "failed": [],
+   "passed": 10,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "PERSONALITY_MOD": {
+   "cases": 5,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "PIN_UNLOCK_LAYER": {
+   "cases": 4,
+   "department": "security",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "PIPELINE_MONITOR": {
+   "cases": 3,
+   "department": "operations",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "POLARIS": {
+   "cases": 4,
+   "department": "operations",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "POLICY_ACKS": {
+   "cases": 10,
+   "department": "hr",
+   "failed": [],
+   "passed": 10,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "POLICY_CONTROLLER": {
+   "cases": 7,
+   "department": "legal_compliance",
+   "failed": [],
+   "passed": 7,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "PORTFOLIO_SIM_ENGINE": {
+   "cases": 3,
+   "department": "finance",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "PRAETOR": {
+   "cases": 2,
+   "department": "security",
+   "failed": [],
+   "passed": 2,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "PRICING_OPTIMIZER": {
+   "cases": 3,
+   "department": "finance",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "PRICING_OPTIMIZER_ENGINE": {
+   "cases": 5,
+   "department": "finance",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "PRIME": {
+   "cases": 9,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 9,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "PROBABILIS": {
+   "cases": 3,
+   "department": "executive",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "QUALITY_CONTROL_ENGINE": {
+   "cases": 4,
+   "department": "operations",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "RCI_CONTEXT": {
+   "cases": 4,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "RCI_CORE": {
+   "cases": 4,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "RCI_STREAM": {
+   "cases": 5,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "REALMEX": {
+   "cases": 3,
+   "department": "executive",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "RECRUITMENT_ATS": {
+   "cases": 7,
+   "department": "hr",
+   "failed": [],
+   "passed": 7,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "RECURSIVE_GOAL_PLANNER": {
+   "cases": 4,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "mixed"
+  },
+  "REGISTRY": {
+   "cases": 6,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "RESOURCE_OPTIMIZER": {
+   "cases": 3,
+   "department": "it_infrastructure",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "RESOURCE_ORCHESTRATOR": {
+   "cases": 6,
+   "department": "it_infrastructure",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "RESUME_EVIDENCE": {
+   "cases": 10,
+   "department": "hr",
+   "failed": [],
+   "passed": 10,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "RETENTA": {
+   "cases": 4,
+   "department": "sales",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "RISKON": {
+   "cases": 5,
+   "department": "finance",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "ROLLBACK_ENGINE": {
+   "cases": 6,
+   "department": "project_management",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "ROUTE_OPTIMIZATION_ENGINE": {
+   "cases": 4,
+   "department": "supply_chain",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "SAFETY_PERIMETER": {
+   "cases": 4,
+   "department": "security",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "SAGE": {
+   "cases": 1,
+   "department": "operations",
+   "failed": [],
+   "passed": 1,
+   "rate": 1.0,
+   "ready": false,
+   "status": "not_harnessed"
+  },
+  "SANDE": {
+   "cases": 1,
+   "department": "operations",
+   "failed": [],
+   "passed": 1,
+   "rate": 1.0,
+   "ready": false,
+   "status": "not_harnessed"
+  },
+  "SANITY_VERIFIER": {
+   "cases": 4,
+   "department": "security",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "SCHEDULON": {
+   "cases": 4,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "SCREENING_FORMS": {
+   "cases": 10,
+   "department": "hr",
+   "failed": [],
+   "passed": 10,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "SECRETS_VAULT": {
+   "cases": 1,
+   "department": "security",
+   "failed": [],
+   "passed": 1,
+   "rate": 1.0,
+   "ready": false,
+   "status": "not_harnessed"
+  },
+  "SECURE_ACTION_TOKENS": {
+   "cases": 1,
+   "department": "security",
+   "failed": [],
+   "passed": 1,
+   "rate": 1.0,
+   "ready": false,
+   "status": "not_harnessed"
+  },
+  "SELF_AUDIT": {
+   "cases": 5,
+   "department": "security",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "SELF_CONSISTENCY": {
+   "cases": 4,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "model_driven"
+  },
+  "SELF_CORRECTION_ENGINE": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "SELF_DIRECTED_TASKER": {
+   "cases": 6,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "SELF_HISTORY": {
+   "cases": 4,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "SELF_IDENTITY": {
+   "cases": 5,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "SENTINELDNA": {
+   "cases": 5,
+   "department": "security",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "SHORTTERM_MEMORY": {
+   "cases": 6,
+   "department": "data_knowledge",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "mixed"
+  },
+  "SIGNED_AUDIT_CHAIN": {
+   "cases": 4,
+   "department": "security",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "SIMULON": {
+   "cases": 2,
+   "department": "project_management",
+   "failed": [],
+   "passed": 2,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "SKILLPACK_LOADER": {
+   "cases": 6,
+   "department": "operations",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "SLA_MONITOR": {
+   "cases": 4,
+   "department": "operations",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "SOFT_LOCKDOWN_MODE": {
+   "cases": 7,
+   "department": "security",
+   "failed": [],
+   "passed": 7,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "SOUL_CORE_EXT": {
+   "cases": 7,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 7,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "SOUL_VELARIS": {
+   "cases": 6,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "SPRINT_PLANNER": {
+   "cases": 5,
+   "department": "project_management",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "STOCHASTIX": {
+   "cases": 2,
+   "department": "executive",
+   "failed": [],
+   "passed": 2,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "STOCKMARKET_SIGNAL_ENGINE": {
+   "cases": 4,
+   "department": "finance",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "STRATEGIC_INTEL": {
+   "cases": 3,
+   "department": "executive",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "model_driven"
+  },
+  "STRATEGOS": {
+   "cases": 4,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "STREAM_PROCESSOR": {
+   "cases": 5,
+   "department": "data_knowledge",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "SUCCESSOR_KEY_MODULE": {
+   "cases": 1,
+   "department": "project_management",
+   "failed": [],
+   "passed": 1,
+   "rate": 1.0,
+   "ready": false,
+   "status": "not_harnessed"
+  },
+  "SUPPLY_CHAIN_ENGINE": {
+   "cases": 4,
+   "department": "supply_chain",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "SYSTEM_TELEMETRY": {
+   "cases": 6,
+   "department": "it_infrastructure",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "TACTICIAN": {
+   "cases": 3,
+   "department": "project_management",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "TARGETA": {
+   "cases": 4,
+   "department": "sales",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "TDS_ENGINE": {
+   "cases": 3,
+   "department": "finance",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "TELEMETRY_SPINE": {
+   "cases": 5,
+   "department": "it_infrastructure",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "TEMPORAL_SNAPSHOTS": {
+   "cases": 6,
+   "department": "data_knowledge",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "THREAT_DETECTION_MESH": {
+   "cases": 7,
+   "department": "security",
+   "failed": [],
+   "passed": 7,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "THROUGHPUT_MANAGER": {
+   "cases": 5,
+   "department": "it_infrastructure",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "TIME_TRACKER": {
+   "cases": 8,
+   "department": "project_management",
+   "failed": [],
+   "passed": 8,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "TREASURIX": {
+   "cases": 5,
+   "department": "finance",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "UIE_CORE": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "UIE_REASONER": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "UIE_SEMANTICS": {
+   "cases": 2,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 2,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "UIE_SIGNAL": {
+   "cases": 2,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 2,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "VALORA": {
+   "cases": 4,
+   "department": "finance",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "VCAS_AUTOPILOT": {
+   "cases": 5,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "VCAS_CORE": {
+   "cases": 5,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "VCAS_ROUTER": {
+   "cases": 2,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 2,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "VCAS_SUPERVISOR": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "VELOCITY_LOOP": {
+   "cases": 3,
+   "department": "operations",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "VHOE_ANALYTICS": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "VHOE_CORE": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "VHOE_OPTIMIZER": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "VHOE_ROUTER": {
+   "cases": 2,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 2,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "VIGILIS": {
+   "cases": 7,
+   "department": "security",
+   "failed": [],
+   "passed": 7,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "VIRALYTICA": {
+   "cases": 4,
+   "department": "executive",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "VMRK": {
+   "cases": 4,
+   "department": "marketing",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "VPSE_CORE": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "VPSE_MODELER": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "VPSE_SCENARIO": {
+   "cases": 3,
+   "department": "_ai_core",
+   "failed": [],
+   "passed": 3,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "WAREHOUSE_FLOW_ENGINE": {
+   "cases": 4,
+   "department": "supply_chain",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "WHATSAPP_BRIEFING": {
+   "cases": 6,
+   "department": "sales",
+   "failed": [],
+   "passed": 6,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "WORKFLOW_ANALYST": {
+   "cases": 4,
+   "department": "operations",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "model_driven"
+  },
+  "ZERO_TRUST_PIPELINE": {
+   "cases": 7,
+   "department": "security",
+   "failed": [],
+   "passed": 7,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "ZOHO_CONNECTOR": {
+   "cases": 4,
+   "department": "_connectors",
+   "failed": [],
+   "passed": 4,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "ZOHO_PAYROLL": {
+   "cases": 5,
+   "department": "_connectors",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "ZOHO_PEOPLE": {
+   "cases": 5,
+   "department": "_connectors",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  },
+  "ZOHO_PROJECTS": {
+   "cases": 5,
+   "department": "_connectors",
+   "failed": [],
+   "passed": 5,
+   "rate": 1.0,
+   "ready": false,
+   "status": "deterministic_tool"
+  }
+ },
+ "model": "fake:oracle",
+ "threshold": 0.9
+}

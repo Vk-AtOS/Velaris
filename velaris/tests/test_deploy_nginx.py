@@ -41,8 +41,9 @@ def test_body_caps_match_the_app():
         return int(m.group(1)) * (1024 if m.group(2) == "k" else 1024 * 1024) if m else None
     assert cap("careers/apply") == DEFAULT_LIMITS["apply"].body
     assert cap("interview/[A-Za-z0-9_-]{20,100}/events") == DEFAULT_LIMITS["events"].body
+    assert cap("interview/[A-Za-z0-9_-]{20,100}/audio") >= DEFAULT_LIMITS["i_audio"].body           # KAN-74: the one big upload
     default = re.search(r"client_max_body_size (\d+)k;", CONF)
-    assert int(default.group(1)) * 1024 >= max(v.body for k, v in DEFAULT_LIMITS.items() if k not in ("apply", "events"))
+    assert int(default.group(1)) * 1024 >= max(v.body for k, v in DEFAULT_LIMITS.items() if k not in ("apply", "events", "i_audio"))
 
 
 def test_methods_are_restricted_per_location():
@@ -51,7 +52,11 @@ def test_methods_are_restricted_per_location():
 
 
 def test_headers_scrubbed_and_xff_replaced():
-    assert "proxy_set_header X-Forwarded-For $remote_addr;" in SNIPPET and "proxy_add_x_forwarded_for" not in SNIPPET
+    upload = (Path(__file__).resolve().parents[2] / "deploy" / "nginx" / "snippets" / "velaris-public-proxy-upload.conf").read_text()
+    for snippet in (SNIPPET, upload):
+        assert "proxy_set_header X-Forwarded-For $remote_addr;" in snippet and "proxy_add_x_forwarded_for" not in snippet
+        assert re.search(r'proxy_set_header Cookie "";', snippet) and re.search(r'proxy_set_header Authorization "";', snippet)
+    assert "proxy_request_buffering off;" in upload and "proxy_send_timeout 900s;" in upload
     for h in ("Cookie", "Authorization", "X-Velaris-Signature", "X-Velaris-Identity"):
         assert re.search(rf'proxy_set_header {h} "";', SNIPPET), h
     assert "proxy_hide_header Set-Cookie;" in SNIPPET

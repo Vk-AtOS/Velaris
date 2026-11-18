@@ -45,7 +45,8 @@ def submit(fid, answers=None, file=("cv.pdf", None), **kw):
     ch = hi.public_challenge(fid)["challenge"]
     sol = {**ch, "n": hf.solve(ch)}
     data = tiny_pdf("Skills: Python and SQL, 4 years") if file[1] is None else file[1]
-    return hi.public_submit(fid, answers if answers is not None else ANSWERS, kw.pop("pow", sol), file_name=file[0], file_bytes=data)
+    return hi.public_submit(fid, answers if answers is not None else ANSWERS, kw.pop("pow", sol), file_name=file[0], file_bytes=data,
+                            consent_version=kw.pop("cv", hi.public_form(fid)["consent_version"]))
 
 
 def test_form_definition_is_validated_as_data():
@@ -118,7 +119,8 @@ def test_upload_limits_and_type_sniffing(env):
         z.writestr("word/document.xml", "<x/>")
     assert hf.sniff_upload("cv.docx", buf.getvalue(), ["docx"], 100_000)["kind"] == "docx"
     assert submit(fid, file=("cv.pdf", b"MZ\x90\x00" + b"x" * 50))["status"] == "invalid_input"
-    r = hi.public_submit(fid, ANSWERS, {**(ch := hi.public_challenge(fid)["challenge"]), "n": hf.solve(ch)})
+    r = hi.public_submit(fid, ANSWERS, {**(ch := hi.public_challenge(fid)["challenge"]), "n": hf.solve(ch)},
+                         consent_version=hi.public_form(fid)["consent_version"])
     assert r["status"] == "invalid_input" and "file is required" in r["reason"]
 
 
@@ -169,7 +171,9 @@ def test_tokens_are_hashed_purpose_bound_and_expire(env, monkeypatch):
         assert forms.issue_candidate_token(application_id="app-nope")["status"] == "not_found"
         assert forms.issue_candidate_token(application_id=app, purpose="admin")["status"] == "invalid_input"
         wtok = forms.issue_candidate_token(application_id=app, purpose="withdraw", days=2)["token"]
-    assert tok not in (agent_dir("SCREENING_FORMS") / "forms.json").read_text() and hf.sha(tok) in (agent_dir("SCREENING_FORMS") / "forms.json").read_text()
+    assert tok not in (agent_dir("SCREENING_FORMS") / "forms.json").read_text()                       # only its hash is kept,
+    assert hf._tokens().get(hf.sha(tok))["purpose"] == "status"                                        # one sealed file per token (KAN-64)
+    assert not any(tok in p.read_text(errors="ignore") for p in agent_dir("SCREENING_FORMS").rglob("*") if p.is_file())
     s = hi.public_status(tok)
     assert s["status"] == "ok" and s["progress"] == "Received" and set(s) == {"status", "progress", "updated"}
     assert hi.public_status(wtok)["status"] == "not_found" and hi.public_withdraw(tok)["status"] == "not_found"     # wrong purpose
@@ -211,7 +215,7 @@ def test_withdrawal_needs_no_login_and_ends_in_a_due_erasure(env):
 
 def test_unaccepted_submissions_expire_and_can_be_discarded(env, monkeypatch):
     ats, forms, rid, fid, c = env
-    sid = submit(fid)["reference"]
+    submit(fid)["reference"]
     keep = submit(fid, {**ANSWERS, "name": "Ravi S", "email": "r@example.com"})["reference"]
     with as_(c["rec"]):
         assert forms.sweep_submissions()["deleted"] == 0
@@ -253,3 +257,53 @@ def test_hourly_cap_counts_accepted_posts_only_and_the_post_is_one_write(env, mo
     assert submit(fid)["status"] == "ok"
     assert submit(fid)["status"] == "rate_limited"
     assert len(list((agent_dir("SCREENING_FORMS") / "uploads").glob("*.bin"))) == 2   # the refused upload was removed
+
+
+def test_unreviewed_submissions_per_form_are_capped_and_a_failed_write_leaves_no_upload(env, monkeypatch):
+    """KAN-64 review: submissions share one size-limited state file; a flood filled it for every organisation."""
+    _, _, _, fid, _ = env
+    monkeypatch.setattr(hi, "MAX_PENDING_PER_FORM", 2)
+    assert submit(fid)["status"] == "ok" and submit(fid)["status"] == "ok"
+    full = submit(fid)
+    assert full["status"] == "rate_limited" and "recruiter reviews" in full["reason"]
+    uploads = lambda: len(list((agent_dir("SCREENING_FORMS") / "uploads").glob("*.bin")))      # noqa: E731
+    assert uploads() == 2
+    monkeypatch.setattr(hi, "MAX_PENDING_PER_FORM", 100)
+
+    def boom(self, d):
+        raise ValueError("state file is full")
+    monkeypatch.setattr(hf._st().__class__, "save", boom)
+    with pytest.raises(ValueError):
+        submit(fid)
+    assert uploads() == 2                                                # the sealed upload of the failed post was removed
+
+
+def test_consent_version_must_be_the_current_notice(env):
+    """KAN-64: consent given to an older notice (or none shown) is refused, nothing is stored."""
+    ats, forms, rid, fid, c = env
+    assert submit(fid, cv="old-notice")["status"] == "consent_outdated"
+    assert submit(fid, cv=None)["status"] == "consent_outdated"
+    assert hf._st().load()["submissions"] == {}
+    assert submit(fid)["status"] == "ok"
+
+
+def test_form_stops_taking_applications_when_its_requisition_closes(env):
+    """KAN-64: a published form stayed public after the requisition was closed."""
+    ats, forms, rid, fid, c = env
+    assert hi.public_form(fid)["status"] == "ok"
+    with as_(c["rec"]):
+        assert ats.close_requisition(requisition_id=rid)["status"] == "ok"
+    assert hi.public_form(fid)["status"] == "not_found" and hi.public_challenge(fid)["status"] == "not_found"
+
+
+def test_a_submission_stuck_in_accepting_is_released_by_the_sweep(env, monkeypatch):
+    ats, forms, rid, fid, c = env
+    ref = submit(fid)["reference"]
+    hf._st().update(lambda d: d["submissions"][ref].update(status="accepting", accepting_at=hc.now()))   # an accept that died mid-way
+    with as_(c["rec"]):
+        forms.sweep_submissions()
+    assert hf._st().load()["submissions"][ref]["status"] == "accepting"                 # fresh: another request may still be working on it
+    advance(monkeypatch, 16 * 60)
+    with as_(c["rec"]):
+        forms.sweep_submissions()
+    assert hf._st().load()["submissions"][ref]["status"] == "pending"

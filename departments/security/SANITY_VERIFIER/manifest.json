@@ -1,0 +1,26 @@
+{
+  "name": "SANITY_VERIFIER",
+  "version": "0.1.0",
+  "description": "SANITY_VERIFIER: last check on an agent's output, and a check of the runtime configuration.",
+  "entrypoint": "main.py:SanityVerifier",
+  "harness": {
+    "schema": 1,
+    "purpose": "SANITY_VERIFIER: last check on an agent's output, and a check of the runtime configuration.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/security/SANITY_VERIFIER.json",
+    "wave": "KAN-40",
+    "status": "deterministic_tool",
+    "tools": {
+      "verify": {
+        "kind": "act"
+      },
+      "verify_config": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "security"
+}

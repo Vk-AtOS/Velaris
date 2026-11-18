@@ -5,5 +5,27 @@
   "description": "Public methods: compute_throughput, detect_spike, balance_load (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:FluxorAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Fluxor: load throughput, spike detection and a one-step load balancer (simple arithmetic).",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/operations/FLUXOR.json",
+    "wave": "KAN-41",
+    "status": "deterministic_tool",
+    "tools": {
+      "balance_load": {
+        "kind": "read"
+      },
+      "compute_throughput": {
+        "kind": "read"
+      },
+      "detect_spike": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

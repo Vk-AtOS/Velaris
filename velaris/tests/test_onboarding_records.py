@@ -1,5 +1,4 @@
 """EMPLOYEE_RECORDS and POLICY_ACKS, and the API allowlist entries for the paperwork agents."""
-import base64
 import inspect
 import json
 import os

@@ -1,19 +1,28 @@
 # ================================================================================
 
+"""Agent registry: discovers agents from their manifest.json files and loads or creates them by name.
+
+At construction it scans each department folder (or the single base_path folder) one level down for
+<AGENT>/manifest.json and indexes it by the manifest "name"; a manifest that is not valid JSON or has no "name" raises.
+list_agents() returns the sorted names. get_agent_class(name) imports velaris.agents.<name>.<module> from the manifest
+"entrypoint" ("main.py:ClassName") and returns the class; an unknown name or a missing or malformed entrypoint raises
+ValueError. create(name, config) instantiates it, passing config only to a constructor whose first parameter is named "config";
+any other constructor is called with its own defaults, and one with required arguments raises ValueError.
+health(name) / health_all() build the agent and call its health_check() or health() (else a module-level one); an
+agent with none gets the generic probe ({"status": "probed": it loads, nothing more is claimed), an agent that cannot be built
+without a key is {"status": "needs_key"}, and any other failure is {"status": "error"} (contract: velaris/agents/health.py).
+State: in-memory index only, rebuilt on every construction; nothing is written to disk.
+"""
 import inspect
 import os
-import pkgutil
 import importlib
 import logging
 from typing import Dict, Any, List, Type
 
 from velaris.agents import department_dirs
+from velaris.agents.health import build_failure, default_health
 
 logger = logging.getLogger("REGISTRY")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - REGISTRY - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 
 class AgentRegistry:
@@ -82,19 +91,35 @@ class AgentRegistry:
         return getattr(module, cls_name)
 
     def create(self, agent_name: str, config: Dict[str, Any] = None):
+        """Build the agent. `config` is passed only to a constructor whose first parameter is named `config`;
+        any other constructor is called with its own defaults (its first parameter is not a config dict: giving
+        it {} silently changed ALK_EVO's thresholds and AAE_POLICY's rules). A constructor with required
+        arguments of its own cannot be built here and raises ValueError."""
         cls = self.get_agent_class(agent_name)
         params = [p for p in inspect.signature(cls).parameters.values()
-                  if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD, p.VAR_POSITIONAL)]
-        return cls(config or {}) if params else cls()      # some agents (GST_ENGINE) take no constructor argument
+                  if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY)]
+        if params and params[0].name == "config":
+            return cls(config or {})
+        if any(p.default is p.empty for p in params):
+            raise ValueError(f"Agent {agent_name} needs constructor arguments the registry cannot supply")
+        return cls()
+
+    def health(self, agent_name: str) -> Dict[str, Any]:
+        """Health of one agent: its instance health_check()/health(), else a module-level health_check()/health(),
+        else the generic probe (never a fabricated "ok"). A build failure is needs_key (missing master key) or error."""
+        try:
+            inst = self.create(agent_name)
+        except Exception as e:
+            state = build_failure(agent_name, e)
+            (logger.info if state["status"] == "needs_key" else logger.warning)("health: cannot build %s: %s", agent_name, e)
+            return state
+        try:
+            return default_health(agent_name, inst, importlib.import_module(type(inst).__module__))
+        except Exception as e:
+            logger.warning("health of %s failed: %s", agent_name, e)
+            return build_failure(agent_name, e)
 
     def health_all(self) -> Dict[str, Any]:
-        out = {}
-        for name in self.list_agents():
-            try:
-                inst = self.create(name)
-                out[name] = inst.health_check()
-            except Exception as e:
-                out[name] = {"agent": name, "status": "error", "error": str(e)}
-        return out
+        return {name: self.health(name) for name in self.list_agents()}
 
 # ================================================================================

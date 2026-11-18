@@ -24,3 +24,13 @@ def test_runway_and_reserve_ratio():
     ratio = t.reserve_ratio(200.0, 100.0)
     assert abs(ratio - 2.0) < 1e-09
     assert t.reserve_ratio(100.0, 0.0) == float('inf')
+
+def test_api_serialiser_turns_infinity_and_nan_into_null():
+    # TREASURIX returns inf for "never runs out"; the API response encoder rejects it (HTTP 500) unless it is cleaned.
+    import json
+    from fastapi.responses import JSONResponse
+    from velaris.api.app import _jsonable
+    t = TreasurixAgent()
+    body = _jsonable({"result": [t.runway_months(0.0), t.reserve_ratio(1.0, 0.0), float("nan"), 2.5]})
+    assert body == {"result": [None, None, None, 2.5]}
+    assert json.loads(JSONResponse(body).body) == body

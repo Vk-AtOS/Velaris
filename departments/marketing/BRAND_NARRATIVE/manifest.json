@@ -5,5 +5,21 @@
   "description": "A short company narrative written from supplied facts only.",
   "owner": "Velaris Core",
   "entrypoint": "main.py:BrandNarrativeAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "BRAND_NARRATIVE: a short company narrative written from supplied facts only.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/marketing/BRAND_NARRATIVE.json",
+    "wave": "KAN-42",
+    "status": "mixed",
+    "tools": {
+      "run": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

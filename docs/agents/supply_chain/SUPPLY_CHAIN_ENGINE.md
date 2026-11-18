@@ -2,7 +2,7 @@
 
 - **Department:** `supply_chain`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/supply_chain/SUPPLY_CHAIN_ENGINE/main.py` (118 lines)
+- **Source:** `departments/supply_chain/SUPPLY_CHAIN_ENGINE/main.py` (121 lines)
 
 ## Purpose
 
@@ -45,4 +45,4 @@ the forecast supplied, not a forecast itself and not an optimiser.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_dept_supply_chain_stubs.py`
+- **tests:** `velaris/tests/test_dept_supply_chain_stubs.py`, `velaris/tests/test_kan85_70_finance_supply.py`

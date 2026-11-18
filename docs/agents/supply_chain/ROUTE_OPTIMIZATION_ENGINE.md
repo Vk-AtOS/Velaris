@@ -2,7 +2,7 @@
 
 - **Department:** `supply_chain`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/supply_chain/ROUTE_OPTIMIZATION_ENGINE/main.py` (114 lines)
+- **Source:** `departments/supply_chain/ROUTE_OPTIMIZATION_ENGINE/main.py` (116 lines)
 
 ## Purpose
 

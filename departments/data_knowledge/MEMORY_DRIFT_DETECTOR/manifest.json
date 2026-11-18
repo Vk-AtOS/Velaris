@@ -1,0 +1,32 @@
+{
+  "name": "MEMORY_DRIFT_DETECTOR",
+  "version": "0.1.0",
+  "description": "Memory drift detector: measures how far new data has moved from a stored baseline, per label.",
+  "entrypoint": "main.py:MemoryDriftDetector",
+  "harness": {
+    "schema": 1,
+    "purpose": "Memory drift detector: measures how far new data has moved from a stored baseline, per label.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/data_knowledge/MEMORY_DRIFT_DETECTOR.json",
+    "wave": "KAN-42",
+    "status": "deterministic_tool",
+    "tools": {
+      "detect": {
+        "kind": "read"
+      },
+      "drift_score": {
+        "kind": "read"
+      },
+      "get_baseline": {
+        "kind": "read"
+      },
+      "set_baseline": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "data_knowledge"
+}

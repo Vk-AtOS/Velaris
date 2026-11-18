@@ -1,5 +1,18 @@
 # ================================================================================
 
+"""Secrets vault: stores named secrets as encrypted files.
+
+set_secret(name, secret) seals the secret with AES-256-GCM under the master key that is kept outside VELARIS_DATA
+(velaris.core.vault; VELARIS_VAULT_KEY or VELARIS_VAULT_KEY_FILE), bound to the secret's name; without the key it raises
+VaultKeyError and stores nothing. get_secret(name) returns the text, None if the secret is absent, and raises a
+ValueError (VaultError) if the file was altered or belongs to another name. list_secrets() returns names;
+delete_secret(name) returns False if nothing was removed. A name must be 1-128 characters of letters, digits, "_", "-"
+or "."; anything else raises ValueError. Files written before encryption (base64 plus an HMAC signature) are refused
+unless VELARIS_VAULT_ALLOW_LEGACY=1 and no migration has finished; migrate_legacy() verifies and re-seals them once and
+from then on unsealed files are refused for good. There is no caller check here.
+State: <VELARIS_DATA>/agents/SECRETS_VAULT/data/<name>.sec, owner-only. vault.key and .sig files exist only for legacy
+secrets, and the file legacy.migrated marks a finished migration.
+"""
 import os
 import base64
 import hmac
@@ -7,7 +20,12 @@ import hashlib
 import re
 from typing import Optional, List
 
+from velaris.core import vault
 from velaris.intel.paths import agent_dir, load_or_create_key, private_dir, read_private, write_private
+
+PURPOSE = "secrets_vault"      # AES-256-GCM under the master key kept OUTSIDE VELARIS_DATA (velaris.core.vault)
+ALLOW_LEGACY = "VELARIS_VAULT_ALLOW_LEGACY"   # =1 only while migrating files written before encryption (see migrate_legacy)
+MIGRATED_MARK = "legacy.migrated"             # once present, legacy blobs are refused even with the flag on
 
 class SecretsVault:
     def __init__(self):
@@ -16,8 +34,20 @@ class SecretsVault:
         self.KEY_PATH = os.path.join(self.AGENT_DIR, "vault.key")
         self.DATA_DIR = os.path.join(self.AGENT_DIR, "data")
         private_dir(self.DATA_DIR)
-        # Key, secrets and signatures are owner-only from the moment they exist.
-        self.key = load_or_create_key(self.KEY_PATH, 64)
+        self._key = None
+
+    @property
+    def key(self) -> bytes:
+        """The OLD HMAC key. Only the one-time legacy migration uses it (never created otherwise); delete vault.key
+        from the agent folder after migrate_legacy() has run."""
+        if self._key is None:
+            self._key = load_or_create_key(self.KEY_PATH, 64)
+        return self._key
+
+    def _legacy_allowed(self) -> bool:
+        # An unsealed blob is accepted only during an explicitly enabled, not yet completed migration; otherwise an
+        # attacker able to write the data folder could plant a forged base64+HMAC file and bypass encryption.
+        return os.environ.get(ALLOW_LEGACY) == "1" and not os.path.exists(os.path.join(self.AGENT_DIR, MIGRATED_MARK))
 
     @staticmethod
     def _checked(name: str) -> str:
@@ -37,23 +67,52 @@ class SecretsVault:
         return base64.b64encode(mac).decode()
 
     def set_secret(self, name: str, secret: str) -> None:
-        data = secret.encode()
-        b64 = base64.b64encode(data)
-        write_private(self._data_path(name), b64)
-        write_private(self._sig_path(name), self._compute_hmac(b64))
+        """Encrypt and store. Without the master key (VELARIS_VAULT_KEY[_FILE]) this raises VaultKeyError: fail closed."""
+        # Name is validated by _data_path, which runs before anything is written; seal fails closed without a key.
+        blob = vault.seal_bytes(secret.encode(), f"{PURPOSE}:{self._checked(name)}")
+        write_private(self._data_path(name), blob)
+        sp = self._sig_path(name)
+        if os.path.exists(sp):
+            os.remove(sp)                    # a replaced legacy secret leaves no stale signature behind
 
     def get_secret(self, name: str) -> Optional[str]:
         data_path = self._data_path(name)
-        sig_path = self._sig_path(name)
-        if not os.path.exists(data_path) or not os.path.exists(sig_path):
+        if not os.path.exists(data_path):
             return None
-        b64 = read_private(data_path)
+        blob = read_private(data_path)
+        if vault.is_sealed(blob):
+            return vault.open_bytes(blob, f"{PURPOSE}:{name}").decode()    # VaultError (a ValueError) on tamper
+        if not self._legacy_allowed():
+            raise ValueError("secret is not sealed; legacy secrets are refused (run migrate_legacy with VELARIS_VAULT_ALLOW_LEGACY=1)")
+        return self._read_legacy(name, blob)
+
+    def _read_legacy(self, name: str, blob: bytes) -> Optional[str]:
+        """Verify an old base64+HMAC file, then re-seal it so it is never stored unencrypted again."""
+        sig_path = self._sig_path(name)
+        if not os.path.exists(sig_path):
+            return None
         sig = read_private(sig_path).decode().strip()
-        expected = self._compute_hmac(b64)
-        if not hmac.compare_digest(expected, sig):
+        if not hmac.compare_digest(self._compute_hmac(blob), sig):
             raise ValueError("Integrity check failed")
-        raw = base64.b64decode(b64)
-        return raw.decode()
+        value = base64.b64decode(blob).decode()
+        self.set_secret(name, value)
+        return value
+
+    def migrate_legacy(self) -> int:
+        """One-time: seal every old base64+HMAC secret (needs VELARIS_VAULT_ALLOW_LEGACY=1), then refuse unsealed
+        blobs for good (writes the legacy.migrated marker). Returns how many were migrated; a forged or damaged
+        legacy file aborts with ValueError before the marker is written."""
+        if not self._legacy_allowed():
+            raise ValueError(f"set {ALLOW_LEGACY}=1 (and no earlier migration) to migrate legacy secrets")
+        count = 0
+        for name in self.list_secrets():
+            blob = read_private(self._data_path(name))
+            if not vault.is_sealed(blob):
+                if self._read_legacy(name, blob) is None:
+                    raise ValueError(f"legacy secret {name!r} has no signature; not migrated")
+                count += 1
+        write_private(os.path.join(self.AGENT_DIR, MIGRATED_MARK), str(count))
+        return count
 
     def list_secrets(self) -> List[str]:
         files = os.listdir(self.DATA_DIR)

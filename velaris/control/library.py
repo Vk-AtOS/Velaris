@@ -16,7 +16,7 @@ from typing import Any, Dict, List
 from urllib.parse import urlsplit
 
 from velaris.control.checkpoint import Journal
-from velaris.control.core import Action, Element, Surface, sha
+from velaris.control.core import Surface, sha
 from velaris.control.policy import ActionSpec
 from velaris.control.tasks import Check, Task, register
 
@@ -166,15 +166,18 @@ register(Task(
 
 # ── browser.fill_form ────────────────────────────────────────────────────────
 def _form_validate(p: Dict[str, Any]) -> Dict[str, Any]:
-    _only(p, {"url": 0, "fields": 0, "submit": 0})
+    _only(p, {"url": 0, "fields": 0, "submit": 0, "readback_url": 0})
     url, fields = p.get("url"), p.get("fields")
     u = urlsplit(url) if isinstance(url, str) else None
     if not (u and u.scheme in ("http", "https") and u.hostname):
         raise ValueError("url must be an http(s) address")
+    back = p.get("readback_url", "")
+    if back and not (isinstance(back, str) and len(back) <= 2000 and urlsplit(back).hostname == u.hostname and urlsplit(back).scheme in ("http", "https")):
+        raise ValueError("readback_url must be an address on the same host as url (a JSON list of the stored records)")
     if not (isinstance(fields, dict) and 0 < len(fields) <= 30 and all(
             isinstance(k, str) and 0 < len(k) <= 80 and isinstance(v, str) and len(v) <= 1000 for k, v in fields.items())):
         raise ValueError("fields must map up to 30 field names to text values")
-    return {"url": url, "fields": fields, "submit": bool(p.get("submit", False))}
+    return {"url": url, "fields": fields, "submit": bool(p.get("submit", False)), **({"readback_url": back} if back else {})}
 
 
 def _form_verify(p: Dict[str, Any], exp: Any, s: Surface, j: Journal) -> List[Check]:

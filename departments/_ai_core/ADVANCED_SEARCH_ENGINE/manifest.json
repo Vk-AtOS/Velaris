@@ -1,0 +1,33 @@
+{
+  "name": "ADVANCED_SEARCH_ENGINE",
+  "display_name": "Advanced Search Engine",
+  "version": "0.1.0",
+  "description": "Public methods: register_dataset, add_record, search, datasets_list, web_search, read_page",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:AdvancedSearchEngine",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Advanced search engine: keyword search over in-memory datasets, plus live web search and page reading.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/ADVANCED_SEARCH_ENGINE.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "read_page": {
+        "kind": "read"
+      },
+      "web_search": {
+        "kind": "read"
+      }
+    },
+    "excluded": {
+      "add_record": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "datasets_list": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "register_dataset": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "search": "not in the HTTP allowlist (velaris/api/allowlist.py)"
+    },
+    "reviewed": true
+  }
+}

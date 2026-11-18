@@ -1,0 +1,32 @@
+{
+  "name": "ENERGY_MANAGER",
+  "version": "0.1.0",
+  "description": "ENERGY_MANAGER: decide how hard to work given the machine's power source.",
+  "entrypoint": "main.py:ENERGY_MANAGERAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "ENERGY_MANAGER: decide how hard to work given the machine's power source.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/it_infrastructure/ENERGY_MANAGER.json",
+    "wave": "KAN-39",
+    "status": "deterministic_tool",
+    "tools": {
+      "advise": {
+        "kind": "read"
+      },
+      "estimate_energy": {
+        "kind": "read"
+      },
+      "set_low_battery": {
+        "kind": "act"
+      },
+      "should_run": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "it_infrastructure"
+}

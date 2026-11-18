@@ -1,5 +1,17 @@
 # ================================================================================
 
+"""Threat detection mesh: rule-based event scorer that counts matches against registered signatures; not machine learning.
+
+ThreatDetectionMesh: add_signature(name, pattern) registers a {key: value} pattern (False
+if the name exists); record_event(event) stores an event; score_event(event) adds 10 per field of
+every signature whose fields ALL equal the event's values (a partial match adds nothing); detect(event) returns {event,
+score, level} with level HIGH (score >= 20), MEDIUM (>= 10) or LOW; summary() rates all
+recorded events.
+State: in memory only (self.signatures, self.events), lost on restart; events grow without
+bound.
+Failure: no match gives score 0 / LOW; non-dict events raise TypeError or AttributeError.
+"""
+
 from typing import Dict, Any, List
 
 
@@ -29,15 +41,15 @@ class ThreatDetectionMesh:
 
     def score_event(self, event: Dict[str, Any]) -> int:
         """
-        Score event severity by matching keys/values against signatures.
+        Score event severity: 10 per field of every signature that matches in full.
         Higher score = more suspicious.
         """
         score = 0
         for sig in self.signatures:
             pat = sig["pattern"]
-            for k, v in pat.items():
-                if k in event and event[k] == v:
-                    score += 10
+            # A signature counts only when EVERY field of it matches; a partial match is not evidence.
+            if isinstance(pat, dict) and pat and all(k in event and event[k] == v for k, v in pat.items()):
+                score += 10 * len(pat)
         return score
 
     def detect(self, event: Dict[str, Any]) -> Dict[str, Any]:

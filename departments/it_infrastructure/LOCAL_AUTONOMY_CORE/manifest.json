@@ -1,0 +1,26 @@
+{
+  "name": "LOCAL_AUTONOMY_CORE",
+  "version": "0.1.0",
+  "description": "LOCAL_AUTONOMY_CORE: can this node keep working with no outside help?",
+  "entrypoint": "main.py:LocalAutonomyCore",
+  "harness": {
+    "schema": 1,
+    "purpose": "LOCAL_AUTONOMY_CORE: can this node keep working with no outside help?",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/it_infrastructure/LOCAL_AUTONOMY_CORE.json",
+    "wave": "KAN-39",
+    "status": "deterministic_tool",
+    "tools": {
+      "ping": {
+        "kind": "act"
+      },
+      "readiness": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "it_infrastructure"
+}

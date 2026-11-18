@@ -67,12 +67,11 @@ def test_size_cap_keeps_old_file(tmp_path):
     assert s.load() == {"a": 1}
 
 
-def test_encrypted_state_and_plaintext_migration(tmp_path):
+def test_encrypted_state_and_plaintext_migration(tmp_path, plaintext_migration):
     p = tmp_path / "e.json"
     p.write_text(json.dumps({"name": "Asha"}))                 # legacy plaintext
     s = JsonState("XP", "e.json", path=p, encrypted="test")
     assert s.load() == {"name": "Asha"}
-    s.save({"name": "Asha"})
     assert b"Asha" not in p.read_bytes() and s.load() == {"name": "Asha"}
     assert stat.S_IMODE(p.stat().st_mode) == 0o600
 

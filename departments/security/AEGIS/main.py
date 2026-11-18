@@ -1,11 +1,16 @@
+"""Aegis: per-source sliding-window rate limiting and a running threat score.
+AegisAgent.record_event(source) timestamps an event and drops those older than the window (config
+"window_seconds", default 10). is_rate_limited(source) is True when more than config "rate_limit"
+(default 5) events fall in the window. adjust_threat(source, delta) adds to a source's score and
+returns it; get_threat(source) returns the score (0 if unknown). Counting and addition only; no
+blocking is enforced by this agent.
+State: in-memory dicts only, nothing persisted, so limits reset on restart and are per instance.
+Failure: no validation; a non-numeric delta raises TypeError.
+"""
 import logging
 import time
 
 logger = logging.getLogger("AEGIS")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - AEGIS - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class AegisAgent:
     def __init__(self, config=None):
@@ -22,9 +27,11 @@ class AegisAgent:
 
     def record_event(self, source):
         now = time.time()
-        self.events.setdefault(source, [])
-        self.events[source] = [t for t in self.events[source] if now - t <= self.window_seconds]
-        self.events[source].append(now)
+        # Prune every source, not just this one: a source that never reports again must not stay in memory.
+        self.events = {k: v for k, v in ((k, [t for t in ts if now - t <= self.window_seconds])
+                                         for k, ts in self.events.items()) if v}
+        # Keeping rate_limit + 1 stamps is enough to know "over the limit" and bounds a flooding source.
+        self.events[source] = (self.events.get(source, []) + [now])[-(self.rate_limit + 1):]
         logger.debug("Record event: source=%s count=%s", source, len(self.events[source]))
 
     def is_rate_limited(self, source):

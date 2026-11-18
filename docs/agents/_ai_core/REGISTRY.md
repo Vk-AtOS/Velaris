@@ -2,11 +2,22 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `real`
-- **Source:** `departments/_ai_core/REGISTRY/main.py` (95 lines)
+- **Source:** `departments/_ai_core/REGISTRY/main.py` (125 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Agent registry: discovers agents from their manifest.json files and loads or creates them by name.
+
+At construction it scans each department folder (or the single base_path folder) one level down for
+<AGENT>/manifest.json and indexes it by the manifest "name"; a manifest that is not valid JSON or has no "name" raises.
+list_agents() returns the sorted names. get_agent_class(name) imports velaris.agents.<name>.<module> from the manifest
+"entrypoint" ("main.py:ClassName") and returns the class; an unknown name or a missing or malformed entrypoint raises
+ValueError. create(name, config) instantiates it, passing config only to a constructor whose first parameter is named "config";
+any other constructor is called with its own defaults, and one with required arguments raises ValueError.
+health(name) / health_all() build the agent and call its health_check() or health() (else a module-level one); an
+agent with none gets the generic probe ({"status": "probed": it loads, nothing more is claimed), an agent that cannot be built
+without a key is {"status": "needs_key"}, and any other failure is {"status": "error"} (contract: velaris/agents/health.py).
+State: in-memory index only, rebuilt on every construction; nothing is written to disk.
 
 ## Class `AgentRegistry`
 
@@ -18,12 +29,14 @@ Provides dynamic agent class loading.
 - `health_check()`
 - `list_agents()`
 - `get_agent_class(agent_name)`
-- `create(agent_name, config)`
+- `create(agent_name, config)` — Build the agent. `config` is passed only to a constructor whose first parameter is named `config`;
+- `health(agent_name)` — Health of one agent: its instance health_check()/health(), else a module-level health_check()/health(),
 - `health_all()`
 
 ## Depends on
 
 - `velaris.agents`
+- `velaris.agents.health`
 
 ## State and configuration
 
@@ -32,5 +45,5 @@ Provides dynamic agent class loading.
 ## Called by
 
 - **other agents:** `CONVERGENCE_BRIDGE`, `ENGINE`, `PRIME`
-- **platform modules:** none found
-- **tests:** `velaris/tests/test_registry.py`, `velaris/tests/test_system_integration.py`
+- **platform modules:** `velaris/backend/engine.py`
+- **tests:** `velaris/tests/test_alias_layers.py`, `velaris/tests/test_kan87_aicore_guards.py`, `velaris/tests/test_kan95_core.py`, `velaris/tests/test_manifests_health.py`, `velaris/tests/test_registry.py`, `velaris/tests/test_system_integration.py`

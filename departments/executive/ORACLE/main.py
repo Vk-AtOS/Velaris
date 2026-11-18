@@ -1,19 +1,21 @@
+"""Oracle: Monte Carlo success-probability forecast from additive factors.
+OracleAgent.forecast(factors, trials=1000) starts from a 0.5 baseline, adds the sum of the factor
+values, clamps to 0..1, runs that many random trials and returns {"effective", "wins", "trials",
+"probability"}. multi_scenario(scenarios, trials=500) returns {name: probability} per scenario.
+A "seed" in config seeds this agent's own generator (the global random module is not touched). This is a toy model, not a calibrated forecast.
+State: keeps none. Failure: trials is clamped to 0..1,000,000 and 0 gives probability 0; non-numeric factor values raise
+TypeError; nothing is caught.
+"""
 import logging
 import random
-from typing import Dict, List, Any
+from typing import Dict, Any
 
 logger = logging.getLogger("ORACLE")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - ORACLE - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class OracleAgent:
     def __init__(self, config: Dict[str, Any] = None):
         self.config = config or {}
-        seed = self.config.get("seed")
-        if seed is not None:
-            random.seed(seed)
+        self._rng = random.Random(self.config.get("seed"))      # own generator: never reseed the process-wide one
         self.version = self.config.get("version", "0.1.0")
 
     def health_check(self):
@@ -32,8 +34,9 @@ class OracleAgent:
         influence = sum(v for v in factors.values())
         effective = max(0.0, min(1.0, base + influence))
         wins = 0
+        trials = min(max(int(trials), 0), 1_000_000)           # bounded work per call
         for _ in range(trials):
-            if random.random() < effective:
+            if self._rng.random() < effective:
                 wins += 1
         rate = wins / trials if trials > 0 else 0
         result = {"effective": effective, "wins": wins, "trials": trials, "probability": rate}

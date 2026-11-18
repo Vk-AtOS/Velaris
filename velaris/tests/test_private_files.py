@@ -94,7 +94,7 @@ def test_every_agent_secret_on_disk_is_owner_only(data):
 
     files = [p for p in data.rglob("*") if p.is_file()]
     names = {p.name for p in files}
-    assert {"vault.key", "api.sec", "api.sig", "chain.key", "chain.log", "sat.key", "vmrk.key",
+    assert {"api.sec", "chain.key", "chain.log", "sat.key", "vmrk.key",
             "sessions.db", "identity.db", "trace.jsonl"} <= names
     assert {p.name: oct(mode(p)) for p in files if mode(p) != 0o600} == {}
     assert {str(p): oct(mode(p)) for p in data.rglob("*") if p.is_dir() and mode(p) != 0o700} == {}

@@ -1,8 +1,8 @@
 # NEURAL_ALIGNMENT_ENGINE
 
 - **Department:** `_ai_core`
-- **Status (static inventory):** `rule_based`
-- **Source:** `departments/_ai_core/NEURAL_ALIGNMENT_ENGINE/main.py` (80 lines)
+- **Status (static inventory):** `real`
+- **Source:** `departments/_ai_core/NEURAL_ALIGNMENT_ENGINE/main.py` (84 lines)
 
 ## Purpose
 
@@ -31,6 +31,7 @@ Objectives are stored under this agent's state directory.
 - `velaris.agentkit.checks`
 - `velaris.agentkit.results`
 - `velaris.agentkit.state`
+- `velaris.core.access`
 
 ## State and configuration
 
@@ -40,4 +41,4 @@ Objectives are stored under this agent's state directory.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_b_neuralgov.py`, `velaris/tests/test_layer5_neuralgov.py`
+- **tests:** `velaris/tests/test_aicore_b_neuralgov.py`, `velaris/tests/test_kan104_unauthenticated_writes.py`, `velaris/tests/test_layer5_neuralgov.py`

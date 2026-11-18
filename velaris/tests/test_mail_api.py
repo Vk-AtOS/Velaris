@@ -41,7 +41,7 @@ def env(tmp_path, monkeypatch):
     e.out.local_delivery = e.inb.deliver_local
     e.llm = FakeLLM(lambda p, m: "A short summary.")
     e.imap = FakeImap({"INBOX": {"validity": 1, "msgs": {1: (raw_mail(mid="remote1@x", subject="from the server"), False)}}})
-    mail_api.configure(MailDeps(e.store, e.out, e.inb, lambda cfg: e.imap, lambda n: PASSWORD if n == "mail.alice" else None, e.llm))
+    mail_api.configure(MailDeps(e.store, e.out, e.inb, lambda cfg: e.imap, lambda n: PASSWORD if n.endswith(".alice") else None, e.llm))
     settings = Settings(secret=SECRET, identity_key=KEY.public_key(), flow_db=str(tmp_path / "flow.db"), org="acme", llm=e.llm)
     e.client = TestClient(create_app(settings, engine=object()))
     yield e
@@ -109,7 +109,7 @@ def test_errors_are_structured_and_never_carry_exception_text_or_input(env):
         assert set(r.json()["error"]) == {"code", "message"} and "Traceback" not in r.text and "sqlite" not in r.text.lower()
     assert call(env, "POST", f"/mail/mailboxes/{mb}/drafts", raw=b"not json").json()["error"]["code"] == "invalid_json"
     assert call(env, "POST", f"/mail/mailboxes/{mb}/drafts", raw=b"[1,2]").json()["error"]["code"] == "bad_request"
-    big = call(env, "POST", f"/mail/mailboxes/{mb}/drafts", raw=b'{"text":"' + b"x" * 70_000 + b'"}')
+    big = call(env, "POST", f"/mail/mailboxes/{mb}/folders", raw=b'{"name":"' + b"x" * 70_000 + b'"}')
     assert big.status_code == 413 and big.json()["error"]["code"] == "too_large"
 
 
@@ -227,7 +227,7 @@ def test_rules_settings_aliases_delegates_quota_hold_over_http(env):
 def test_connector_endpoints_and_sync(env):
     ids = setup_world(env)
     mb = ids["alice"]
-    cfg = {"imap_host": "imap.example.com", "username": "alice@example.com", "secret_name": "mail.alice"}
+    cfg = {"imap_host": "imap.example.com", "username": "alice@example.com", "secret_name": f"mail.acme.{mb}.alice"}
     assert call(env, "POST", f"/mail/mailboxes/{mb}/sync").json()["error"]["code"] == "no_account"
     assert call(env, "POST", f"/mail/mailboxes/{mb}/accounts", cfg, who=ALICE).status_code == 403
     assert call(env, "POST", f"/mail/mailboxes/{mb}/accounts", {**cfg, "imap_host": "127.0.0.1"}, who=ADMIN).json()["error"]["code"] == "bad_host"
@@ -271,3 +271,17 @@ def test_export_and_erase_over_http_and_every_call_is_traced_without_content(env
     api = [e["payload"] for e in entries if e["actor"] == "api" and e["action"].startswith("mail.")]
     assert api and all(p["caller"] and p["org"] == "acme" for p in api) and {"mail.export", "mail.erase"} <= {e["action"] for e in entries if e["actor"] == "api"}
     assert trace.verify()["ok"]
+
+
+def test_a_draft_may_carry_attachments_beyond_64_kib_but_other_bodies_stay_small(env):
+    """KAN-108: the app-wide 64 KiB body cap limited attachments to about 45 KB."""
+    ids = setup_world(env)
+    mb = ids["alice"]
+    data = base64.b64encode(b"x" * 300_000).decode()
+    r = call(env, "POST", f"/mail/mailboxes/{mb}/drafts", {"to": ["bob@acme.com"], "subject": "big", "text": "see attached",
+                                                          "attachments": [{"name": "a.bin", "data_b64": data}]})
+    assert r.status_code == 201, r.text
+    over = call(env, "POST", f"/mail/mailboxes/{mb}/folders", {"name": "x" * 70_000})
+    assert over.status_code == 413 and over.json()["error"]["code"] == "too_large"
+    huge = call(env, "POST", f"/mail/mailboxes/{mb}/drafts", raw=b'{"text": "' + b"x" * (17 * 1024 * 1024) + b'"}')
+    assert huge.status_code == 413

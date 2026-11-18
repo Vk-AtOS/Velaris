@@ -1,8 +1,8 @@
 # EPISODIC_MEMORY
 
 - **Department:** `data_knowledge`
-- **Status (static inventory):** `rule_based`
-- **Source:** `departments/data_knowledge/EPISODIC_MEMORY/main.py` (77 lines)
+- **Status (static inventory):** `real`
+- **Source:** `departments/data_knowledge/EPISODIC_MEMORY/main.py` (98 lines)
 
 ## Purpose
 
@@ -15,7 +15,9 @@ with an id and a time and masks secrets and personal identifiers in its text
 happened between these times / by this actor / with this tag".
 
 consolidate() hands the summaries of episodes not yet consolidated to long-term
-memory (velaris.intel.memory), which turns them into durable facts. Episodes
+memory (velaris.intel.memory), which turns them into durable facts. The episode file is locked only to claim the
+episodes (for CLAIM_SECONDS, so a second consolidate skips them) and again to mark them done, never while the model
+runs, so record() is not blocked by a slow consolidation; a failed consolidation releases its claim. Episodes
 themselves are never edited or deleted; only the oldest fall off after MAX_EPISODES.
 
 ## Class `EPISODIC_MEMORYAgent`
@@ -42,4 +44,4 @@ themselves are never edited or deleted; only the oldest fall off after MAX_EPISO
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_dept_data_knowledge_stubs.py`, `velaris/tests/test_memory_substrate.py`
+- **tests:** `velaris/tests/test_agent_harness.py`, `velaris/tests/test_dept_data_knowledge_stubs.py`, `velaris/tests/test_memory_substrate.py`, `velaris/tests/test_r3_memory_dna.py`

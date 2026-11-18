@@ -1,0 +1,73 @@
+{
+  "schema": 1,
+  "agent": "MCD",
+  "cases": [
+    {
+      "id": "select-get_route_target",
+      "input": "Use the get_route_target operation of MCD with {\"path\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "get_route_target",
+            "args": {
+              "path": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-render",
+      "input": "Use the render operation of MCD with {\"content\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "render",
+            "args": {
+              "content": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-route_exists",
+      "input": "Use the route_exists operation of MCD with {\"path\": \"sample\"}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "route_exists",
+            "args": {
+              "path": "sample"
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

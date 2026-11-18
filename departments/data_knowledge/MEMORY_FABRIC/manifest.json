@@ -3,5 +3,24 @@
   "version": "0.1.0",
   "author": "Velaris",
   "description": "Minimal MemoryFabric compatibility shim (repair).",
-  "entrypoint": "main.py:MEMORY_FABRICAgent"
+  "entrypoint": "main.py:MEMORY_FABRICAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "Memory fabric: in-process key-value memory shared between agents, with no persistence.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/data_knowledge/MEMORY_FABRIC.json",
+    "wave": "KAN-42",
+    "status": "deterministic_tool",
+    "tools": {
+      "read_bucket": {
+        "kind": "read"
+      },
+      "write_bucket": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

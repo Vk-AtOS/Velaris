@@ -1,8 +1,8 @@
 # SELF_DIRECTED_TASKER
 
 - **Department:** `_ai_core`
-- **Status (static inventory):** `rule_based`
-- **Source:** `departments/_ai_core/SELF_DIRECTED_TASKER/main.py` (94 lines)
+- **Status (static inventory):** `real`
+- **Source:** `departments/_ai_core/SELF_DIRECTED_TASKER/main.py` (111 lines)
 
 ## Purpose
 
@@ -40,4 +40,4 @@ tracks state; it does not execute the tasks itself.
 
 - **other agents:** `AIIE_KERNEL`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_AI_IE_layer.py`, `velaris/tests/test_aicore_b_aiie.py`
+- **tests:** `velaris/tests/test_AI_IE_layer.py`, `velaris/tests/test_aicore_b_aiie.py`, `velaris/tests/test_kan106_aicore.py`

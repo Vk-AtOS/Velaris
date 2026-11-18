@@ -12,5 +12,31 @@
     "delivery",
     "velocity",
     "agile"
-  ]
+  ],
+  "harness": {
+    "schema": 1,
+    "purpose": "Sprint planner: creates sprints, holds their tasks and story points, and reports velocity.",
+    "sensitivity": "internal",
+    "task_class": "planner",
+    "eval": "evals/project_management/SPRINT_PLANNER.json",
+    "wave": "KAN-31",
+    "status": "deterministic_tool",
+    "tools": {
+      "add_task": {
+        "kind": "act"
+      },
+      "create_sprint": {
+        "kind": "act"
+      },
+      "update_task_status": {
+        "kind": "act"
+      }
+    },
+    "excluded": {
+      "close_sprint": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "get_sprint_board": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "project_velocity_trend": "not in the HTTP allowlist (velaris/api/allowlist.py)"
+    },
+    "reviewed": true
+  }
 }

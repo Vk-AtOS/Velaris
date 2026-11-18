@@ -1,0 +1,25 @@
+{
+  "name": "DECISION_GRAPH_ENGINE",
+  "display_name": "Decision Graph Engine",
+  "version": "0.1.0",
+  "description": "Decision graph engine: turns a plan into a dependency graph and checks it can be followed.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:DecisionGraphEngine",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Decision graph engine: turns a plan into a dependency graph and checks it can be followed.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/DECISION_GRAPH_ENGINE.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "graph": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

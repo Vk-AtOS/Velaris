@@ -50,8 +50,12 @@ class FakeImap:
         self.log.append(("logout",))
 
 
+def pref(mailbox):
+    return f"mail.acme.{mailbox['id']}."          # mail.<org>.<mailbox>.
+
+
 def account(store, caller=ADMIN, mailbox=None, cfg=None):
-    return connector.create_account(store, caller, mailbox["id"], cfg or GOOD)
+    return connector.create_account(store, caller, mailbox["id"], cfg or {**GOOD, "secret_name": pref(mailbox) + "alice"})
 
 
 def row(store, aid):
@@ -59,7 +63,7 @@ def row(store, aid):
 
 
 def secrets(name):
-    return PASSWORD if name == "mail.alice" else None
+    return PASSWORD if name.endswith(".alice") else None
 
 
 def test_account_validation_is_tls_only_and_refuses_local_targets_and_loose_secrets():
@@ -80,7 +84,7 @@ def test_only_a_mail_admin_connects_accounts_so_a_vault_secret_cannot_be_pointed
         connector.create_account(store, ALICE, mb["id"], GOOD)                      # the owner is not enough
     assert e.value.status == 403
     a = account(store, mailbox=mb)
-    assert a["secret_name"] == "mail.alice" and "password" not in str(a)
+    assert a["secret_name"].endswith(".alice") and "password" not in str(a)
     assert connector.list_accounts(store, ALICE, mb["id"])[0]["id"] == a["id"]
     with pytest.raises(MailError):
         connector.list_accounts(store, BOB, mb["id"])
@@ -288,3 +292,86 @@ def test_the_real_vault_is_the_default_secret_source(tmp_path):
     assert connector.vault_secret("mail.vaulted") == "from-the-vault" and connector.vault_secret("mail.absent") is None
     with pytest.raises(ConnectorError):
         connector.vault_secret("../escape")
+
+
+def test_imap_host_resolving_to_an_internal_address_is_refused_before_any_connection(monkeypatch):
+    """KAN-69 SV2-03: a public-looking name that resolves inside the network must not get the account password."""
+    def no_socket(*a, **k):
+        raise AssertionError("connected")
+    monkeypatch.setattr(connector.socket, "create_connection", no_socket)
+    with pytest.raises(ConnectorError) as e:
+        ImapLibTransport("imap.example.com", resolver=lambda h: ["10.0.0.5"])
+    assert e.value.code == "blocked_address"
+
+
+def test_imap_connects_to_the_checked_address_not_to_a_second_lookup(monkeypatch):
+    seen = {}
+
+    def fake_connect(addr, timeout=None):
+        seen["addr"] = addr
+        raise OSError("stop here")
+    monkeypatch.setattr(connector.socket, "create_connection", fake_connect)
+    with pytest.raises(ConnectorError) as e:
+        ImapLibTransport("imap.example.com", 993, resolver=lambda h: ["93.184.216.34"])
+    assert e.value.code == "connect_failed" and seen["addr"] == ("93.184.216.34", 993)
+
+
+def test_a_vault_secret_cannot_be_bound_to_a_second_mailbox():
+    store, _, _, _, _, boxes = make_world()
+    account(store, mailbox=boxes["alice"])
+    foreign = {**GOOD, "secret_name": pref(boxes["alice"]) + "alice"}
+    with pytest.raises(MailError) as e:
+        account(store, mailbox=boxes["bob"], cfg=foreign)          # alice's secret name on bob's mailbox
+    assert e.value.code == "bad_secret"
+
+
+
+def test_foreign_or_unknown_secret_names_get_the_same_generic_answer():
+    """A name from another organisation and a name nobody uses are refused identically (no oracle on other orgs' secrets)."""
+    store, _, _, _, _, boxes = make_world()
+    mb = boxes["alice"]
+    errs = []
+    for name in ("mail.evilcorp.somebox.pw", "mail.nobody.nothing.pw", "mail.alice", pref(mb)):
+        with pytest.raises(MailError) as e:
+            account(store, mailbox=mb, cfg={**GOOD, "secret_name": name})
+        errs.append((e.value.code, e.value.status))
+    assert len(set(errs)) == 1 and errs[0][0] == "bad_secret"
+
+
+def test_two_concurrent_connects_of_one_secret_have_exactly_one_winner():
+    import threading
+    store, _, _, _, _, boxes = make_world()
+    mb = boxes["alice"]
+    cfg = {**GOOD, "secret_name": pref(mb) + "shared"}
+    results, gate = [], threading.Barrier(2)
+
+    def go():
+        gate.wait()
+        try:
+            account(store, mailbox=mb, cfg=cfg)
+            results.append("ok")
+        except MailError as e:
+            results.append(e.code)
+    ts = [threading.Thread(target=go) for _ in range(2)]
+    [t.start() for t in ts]
+    [t.join() for t in ts]
+    assert sorted(results) == ["ok", "secret_in_use"]
+
+
+def test_accounts_of_an_older_release_are_bound_in_the_window_and_unbound_outside_it(monkeypatch):
+    from velaris.mail import db as maildb
+    store, _, _, _, _, boxes = make_world()
+    mb = boxes["alice"]
+    old = {**GOOD, "secret_name": "mail.alice"}
+    store.run("INSERT INTO account(id, mailbox_id, org, config, created_by, created) VALUES ('legacy', ?, ?, ?, 'x', 1)",
+              (mb["id"], "acme", maildb.dumps(old)))                   # as an older release wrote it: no secret_name column value
+    store._bind_secrets()
+    assert store.one("SELECT secret_name FROM account WHERE id='legacy'")["secret_name"] is None
+    with pytest.raises(ConnectorError) as e:
+        sync_account(store, row(store, "legacy"), lambda cfg: FakeImap({}), secrets)
+    assert e.value.code == "secret_not_bound"
+    monkeypatch.setenv("VELARIS_VAULT_ALLOW_PLAINTEXT", "1")
+    from velaris.core import vault
+    vault.start_plaintext_migration()
+    store._bind_secrets()
+    assert store.one("SELECT secret_name FROM account WHERE id='legacy'")["secret_name"] == "mail.alice"

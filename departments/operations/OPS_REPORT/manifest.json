@@ -4,5 +4,28 @@
   "domain": "operations",
   "entrypoint": "main.py:OpsReportAgent",
   "description": "Velaris BOS agent for Knackforge Ported from VKatOS ops_report.",
-  "hitl_required": false
+  "hitl_required": false,
+  "harness": {
+    "schema": 1,
+    "purpose": "OPS_REPORT — Velaris BOS agent for Knackforge Ported from VKatOS ops_report.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/operations/OPS_REPORT.json",
+    "wave": "KAN-31",
+    "status": "deterministic_tool",
+    "tools": {
+      "add_blocker": {
+        "kind": "act"
+      },
+      "resolve_blocker": {
+        "kind": "act"
+      }
+    },
+    "excluded": {
+      "generate_report": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "generate_report_dict": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "log": "not in the HTTP allowlist (velaris/api/allowlist.py)"
+    },
+    "reviewed": true
+  }
 }

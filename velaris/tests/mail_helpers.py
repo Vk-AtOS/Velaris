@@ -2,7 +2,7 @@
 from typing import Any, Dict, List
 
 from velaris.core.access import Caller
-from velaris.mail.common import DnsError, RelayError
+from velaris.mail.common import DnsError
 from velaris.mail.inbound import InboundPipeline
 from velaris.mail.outbound import Outbound
 from velaris.mail.store import MailStore

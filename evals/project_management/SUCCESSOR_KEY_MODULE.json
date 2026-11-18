@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "agent": "SUCCESSOR_KEY_MODULE",
+  "cases": [
+    {
+      "id": "not-harnessed",
+      "input": "Do the job of SUCCESSOR_KEY_MODULE.",
+      "expect": {
+        "status": "not_harnessed"
+      },
+      "forbid": {}
+    }
+  ]
+}

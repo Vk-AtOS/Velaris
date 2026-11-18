@@ -19,6 +19,7 @@ import datetime as dt
 import re
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
+from velaris.intel import router
 from velaris.core.access import Caller
 from velaris.intel import guard
 from velaris.intel.llm import LLM, LLMError, extract_json
@@ -75,7 +76,7 @@ class Assistant:
         pre, fenced = guard.wrap(untrusted, label="an email from outside, shown as data")
         prompt = f"{instruction}\n\n{pre}\n{fenced}" + (f"\n\n{extra_block}" if extra_block else "")
         try:
-            out = self.llm.complete(prompt, system=SYSTEM, purpose=f"mail.{op}", max_tokens=max_tokens, temperature=0.2)
+            out = router.complete("worker", prompt, llm=self.llm, sensitivity="restricted", system=SYSTEM, purpose=f"mail.{op}", max_tokens=max_tokens, temperature=0.2)
         except LLMError:
             return dict(NOT_CONFIGURED), "", meta
         text = out.text.strip()
@@ -167,7 +168,7 @@ class Assistant:
                               "ORDER BY COALESCE(date_ts, received_ts), rowid", (mb["id"], row["thread_id"]))
         text, people = self._thread_text(thread, own)
         samples = [re.sub(r"(?m)^>.*\n?", "", r["body_text"] or "").strip()[:600] for r in self.store.q(
-            "SELECT m.body_text FROM message m JOIN folder f ON f.id=m.folder_id WHERE m.mailbox_id=? AND f.role='sent' AND m.draft=0 "
+            "SELECT m.id, m.body_text FROM message m JOIN folder f ON f.id=m.folder_id WHERE m.mailbox_id=? AND f.role='sent' AND m.draft=0 "
             "ORDER BY m.received_ts DESC LIMIT 5", (mb["id"],))]
         style, _ = guard.redact("\n---\n".join(s for s in samples if s))
         extra = ""

@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/_ai_core/CONTROL_LAYER/main.py` (47 lines)
+- **Source:** `departments/_ai_core/CONTROL_LAYER/main.py` (50 lines)
 
 ## Purpose
 
@@ -33,5 +33,5 @@ are `act` methods in the HTTP allowlist; the richer API (observations, approvals
 ## Called by
 
 - **other agents:** none found
-- **platform modules:** `velaris/api/allowlist.py`
-- **tests:** `velaris/tests/test_control_api.py`
+- **platform modules:** `velaris/api/allowlist.py`, `velaris/intel/tools.py`
+- **tests:** `velaris/tests/test_alias_layers.py`, `velaris/tests/test_control_api.py`

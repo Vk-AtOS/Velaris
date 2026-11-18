@@ -3,17 +3,17 @@
 EMPLOYEE_ONBOARDING — Velaris BOS agent for Knackforge
 Ported from VKatOS client_onboarding, adapted for employees (IT setup, HR docs, 30/60/90 day plan).
 
-LEGACY: ONBOARDING_FLOW is the product with roles, sealed identifiers, retention and erasure. Until this older agent is merged into it or
+DEPRECATED (not served over HTTP, kept so existing databases stay readable; use ONBOARDING_FLOW). LEGACY: ONBOARDING_FLOW is the product with roles, sealed identifiers, retention and erasure. Until this older agent is merged into it or
 retired (owner decision) every method needs an authenticated Caller (velaris.core.access): changes need the hr_admin role, reads go
 through authorize_read("identity") (traced). Rows carry the organisation and every query filters on it; the database lives under
 VELARIS_DATA, never in the working directory. A missing employee_id means "all of this organisation's", and 0 is not "all".
 Raises AccessDenied when refused.
 """
 import logging
-import sqlite3
+
+from velaris.core.sealed_sqlite import connect_sealed
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
-from velaris.intel.paths import agent_file
 
 from velaris.agentkit.onboarding_common import HR_ADMINS, gate_change, gate_read
 from velaris.intel.paths import agent_dir
@@ -37,7 +37,7 @@ EMPLOYEE_CHECKLIST = [
 
 class _EmployeeDB:
     def __init__(self, db_path: str = ""):
-        self.db = sqlite3.connect(db_path or str(agent_dir("EMPLOYEE_ONBOARDING") / "employee_onboarding.db"))
+        self.db = connect_sealed(db_path or str(agent_dir("EMPLOYEE_ONBOARDING") / "employee_onboarding.db"), "hr:EMPLOYEE_ONBOARDING")
         self._init_db()
 
     def _init_db(self):
@@ -139,6 +139,7 @@ class EmployeeOnboardingAgent:
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": "EMPLOYEE_ONBOARDING", "status": "ok", "checklist_steps": len(EMPLOYEE_CHECKLIST),
+                "deprecated": True, "replaced_by": "ONBOARDING_FLOW",
                 "legacy": "use ONBOARDING_FLOW for roles, retention and erasure"}
 
     def onboard_employee(self, name: str, email: str, department: str, role: str) -> int:

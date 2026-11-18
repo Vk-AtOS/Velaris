@@ -1,0 +1,31 @@
+{
+  "name": "ALK_ADAPT",
+  "display_name": "Alk Adapt",
+  "version": "0.1.0",
+  "description": "ALK adapt: nudges a numeric setting toward the value that brings a metric to its target.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:ALK_ADAPTAgent",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "ALK adapt: nudges a numeric setting toward the value that brings a metric to its target.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/ALK_ADAPT.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "adapt": {
+        "kind": "act"
+      },
+      "define": {
+        "kind": "act"
+      },
+      "get": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

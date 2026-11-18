@@ -11,13 +11,45 @@ The master key lives OUTSIDE VELARIS_DATA, so a copy of the data directory is us
 A missing, short, world-readable or in-data-dir key raises VaultKeyError: the store fails CLOSED, a new key
 is never invented (a restore without the key must not silently start a fresh, unreadable store).
 Per-purpose keys are derived from the master with HKDF-SHA256.
+
+Plaintext where a sealed value is expected is REFUSED (PlaintextRefused): otherwise anyone who can write the data
+directory could replace a sealed file with a forged plaintext one and have it trusted (downgrade). Files written before
+sealing existed are migrated once, in a window that only the key holder can open:
+  1. python -m velaris.core.vault start-migration [hours]   writes <VELARIS_DATA>/.vault_plaintext_open: an expiry
+     time MAC'd with a key derived from the master key (default 24 h, at most 168 h). Nobody who can only write the
+     data directory can forge or extend it.
+  2. start the services with VELARIS_VAULT_ALLOW_PLAINTEXT=1: stores read plaintext and seal it at once.
+  3. python -m velaris.core.vault end-migration             deletes the token.
+Both the switch AND a valid unexpired token are required; with either missing, plaintext is refused. The closed state is
+the ABSENCE of a token that only the key can create, so deleting files cannot reopen anything; the one thing a data
+directory writer can do is replay a copy of a token taken during an earlier window, until that token's expiry.
+Every store goes through legacy_plaintext() for this, none decides on its own.
+
+Binding (KAN-69 SV2-06): a sealed blob is also bound to WHERE it lives, so it cannot be moved. VLV2 = VLV1 with the
+authenticated data `purpose|context`: JsonState, sealed_sqlite and append_line files use their `<directory>/<file name>`,
+fieldseal columns (vlv2:) use a JSON list [table, column, *row key] (bind_for, version tag "b2"); file readers and writers
+TAKE THE CONTEXT AS A REQUIRED ARGUMENT (path_context(path) or a stable record id such as a content hash). VLV1 / VLS1 / vlv1: values, written by earlier
+releases, are judged like plaintext where a binding is expected: opened only inside the migration window, and the store
+rewrites them bound at once (files and append logs on first read, sqlite columns at open, once per database).
+UPGRADE ORDER: 1. stop all services; 2. `python -m velaris.core.vault start-migration`; 3. start the new release once with
+VELARIS_VAULT_ALLOW_PLAINTEXT=1 and let every store open (mail, chat, memory, docs at start; state files and logs when
+first read, so exercise the agents or run the smoke test); 4. `python -m velaris.core.vault end-migration`. A VLV1 value
+left over after step 4 is refused (never guessed at): reopen the window to bind it. Downgrading to a release that does
+not know VLV2 is not possible after step 3.
 """
 from __future__ import annotations
 
 import base64
+import hashlib
+import hmac
+import json
+import logging
 import os
+import time
 import stat
+import sys
 from pathlib import Path
+from typing import Iterable, Iterator, Optional
 
 from velaris.intel.paths import read_private, write_private
 from cryptography.exceptions import InvalidTag
@@ -26,10 +58,61 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 MAGIC = b"VLV1"
+MAGIC_BOUND = b"VLV2"       # same layout; the authenticated data is purpose + "|" + context (a file path or a record id)
+ALLOW_PLAINTEXT = "VELARIS_VAULT_ALLOW_PLAINTEXT"
+OPEN_TOKEN = ".vault_plaintext_open"
+MAX_WINDOW_HOURS = 168
+logger = logging.getLogger("velaris.vault")
 
 
 class VaultError(ValueError):
     """The blob cannot be opened (tampered, wrong store, wrong key)."""
+
+
+class PlaintextRefused(VaultError):
+    """A plaintext value where a sealed one is expected, outside the one-time migration window."""
+
+
+def _data_dir() -> Path:
+    return Path(os.environ.get("VELARIS_DATA") or Path.home() / ".velaris")
+
+
+def _token_mac(expires: int) -> str:
+    return hmac.new(derive_key("plaintext-migration"), f"open|{expires}".encode(), hashlib.sha256).hexdigest()
+
+
+def plaintext_allowed() -> bool:
+    """True only inside the migration window: the env switch is set AND an unexpired, key-authenticated open token exists."""
+    if os.environ.get(ALLOW_PLAINTEXT) != "1":
+        return False
+    try:
+        tok = json.loads((_data_dir() / OPEN_TOKEN).read_text(encoding="utf-8"))
+        expires = int(tok["expires"])
+        return expires > time.time() and hmac.compare_digest(_token_mac(expires), str(tok["mac"]))
+    except (OSError, ValueError, KeyError, TypeError, VaultKeyError):
+        return False                                        # no token, forged token, no key: closed
+
+
+def start_plaintext_migration(hours: float = 24) -> Path:
+    """Open the migration window for this data directory (needs the master key)."""
+    expires = int(time.time() + min(float(hours), MAX_WINDOW_HOURS) * 3600)
+    path = _data_dir() / OPEN_TOKEN
+    write_private(path, json.dumps({"expires": expires, "mac": _token_mac(expires)}).encode())
+    return path
+
+
+def legacy_plaintext(value, what: object):
+    """`value` (plaintext found where `what` should be sealed) if the migration window is open, else PlaintextRefused."""
+    if not plaintext_allowed():
+        raise PlaintextRefused(f"{what} is not sealed; plaintext is refused (migrate once with {ALLOW_PLAINTEXT}=1, "
+                               "then `python -m velaris.core.vault end-migration`)")
+    logger.warning("accepting plaintext for %s (migration window open)", what)
+    return value
+
+
+def end_plaintext_migration() -> None:
+    """Close the migration window: remove the open token."""
+    (_data_dir() / OPEN_TOKEN).unlink(missing_ok=True)
 
 
 class VaultKeyError(RuntimeError):
@@ -71,21 +154,39 @@ def derive_key(purpose: str) -> bytes:
 
 
 def is_sealed(blob: bytes) -> bool:
-    return blob[:4] == MAGIC
+    return blob[:4] in (MAGIC, MAGIC_BOUND)
 
 
-def seal_bytes(data: bytes, purpose: str) -> bytes:
+def is_bound(blob: bytes) -> bool:
+    return blob[:4] == MAGIC_BOUND
+
+
+def _aad(purpose: str, context: Optional[str]) -> bytes:
+    return purpose.encode() if context is None else purpose.encode() + b"|" + context.encode()
+
+
+def seal_bytes(data: bytes, purpose: str, context: Optional[str] = None) -> bytes:
+    """VLV1 (bound to the purpose) or, with `context`, VLV2 (bound to the purpose AND that file path / record id)."""
     nonce = os.urandom(12)
-    return MAGIC + nonce + AESGCM(_key(purpose)).encrypt(nonce, data, purpose.encode())
+    return (MAGIC if context is None else MAGIC_BOUND) + nonce + AESGCM(_key(purpose)).encrypt(nonce, data, _aad(purpose, context))
 
 
-def open_bytes(blob: bytes, purpose: str) -> bytes:
+def open_bytes(blob: bytes, purpose: str, context: Optional[str] = None) -> bytes:
+    """Open `blob`. A VLV2 blob needs the same `context` it was sealed with. A VLV1 blob is the pre-binding format: when a
+    `context` is expected it is accepted only inside the plaintext-migration window (like plaintext), so a sealed value
+    cannot be moved from another file or row of the same store; outside the window it raises PlaintextRefused."""
     if not is_sealed(blob) or len(blob) < 32:
         raise VaultError("not a sealed blob")
+    bound = is_bound(blob)
+    if bound and context is None:
+        raise VaultError("sealed blob is bound to a location and none was given")
     try:
-        return AESGCM(_key(purpose)).decrypt(blob[4:16], blob[16:], purpose.encode())
+        out = AESGCM(_key(purpose)).decrypt(blob[4:16], blob[16:], _aad(purpose, context if bound else None))
     except InvalidTag as e:
-        raise VaultError("sealed blob failed authentication (tampered, wrong store or wrong key)") from e
+        raise VaultError("sealed blob failed authentication (tampered, moved, wrong store or wrong key)") from e
+    if context is not None and not bound:
+        legacy_plaintext(None, f"an unbound {purpose} value for {context}")
+    return out
 
 
 def new_key() -> str:
@@ -93,12 +194,150 @@ def new_key() -> str:
     return base64.urlsafe_b64encode(os.urandom(32)).decode()
 
 
-def write_sealed(path, data: bytes, purpose: str) -> None:
-    """Atomically write `data` sealed (owner-only file)."""
-    write_private(path, seal_bytes(data, purpose))
+def path_context(path) -> str:
+    """The location a sealed file is bound to: its directory name and file name (the data directory itself may move)."""
+    p = Path(str(path))
+    return f"{p.parent.name}/{p.name}"
 
 
-def read_sealed(path, purpose: str) -> bytes:
-    """The plaintext of a sealed file; a file still in plaintext (written before sealing existed) is returned as is."""
+def write_sealed(path, data: bytes, purpose: str, context: str) -> None:
+    """Atomically write `data` sealed (owner-only file), bound to `context` (path_context(path) or a stable record id)."""
+    write_private(path, seal_bytes(data, purpose, context))
+
+
+def read_sealed(path, purpose: str, context: str) -> bytes:
+    """The plaintext of a sealed file. `context` is mandatory: a file sealed for another location does not open. A plaintext
+    or unbound (VLV1/VLS1) file raises PlaintextRefused outside the migration window; inside it the file is rebound at once."""
+    if is_stream(path):
+        out = b"".join(open_sealed_stream(path, purpose, context))
+        if stream_is_legacy(path):
+            _rebind_stream(path, purpose, context)
+        return out
     blob = read_private(path)
-    return open_bytes(blob, purpose) if is_sealed(blob) else blob
+    data = open_bytes(blob, purpose, context) if is_sealed(blob) else legacy_plaintext(blob, path)
+    if not is_bound(blob):                              # only reachable inside the migration window
+        write_sealed(path, data, purpose, context)
+    return data
+
+
+# ---- large files: chunked sealing (audio uploads of up to 200 MB must not be held in memory) -------------------------------
+STREAM_MAGIC = b"VLS2"          # records authenticated with purpose|context|position|last
+LEGACY_STREAM_MAGIC = b"VLS1"   # written before binding existed: window only, rebound on first read
+CHUNK = 1 << 20
+
+
+def _stream_aad(purpose: str, index: int, last: bool, context: Optional[str] = None) -> bytes:
+    head = purpose.encode() if context is None else purpose.encode() + b"|" + context.encode()
+    return head + b"|" + index.to_bytes(8, "big") + (b"L" if last else b"M")     # no reordering, no truncation
+
+
+def write_sealed_stream(path, chunks: Iterable[bytes], purpose: str, context: str) -> int:
+    """Seal an iterable of byte chunks (any sizes) into `path` as VLS2 records of at most 1 MiB, atomically and owner-only.
+    Each record is authenticated with its context, position and whether it is the last, so cutting the file short, swapping
+    records or moving the file fails on reading. Returns the number of plaintext bytes."""
+    aead, target, total = AESGCM(_key(purpose)), Path(path), 0
+    tmp = target.with_name(f".{target.name}.{os.urandom(6).hex()}.tmp")
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(STREAM_MAGIC)
+            index = 0
+            buf = bytearray()
+
+            def emit(block: bytes, last: bool) -> None:
+                nonlocal index
+                nonce = os.urandom(12)
+                ct = aead.encrypt(nonce, block, _stream_aad(purpose, index, last, context))
+                f.write(nonce + len(ct).to_bytes(4, "big") + ct)
+                index += 1
+
+            for part in chunks:
+                total += len(part)
+                buf += part
+                while len(buf) > CHUNK:                       # keep at least one byte back: the last record must be marked
+                    emit(bytes(buf[:CHUNK]), False)
+                    del buf[:CHUNK]
+            emit(bytes(buf), True)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, target)
+    finally:
+        tmp.unlink(missing_ok=True)
+    return total
+
+
+def open_sealed_stream(path, purpose: str, context: str) -> Iterator[bytes]:
+    """The plaintext of a stream file, chunk by chunk. Raises VaultError on tamper, truncation, wrong store, key or location.
+    A VLS1 (unbound) file is judged like plaintext: PlaintextRefused outside the migration window."""
+    aead = AESGCM(_key(purpose))
+    with open(path, "rb") as f:
+        magic = f.read(4)
+        if magic not in (STREAM_MAGIC, LEGACY_STREAM_MAGIC):
+            raise VaultError("not a sealed stream")
+        ctx = context if magic == STREAM_MAGIC else None
+        if ctx is None:
+            legacy_plaintext(None, path)
+        index, seen_last = 0, False
+        while True:
+            head = f.read(16)
+            if not head:
+                break
+            if seen_last or len(head) < 16:
+                raise VaultError("sealed stream has data after its last record or a torn record")
+            nonce, n = head[:12], int.from_bytes(head[12:], "big")
+            ct = f.read(n)
+            if len(ct) != n or n > CHUNK + 16:
+                raise VaultError("sealed stream is truncated")
+            for last in (False, True):
+                try:
+                    yield aead.decrypt(nonce, ct, _stream_aad(purpose, index, last, ctx))
+                    seen_last = last
+                    break
+                except InvalidTag:
+                    continue
+            else:
+                raise VaultError("sealed stream failed authentication (tampered, reordered, moved or wrong store/key)")
+            index += 1
+        if not seen_last:
+            raise VaultError("sealed stream is truncated (no final record)")
+
+
+def is_stream(path) -> bool:
+    try:
+        with open(path, "rb") as f:
+            return f.read(4) in (STREAM_MAGIC, LEGACY_STREAM_MAGIC)
+    except OSError:
+        return False
+
+
+def stream_is_legacy(path) -> bool:
+    with open(path, "rb") as f:
+        return f.read(4) == LEGACY_STREAM_MAGIC
+
+
+def _rebind_stream(path, purpose: str, context: str) -> None:
+    write_sealed_stream(path, open_sealed_stream(path, purpose, context), purpose, context)
+
+
+def unseal_to_file(path, purpose: str, context: str, dest) -> None:
+    """Write the plaintext of a sealed file (either format) to `dest`, owner-only, without holding it in memory."""
+    if not is_stream(path):
+        write_private(dest, read_sealed(path, purpose, context))
+        return
+    fd = os.open(dest, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "wb") as f:
+        for block in open_sealed_stream(path, purpose, context):
+            f.write(block)
+    if stream_is_legacy(path):
+        _rebind_stream(path, purpose, context)
+
+
+if __name__ == "__main__":
+    cmd = sys.argv[1:2]
+    if cmd == ["start-migration"]:
+        print(f"plaintext migration open until: {start_plaintext_migration(float(sys.argv[2]) if len(sys.argv) > 2 else 24)}")
+    elif cmd == ["end-migration"]:
+        end_plaintext_migration()
+        print("plaintext migration ended")
+    else:
+        sys.exit("usage: python -m velaris.core.vault start-migration [hours] | end-migration")

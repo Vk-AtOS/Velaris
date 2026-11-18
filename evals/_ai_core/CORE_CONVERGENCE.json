@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "agent": "CORE_CONVERGENCE",
+  "cases": [
+    {
+      "id": "not-harnessed",
+      "input": "Do the job of CORE_CONVERGENCE.",
+      "expect": {
+        "status": "not_harnessed"
+      },
+      "forbid": {}
+    }
+  ]
+}

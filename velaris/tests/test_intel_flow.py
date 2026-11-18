@@ -92,7 +92,7 @@ def test_a_broken_or_vague_rule_means_ask_a_person():
 def test_unknown_tool_and_extra_arguments_never_execute():
     paid = []
     llm = scripted(call("wire_transfer", to="x"), call("pay", vendor="A", amount=1, memo="hi"), "not json", FINAL)
-    r = make(llm, paid).start("x")
+    r = make(llm, paid, max_invalid=0).start("x")      # three bad replies in a row: the default would stop the run
     assert r.status == "done" and r.turns == 4 and paid == []
 
 
@@ -123,7 +123,7 @@ def test_idempotent_step_interrupted_mid_execution_just_reruns():
 
 def test_turn_limit_model_outage_and_tool_failure():
     paid = []
-    r = make(scripted(*[call("balance")] * 5), paid, max_turns=3).start("loop")
+    r = make(scripted(*[call("balance")] * 5), paid, max_turns=3, max_repeat=0).start("loop")
     assert (r.status, r.output) == ("stopped", "out_of_turns")
 
     def down(prompt, model):
@@ -138,8 +138,11 @@ def test_turn_limit_model_outage_and_tool_failure():
         raise ValueError("ledger offline")
     llm = scripted(call("post"), FINAL)
     flow = Flow([Tool("post", broken, "post", needs_approval=False)], llm=llm)
-    assert flow.start("x").status == "done"
-    assert "NOT DONE: ValueError: ledger offline" in llm.calls[-1]["prompt"]
+    r = flow.start("x")
+    assert r.status == "done"
+    assert "NOT DONE: ValueError" in llm.calls[-1]["prompt"]
+    assert "ledger offline" not in llm.calls[-1]["prompt"]               # VP-8: the type name only, never the exception text
+    assert "ledger offline" not in json.dumps(flow.history(r.run_id))
 
 
 def test_tool_output_that_reads_like_instructions_is_withheld():

@@ -8,9 +8,11 @@ from typing import Any, Dict, List, Optional
 
 from velaris.chat.core import ChatCore, sha
 from velaris.chat.errors import ChatError
-from velaris.chat.events import BadQueue
+from velaris.chat.events import BadQueue, TooManyPolls
 from velaris.chat.policy import ROLES, is_assistant
 from velaris.core.access import Caller
+from velaris.chat.store import SEAL
+from velaris.core import fieldseal
 
 _NAME = re.compile(r"[\w][\w .\-]{0,79}\Z")
 _CHANGES = {"name", "archived", "retention_days", "ai_enabled"}
@@ -254,6 +256,8 @@ class ChannelsMixin(ChatCore):
                                  acknowledged)
         except BadQueue:
             raise ChatError(410, "bad_queue", "the queue is unknown or expired: register again") from None
+        except TooManyPolls:
+            raise ChatError(429, "too_many_polls", "too many requests waiting for events: close one and retry") from None
 
     def drop_queue(self, caller: Caller, queue_id: Any) -> bool:
         caller = self._enter(caller)
@@ -310,7 +314,7 @@ class ChannelsMixin(ChatCore):
             if body.strip():
                 db.execute("INSERT INTO drafts VALUES(?,?,?,?,?) ON CONFLICT(user_id, channel_id, topic) "
                            "DO UPDATE SET body=excluded.body, updated=excluded.updated",
-                           (caller.id, ch["id"], topic, body, self.clock()))
+                           (caller.id, ch["id"], topic, fieldseal.seal(body, SEAL, fieldseal.bind_for("drafts", "body", caller.id, ch["id"], topic)), self.clock()))
             else:
                 db.execute("DELETE FROM drafts WHERE user_id=? AND channel_id=? AND topic=?", (caller.id, ch["id"], topic))
 

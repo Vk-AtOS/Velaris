@@ -55,7 +55,7 @@ _FLAG_WORDS = re.compile(r"\b(male only|female only|only (?:males?|females?|men|
 
 def slugify(text: str, rid: str) -> str:
     base = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")[:50] or "job"
-    return f"{base}-{rid.split('-')[-1][:6]}"
+    return f"{base}-{rid.split('-')[-1]}"       # the whole requisition id: 6 hex chars (24 bits) clashed across organisations (KAN-127)
 
 
 def decimal_amount(value: Any, name: str) -> Decimal:

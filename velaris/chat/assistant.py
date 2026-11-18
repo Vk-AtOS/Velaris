@@ -39,11 +39,14 @@ from dataclasses import dataclass
 from functools import partial
 from typing import Any, Callable, Dict, List, Optional, Sequence
 
+from velaris.intel import router
 from velaris.chat.core import sha
 from velaris.chat.errors import ChatError
 from velaris.chat.policy import CHAT_ADMIN, is_assistant, strip_mention
 from velaris.chat.service import ChatService
 from velaris.core.access import Caller
+from velaris.chat.store import SEAL
+from velaris.core import fieldseal
 from velaris.intel import guard
 from velaris.intel.flow import Flow, FlowError, Tool, call_hash
 from velaris.intel.llm import LLM, LLMError, extract_json
@@ -151,7 +154,7 @@ class Assistant:
             return self._notice(caller, ch, row, assistant, "blocked")
         prompt, authors = self._prompt(caller, ch, row, assistant, request)
         try:
-            reply = self.llm.complete(prompt, max_tokens=800, temperature=0.2, purpose="chat.assistant").text
+            reply = router.complete("worker", prompt, llm=self.llm, sensitivity="restricted", max_tokens=800, temperature=0.2, purpose="chat.assistant").text
         except LLMError:
             return self._notice(caller, ch, row, assistant, "model_error")
         try:
@@ -171,7 +174,6 @@ class Assistant:
 
     def _prompt(self, caller: Caller, ch: Any, row: Any, assistant: str, request: str) -> tuple:
         """The prompt, and the ids of everyone who wrote a message in the context window (withheld ones too)."""
-        svc = self.svc
         rows, authors = self._closure(ch, row["topic"], row["id"])
         lines = []
         for r in rows:
@@ -226,7 +228,7 @@ class Assistant:
         draft_id = uuid.uuid4().hex
         with svc._write() as db:
             db.execute("INSERT INTO ai_drafts VALUES(?,?,?,?,?,?,?,?,?,?,?)", (draft_id, caller.org, ch["id"], row["topic"],
-                       caller.id, assistant, text, "pending", svc.clock(), row["id"], json.dumps(sorted({*authors, caller.id}))))
+                       caller.id, assistant, fieldseal.seal(text, SEAL, fieldseal.bind_for("ai_drafts", "body", draft_id)), "pending", svc.clock(), row["id"], json.dumps(sorted({*authors, caller.id}))))
             svc._audit("assistant.draft", assistant, caller.org, for_user=caller.id, channel=ch["id"], message=row["id"],
                        draft=draft_id, draft_sha256=sha(text))
             svc._notify([caller.id], {"type": "assistant_draft", "op": "new", "channel_id": ch["id"], "draft_id": draft_id,

@@ -1,0 +1,29 @@
+{
+  "name": "CLOUD_HANDOFF_CONTROLLER",
+  "version": "0.1.0",
+  "description": "CLOUD_HANDOFF_CONTROLLER: a durable outbox for work that has to leave this machine.",
+  "entrypoint": "main.py:CloudHandoffController",
+  "harness": {
+    "schema": 1,
+    "purpose": "CLOUD_HANDOFF_CONTROLLER: a durable outbox for work that has to leave this machine.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/it_infrastructure/CLOUD_HANDOFF_CONTROLLER.json",
+    "wave": "KAN-39",
+    "status": "deterministic_tool",
+    "tools": {
+      "enqueue": {
+        "kind": "act"
+      },
+      "pending": {
+        "kind": "read"
+      },
+      "sync": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "it_infrastructure"
+}

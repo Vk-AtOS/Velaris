@@ -47,4 +47,4 @@ returns not_configured.
 
 - **other agents:** `AIIE_KERNEL`, `HYPER_REASONER`, `SELF_DIRECTED_TASKER`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_AI_IE_layer.py`, `velaris/tests/test_aicore_b_aiie.py`
+- **tests:** `velaris/tests/test_AI_IE_layer.py`, `velaris/tests/test_aicore_b_aiie.py`, `velaris/tests/test_engine.py`, `velaris/tests/test_engine_construction.py`

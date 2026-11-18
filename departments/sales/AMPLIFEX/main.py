@@ -1,11 +1,13 @@
+"""Amplifex: simple reach and audience arithmetic for sales and marketing (no data sources, no model).
+
+amplify(base_reach) returns int(base_reach * boost_factor), with boost_factor from config (default 1.2). audience_growth(
+audience, rate) returns int(audience * (1 + rate)). signal_strength(interactions) returns the mean of the list, or 0.0 when
+it is empty. Config: boost_factor, version. Results are truncated toward zero. Keeps no state; non-numeric input raises TypeError.
+"""
 import logging
 from typing import Dict, Any, List
 
 logger = logging.getLogger("AMPLIFEX")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - AMPLIFEX - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class AmplifexAgent:
     def __init__(self, config: Dict[str, Any] = None):

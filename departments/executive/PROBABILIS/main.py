@@ -1,17 +1,23 @@
+"""Probabilis: small random-sampling helpers (Bernoulli trials, Monte Carlo, mean).
+
+Config: trials (samples per call, default 10) and version. bernoulli(p) returns a list of 0/1 outcomes, one per trial
+(p at or below 0 gives all 0, at or above 1 all 1). monte_carlo(func) calls func() once per trial and returns the list;
+an exception in func propagates. distribution_mean(values) returns the average, or 0.0 for an empty list. Results use the
+global random module, unseeded, so they differ between runs. Keeps no state.
+"""
 import logging
 import random
 from typing import List, Dict, Any
 
 logger = logging.getLogger("PROBABILIS")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - PROBABILIS - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
+
+MAX_TRIALS = 1_000_000
+
 
 class ProbabilisAgent:
     def __init__(self, config: Dict[str, Any] = None):
         self.config = config or {}
-        self.trials = self.config.get("trials", 10)
+        self.trials = max(1, min(int(self.config.get("trials", 10)), MAX_TRIALS))
         self.version = self.config.get("version", "0.1.0")
 
     def health_check(self):
@@ -29,8 +35,11 @@ class ProbabilisAgent:
 
     def monte_carlo(self, func) -> List[Any]:
         """
-        Run Monte-Carlo using function callback.
+        Run Monte-Carlo using function callback. It runs `func` as given, so it must only ever be called by code that holds a
+        real function: it is NOT callable over HTTP (no allow-list rule) and a name or string is refused.
         """
+        if not callable(func):
+            raise TypeError("monte_carlo needs a function, not a name or text")
         out = [func() for _ in range(self.trials)]
         logger.debug("Monte-Carlo samples=%s", out)
         return out

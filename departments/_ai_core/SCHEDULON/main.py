@@ -1,13 +1,21 @@
 # ================================================================================
 
+"""Schedulon: greedy load distribution across workers and least-loaded worker lookup.
+
+SchedulonAgent(config): health_check() returns agent, status and version (config
+"version", default 0.1.0); distribute_load(tasks, workers) assigns each integer load in
+order to the bucket with the smallest running total and returns the list of buckets;
+next_available_slot(schedule) takes {worker: load} and returns the worker with the
+smallest load.
+State: keeps no state.
+Failure: distribute_load returns [] when workers is not an int (or is a bool) or is below
+1; next_available_slot returns None for an empty schedule; non-numeric loads raise TypeError.
+"""
+
 import logging
 from typing import List, Dict, Any
 
 logger = logging.getLogger("SCHEDULON")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - SCHEDULON - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class SchedulonAgent:
     def __init__(self, config: Dict[str, Any] = None):

@@ -5,5 +5,68 @@
   "description": "Job publishing for an approved requisition: schema.org JobPosting JSON-LD (validated), a careers-page HTML fragment, the Google Indexing API notification body (built; sending is a separate approved act that needs a token from SECRETS_VAULT), and a posting pack per other board (LinkedIn, Naukri, Indeed, foundit, Shine, Apna, Internshala, NCS, local) with text, fields, manual steps, a tracked link and a take-down task. Nothing is marked posted without a second person's approval. Tracked links feed the ATS source.",
   "entrypoint": "main.py:JobPostings",
   "hitl_required": true,
-  "tags": ["hiring", "jobs", "google-for-jobs", "posting-pack"]
+  "tags": [
+    "hiring",
+    "jobs",
+    "google-for-jobs",
+    "posting-pack"
+  ],
+  "harness": {
+    "schema": 1,
+    "purpose": "JOB_POSTINGS: publish a requisition without paying anyone.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/hr/JOB_POSTINGS.json",
+    "wave": "KAN-37",
+    "status": "deterministic_tool",
+    "tools": {
+      "approve_pack": {
+        "kind": "act"
+      },
+      "approve_posting": {
+        "kind": "act"
+      },
+      "get_company_profile": {
+        "kind": "read"
+      },
+      "get_posting": {
+        "kind": "read"
+      },
+      "list_packs": {
+        "kind": "read"
+      },
+      "mark_pack_posted": {
+        "kind": "act"
+      },
+      "mark_pack_taken_down": {
+        "kind": "act"
+      },
+      "mark_posting_live": {
+        "kind": "act"
+      },
+      "prepare_careers_posting": {
+        "kind": "act"
+      },
+      "prepare_pack": {
+        "kind": "act"
+      },
+      "resolve_tracking": {
+        "kind": "read"
+      },
+      "send_indexing_notification": {
+        "kind": "act"
+      },
+      "set_company_profile": {
+        "kind": "act"
+      },
+      "take_down_posting": {
+        "kind": "act"
+      },
+      "takedown_due": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

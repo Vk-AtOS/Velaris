@@ -1,8 +1,8 @@
 # AAE_POLICY
 
 - **Department:** `_ai_core`
-- **Status (static inventory):** `rule_based`
-- **Source:** `departments/_ai_core/AAE_POLICY/main.py` (95 lines)
+- **Status (static inventory):** `real`
+- **Source:** `departments/_ai_core/AAE_POLICY/main.py` (106 lines)
 
 ## Purpose
 
@@ -33,6 +33,7 @@ State (the rule set): <VELARIS_DATA>/agents/AAE_POLICY/state.json.
 - `velaris.agentkit.conditions`
 - `velaris.agentkit.results`
 - `velaris.agentkit.state`
+- `velaris.core.access`
 
 ## State and configuration
 
@@ -40,6 +41,6 @@ State (the rule set): <VELARIS_DATA>/agents/AAE_POLICY/state.json.
 
 ## Called by
 
-- **other agents:** `AAE_RUNTIME`, `ADAPTIVE_ACTION_ENGINE`
-- **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_a_aae.py`, `velaris/tests/test_layer25_aae.py`, `velaris/tests/test_security_review_round2.py`
+- **other agents:** `AAE_RUNTIME`, `ADAPTIVE_ACTION_ENGINE`, `REGISTRY`
+- **platform modules:** `velaris/backend/engine.py`, `velaris/orchestration/autonomy.py`
+- **tests:** `velaris/tests/test_aicore_a_aae.py`, `velaris/tests/test_approval_audit.py`, `velaris/tests/test_autonomy.py`, `velaris/tests/test_engine_construction.py`, `velaris/tests/test_handlers_registry.py`, `velaris/tests/test_kan104_operator_clear.py`, `velaris/tests/test_kan104_unauthenticated_writes.py`, `velaris/tests/test_kan95_core.py`, `velaris/tests/test_layer25_aae.py`, `velaris/tests/test_security_review_round2.py`

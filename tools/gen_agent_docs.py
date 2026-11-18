@@ -10,6 +10,11 @@ Everything on a page is read from source (AST + grep), nothing is invented:
 
 Run from the repo root:  python3.11 tools/gen_agent_docs.py
 Writes docs/agents/<department>/<AGENT>.md and docs/agents/INDEX.md.
+
+  --check          write nothing; exit 1 and list the pages that differ from what the code generates (CI, KAN-54)
+  --against DIR    compare the generated facts (public methods, state files, velaris dependencies) with pages exported
+                   from elsewhere (e.g. Confluence as DIR/<AGENT>.md or .html); report an agent whose page misses a fact
+                   or has no page; exit 1 on drift
 """
 import ast
 import re
@@ -37,23 +42,24 @@ def sig(fn):
     return f"{fn.name}({', '.join(names)})"
 
 
-def main():
+def build():
+    """({relative path: page text}, {agent: {methods, state, deps}}) read from the code."""
+    pages, facts = {}, {}
     agents = {}
     for f in sorted(ROOT.glob("departments/*/*/main.py")):
         agents[f.parent.name] = f
     src_files = [p for p in list(ROOT.glob("velaris/**/*.py")) + list(ROOT.glob("departments/**/*.py"))
                  if "__pycache__" not in p.parts]
     texts = {p: p.read_text(errors="replace") for p in src_files}
-    name_re = {n: re.compile(rf"\b{re.escape(n)}\b") for n in agents}
+    any_name = re.compile(r"\b(" + "|".join(re.escape(n) for n in sorted(agents, key=len, reverse=True)) + r")\b")   # one pass per file
     callers = defaultdict(lambda: {"agent": set(), "platform": set(), "test": set()})
     for p, t in texts.items():
         own = p.parent.name if p.name == "main.py" and p.parent.name in agents else None
         kind = "test" if "tests" in p.parts or p.name.startswith("test_") else (
             "agent" if own else "platform")
         label = own or str(p.relative_to(ROOT))
-        for n, rx in name_re.items():
-            if n != own and rx.search(t):
-                callers[n][kind].add(label)
+        for n in set(any_name.findall(t)) - {own}:
+            callers[n][kind].add(label)
 
     by_dept = defaultdict(list)
     for name, f in agents.items():
@@ -97,9 +103,10 @@ def main():
                                               (f" (+{len(vals) - 12} more)" if len(vals) > 12 else "")
                                               if vals else "none found"))
         lines.append("")
-        d = OUT / dept
-        d.mkdir(parents=True, exist_ok=True)
-        (d / f"{name}.md").write_text("\n".join(lines))
+        pages[f"{dept}/{name}.md"] = "\n".join(lines)
+        facts[name] = {"methods": sorted({m.name for c in classes for m in c.body if isinstance(m, (ast.FunctionDef, ast.AsyncFunctionDef))
+                                          and not m.name.startswith("_")}),
+                       "state": state, "deps": imps}
         by_dept[dept].append((name, classify(src), first_line(doc)))
 
     idx = ["# Velaris agent reference", "",
@@ -108,9 +115,58 @@ def main():
         idx += [f"## {dept} ({len(by_dept[dept])})", "", "| Agent | Status | Purpose |", "|---|---|---|"]
         idx += [f"| [{n}]({dept}/{n}.md) | {s} | {p.replace('|', '/')} |" for n, s, p in sorted(by_dept[dept])]
         idx.append("")
-    (OUT / "INDEX.md").write_text("\n".join(idx))
-    print("wrote", sum(len(v) for v in by_dept.values()), "pages")
+    pages["INDEX.md"] = "\n".join(idx)
+    return pages, facts
+
+
+def stale(pages):
+    """Paths whose committed text differs from what the code generates, plus committed pages for agents that are gone."""
+    out = [r for r, t in sorted(pages.items()) if not (OUT / r).is_file() or (OUT / r).read_text() != t]
+    out += [str(p.relative_to(OUT)) + " (agent no longer exists)" for p in sorted(OUT.glob("*/*.md")) if str(p.relative_to(OUT)) not in pages]
+    return out
+
+
+def drift(facts, exported):
+    """{agent: [what is missing]} for facts absent from the exported page text; exported maps agent -> page text (or None if no page)."""
+    report = {}
+    for name, f in sorted(facts.items()):
+        text = exported.get(name)
+        if text is None:
+            report[name] = ["no page"]
+            continue
+        missing = [f"method {m}" for m in f["methods"] if not re.search(rf"\b{re.escape(m)}\b", text)]
+        missing += [f"state file {x}" for x in f["state"] if x not in text]
+        missing += [f"dependency {d}" for d in f["deps"] if d not in text]
+        if missing:
+            report[name] = missing
+    return report
+
+
+def main(argv=None):
+    argv = sys.argv[1:] if argv is None else argv
+    pages, facts = build()
+    if "--check" in argv:
+        bad = stale(pages)
+        print("\n".join(f"STALE {b}" for b in bad) or f"docs/agents is current ({len(pages)} pages)")
+        return 1 if bad else 0
+    if "--against" in argv:
+        folder = Path(argv[argv.index("--against") + 1])
+        exported = {n: (next(iter(sorted(folder.glob(f"{n}.*"))), None)) for n in facts}
+        exported = {n: (p.read_text(errors="replace") if p else None) for n, p in exported.items()}
+        report = drift(facts, exported)
+        for n, items in report.items():
+            print(f"DRIFT {n}: " + "; ".join(items[:8]) + (f" (+{len(items) - 8} more)" if len(items) > 8 else ""))
+        print(f"{len(report)} of {len(facts)} pages drift")
+        return 1 if report else 0
+    for p in OUT.glob("*/*.md"):
+        if str(p.relative_to(OUT)) not in pages:
+            p.unlink()      # the agent is gone or moved
+    for rel, text in pages.items():
+        (OUT / rel).parent.mkdir(parents=True, exist_ok=True)
+        (OUT / rel).write_text(text)
+    print("wrote", len(facts), "pages")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

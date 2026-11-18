@@ -1,11 +1,15 @@
+"""Polaris: long-term weighted scoring of strategies.
+PolarisAgent.compute_score(strategy) returns the weighted sum of "impact", "longevity" and
+"alignment" (missing fields count as 0) using config "weights" (default 0.5, 0.3, 0.2).
+rank_long_term(strategies) returns [{"strategy", "score"}] sorted best first; best_trajectory(strategies)
+returns the top item, or None for an empty list. Fixed-weight arithmetic, not a learned model.
+State: keeps none beyond config. Failure: custom weights lacking one of the three keys raise KeyError;
+non-numeric values raise TypeError; nothing is caught.
+"""
 import logging
 from typing import Dict, List, Any
 
 logger = logging.getLogger("POLARIS")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - POLARIS - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class PolarisAgent:
     def __init__(self, config: Dict[str, Any] = None):

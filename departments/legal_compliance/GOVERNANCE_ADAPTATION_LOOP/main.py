@@ -84,9 +84,9 @@ class GovernanceAdaptationLoop:
                 if kind is None:
                     continue
                 existing = next((p for p in proposals.values() if p["rule"] == rule and p["state"] == "proposed"), None)
-                decided = [p for p in proposals.values() if p["rule"] == rule and p["state"] == "rejected"]
+                decided = [p for p in proposals.values() if p["rule"] == rule and p["state"] in ("rejected", "accepted")]
                 if not existing and any(total < p["samples"] + MIN_SAMPLES for p in decided):
-                    continue          # a rejected proposal is not re-created until MIN_SAMPLES new outcomes arrive
+                    continue          # a decided proposal (rejected, or accepted and now with its owner) is not re-created until MIN_SAMPLES new outcomes arrive
                 p = existing or {"id": uuid.uuid4().hex, "rule": rule, "state": "proposed"}
                 p.update(kind=kind, override_rate=round(rate, 4), samples=total)
                 proposals[p["id"]] = p
@@ -114,9 +114,8 @@ class GovernanceAdaptationLoop:
                 return fail("unknown_proposal", "no such proposal")
             if p["state"] != "proposed":
                 return fail("denied", f"proposal is already {p['state']}")
+            if not audit(NAME, "proposal.resolved", {"id": proposal_id, "accept": accept, "by": by}):
+                return fail("audit_failed", "the decision could not be recorded, so it was not made")
             p.update(state="accepted" if accept else "rejected", by=by)
             return ok(proposal=dict(p))
-        result = self._state.update(apply)
-        if result["status"] == "ok":
-            audit(NAME, "proposal.resolved", {"id": proposal_id, "accept": accept, "by": by})
-        return result
+        return self._state.update(apply)

@@ -2,7 +2,7 @@
 
 - **Department:** `operations`
 - **Status (static inventory):** `real`
-- **Source:** `departments/operations/PIPELINE_MONITOR/main.py` (128 lines)
+- **Source:** `departments/operations/PIPELINE_MONITOR/main.py` (133 lines)
 
 ## Purpose
 
@@ -29,7 +29,8 @@ Ported from VKatOS pipeline_monitor.
 
 ## Depends on
 
-- nothing from velaris.*
+- `velaris.core.sqlite_util`
+- `velaris.intel.paths`
 
 ## State and configuration
 
@@ -38,5 +39,5 @@ Ported from VKatOS pipeline_monitor.
 ## Called by
 
 - **other agents:** none found
-- **platform modules:** none found
-- **tests:** none found
+- **platform modules:** `velaris/api/allowlist.py`
+- **tests:** `velaris/tests/test_act_rows.py`, `velaris/tests/test_kan106_business_agents.py`, `velaris/tests/test_no_state_in_source_tree.py`

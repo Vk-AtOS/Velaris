@@ -5,5 +5,27 @@
   "description": "Public methods: compute_hash, set_baseline, drift_detected (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:SentinelDNAAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Sentinel DNA: hash baselines to detect drift in data.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/security/SENTINELDNA.json",
+    "wave": "KAN-40",
+    "status": "deterministic_tool",
+    "tools": {
+      "compute_hash": {
+        "kind": "read"
+      },
+      "drift_detected": {
+        "kind": "read"
+      },
+      "set_baseline": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

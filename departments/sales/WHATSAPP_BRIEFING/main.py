@@ -4,10 +4,12 @@ WHATSAPP_BRIEFING — Velaris BOS agent for Knackforge
 Ported from VKatOS whatsapp_briefing. Daily metric logging + WhatsApp Business API dispatch.
 """
 import asyncio
+import concurrent.futures
 import logging
-import sqlite3
+
+from velaris.core.sealed_sqlite import connect_sealed
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
 
 import httpx
 from velaris.intel.paths import agent_file
@@ -19,7 +21,7 @@ class WhatsAppBriefingSystem:
     def __init__(self, config: Dict[str, Any] = None):
         self.config = config or {}
         db_path = self.config.get("db_path") or agent_file("WHATSAPP_BRIEFING", "briefing_data.db")
-        self.db = sqlite3.connect(db_path)
+        self.db = connect_sealed(db_path, "agent:WHATSAPP_BRIEFING")
         self._init_db()
 
     def _init_db(self):
@@ -34,7 +36,7 @@ class WhatsAppBriefingSystem:
     def log(self, name: str, value: float, unit: str = "", notes: str = "") -> None:
         self.db.execute(
             "INSERT INTO daily_metrics (metric_name,metric_value,metric_unit,timestamp,notes) VALUES (?,?,?,?,?)",
-            (name, value, unit, datetime.utcnow().isoformat(), notes),
+            (name, value, unit, datetime.now().isoformat(), notes)   # LOCAL time: the briefing filters by the local date,
         )
         self.db.commit()
         logger.info("Metric logged: %s = %.1f %s", name, value, unit)
@@ -46,7 +48,7 @@ class WhatsAppBriefingSystem:
             (f"{today}%",),
         ).fetchall()
         lines = [
-            f"*Knackforge Daily Briefing*",
+            "*Knackforge Daily Briefing*",
             f"*{datetime.now().strftime('%d %b %Y')}*",
             "",
         ]
@@ -128,7 +130,14 @@ class WhatsAppBriefingAgent:
 
     def send_briefing(self) -> Dict[str, Any]:
         message = self.system.generate_briefing()
-        return asyncio.run(self.system.send(message))
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(self.system.send(message))
+        # Called from inside a running event loop (an async API handler): asyncio.run would raise, so the
+        # send runs on its own loop in a worker thread.
+        with concurrent.futures.ThreadPoolExecutor(1) as ex:
+            return ex.submit(asyncio.run, self.system.send(message)).result()
 
 
 if __name__ == "__main__":

@@ -4,5 +4,27 @@
   "domain": "operations",
   "entrypoint": "main.py:SLAMonitorAgent",
   "description": "Velaris BOS agent for Knackforge Ported from VKatOS sla_monitor.",
-  "hitl_required": false
+  "hitl_required": false,
+  "harness": {
+    "schema": 1,
+    "purpose": "SLA_MONITOR — Velaris BOS agent for Knackforge Ported from VKatOS sla_monitor.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/operations/SLA_MONITOR.json",
+    "wave": "KAN-31",
+    "status": "deterministic_tool",
+    "tools": {
+      "add_commitment": {
+        "kind": "act"
+      },
+      "resolve": {
+        "kind": "act"
+      }
+    },
+    "excluded": {
+      "check_breaches": "not in the HTTP allowlist (velaris/api/allowlist.py)",
+      "dashboard": "not in the HTTP allowlist (velaris/api/allowlist.py)"
+    },
+    "reviewed": true
+  }
 }

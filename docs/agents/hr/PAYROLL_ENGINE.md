@@ -1,12 +1,33 @@
 # PAYROLL_ENGINE
 
 - **Department:** `hr`
-- **Status (static inventory):** `rule_based`
-- **Source:** `departments/hr/PAYROLL_ENGINE/main.py` (304 lines)
+- **Status (static inventory):** `not_implemented`
+- **Source:** `departments/hr/PAYROLL_ENGINE/main.py` (348 lines)
 
 ## Purpose
 
-_No module docstring yet._
+PAYROLL_ENGINE: India statutory payroll computation (Tamil Nadu scope), Decimal arithmetic, every figure dated and sourced.
+
+Deliberately NOT implemented (KAN-198; each needs the accountant/lawyer verification of KAN-79 and is listed here so nobody assumes
+it works; a result carries status "provisional" or "needs_review" while any of it matters):
+  * ESI wage ceiling of Rs 25,000 for persons with disability (the engine applies Rs 21,000 to everyone).
+  * ESI exemption for employees earning up to Rs 176 a day.
+  * The ESI contribution-period rule (Apr-Sep / Oct-Mar: coverage held to the end of the period); the engine tests the ceiling monthly.
+  * EDLI and EPF administration charges (explicit null fields, listed under not_implemented).
+  * Statutory rounding rules of EPFO/ESIC (the engine rounds to paise, ROUND_HALF_UP).
+See statutory.py for each parameter's source, date and verified flag.
+
+PayrollEngine.compute(employee_id, basic, hra, special_allowance, tds=0, *, pay_period, local_body, half_year_gross,
+epf_basis) returns gross, EPF and ESI (employee and employer), Tamil Nadu profession tax, deductions, net pay and CTC,
+with parameters looked up by pay-period date. compute_bulk(employees, pay_period) maps compute over a list, and
+org_statutory_summary(employees, pay_period) totals the EPF/ESI/PT liability. get_payslip, get_statutory_deductions and
+get_ytd_summary read stored data through ZohoPayrollConnector and take a caller, which the connector checks (AccessDenied
+is raised there); they need config zoho_enabled.
+State: keeps none locally; the statutory parameters are in the statutory module and payslips in Zoho.
+Failure: unparsable amounts or period return status "invalid_input" with a reason; a figure that cannot be established is
+None with status "needs_review" and review_reasons (never pay from it); unverified parameters or omitted charges give
+"provisional"; an invalid epf_basis raises ValueError; the Zoho methods return {"error": "zoho_not_configured"} when Zoho
+is off.
 
 ## Class `_Run`
 
@@ -39,6 +60,7 @@ says why in "review_reasons". Never pay from such a result.
 ## Depends on
 
 - `velaris.agents.PAYROLL_ENGINE`
+- `velaris.agents.PAYROLL_ENGINE.registry`
 - `velaris.agents.ZOHO_PAYROLL.main`
 - `velaris.core.access`
 

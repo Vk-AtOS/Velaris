@@ -248,7 +248,9 @@ def test_adaptation_needs_a_person_to_accept_and_applies_nothing():
         accepted = g.resolve(pid, True, by="cfo")
         assert accepted["proposal"]["state"] == "accepted" and accepted["proposal"]["by"] == "cfo"
         assert g.resolve(pid, False)["status"] == "denied"
-        assert g.adapt()["proposals"][0]["id"] != pid                                # still overridden: a fresh proposal
+        assert g.adapt()["proposals"] == []          # accepted: with the policy owner now; no duplicate until 10 NEW outcomes
+        g.record(outcomes("travel-cap", 10, 5))
+        assert g.adapt()["proposals"][0]["id"] != pid                                # new evidence: a fresh proposal
 
 
 def test_adaptation_bad_input():
@@ -348,3 +350,31 @@ def test_protocol_is_not_changed_when_the_trace_cannot_be_written(cfo, monkeypat
     monkeypatch.setattr(import_module("velaris.agents.EACPE_PROTOCOL.main"), "audit", lambda *a, **k: "")      # the ledger write fails
     assert p.define("change", CHANGE[:1])["status"] == "audit_failed"
     assert p.evaluate_protocol({"protocol": "change", "events": [ev("request", "a", 1)]})["version"] == 1
+
+
+def test_one_admin_cannot_lift_the_guard_of_an_irreversible_class():
+    """KAN-96: exempt() on a guarded class used to take one admin and one call."""
+    g = make("EACPE_HUMAN_GUARD")
+    with as_("cfo", GOVERNANCE_ADMIN):
+        assert g.exempt("transfer_funds")["status"] == "pending_second_person"
+        assert g.exempt("transfer_funds")["status"] == "pending_second_person"       # the same person again does not count
+    with as_("bot-ap"):
+        assert g.validate(PAYMENT)["status"] == "pending_approval"                  # still guarded
+    with as_("coo", GOVERNANCE_ADMIN):
+        assert g.exempt("transfer_funds")["mode"] == "exempt"
+    assert g.validate(PAYMENT)["approved"] is True
+
+
+def test_policy_and_adaptation_changes_are_not_made_when_the_trace_cannot_record_them(monkeypatch):
+    """KAN-96: put_policy/retire/resolve wrote the change and ignored a failed audit."""
+    pc = make("POLICY_CONTROLLER")
+    g = make("GOVERNANCE_ADAPTATION_LOOP", "GovernanceAdaptationLoop")
+    with as_("cfo", GOVERNANCE_ADMIN):
+        pid = g.adapt({"outcomes": outcomes("travel-cap", 10, 5)})["proposals"][0]["id"]
+        real = trace.append
+        monkeypatch.setattr(trace, "append", lambda *a, **k: (_ for _ in ()).throw(OSError("disk full")))
+        assert pc.put_policy("p1", {"effect": "deny"})["status"] == "audit_failed" and pc.get_policy("p1") is None
+        assert g.resolve(pid, True)["status"] == "audit_failed"
+        monkeypatch.setattr(trace, "append", real)
+        assert pc.put_policy("p1", {"effect": "deny"})["status"] == "ok"
+        assert g.resolve(pid, True)["proposal"]["state"] == "accepted"

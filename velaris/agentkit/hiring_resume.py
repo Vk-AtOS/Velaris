@@ -21,6 +21,7 @@ from velaris.agentkit.hiring_common import bad, digest, iso, new_id, now, sha, s
 from velaris.intel import docs, guard
 
 MAX_B64 = 14_000_000
+RESUME_LIMITS = {"MAX_BYTES": 10_000_000, "MAX_MEMBER": 8_000_000, "MAX_UNPACKED": 24_000_000, "MAX_PDF_PAGES": 30}
 MAX_QUOTE = 240
 MONTHS = {m: i for i, m in enumerate(["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"], 1)}
 HEADINGS = {
@@ -31,7 +32,8 @@ HEADINGS = {
     "summary": ("summary", "profile", "objective", "about me"),
     "certifications": ("certifications", "certificates", "courses"),
 }
-_YEARS = re.compile(r"(\d{1,2}(?:\.\d)?)\s*\+?\s*(?:years?|yrs?)\b", re.I)
+MAX_LINE, MAX_LINES = 2000, 20_000      # a résumé line or file beyond this is cut, not scanned (a candidate controls the text)
+_YEARS = re.compile(r"(\d{1,2}(?:\.\d)?)[ \t]{0,8}\+?[ \t]{0,8}(?:years?|yrs?)\b", re.I)
 _DATE = r"(?:(?:(?P<{p}m>[A-Za-z]{{3,9}})\.?,?\s+|(?P<{p}n>\d{{1,2}})/)?(?P<{p}y>(?:19|20)\d{{2}}))"
 _RANGE = re.compile(_DATE.format(p="s") + r"\s*(?:-|–|—|to)\s*(?:" + _DATE.format(p="e")
                     + r"|(?P<now>present|current|till date|till now|now|ongoing))", re.I)
@@ -58,7 +60,8 @@ def read_text(filename: str, text: Optional[str], content_base64: Optional[str])
         raise bad("content_base64 is not valid base64") from e
     name = filename if isinstance(filename, str) and 0 < len(filename) <= 200 else "resume.txt"
     try:
-        md, kind = docs.convert(name, data)
+        with docs.limits(**RESUME_LIMITS):        # an anonymous upload is parsed under résumé limits, not the library's 64/256 MB
+            md, kind = docs.convert(name, data)
     except docs.DocError as e:
         raise bad(str(e)[:300]) from e
     return md, kind
@@ -146,7 +149,7 @@ def _unknown_phrases(line: str, hits: List[sk.Hit]) -> List[str]:
 def parse(org: str, text: str, table: Optional[sk.Table] = None, today: Optional[float] = None) -> Dict[str, Any]:
     table = table or sk.load_table(org)
     today = today if today is not None else now()
-    lines = text.splitlines()
+    lines = [ln[:MAX_LINE] for ln in text.splitlines()[:MAX_LINES]]       # every regex below runs per line: bound its input
     secs = _sections(lines)
     skills: Dict[str, Dict[str, Any]] = {}
     unknown: List[str] = []

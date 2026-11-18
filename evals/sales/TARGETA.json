@@ -1,0 +1,74 @@
+{
+  "schema": 1,
+  "agent": "TARGETA",
+  "cases": [
+    {
+      "id": "select-match_score",
+      "input": "Use the match_score operation of TARGETA with {\"profile\": {}, \"target\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "match_score",
+            "args": {
+              "profile": {},
+              "target": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-segmentation_score",
+      "input": "Use the segmentation_score operation of TARGETA with {\"segment_sizes\": []}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "segmentation_score",
+            "args": {
+              "segment_sizes": []
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-target_fit",
+      "input": "Use the target_fit operation of TARGETA with {\"match\": 1.0}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "target_fit",
+            "args": {
+              "match": 1.0
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

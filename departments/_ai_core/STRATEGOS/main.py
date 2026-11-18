@@ -1,11 +1,16 @@
+"""Strategos: scores and ranks candidate strategies with a simple heuristic.
+StrategosAgent.evaluate_strategy(strategy) returns (benefit - cost) / (1 + risk) from the numeric
+fields "benefit", "cost" and "risk" (each defaults to 0). rank_strategies(strategies) returns
+[{"strategy", "score"}] sorted by score descending. pick_best(strategies) returns the top item, or None
+for an empty list. This is a rule-based formula, not a learned model.
+State: keeps no state. Failure: a field that cannot be converted to float, a value that is
+not finite, or a negative risk raises ValueError.
+"""
 import logging
+import math
 from typing import List, Dict, Any
 
 logger = logging.getLogger("STRATEGOS")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - STRATEGOS - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class StrategosAgent:
     def __init__(self, config: Dict[str, Any] = None):
@@ -23,9 +28,15 @@ class StrategosAgent:
         Simple heuristic: higher benefit, lower cost -> higher score.
         Expects strategy dict with 'benefit' and 'cost' numeric fields.
         """
-        benefit = float(strategy.get("benefit", 0))
-        cost = float(strategy.get("cost", 0))
-        risk = float(strategy.get("risk", 0))
+        try:
+            benefit = float(strategy.get("benefit", 0))
+            cost = float(strategy.get("cost", 0))
+            risk = float(strategy.get("risk", 0))
+        except (TypeError, ValueError, AttributeError):
+            raise ValueError("strategy needs numeric 'benefit', 'cost' and 'risk'") from None
+        if not all(math.isfinite(v) for v in (benefit, cost, risk)) or risk < 0:
+            # risk -1 divided by zero and risk below -1 flipped the ranking: a negative risk has no meaning here
+            raise ValueError("benefit, cost and risk must be finite and risk must be zero or more")
         # basic scoring formula
         score = (benefit - cost) / (1 + risk)
         logger.debug("Evaluated strategy: %s -> score=%s", strategy, score)

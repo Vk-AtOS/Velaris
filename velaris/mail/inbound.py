@@ -12,7 +12,8 @@ Run the listener (NOT started by importing this module or by any test):
 
 --bind defaults to 127.0.0.1. Binding a public address, and port 25, is the operator's decision (and port 25
 needs a privileged port, a public IP, reverse DNS and a TLS-terminating front, none of which are done here).
-Without dnspython installed SPF/DKIM/DMARC cannot be checked and every verdict is temperror (nothing passes).
+dnspython is a required runtime dependency (requirements.txt, deploy/constraints.txt): the module does not import without it, so
+the service cannot start up and silently skip the checks. A lookup that fails at run time is temperror (nothing passes).
 """
 from __future__ import annotations
 
@@ -20,10 +21,13 @@ import argparse
 import asyncio
 import logging
 import sqlite3
-from typing import Any, Callable, Optional, Tuple
+from typing import Any, Optional, Tuple
+
+import dns.exception
+import dns.resolver
 
 from velaris.core.access import deployment_org
-from velaris.mail import dkim, rules, spam
+from velaris.mail import dkim, dsn, rules, spam
 from velaris.mail.common import DnsError, MailError, audit
 from velaris.mail.dnsauth import DmarcResult, SpfResult, UnavailableResolver, authentication_results, check_dmarc, check_spf
 from velaris.mail.mime import domain_of, parse_message
@@ -95,6 +99,11 @@ class InboundPipeline:
                 logger.warning("delivery storage failed: %s", type(e).__name__)
                 temp = True
                 continue
+            if pk:
+                try:        # a bounce of something we sent marks that submission, whatever the spam verdict on the report: it only
+                    dsn.apply(self.store, mb, env.data)       # counts if it quotes the random Message-ID of one of our own sent messages
+                except (MailError, sqlite3.Error, ValueError, KeyError) as e:
+                    logger.warning("bounce handling failed: %s", type(e).__name__)
             if pk and not quarantine:
                 try:
                     rules.apply_inbound(self.store, self.outbound, mb, pk)
@@ -114,6 +123,7 @@ class InboundPipeline:
         pk = self.store.deliver(mb["id"], p, auth_results=f"{self.authserv}; internal=trusted", source="inbound")
         if pk:
             try:
+                dsn.apply(self.store, mb, raw)
                 rules.apply_inbound(self.store, self.outbound, mb, pk)
             except (MailError, sqlite3.Error, ValueError, KeyError) as e:
                 logger.warning("rules failed: %s", type(e).__name__)
@@ -121,13 +131,7 @@ class InboundPipeline:
 
 
 def dnspython_resolver() -> Any:
-    """A resolver on dnspython when it is installed (optional), else the one that answers temperror to everything."""
-    try:
-        import dns.exception
-        import dns.resolver
-    except ImportError:
-        return UnavailableResolver()
-
+    """The DNS resolver on dnspython, a pinned runtime dependency: DMARC and SPF are enforced for real, never claimed on a stub."""
     class _R:
         def _q(self, name: str, rtype: str) -> list:
             try:

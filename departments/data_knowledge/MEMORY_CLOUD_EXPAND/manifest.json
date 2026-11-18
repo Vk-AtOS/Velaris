@@ -3,5 +3,33 @@
   "version": "0.1.0",
   "author": "Velaris",
   "description": "Move a scope's memories between Velaris installations as a checked file.",
-  "entrypoint": "main.py:MEMORY_CLOUD_EXPANDAgent"
+  "entrypoint": "main.py:MEMORY_CLOUD_EXPANDAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "MEMORY_CLOUD_EXPAND: move a scope's memories between Velaris installations as a checked file.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/data_knowledge/MEMORY_CLOUD_EXPAND.json",
+    "wave": "KAN-42",
+    "status": "mixed",
+    "tools": {
+      "export_scope": {
+        "kind": "act"
+      },
+      "import_bundle": {
+        "kind": "act"
+      },
+      "meta": {
+        "kind": "read"
+      },
+      "sync_meta": {
+        "kind": "act"
+      },
+      "verify_bundle": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

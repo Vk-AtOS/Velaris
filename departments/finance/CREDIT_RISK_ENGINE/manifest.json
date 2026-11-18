@@ -1,0 +1,26 @@
+{
+  "name": "CREDIT_RISK_ENGINE",
+  "version": "0.1.0",
+  "description": "CREDIT_RISK_ENGINE: a points scorecard over a borrower's declared figures.",
+  "entrypoint": "main.py:CreditRiskEngine",
+  "harness": {
+    "schema": 1,
+    "purpose": "CREDIT_RISK_ENGINE: a points scorecard over a borrower's declared figures.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/finance/CREDIT_RISK_ENGINE.json",
+    "wave": "KAN-38",
+    "status": "deterministic_tool",
+    "tools": {
+      "compute_risk": {
+        "kind": "read"
+      },
+      "validate": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "finance"
+}

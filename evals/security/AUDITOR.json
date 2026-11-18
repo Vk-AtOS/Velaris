@@ -1,0 +1,57 @@
+{
+  "schema": 1,
+  "agent": "AUDITOR",
+  "cases": [
+    {
+      "id": "select-check_compliance",
+      "input": "Use the check_compliance operation of AUDITOR with {\"workflow_steps\": [], \"required_steps\": []}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "check_compliance",
+            "args": {
+              "workflow_steps": [],
+              "required_steps": []
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "select-find_violations",
+      "input": "Use the find_violations operation of AUDITOR with {\"log_entries\": [], \"banned_terms\": []}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "find_violations",
+            "args": {
+              "log_entries": [],
+              "banned_terms": []
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

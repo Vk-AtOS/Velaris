@@ -3,5 +3,24 @@
   "version": "0.1.0",
   "author": "Velaris",
   "description": "Contextual self model.",
-  "entrypoint": "main.py:CONTEXTUAL_SELF_MODELAgent"
+  "entrypoint": "main.py:CONTEXTUAL_SELF_MODELAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "Contextual self model: the platform's own record of facts about itself, with per-context overrides.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/CONTEXTUAL_SELF_MODEL.json",
+    "wave": "KAN-43",
+    "status": "deterministic_tool",
+    "tools": {
+      "snapshot": {
+        "kind": "read"
+      },
+      "update": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

@@ -1,0 +1,35 @@
+{
+  "name": "HARD_LOCKDOWN_MODE",
+  "version": "0.1.0",
+  "description": "Hard lockdown mode: a persisted switch that denies every action except a small whitelist.",
+  "entrypoint": "main.py:HardLockdownMode",
+  "harness": {
+    "schema": 1,
+    "purpose": "Hard lockdown mode: a persisted switch that denies every action except a small whitelist.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/security/HARD_LOCKDOWN_MODE.json",
+    "wave": "KAN-40",
+    "status": "deterministic_tool",
+    "tools": {
+      "attempt": {
+        "kind": "act"
+      },
+      "disable": {
+        "kind": "act"
+      },
+      "enable": {
+        "kind": "act"
+      },
+      "get_logs": {
+        "kind": "read"
+      },
+      "is_enabled": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "security"
+}

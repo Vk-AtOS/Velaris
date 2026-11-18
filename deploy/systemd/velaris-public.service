@@ -11,6 +11,7 @@ User=velaris
 Group=velaris
 WorkingDirectory=/opt/velaris
 EnvironmentFile=/etc/velaris/velaris-public.env
+Environment=VELARIS_VAULT_KEY_FILE=/etc/velaris/vault.key
 Environment=VELARIS_DATA=/var/lib/velaris VELARIS_PUBLIC_HOST=127.0.0.1 VELARIS_PUBLIC_PORT=8731 VELARIS_PUBLIC_TRUST_PROXY=1 PYTHONDONTWRITEBYTECODE=1
 ExecStart=/opt/velaris/.venv/bin/python -m velaris.api.public
 Restart=on-failure

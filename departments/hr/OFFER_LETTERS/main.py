@@ -20,6 +20,7 @@ import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
 import base64
+import hashlib
 import logging
 from datetime import date
 import re
@@ -212,7 +213,7 @@ class OfferLetters:
                 ctc = annual_ctc if annual_ctc is not None else o["comp"]["annual_ctc"]
                 o["comp"] = self._engine_breakdown(ctc, structure or o["comp"]["structure"], t["join_date"][:7], t["local_body"])
             except ValueError as e:
-                raise Refused(invalid(str(e)))
+                raise Refused(invalid(str(e))) from e
             o["terms"] = t
             o["history"].append(snap)
             # whoever changes the terms is an author of this version: they may not approve it (four-eyes)
@@ -301,16 +302,40 @@ class OfferLetters:
         content = self._render(o, expires)
         message = {"to": o["candidate"]["email"], "subject": f"Offer of employment: {o['terms']['role_title']}", "body": content["text"]}
         sender, channel = self.config.get("sender"), "manual"
+        if not delivered_manually and sender is None:
+            return fail("not_configured", "no message sender is configured; the offer was not sent", draft=message)
+
+        def _claim(r: Dict[str, Any]) -> Dict[str, Any]:       # one sender wins: the state moves BEFORE anything leaves the building
+            if r["status"] != "approved":
+                raise Refused(fail("conflict", f"offer is {r['status']}"))
+            r.update(status="sending", sending_at=iso(now))
+            return ok()
+
+        def _release(r: Dict[str, Any]) -> Dict[str, Any]:
+            if r["status"] == "sending":
+                r["status"] = "approved"
+            return ok()
+
+        claimed = self.store.update("offers", offer_id, who.org, _claim)
+        if claimed.get("status") != "ok":
+            return claimed
         if not delivered_manually:
-            if sender is None:
-                return fail("not_configured", "no message sender is configured; the offer was not sent", draft=message)
-            if sender.send(**message) is not True:
+            try:
+                accepted = sender.send(**message) is True
+            except Exception as e:                              # a sender outside this agent: it did not deliver
+                logger.warning("offer %s: sender raised %s", offer_id, type(e).__name__)
+                accepted = False
+            if not accepted:
+                self.store.update("offers", offer_id, who.org, _release)
                 return fail("delivery_failed", "the message sender did not accept the message", draft=message)
             channel = "mail_draft" if getattr(sender, "drafts_only", False) else "sender"
 
         def _do(r: Dict[str, Any]) -> Dict[str, Any]:
-            if r["status"] != "approved":
+            if r["status"] not in ("sending", "withdrawn"):
                 raise Refused(fail("conflict", f"offer is {r['status']}"))
+            if r["status"] == "withdrawn":                       # withdrawn while the message was going out: say so, keep it withdrawn
+                r["sent_after_withdrawal"] = {"via": channel, "at": iso(now)}
+                return fail("conflict", "the offer was withdrawn while it was being sent; the message may have gone out")
             r.update(status="sent", sent_at=iso(now), expires_at=iso(expires), sent_via=channel,
                      sent_document_sha256=sha256_hex(content["pdf"]))
             return ok(offer=self._summary(r))
@@ -366,6 +391,13 @@ class OfferLetters:
             return fail("not_configured", "the e-signature evidence could not be checked")
         if not info or info.get("status") != "sealed" or info.get("document_ref") != offer_id:
             return fail("evidence_mismatch", "the evidence reference is not a sealed e-signature request for this offer")
+        o = self.store.get("offers", offer_id, org)
+        sent_sha = (o or {}).get("sent_document_sha256")
+        if not sent_sha or info.get("document_sha256") != sent_sha:        # a request that only NAMES this offer but carries another document
+            return fail("evidence_mismatch", "the signed document is not the offer letter that was sent")
+        email = ((o or {}).get("candidate") or {}).get("email", "").strip().lower()
+        if not email or hashlib.sha256(email.encode()).hexdigest() not in (info.get("signer_email_sha256") or []):
+            return fail("evidence_mismatch", "the offer was not signed by the candidate it was made to")
         return None
 
     def withdraw_offer(self, offer_id: str, reason: str) -> Dict[str, Any]:

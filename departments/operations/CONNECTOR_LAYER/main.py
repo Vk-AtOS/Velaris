@@ -1,7 +1,27 @@
 # ================================================================================
 
-import json
+"""Connector layer: an in-memory registry of connector configs with a simulated request.
+
+register_connector(name, config) (False if it exists), update_connector(name, config) (merges;
+False if unknown), get_connector(name) (a copy with secret-looking values masked; None if unknown), remove_connector(name) (False if
+unknown). request(connector_name, payload) performs no real IO: it echoes the payload as
+{"status": "OK", ...} or returns {"status": "ERROR", "error": "ConnectorMissing"}. Configs are
+stored as given; get_connector masks ("***") values whose key looks like a secret (secret, token,
+password, api_key, credential, authorization, private), and that is the only secret handling. State: a dict in memory only, lost on restart.
+"""
+import re
 from typing import Dict, Any, Optional
+
+_SECRET_KEY = re.compile(r"(secret|token|password|passwd|api_?key|credential|authorization|private)", re.I)
+
+
+def _masked(value: Any, key: str = "") -> Any:
+    if isinstance(value, dict):
+        return {k: _masked(v, str(k)) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_masked(v, key) for v in value]
+    return "***" if value and _SECRET_KEY.search(key) else value
+
 
 class ConnectorLayer:
     """
@@ -27,7 +47,9 @@ class ConnectorLayer:
         return True
 
     def get_connector(self, name: str) -> Optional[Dict[str, Any]]:
-        return self.connectors.get(name)
+        """A COPY of the connector's config with secret-looking values masked; the live config never leaves this agent."""
+        cfg = self.connectors.get(name)
+        return None if cfg is None else _masked(cfg)
 
     def remove_connector(self, name: str) -> bool:
         if name in self.connectors:

@@ -12,7 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 LOCAL = {"velaris", "agents", "live", "departments", "main", "conftest"}
 IMPORT_NAME = {"python-pptx": "pptx", "python-docx": "docx", "pyyaml": "yaml", "beautifulsoup4": "bs4",
-               "openai-whisper": "whisper", "faster-whisper": "faster_whisper"}
+               "openai-whisper": "whisper", "faster-whisper": "faster_whisper", "dnspython": "dns"}
 
 
 def _catches_import_error(node: ast.Try) -> bool:
@@ -28,8 +28,8 @@ def imports(root: Path = ROOT):
     required, optional = {}, {}
     for path in sorted(root.rglob("*.py")):
         rel = path.relative_to(root)
-        if any(part.startswith(("_archived", ".")) for part in rel.parts):
-            continue
+        if any(part.startswith(".") for part in rel.parts) or "tests" in rel.parts:
+            continue                                   # test-only imports belong to requirements-dev.txt
         tree = ast.parse(path.read_text(encoding="utf-8"))
         guarded = {id(x) for t in ast.walk(tree) if isinstance(t, ast.Try) and _catches_import_error(t)
                    for b in t.body for x in ast.walk(b)}
@@ -73,7 +73,9 @@ def test_transcriber_without_whisper_says_what_to_install(tmp_path, monkeypatch)
     monkeypatch.setitem(sys.modules, "whisper", None)       # makes `import whisper` raise ImportError
     audio = tmp_path / "call.wav"
     audio.write_bytes(b"RIFF")
-    out = CallTranscriber().transcribe(str(audio))
+    from velaris.core.access import Caller, acting_as
+    with acting_as(Caller("u", "kf")):
+        out = CallTranscriber({"audio_roots": [str(tmp_path)]}).transcribe(str(audio))
     assert "openai-whisper" in out["error"] and "not installed" in out["error"]
 
 
@@ -98,3 +100,32 @@ def test_whatsapp_send_uses_httpx_and_does_not_call_a_refusal_sent(tmp_path, mon
     assert ok == {"status": "sent", "http_status": 200}
     assert refused["status"] == "error" and refused["http_status"] == 401
     assert seen[0] == ("https://graph.facebook.com/v17.0/42/messages", "Bearer good")
+
+
+def test_requirements_lower_bounds_are_satisfied_by_the_pinned_constraints():
+    """KAN-69 SV2-15: requirements.txt are lower bounds and the Docker image installs the pins of deploy/constraints.txt: the
+    two files must agree, or the image can ship a version the tests never ran against (or none)."""
+    import re
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[2]
+    pins = {m.group(1).lower().replace("_", "-"): m.group(2)
+            for m in re.finditer(r"^([A-Za-z0-9_.-]+)==([^\s#]+)", (root / "deploy" / "constraints.txt").read_text(), re.M)}
+
+    def ver(v):
+        return tuple(int(x) for x in re.findall(r"\d+", v)[:3])
+    for m in re.finditer(r"^([A-Za-z0-9_.-]+)>=([^\s#]+)", (root / "requirements.txt").read_text(), re.M):
+        name = m.group(1).lower().replace("_", "-")
+        assert name in pins, f"{name} is required but not pinned in deploy/constraints.txt"
+        assert ver(pins[name]) >= ver(m.group(2)), f"{name}: pinned {pins[name]} is below the lower bound {m.group(2)}"
+
+
+def test_runtime_requirements_hold_no_test_tools_and_dev_requirements_have_them():
+    """KAN-69 SV2-10: the image installs requirements.txt; pytest and pyyaml live in requirements-dev.txt, which CI installs."""
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[2]
+    runtime = (root / "requirements.txt").read_text()
+    assert not [ln for ln in runtime.splitlines() if ln.split("#")[0].strip().lower().startswith(("pytest", "pyyaml"))]
+    dev = (root / "requirements-dev.txt").read_text()
+    assert "-r requirements.txt" in dev and "pytest" in dev
+    assert "requirements-dev.txt" in (root / ".github" / "workflows" / "ci.yml").read_text()
+    assert "grep" not in (root / "deploy" / "Dockerfile").read_text().split("COPY velaris")[0]      # nothing to filter out

@@ -3,5 +3,30 @@
   "version": "0.1.0",
   "author": "Velaris",
   "description": "Bounded working memory per session.",
-  "entrypoint": "main.py:SHORTTERM_MEMORYAgent"
+  "entrypoint": "main.py:SHORTTERM_MEMORYAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "SHORTTERM_MEMORY: bounded working memory per session.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/data_knowledge/SHORTTERM_MEMORY.json",
+    "wave": "KAN-42",
+    "status": "mixed",
+    "tools": {
+      "clear": {
+        "kind": "act"
+      },
+      "promote": {
+        "kind": "act"
+      },
+      "push": {
+        "kind": "act"
+      },
+      "recent": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

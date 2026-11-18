@@ -1,11 +1,18 @@
+"""Orchestrix: orders tasks by their dependencies and groups them into parallel batches.
+It is a thin face of velaris.agentkit.graph.order, the ONE dependency ordering of the platform (the central brain orders its
+plans with it too); there is no second sort here. resolve_dependencies(tasks) takes {task: [dependencies]} and returns the order
+(by level, then name). A cycle raises ValueError("Circular dependency detected: a -> b -> a") and a dependency that is not a
+key of `tasks` raises ValueError("unknown dependencies: ..."): both used to be a bare Exception and a silent inclusion.
+parallel_groups(order, tasks) returns the batches (levels) of the tasks in `order`; every dependency is in an earlier batch.
+health_check() returns status ok and version. State: none.
+"""
 import logging
 from typing import Dict, List, Any
 
+from velaris.agentkit.graph import order as dependency_order
+
 logger = logging.getLogger("ORCHESTRIX")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - ORCHESTRIX - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
+
 
 class OrchestrixAgent:
     def __init__(self, config: Dict[str, Any] = None):
@@ -18,46 +25,18 @@ class OrchestrixAgent:
         return status
 
     def resolve_dependencies(self, tasks: Dict[str, List[str]]) -> List[str]:
-        """
-        Topological sort of tasks with dependencies.
-        tasks = {task: [dependencies]}
-        """
-        logger.debug("Resolving dependencies: %s", tasks)
-
-        resolved = []
-        unresolved = []
-
-        def resolve(task):
-            if task in resolved:
-                return
-            if task in unresolved:
-                raise Exception(f"Circular dependency detected: {task}")
-            unresolved.append(task)
-            for dep in tasks.get(task, []):
-                resolve(dep)
-            unresolved.remove(task)
-            resolved.append(task)
-
-        for task in tasks:
-            resolve(task)
-
-        logger.debug("Resolved order: %s", resolved)
-        return resolved
+        """Order of {task: [dependencies]}; ValueError on a cycle or on a dependency that is not a task."""
+        if not isinstance(tasks, dict) or not all(isinstance(d, (list, tuple)) for d in tasks.values()):
+            raise ValueError("tasks is {task: [dependencies]}")
+        graph = dependency_order({t: list(d) for t, d in tasks.items()})
+        if graph["missing"]:
+            raise ValueError(f"unknown dependencies: {graph['missing']}")
+        if graph["cycle"]:
+            raise ValueError("Circular dependency detected: " + " -> ".join(graph["cycle"]))
+        return graph["order"]
 
     def parallel_groups(self, order: List[str], tasks: Dict[str, List[str]]) -> List[List[str]]:
-        """
-        Group tasks into parallel-safe batches.
-        Batch n holds the tasks whose longest dependency chain has n tasks before them, so every
-        dependency sits in an earlier batch (a chain A<-B<-C gives [[A],[B],[C]]).
-        """
-        logger.debug("Creating parallel groups from order=%s tasks=%s", order, tasks)
-
-        level: Dict[str, int] = {}
-        for task in order:      # `order` is a topological order, so a task's dependencies already have a level
-            level[task] = 1 + max((level[d] for d in tasks.get(task, []) if d in level), default=-1)
-        groups = [[] for _ in range(max(level.values(), default=-1) + 1)]
-        for task in order:
-            groups[level[task]].append(task)
-
-        logger.debug("Parallel groups: %s", groups)
-        return groups
+        """Batches of the tasks in `order`: each task sits one level after its deepest dependency."""
+        wanted = set(order)
+        levels = dependency_order({t: list(d) for t, d in tasks.items()})["levels"]
+        return [g for g in ([t for t in lvl if t in wanted] for lvl in levels) if g]

@@ -1,0 +1,37 @@
+{
+  "name": "MODEL_REGISTRY_CANARY",
+  "display_name": "Model Registry Canary",
+  "version": "0.1.0",
+  "description": "Public methods: register_model, activate, deactivate, set_canary, get_model",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:ModelRegistryCanary",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Model registry canary: tracks model versions and their canary rollout percentage.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/MODEL_REGISTRY_CANARY.json",
+    "wave": "KAN-43",
+    "status": "deterministic_tool",
+    "tools": {
+      "activate": {
+        "kind": "act"
+      },
+      "deactivate": {
+        "kind": "act"
+      },
+      "get_model": {
+        "kind": "read"
+      },
+      "register_model": {
+        "kind": "act"
+      },
+      "set_canary": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

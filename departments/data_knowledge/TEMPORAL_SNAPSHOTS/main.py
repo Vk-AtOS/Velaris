@@ -1,43 +1,49 @@
 # ================================================================================
 
+"""Temporal snapshots: stores labelled, timestamped copies of any JSON-serialisable data and retrieves or compares them.
+
+TemporalSnapshots(): create_snapshot(label, data) appends {label, timestamp, data} and
+returns it (labels are not required to be unique); list_snapshots() returns labels;
+restore(label) returns the data of the newest snapshot with that label; compare(a, b)
+returns {"a", "b", "found": {"a", "b"}, "equal"} using the newest snapshot of each label;
+"equal" is None when either label is unknown (nothing was compared).
+State: snapshots.json under velaris.intel.paths.agent_dir("TEMPORAL_SNAPSHOTS") (honours
+VELARIS_DATA), owner-only, written atomically and locked across workers; only the newest 500
+snapshots are kept.
+Failure: a file that cannot be parsed is set aside as snapshots.json.corrupt-<time> and the
+store starts empty; restore returns None for an unknown label; non-serialisable data raises
+TypeError on save.
+"""
+
 import logging
 import os
-import json
 import time
 from typing import Dict, Any, List
 
+from velaris.agentkit.state import JsonState
 from velaris.intel.paths import agent_dir
 
-
 logger = logging.getLogger("TEMPORAL_SNAPSHOTS")
+MAX_SNAPSHOTS = 500
+
 
 class TemporalSnapshots:
     """
     Velaris Temporal Snapshots
-    - Stores timestamped snapshots of any data structure
+    - Stores timestamped snapshots of any data structure (owner-only file, atomic and locked across workers)
     - Allows restoring, listing, and comparing snapshots
+    - A label used twice keeps both snapshots; restore and compare always use the NEWEST one
     """
 
     def __init__(self):
         # Resolved per instance so VELARIS_DATA is honoured on any machine.
         self.AGENT_DIR = str(agent_dir("TEMPORAL_SNAPSHOTS"))
         self.SNAP_PATH = os.path.join(self.AGENT_DIR, "snapshots.json")
-        if not os.path.exists(self.SNAP_PATH):
-            with open(self.SNAP_PATH, "w") as f:
-                f.write("[]")
-        self._load()
+        self._state = JsonState("TEMPORAL_SNAPSHOTS", path=self.SNAP_PATH)
 
-    def _load(self):
-        try:
-            with open(self.SNAP_PATH, "r") as f:
-                self.snaps: List[Dict[str, Any]] = json.load(f)
-        except (OSError, ValueError) as e:
-            logger.warning("Snapshot store %s is unreadable, starting empty: %s", self.SNAP_PATH, e)
-            self.snaps = []
-
-    def _save(self):
-        with open(self.SNAP_PATH, "w") as f:
-            json.dump(self.snaps, f, indent=2)
+    @property
+    def snaps(self) -> List[Dict[str, Any]]:
+        return list(self._state.load().get("snaps", []))
 
     def create_snapshot(self, label: str, data: Any) -> Dict[str, Any]:
         snap = {
@@ -45,27 +51,27 @@ class TemporalSnapshots:
             "timestamp": time.time(),
             "data": data
         }
-        self.snaps.append(snap)
-        self._save()
+        self._state.update(lambda d: d.__setitem__("snaps", (d.get("snaps", []) + [snap])[-MAX_SNAPSHOTS:]))
         return snap
 
     def list_snapshots(self) -> List[str]:
         return [s["label"] for s in self.snaps]
 
-    def restore(self, label: str) -> Any:
-        for s in self.snaps:
+    def _newest(self, label: str):
+        """(found, data) of the newest snapshot with this label."""
+        for s in reversed(self.snaps):
             if s["label"] == label:
-                return s["data"]
-        return None
+                return True, s["data"]
+        return False, None
+
+    def restore(self, label: str) -> Any:
+        return self._newest(label)[1]
 
     def compare(self, a: str, b: str) -> Dict[str, Any]:
-        da = None
-        db = None
-        for s in self.snaps:
-            if s["label"] == a:
-                da = s["data"]
-            if s["label"] == b:
-                db = s["data"]
-        return {"a": da, "b": db, "equal": da == db}
+        found_a, da = self._newest(a)
+        found_b, db = self._newest(b)
+        # Two unknown labels are not "equal": nothing was compared.
+        return {"a": da, "b": db, "found": {"a": found_a, "b": found_b},
+                "equal": (da == db) if found_a and found_b else None}
 
 # ================================================================================

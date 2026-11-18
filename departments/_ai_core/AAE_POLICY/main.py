@@ -11,10 +11,14 @@ where a number is compared, a list where a scalar is), denies the action outrigh
 an allow rule needs every condition to hold.
 State (the rule set): <VELARIS_DATA>/agents/AAE_POLICY/state.json.
 """
+import hashlib
+import json
+
 from velaris.agentkit.checks import ident
 from velaris.agentkit.conditions import check, condition_error
 from velaris.agentkit.results import health, invalid, ok
 from velaris.agentkit.state import JsonState
+from velaris.core.access import GOVERNANCE_ADMINS, check_caller
 
 NAME = "AAE_POLICY"
 EFFECTS = ("deny", "require_approval", "allow")      # strongest first
@@ -58,10 +62,17 @@ class AAE_POLICYAgent:
         return health(NAME)
 
     def set_rules(self, rules):
-        """Validate and store a rule set. A malformed set is rejected whole; the old one stays."""
+        """Validate and store a rule set. A malformed set is rejected whole; the old one stays.
+
+        Replacing the rules replaces what may run, so it needs a governance admin and is traced (who, how many rules,
+        and a digest of the new set)."""
         problem = rules_error(rules)
         if problem:
             return invalid(problem)
+        digest = hashlib.sha256(json.dumps(rules, sort_keys=True, default=str).encode()).hexdigest()
+        _, refused = check_caller(NAME, "set_rules", {"rules": len(rules), "digest": digest}, roles=GOVERNANCE_ADMINS)
+        if refused:
+            return refused
         self._state.save({"rules": rules})
         self._fixed = None
         return ok(rules=len(rules))

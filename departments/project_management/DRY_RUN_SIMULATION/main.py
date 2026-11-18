@@ -1,13 +1,22 @@
 # ================================================================================
 
-import json
-import logging
+"""Dry-run simulation: records what an action would do instead of doing it; it performs no action in either mode.
+
+DryRunSimulation(dry_run=True): execute_action(action_name, payload) returns {"status": "SIMULATED", ...} and logs the
+action as simulated while dry_run is on; with it off it returns and logs {"status": "EXECUTED", ...} but still calls
+nothing, so "executed" only means "recorded as live". log_action(action_name, payload) logs a simulated entry directly;
+toggle_dry_run(val) switches the mode; read_log() returns the persisted records.
+State: <VELARIS_DATA>/agents/DRY_RUN_SIMULATION/dryrun.json (the newest 1000 records, owner-only, atomic, shared by
+workers); actions_logged and actions_executed are per-instance lists, and the dry_run flag is per instance and not
+persisted. Failure: a payload that cannot be written as JSON raises when the log is saved; no caller check is made.
+"""
 import os
 from typing import List, Dict, Any
 
+from velaris.agentkit.state import JsonState
 from velaris.intel.paths import agent_dir
 
-logger = logging.getLogger("DRY_RUN_SIMULATION")
+MAX_LOG = 1000
 
 class DryRunSimulation:
     """
@@ -20,32 +29,20 @@ class DryRunSimulation:
     def __init__(self, dry_run: bool = True):
         # Resolved per instance so VELARIS_DATA is honoured on any machine.
         self.AGENT_DIR = str(agent_dir("DRY_RUN_SIMULATION"))
-        self.LOG_PATH = os.path.join(self.AGENT_DIR, "dryrun.log")
+        self.LOG_PATH = os.path.join(self.AGENT_DIR, "dryrun.json")
+        self._log = JsonState("DRY_RUN_SIMULATION", path=self.LOG_PATH)   # owner-only, atomic, locked across workers
         self.dry_run = dry_run
         self.actions_logged: List[Dict[str, Any]] = []
         self.actions_executed: List[Dict[str, Any]] = []
-        # initialize log file
-        if not os.path.exists(self.LOG_PATH):
-            with open(self.LOG_PATH, "w") as f:
-                f.write("[]")
 
     def log_action(self, action_name: str, payload: Dict[str, Any]):
         entry = {"action": action_name, "payload": payload}
         self.actions_logged.append(entry)
-        self._append_log(entry)
+        self._append_log({"simulated": entry})
         return entry
 
-    def _append_log(self, entry: Dict[str, Any]):
-        with open(self.LOG_PATH, "r+") as f:
-            try:
-                data = json.load(f)
-            except ValueError as e:
-                logger.warning("Dry-run log %s is unreadable, restarting it: %s", self.LOG_PATH, e)
-                data = []
-            data.append({"simulated": entry})
-            f.seek(0)
-            f.truncate()
-            json.dump(data, f, indent=2)
+    def _append_log(self, record: Dict[str, Any]):
+        self._log.update(lambda d: d.__setitem__("log", (d.get("log", []) + [record])[-MAX_LOG:]))
 
     def execute_action(self, action_name: str, payload: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -61,29 +58,14 @@ class DryRunSimulation:
             # Simulated "execution" without real side-effects: record executed list
             exec_entry = {"action": action_name, "payload": payload, "status": "EXECUTED"}
             self.actions_executed.append(exec_entry)
-            # also append to log as executed
-            with open(self.LOG_PATH, "r+") as f:
-                try:
-                    data = json.load(f)
-                except ValueError as e:
-                    logger.warning("Dry-run log %s is unreadable, restarting it: %s", self.LOG_PATH, e)
-                    data = []
-                data.append({"executed": exec_entry})
-                f.seek(0)
-                f.truncate()
-                json.dump(data, f, indent=2)
+            self._append_log({"executed": exec_entry})
             return exec_entry
 
     def toggle_dry_run(self, val: bool):
         self.dry_run = bool(val)
 
     def read_log(self):
-        with open(self.LOG_PATH, "r") as f:
-            try:
-                return json.load(f)
-            except ValueError as e:
-                logger.warning("Dry-run log %s is unreadable: %s", self.LOG_PATH, e)
-                return []
+        return list(self._log.load().get("log", []))
 
 
 # ================================================================================

@@ -31,4 +31,4 @@ and it never runs the workflow it reads.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** none found
+- **tests:** `velaris/tests/test_agents_coverage_c.py`

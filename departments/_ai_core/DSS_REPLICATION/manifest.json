@@ -1,0 +1,28 @@
+{
+  "name": "DSS_REPLICATION",
+  "display_name": "Dss Replication",
+  "version": "0.1.0",
+  "description": "DSS replication: decides which nodes hold the copies of a key, and audits the result.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:DSS_REPLICATIONAgent",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "DSS replication: decides which nodes hold the copies of a key, and audits the result.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/DSS_REPLICATION.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "audit": {
+        "kind": "act"
+      },
+      "place": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

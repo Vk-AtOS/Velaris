@@ -1,11 +1,16 @@
+"""Optima: weighted scoring of marketing efficiency metrics (fixed formulas, no optimisation).
+
+efficiency_score(ctr, cvr, roi) is the weighted sum using config["weights"] (default 0.3, 0.4,
+0.3; a custom weights dict missing a key raises KeyError); metric_normalize(metrics) divides
+each value by the largest magnitude (all zeros if that is 0, {} if empty); pivot_factor(before,
+after) is the relative change (after - before)/|before|, and from a before of 0 it is 0.0 when
+after is 0 too and None otherwise. Keeps no state.
+"""
 import logging
-from typing import Dict, List, Any
+import math
+from typing import Dict, Any
 
 logger = logging.getLogger("OPTIMA")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - OPTIMA - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class OptimaAgent:
     def __init__(self, config: Dict[str, Any] = None):
@@ -40,7 +45,9 @@ class OptimaAgent:
         """
         if not metrics:
             return {}
-        max_val = max(metrics.values())
+        if any(isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) for v in metrics.values()):
+            raise ValueError("metrics must be finite numbers")       # NaN made max() order-dependent, inf turned every other value into 0
+        max_val = max(abs(v) for v in metrics.values())      # by magnitude: dividing by a negative max flipped every sign
         if max_val == 0:
             return {k: 0 for k in metrics}
         norm = {k: v / max_val for k, v in metrics.items()}
@@ -51,6 +58,8 @@ class OptimaAgent:
         """
         Pivot = (after - before) / max(before, 1)
         """
-        pivot = (after - before) / max(abs(before), 1)
+        if before == 0:
+            return 0.0 if after == 0 else None      # growth from nothing has no percentage
+        pivot = (after - before) / abs(before)        # relative change: CTR 0.02 -> 0.04 is +100%, not +0.02
         logger.debug("Pivot factor=%s before=%s after=%s", pivot, before, after)
         return pivot

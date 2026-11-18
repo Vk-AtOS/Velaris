@@ -2,7 +2,6 @@
 import os
 import stat
 
-import pytest
 
 from velaris.agentkit import checks, conditions, graph, results
 from velaris.agentkit.state import JsonState, append_line, peek_dir, read_lines

@@ -2,7 +2,7 @@
 
 - **Department:** `_ai_core`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/_ai_core/CSG_STATEALIGN/main.py` (53 lines)
+- **Source:** `departments/_ai_core/CSG_STATEALIGN/main.py` (60 lines)
 
 ## Purpose
 
@@ -34,4 +34,4 @@ supported; switch to path lists if such keys ever appear.
 
 - **other agents:** `COHERENCE_SYNC_CORE`, `HYPERSYNC`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_a_csg.py`, `velaris/tests/test_layer28_csg.py`
+- **tests:** `velaris/tests/test_aicore_a_csg.py`, `velaris/tests/test_kan106_aicore.py`, `velaris/tests/test_layer28_csg.py`

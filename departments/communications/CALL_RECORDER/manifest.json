@@ -11,5 +11,30 @@
     "audio",
     "local",
     "privacy"
-  ]
+  ],
+  "harness": {
+    "schema": 1,
+    "purpose": "Call recorder: records microphone audio to local WAV files by running ffmpeg.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/communications/CALL_RECORDER.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "get_session": {
+        "kind": "read"
+      },
+      "list_recordings": {
+        "kind": "act"
+      },
+      "start": {
+        "kind": "act"
+      },
+      "stop": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

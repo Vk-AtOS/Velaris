@@ -144,7 +144,9 @@ def test_content_changed_after_approval_is_never_sent():
     d = draft(store, ALICE, mb, to=["client@ext.org"])
     sub = ob.submit(ALICE, mb["id"], d)
     ob.decide(CAROL, sub["id"], approve=True, payload_hash_seen=sub["payload_hash"])
-    store.run("UPDATE message SET body_text='send the money to a new account' WHERE id=?", (d,))   # tampering behind the API
+    from velaris.core import fieldseal
+    from velaris.mail.db import SEAL
+    store.run("UPDATE message SET body_text=? WHERE id=?", (fieldseal.seal("send the money to a new account", SEAL, fieldseal.bind_for("message", "body_text", d)), d))   # tampering behind the API
     clock.advance(31)
     assert ob.process_due()[0] == {"id": sub["id"], "result": "failed", "code": "content_changed"}
     assert relay.sent == []
@@ -314,3 +316,40 @@ def test_other_organisations_cannot_see_cancel_or_decide_a_submission():
             assert e.value.status == 404
         assert ob.pending_approvals(who) == []
     assert ob.get(ALICE, sub["id"])["state"] == "awaiting_approval" and store.one("SELECT org FROM submission")["org"] == "acme"
+
+
+DSN = (b"From: MAILER-DAEMON@mx.remote.org\r\nTo: alice@acme.com\r\nSubject: Undelivered Mail Returned to Sender\r\nMessage-ID: <dsn-%MID%-%ACTION%@mx.remote.org>\r\n"
+       b"MIME-Version: 1.0\r\nContent-Type: multipart/report; report-type=delivery-status; boundary=\"B\"\r\n\r\n"
+       b"--B\r\nContent-Type: text/plain\r\n\r\nYour message could not be delivered.\r\n"
+       b"--B\r\nContent-Type: message/delivery-status\r\n\r\nReporting-MTA: dns; mx.remote.org\r\n\r\n"
+       b"Final-Recipient: rfc822; carl@remote.org\r\nAction: %ACTION%\r\nStatus: %STATUS%\r\nDiagnostic-Code: smtp; 550 secret server text\r\n\r\n"
+       b"--B\r\nContent-Type: text/rfc822-headers\r\n\r\nMessage-ID: <%MID%>\r\nSubject: Plan\r\n\r\n--B--\r\n")
+
+
+def _dsn(mid, action="failed", status="5.1.1"):
+    return DSN.replace(b"%MID%", mid.encode()).replace(b"%ACTION%", action.encode()).replace(b"%STATUS%", status.encode())
+
+
+def test_a_permanent_bounce_marks_the_submission_and_a_delay_or_stranger_does_not():
+    """KAN-71: a message the relay accepted but the remote server later refused stayed 'sent' for ever."""
+    from velaris.mail import dsn
+    from velaris.mail.smtp import Envelope
+    store, ob, ib, clock, relay, boxes = make_world(settings={"allowlisted_domains": ["remote.org"]})
+    mb = boxes["alice"]
+    d = draft(store, ALICE, mb, to=("carl@remote.org",))
+    sub = ob.submit(ALICE, mb["id"], d)
+    assert sub["state"] == "awaiting_approval" or sub["state"] == "approved"
+    clock.advance(31)
+    ob.process_due()
+    s = ob.get(ALICE, sub["id"])
+    assert s["state"] == "sent"
+    mid = store.row(mb["id"], d)["message_id"]
+    assert dsn.parse_dsn(_dsn(mid)) == {"action": "failed", "status": "5.1.1", "recipient": "carl@remote.org", "original_message_id": mid}
+    assert dsn.parse_dsn(b"From: a@b.c\r\n\r\nplain mail") is None and dsn.parse_dsn(b"\xff\x00garbage") is None
+    for raw in (_dsn(mid, "delayed", "4.4.1"), _dsn("someone-elses@x.org")):                 # temporary, or not ours: nothing changes
+        ib.deliver(Envelope("mx.remote.org", "192.0.2.9", "MAILER-DAEMON@mx.remote.org", ["alice@acme.com"], raw))
+    assert ob.get(ALICE, sub["id"])["state"] == "sent"
+    code, _ = ib.deliver(Envelope("mx.remote.org", "192.0.2.9", "MAILER-DAEMON@mx.remote.org", ["alice@acme.com"], _dsn(mid)))
+    assert code == 250
+    after = ob.get(ALICE, sub["id"])
+    assert after["state"] == "bounced" and after["error"] == "dsn_5.1.1" and "secret server text" not in str(after)

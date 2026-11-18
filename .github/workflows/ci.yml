@@ -16,9 +16,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: {python-version: "3.11", cache: pip, cache-dependency-path: "requirements.txt\ndeploy/constraints.txt"}
-      - run: pip install -r requirements.txt -c deploy/constraints.txt
-      - run: pip install pyyaml   # deploy manifests are parsed by velaris/tests/test_deploy_packaging.py
+        with: {python-version: "3.11", cache: pip, cache-dependency-path: "requirements.txt\nrequirements-dev.txt\ndeploy/constraints.txt"}
+      - run: pip install -r requirements-dev.txt -c deploy/constraints.txt
       - run: python -m pytest -q
       - name: Smoke (starts the API with dummy credentials)
         run: python deploy/smoke.py
@@ -30,9 +29,10 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: "3.11"}
       - run: pip install ruff==0.15.4
-      # The blocking set is real errors only (syntax, undefined names, bad comparisons). The repository's style findings are
-      # reported but do not fail the build until they are cleaned up: then drop --select.
-      - run: ruff check --select E9,F63,F7,F82 .
+      # F (pyflakes: unused imports/variables, undefined names), E9 (syntax) and B904 (raise ... from) are clean (KAN-59) and block.
+      - run: ruff check --select F,E9,B904 .
+      # the tests import pytest and pyyaml, which live in requirements-dev.txt: the import-resolution check must see them
+      - run: pip install -r requirements-dev.txt -c deploy/constraints.txt && python tools/check_structure.py   # KAN-174: size, broad excepts, unresolved imports, cycles
 
   audit:
     runs-on: ubuntu-latest
@@ -40,8 +40,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: {python-version: "3.11"}
+      # --disable-pip is only valid with --no-deps; constraints.txt is the full pinned closure, so nothing is missed.
       - run: pip install pip-audit
-      - run: pip-audit -r deploy/constraints.txt --strict --disable-pip
+      - run: pip-audit -r deploy/constraints.txt --no-deps --disable-pip --strict
 
   secrets:
     runs-on: ubuntu-latest

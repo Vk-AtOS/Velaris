@@ -1,5 +1,11 @@
 """PRIME: the Velaris controller, and the one place that decides what an agent or person may do.
 
+AetherOS Prime (velaris.core.prime, the approval gate of every flow) is the canonical authority: it is on the runtime path and holds
+the per-organisation limits, hard maxima, expiry and the revocation audit chain. This agent is the LOCAL fallback for deployments
+without Prime. Once VELARIS_PRIME_URL and VELARIS_PRIME_API_KEY are set it DELEGATES: it makes no grants, and a decision that
+would be "allow" is "needs_approval" (so execute() runs nothing), because a local grant never reaches Prime and must not be able
+to do what Prime has not approved.
+
 Two jobs.
 1. Authorisation (written fresh for Velaris after the shape of AetherOS Prime):
    authorize(principal, action, resource, context) -> allow / needs_approval / deny
@@ -32,7 +38,8 @@ from velaris.agentkit.results import fail, invalid
 from velaris.agentkit.state import JsonState
 from velaris.agents.ENGINE.main import VelarisEngine
 from velaris.core.access import GOVERNANCE_ADMINS, check_caller, has_role
-from velaris.intel import trace
+from velaris.core.prime import prime_configured
+from velaris.intel import approvals
 
 logger = logging.getLogger("PRIME")
 NAME = "PRIME"
@@ -87,7 +94,8 @@ class VelarisPrime:
         decision = self.authorize(caller.id, authz.EXECUTE, f"{agent}.{method}", {})
         if decision["decision"] != authz.ALLOW:
             return {**decision, "status": "not_authorised", "executed": False}
-        return self.engine.run(agent, method, params)
+        from velaris.backend.engine import backend      # deferred: it loads every agent. ONE dispatch path: acting_as(caller), hr_config
+        return backend.run(agent, method, params, caller=caller)
 
     # ---- grants --------------------------------------------------------------
 
@@ -100,6 +108,8 @@ class VelarisPrime:
 
         `resources` must be given for a grant covering agent.execute; otherwise it defaults to ["**"]
         (every resource; "*" alone matches one path segment)."""
+        if prime_configured():
+            return fail("delegated_to_prime", "this deployment uses AetherOS Prime: grants are made there, not here")
         start = time.time() if now is None else now
         seconds = number(valid_for_seconds)
         if seconds is None or number(start) is None:
@@ -120,10 +130,13 @@ class VelarisPrime:
         if not has_role(caller, GOVERNANCE_ADMINS):
             err = authz.delegation_error(self._grants.load().get("grants", {}).values(), g, start)
             if err:
-                trace.append(NAME, "prime.grant.refused", {"grantor": caller.id, "principal": principal, "reason": err})
+                approvals.audit("PRIME", "refused", request_id=g["id"], by=caller.id, decision="deny", note=err,
+                                trace_actor=NAME, trace_action="prime.grant.refused", grantor=caller.id, principal=principal, reason=err)
                 return fail("denied", err)
         try:
-            trace.append(NAME, "prime.grant", {k: v for k, v in g.items() if k not in ("revoked_at", "revoked_by")})
+            approvals.audit("PRIME", "granted", request_id=g["id"], subject=g, by=caller.id, decision="allow",
+                            trace_actor=NAME, trace_action="prime.grant", **{k: v for k, v in g.items() if k not in ("revoked_at", "revoked_by", "id")},
+                            id=g["id"])
         except OSError as e:
             logger.warning("PRIME: grant not recorded in the trace, so not stored: %s", e)
             return fail("audit_failed", "the grant could not be recorded, so it was not stored")
@@ -152,7 +165,8 @@ class VelarisPrime:
             return {"status": "ok", "grant_id": grant_id, "revoked_at": when}
         result = self._grants.update(change)
         if result["status"] == "ok":
-            trace.append(NAME, "prime.revoke", {"grant_id": grant_id, "by": by})
+            approvals.audit("PRIME", "revoked", request_id=grant_id, by=by, decision="revoke", trace_actor=NAME,
+                            trace_action="prime.revoke", grant_id=grant_id)
         return result
 
     def grants(self, principal: Optional[str] = None, live_only: bool = False) -> List[Dict[str, Any]]:
@@ -185,7 +199,8 @@ class VelarisPrime:
                    "currency": (context or {}).get("currency") if isinstance(context, dict) else None,
                    "task_id": str(task_id) if task_id is not None else None, "task_digest": digest}
         try:
-            trace.append(str(request["principal"] or "unknown"), "prime.request", request)
+            approvals.audit("PRIME", "requested", request_id=task_id or "", subject=digest, by=str(request["principal"] or ""),
+                            trace_actor=str(request["principal"] or "unknown"), trace_action="prime.request", **request)
             try:
                 decision = authz.authorize(principal, action, resource, context,
                                            grants=self._grants.load().get("grants", {}).values(), now=when)
@@ -193,7 +208,12 @@ class VelarisPrime:
                 logger.warning("PRIME: authorisation check failed: %s", e)
                 decision = {"decision": authz.DENY, "reason": "the check failed; refusing", "grant_id": None,
                             "approver": None, "notify": None}
-            entry = trace.append(NAME, "prime.decision", {**request, **decision})
+            if decision["decision"] == authz.ALLOW and prime_configured():      # delegate: only Prime may allow
+                decision = {**decision, "decision": authz.NEEDS_APPROVAL,
+                            "reason": "decisions are made in AetherOS Prime; submit this as a flow step"}
+            entry = approvals.audit("PRIME", "decided", request_id=task_id or "", subject=digest, by=str(request["principal"] or ""),
+                                    decision=decision["decision"], trace_actor=NAME, trace_action="prime.decision",
+                                    **{**request, **{k: v for k, v in decision.items() if k != "decision"}})
         except OSError as e:
             logger.warning("PRIME: decision could not be recorded: %s", e)
             return {"decision": authz.DENY, "reason": "the decision could not be recorded; refusing",

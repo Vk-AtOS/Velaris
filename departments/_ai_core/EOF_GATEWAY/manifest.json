@@ -1,0 +1,30 @@
+{
+  "name": "EOF_GATEWAY",
+  "display_name": "Eof Gateway",
+  "version": "0.1.0",
+  "description": "EOF_GATEWAY: a durable message hand-off between agents.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:EOF_GATEWAYAgent",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "EOF_GATEWAY: a durable message hand-off between agents.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/EOF_GATEWAY.json",
+    "wave": "KAN-43",
+    "status": "deterministic_tool",
+    "tools": {
+      "backlog": {
+        "kind": "act"
+      },
+      "receive": {
+        "kind": "act"
+      },
+      "route": {
+        "kind": "act"
+      }
+    },
+    "excluded": {}
+  }
+}

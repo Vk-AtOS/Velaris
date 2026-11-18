@@ -5,5 +5,27 @@
   "description": "Public methods: build_layers, composition_score, combine (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:FabricaAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Fabrica: simple helpers for describing and combining content layers.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/operations/FABRICA.json",
+    "wave": "KAN-41",
+    "status": "deterministic_tool",
+    "tools": {
+      "build_layers": {
+        "kind": "read"
+      },
+      "combine": {
+        "kind": "read"
+      },
+      "composition_score": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

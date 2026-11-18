@@ -1,11 +1,16 @@
+"""Overwatch: compares metric snapshots against a recorded baseline to flag drift.
+OverwatchAgent.record_snapshot(key, metrics) stores a copy of the metrics and returns True.
+detect_drift(key, new_metrics, tolerance=0.1) returns True when any baseline metric differs by more
+than the tolerance, is missing from the new data or is not a number there (NaN included), and also True
+when no baseline exists for the key. summarize_change(key, new_metrics) returns the per-metric deltas from the
+baseline (None for a metric that is missing or not a number in the new data), or {} for an unknown key. Absolute-difference check only.
+State: baselines are in memory only, nothing persisted. Failure: non-numeric baseline values raise TypeError;
+nothing is caught.
+"""
 import logging
-from typing import Dict, List, Any
+from typing import Dict, Any
 
 logger = logging.getLogger("OVERWATCH")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - OVERWATCH - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 class OverwatchAgent:
     def __init__(self, config: Dict[str, Any] = None):
@@ -37,9 +42,12 @@ class OverwatchAgent:
         drift_items = []
 
         for m, base_value in baseline.items():
-            new_value = new_metrics.get(m, base_value)
+            new_value = new_metrics.get(m)
+            if not isinstance(new_value, (int, float)) or isinstance(new_value, bool):
+                drift_items.append((m, base_value, new_value))      # a metric that vanished or is not a number IS drift
+                continue
             diff = abs(new_value - base_value)
-            if diff > tolerance:
+            if not diff <= tolerance:                               # also true for NaN
                 drift_items.append((m, base_value, new_value))
 
         drift_detected = len(drift_items) > 0
@@ -52,6 +60,7 @@ class OverwatchAgent:
             return {}
 
         baseline = self.baselines[key]
-        summary = {m: new_metrics.get(m, baseline[m]) - baseline[m] for m in baseline}
+        summary = {m: (new_metrics[m] - baseline[m]) if isinstance(new_metrics.get(m), (int, float)) else None
+                   for m in baseline}                               # None: the metric is missing from the new data
         logger.debug("Change summary: %s", summary)
         return summary

@@ -38,4 +38,4 @@ earlier one had no defined meaning.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_dept_finance_stubs.py`
+- **tests:** `velaris/tests/test_dept_finance_stubs.py`, `velaris/tests/test_engine.py`

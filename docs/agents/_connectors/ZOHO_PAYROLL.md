@@ -2,11 +2,24 @@
 
 - **Department:** `_connectors`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/_connectors/ZOHO_PAYROLL/main.py` (81 lines)
+- **Source:** `departments/_connectors/ZOHO_PAYROLL/main.py` (103 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Zoho Payroll connector: reads one employee's payslip, YTD summary, statutory deductions and cost to company from the Zoho Payroll (India) API.
+
+ZohoPayrollConnector(config): health_check() returns status "ok" or "unconfigured"
+from the Zoho connector's credentials (no network call);
+get_payslip(employee_id, year, month), get_ytd_summary(employee_id, financial_year),
+get_statutory_deductions(employee_id, year, month) (EPF, ESI, TDS, PT lines of the payslip)
+and get_cost_to_company(employee_id, year, month) all take a keyword caller=. Requests go
+through velaris.agents.ZOHO_CONNECTOR; org_id comes from config or ZOHO_ORG_ID.
+Each method first calls velaris.core.access.authorize_read("pay", employee_id, ...):
+the employee themself or a payroll or HR administrator may read; the decision is traced.
+State: keeps no state; data is fetched on every call.
+Failure: a missing or unauthorised caller raises AccessDenied before any request is made;
+a response without the expected key yields {} (or 0 for cost to company); HTTP errors
+propagate from the Zoho connector.
 
 ## Class `ZohoPayrollConnector`
 
@@ -42,4 +55,4 @@ all, gets AccessDenied, and the decision is written to the trace either way.
 
 - **other agents:** `EMPLOYEE_METRICS_ENGINE`, `PAYROLL_ENGINE`
 - **platform modules:** `velaris/api/allowlist.py`
-- **tests:** `velaris/tests/test_caller_access.py`
+- **tests:** `velaris/tests/test_caller_access.py`, `velaris/tests/test_kan93_agents.py`

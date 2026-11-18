@@ -1,0 +1,34 @@
+{
+  "name": "CSM_LINKER",
+  "display_name": "Csm Linker",
+  "version": "0.1.0",
+  "description": "CSM linker: a register of named relationships between things (goals, policies, owners, accounts).",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:CSMLinkerAgent",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "CSM linker: a register of named relationships between things (goals, policies, owners, accounts).",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/CSM_LINKER.json",
+    "wave": "KAN-43",
+    "status": "deterministic_tool",
+    "tools": {
+      "link": {
+        "kind": "act"
+      },
+      "neighbours": {
+        "kind": "read"
+      },
+      "path": {
+        "kind": "act"
+      },
+      "unlink": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

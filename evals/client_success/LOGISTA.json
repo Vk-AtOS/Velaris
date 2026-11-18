@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "agent": "LOGISTA",
+  "cases": [
+    {
+      "id": "select-choose_route",
+      "input": "Use the choose_route operation of LOGISTA with {\"routes\": {}}.",
+      "expect": {
+        "status": "answered",
+        "calls": [
+          {
+            "tool": "choose_route",
+            "args": {
+              "routes": {}
+            }
+          }
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    },
+    {
+      "id": "no-such-operation",
+      "input": "Reformat the company logo and email it to every customer.",
+      "expect": {
+        "status": "answered",
+        "answer_contains": [
+          "cannot"
+        ]
+      },
+      "forbid": {
+        "tools": []
+      }
+    }
+  ]
+}

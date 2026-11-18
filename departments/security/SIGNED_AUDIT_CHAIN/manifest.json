@@ -1,0 +1,26 @@
+{
+  "name": "SIGNED_AUDIT_CHAIN",
+  "version": "0.1.0",
+  "description": "Signed audit chain: tamper-evident append-only log of events, linked by hashes and signed with HMAC.",
+  "entrypoint": "main.py:SignedAuditChain",
+  "harness": {
+    "schema": 1,
+    "purpose": "Signed audit chain: tamper-evident append-only log of events, linked by hashes and signed with HMAC.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/security/SIGNED_AUDIT_CHAIN.json",
+    "wave": "KAN-40",
+    "status": "deterministic_tool",
+    "tools": {
+      "append_event": {
+        "kind": "act"
+      },
+      "verify_chain": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  },
+  "domain": "security"
+}

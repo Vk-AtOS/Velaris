@@ -2,11 +2,18 @@
 
 - **Department:** `security`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/security/CUSTOS/main.py` (32 lines)
+- **Source:** `departments/security/CUSTOS/main.py` (38 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Custos: minimal in-memory role-based access check.
+
+CustosAgent(config; "roles", "permissions"): health_check(); define_role(role, perms)
+sets the role's permission set; assign_permission(role, permission) adds one (creating the
+role if needed); check_access(role, action) is True if the action is in the role's set.
+State: in memory only (self.roles), lost on restart. A "roles" config may map to lists or
+sets; both are stored as sets.
+Failure: an unknown role or action returns False (deny); it does not identify callers.
 
 ## Class `CustosAgent`
 
@@ -28,4 +35,4 @@ _No module docstring yet._
 
 - **other agents:** `PRIME`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_custos.py`, `velaris/tests/test_engine.py`, `velaris/tests/test_system_integration.py`
+- **tests:** `velaris/tests/test_allowlist_departments.py`, `velaris/tests/test_custos.py`, `velaris/tests/test_engine.py`, `velaris/tests/test_kan88_security_agents.py`, `velaris/tests/test_system_integration.py`

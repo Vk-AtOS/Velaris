@@ -1,0 +1,25 @@
+{
+  "name": "DSS_MONITOR",
+  "display_name": "Dss Monitor",
+  "version": "0.1.0",
+  "description": "DSS monitor: classifies each node as healthy, degraded or down.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:DSS_MONITORAgent",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "DSS monitor: classifies each node as healthy, degraded or down.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/DSS_MONITOR.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "assess": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

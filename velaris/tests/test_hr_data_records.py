@@ -43,11 +43,10 @@ def test_erase_subject_reaches_offers_and_esign_and_reports_what_was_erased_and_
     assert any("ofr-declined" in x for x in res["erased"]) and any("sig-voided" in x for x in res["erased"])
     held = {h["what"] for h in res["held"]}
     assert {"offer:ofr-accepted", "esign:sig-sealed"} <= held
-    from velaris.core.access import Caller
     stored = offers.store.state.load()["records"]["offers"]
     assert stored["acme:ofr-declined"]["candidate"]["email"] == "erased" and stored["acme:ofr-accepted"]["candidate"]["email"] == "asha@example.in"
     assert stored["acme:ofr-other"]["candidate"]["email"] == "someone@else.in"            # someone else's offer is untouched
-    reqs = esign.store.state.load()["records"]["requests"]
+    reqs = esign.store.state.load()["requests"]
     assert reqs["acme:sig-voided"]["signers"][0]["email"] == "erased" and reqs["acme:sig-sealed"]["signers"][0]["email"] == "asha@example.in"
 
 
@@ -69,7 +68,6 @@ def test_export_masks_contact_details():
     from velaris.tests.test_onboarding_records import hire, make
     er, *_ = make()
     emp = hire(er)
-    from velaris.tests.onboarding_helpers import person
     with acting_as(HR1):
         out = er.export_subject(emp)["export"]["employee"]
     assert out["email"] == "a***@example.in" and out["phone"].endswith("0000") and "asha@example.in" not in str(out)
@@ -155,3 +153,12 @@ def test_performance_export_hides_reviewers_comments_and_calibration_from_the_su
         mine = e.dsr_export("acme", "E7")["performance"]
     assert mine["calibration"] == [] and "withheld" in mine and len(mine["reviews"]) == 2
     assert "p1" not in str(mine) and "private remark" not in str(mine) and "my own comment" not in str(mine)
+
+
+def test_performance_records_have_a_retention_row_that_holds_until_verified():
+    from datetime import date
+    from velaris.agentkit import onboarding_retention as r
+    d = r.decide("performance_records", None, date(2030, 1, 1))
+    assert d["action"] == "hold" and d["status"] == "needs_review" and d["planning_years"] == 3
+    assert "no retention row" not in d["reason"]
+    assert "performance_records" in r.STATUTORY

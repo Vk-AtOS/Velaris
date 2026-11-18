@@ -1,4 +1,3 @@
-import pytest
 from importlib import import_module
 
 AGENTS = [
@@ -28,7 +27,9 @@ def test_memory_basic_ops(tmp_path):
 
     longp = tmp_path / "lt.json"
     long = import_module("live.agents.LONGTERM_MEMORY.main").LONGTERM_MEMORYAgent(str(longp))
-    long.put("k1", {"v":1})
+    from velaris.core.access import Caller, acting_as
+    with acting_as(Caller("u1", "kf")):
+        long.put("k1", {"v":1})
     assert long.get("k1") == {"v":1}
 
     episodic = import_module("live.agents.EPISODIC_MEMORY.main").EPISODIC_MEMORYAgent()

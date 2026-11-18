@@ -7,7 +7,9 @@ with an id and a time and masks secrets and personal identifiers in its text
 happened between these times / by this actor / with this tag".
 
 consolidate() hands the summaries of episodes not yet consolidated to long-term
-memory (velaris.intel.memory), which turns them into durable facts. Episodes
+memory (velaris.intel.memory), which turns them into durable facts. The episode file is locked only to claim the
+episodes (for CLAIM_SECONDS, so a second consolidate skips them) and again to mark them done, never while the model
+runs, so record() is not blocked by a slow consolidation; a failed consolidation releases its claim. Episodes
 themselves are never edited or deleted; only the oldest fall off after MAX_EPISODES.
 """
 from __future__ import annotations
@@ -24,6 +26,7 @@ from velaris.agentkit.infra_store import redact_json
 
 NAME = "EPISODIC_MEMORY"
 MAX_EPISODES = 5000
+CLAIM_SECONDS = 600
 
 
 class EPISODIC_MEMORYAgent:
@@ -64,13 +67,31 @@ class EPISODIC_MEMORYAgent:
         """Turn the "summary" of each not-yet-consolidated episode into long-term facts under `scope`."""
         if not isinstance(source, str):
             return invalid("source must be text")
-        with self._state.lock:
-            data = self._state.load()
-            todo = [e for e in data.get("episodes", [])
-                    if not e["_consolidated"] and isinstance(e.get("summary"), str) and e["summary"].strip()]
-            result = infra_memory.remember(self.llm, [e["summary"] for e in todo], scope, source)
-            if result["status"] == "ok":
-                for e in todo:
-                    e["_consolidated"] = True
-                self._state.save(data)
+        now = time.time()
+        claim = uuid.uuid4().hex
+
+        def take(data):
+            todo = [e for e in data.get("episodes", []) if not e["_consolidated"] and isinstance(e.get("summary"), str)
+                    and e["summary"].strip() and now - e.get("_claimed_at", 0) > CLAIM_SECONDS]
+            for e in todo:
+                e["_claim"], e["_claimed_at"] = claim, now
+            return [(e["_id"], e["summary"]) for e in todo]
+        todo = self._state.update(take)
+        if not todo:
+            return {"status": "nothing_to_store", "facts": [], "counts": {}, "episodes": 0}
+        try:
+            result = infra_memory.remember(self.llm, [t for _, t in todo], scope, source)      # slow: no lock held
+        except BaseException:
+            self._finish(claim, done=False)
+            raise
+        self._finish(claim, done=result["status"] == "ok")
         return {**result, "episodes": len(todo)}
+
+    def _finish(self, claim: str, done: bool) -> None:
+        def mark(data):
+            for e in data.get("episodes", []):
+                if e.get("_claim") == claim:
+                    e["_consolidated"] = e["_consolidated"] or done
+                    e.pop("_claim", None)
+                    e.pop("_claimed_at", None)
+        self._state.update(mark)

@@ -1,7 +1,7 @@
 # COHERENCE_SYNC_CORE
 
 - **Department:** `_ai_core`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/_ai_core/COHERENCE_SYNC_CORE/main.py` (75 lines)
 
 ## Purpose

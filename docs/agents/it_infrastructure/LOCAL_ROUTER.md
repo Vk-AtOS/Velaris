@@ -1,7 +1,7 @@
 # LOCAL_ROUTER
 
 - **Department:** `it_infrastructure`
-- **Status (static inventory):** `rule_based`
+- **Status (static inventory):** `real`
 - **Source:** `departments/it_infrastructure/LOCAL_ROUTER/main.py` (57 lines)
 
 ## Purpose

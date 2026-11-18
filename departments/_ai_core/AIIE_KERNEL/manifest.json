@@ -1,0 +1,25 @@
+{
+  "name": "AIIE_KERNEL",
+  "display_name": "Aiie Kernel",
+  "version": "0.1.0",
+  "description": "AIIE kernel: runs the initiative pipeline stage by stage and stops at the first stage that does not pass.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:AIIEKernel",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "AIIE kernel: runs the initiative pipeline stage by stage and stops at the first stage that does not pass.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/AIIE_KERNEL.json",
+    "wave": "KAN-44",
+    "status": "deterministic_tool",
+    "tools": {
+      "run": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

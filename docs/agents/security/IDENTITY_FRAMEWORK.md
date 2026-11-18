@@ -2,11 +2,19 @@
 
 - **Department:** `security`
 - **Status (static inventory):** `real`
-- **Source:** `departments/security/IDENTITY_FRAMEWORK/main.py` (84 lines)
+- **Source:** `departments/security/IDENTITY_FRAMEWORK/main.py` (108 lines)
 
 ## Purpose
 
-_No module docstring yet._
+Identity framework: stores user profiles with salted password hashes and checks passwords.
+
+create_identity(username, password, meta) hashes the password (PBKDF2-HMAC-SHA256, 200000 rounds, random 16-byte salt) and
+returns False if the username exists. validate_identity(username, password) returns True only for a matching password
+(constant-time compare). 5 wrong passwords in a row lock the account for 15 minutes, the right password included; an
+unknown user returns False after the same hashing work, and all unknown names share one lockout counter. update_meta(username, meta) merges into the profile (False if unknown);
+get_meta(username) returns the profile dict or None. There is no caller check or password policy.
+State: <VELARIS_DATA>/agents/IDENTITY_FRAMEWORK/identity.db (JSON, owner-only file), plus throttle.json for the lockout counters. If that file cannot be parsed or is not
+a JSON object, construction raises RuntimeError rather than starting empty and overwriting the accounts.
 
 ## Class `IdentityFramework`
 
@@ -23,6 +31,7 @@ Velaris Identity Framework
 
 ## Depends on
 
+- `velaris.agentkit.secure`
 - `velaris.intel.paths`
 
 ## State and configuration
@@ -33,4 +42,4 @@ Velaris Identity Framework
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_agent_paths.py`, `velaris/tests/test_no_silent_except.py`, `velaris/tests/test_private_files.py`
+- **tests:** `velaris/tests/test_agent_paths.py`, `velaris/tests/test_kan88_auth_agents.py`, `velaris/tests/test_no_silent_except.py`, `velaris/tests/test_private_files.py`

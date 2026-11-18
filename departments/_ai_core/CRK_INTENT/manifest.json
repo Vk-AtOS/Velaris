@@ -1,0 +1,25 @@
+{
+  "name": "CRK_INTENT",
+  "display_name": "Crk Intent",
+  "version": "0.1.0",
+  "description": "CRK intent: names what a short request is asking for, from a fixed list of intents.",
+  "owner": "Velaris Core",
+  "entrypoint": "main.py:CRK_INTENTAgent",
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "CRK intent: names what a short request is asking for, from a fixed list of intents.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/_ai_core/CRK_INTENT.json",
+    "wave": "KAN-43",
+    "status": "mixed",
+    "tools": {
+      "classify": {
+        "kind": "act"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
+}

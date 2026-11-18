@@ -1,20 +1,31 @@
+"""Call recorder: records microphone audio to local WAV files by running ffmpeg.
+
+start(call_id, participants=None, meeting_title="", consent=False) launches ffmpeg (avfoundation
+on macOS, dshow on Windows, alsa elsewhere; 16 kHz mono) and returns the session info. It needs an
+authenticated caller (check_caller, traced) and consent that is exactly True; otherwise it records
+nothing and returns {"error": "unauthenticated" / "denied" / "consent_required"}, or
+{"error": "invalid_call_id"} for an empty call id. stop(session_id)
+terminates it and returns filepath, size and duration (estimated from file size), or
+{"error": "session_not_found"}. get_session(session_id) returns the public session fields
+({} if unknown); list_recordings() lists the WAV files in the recordings directory;
+health_check() reports status "degraded" when ffmpeg is missing or cannot be run; a missing
+ffmpeg still raises when start is called.
+State: sessions live in a module-level dict (lost on restart); audio goes to
+config["recordings_dir"], default under the agent's VELARIS_DATA directory.
+"""
 import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
 import logging
 import subprocess
-import json
 import threading
 import uuid
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any
+from velaris.core.access import check_caller
 from velaris.intel.paths import agent_file
 
 logger = logging.getLogger("CALL_RECORDER")
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - CALL_RECORDER - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 _SESSIONS: Dict[str, Dict] = {}  # session_id → session state
 _LOCK = threading.Lock()
@@ -48,9 +59,11 @@ class CallRecorder:
         return "alsa"
 
     def health_check(self) -> Dict[str, Any]:
-        has_ffmpeg = subprocess.run(
-            [self._ffmpeg, "-version"], capture_output=True
-        ).returncode == 0
+        try:
+            has_ffmpeg = subprocess.run([self._ffmpeg, "-version"], capture_output=True, timeout=10).returncode == 0
+        except (OSError, subprocess.SubprocessError) as e:      # no ffmpeg installed, or it hung: degraded, not a crash
+            logger.warning("CALL_RECORDER: ffmpeg check failed: %s", type(e).__name__)
+            has_ffmpeg = False
         return {
             "agent": "CALL_RECORDER",
             "status": "ok" if has_ffmpeg else "degraded",
@@ -60,15 +73,25 @@ class CallRecorder:
         }
 
     def start(self, call_id: str, participants: list = None,
-              meeting_title: str = "") -> Dict[str, Any]:
+              meeting_title: str = "", consent: bool = False) -> Dict[str, Any]:
         """
         Start recording. Returns session info including file path.
         call_id: caller-provided stable identifier for this call/meeting.
+        consent: must be exactly True, meaning every participant has been told and agreed. Recording is refused
+        otherwise, and without an authenticated caller; the decision is traced.
         """
+        caller, refused = check_caller("CALL_RECORDER", "start", {"call_id": str(call_id)[:64], "consent": consent is True})
+        if refused:
+            return {"error": refused["status"], "reason": refused["reason"]}
+        if consent is not True:
+            return {"error": "consent_required", "reason": "recording needs the participants' consent (consent=True)"}
+        if not isinstance(call_id, str) or not call_id.strip():
+            return {"error": "invalid_call_id"}
         session_id = str(uuid.uuid4())
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         safe_title = "".join(c if c.isalnum() or c in "-_" else "_" for c in meeting_title)[:40]
-        filename = f"{ts}_{safe_title or call_id}.wav"
+        safe_call = "".join(c if c.isalnum() or c in "-_" else "_" for c in call_id)[:40]      # never the raw id: it may hold ".." or "/"
+        filename = f"{ts}_{safe_title or safe_call}.wav"
         filepath = os.path.join(self.recordings_dir, filename)
 
         # macOS: input ":0" = default mic via avfoundation
@@ -111,7 +134,12 @@ class CallRecorder:
         proc = session.get("_proc")
         if proc and proc.poll() is None:
             proc.terminate()
-            proc.wait(timeout=5)
+            try:
+                proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                logger.warning("CALL_RECORDER: ffmpeg ignored terminate for session %s; killing it", session_id)
+                proc.kill()
+                proc.wait(timeout=5)
         stopped_at = datetime.now().isoformat()
         filepath = session["filepath"]
         size_bytes = os.path.getsize(filepath) if os.path.exists(filepath) else 0

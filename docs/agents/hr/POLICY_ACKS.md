@@ -2,7 +2,7 @@
 
 - **Department:** `hr`
 - **Status (static inventory):** `real`
-- **Source:** `departments/hr/POLICY_ACKS/main.py` (250 lines)
+- **Source:** `departments/hr/POLICY_ACKS/main.py` (256 lines)
 
 ## Purpose
 
@@ -34,8 +34,8 @@ Versioned policies and acknowledgement evidence. See the module docstring.
 - `compliance_report(policy_key)` — Per current policy: audience size, acknowledged, pending (with due dates), percentage (HR administrators).
 - `reminders_due(within_days)` — Drafted reminders for pending acknowledgements that are overdue or due within `within_days` (HR administrators). Not sent.
 - `ack_evidence(org, employee_id, policy_key)` — The current published version of a policy and this employee's acknowledgements of that key (any version).
-- `dsr_export(org, employee_id)`
-- `dsr_erase(org, employee_id, on)` — Anonymise this person's acknowledgements (the counts stay) when the registry allows; otherwise hold.
+- `dsr_export(org, employee_id, links)`
+- `dsr_erase(org, employee_id, on, links)` — Anonymise this person's acknowledgements (the counts stay) when the registry allows; otherwise hold.
 
 ## Depends on
 
@@ -52,5 +52,5 @@ Versioned policies and acknowledgement evidence. See the module docstring.
 ## Called by
 
 - **other agents:** `EMPLOYEE_RECORDS`, `ONBOARDING_FLOW`
-- **platform modules:** `velaris/agentkit/hr_wiring.py`, `velaris/agentkit/onboarding_adapters.py`, `velaris/agentkit/onboarding_checklists.py`, `velaris/agentkit/onboarding_common.py`, `velaris/agentkit/onboarding_directory.py`, `velaris/api/allowlist.py`
-- **tests:** `velaris/tests/test_hr_wiring.py`, `velaris/tests/test_onboarding_flow.py`, `velaris/tests/test_onboarding_records.py`
+- **platform modules:** `velaris/agentkit/hr_wiring.py`, `velaris/agentkit/onboarding_adapters.py`, `velaris/agentkit/onboarding_checklists.py`, `velaris/agentkit/onboarding_common.py`, `velaris/agentkit/onboarding_directory.py`, `velaris/api/allowlist.py`, `velaris/orchestration/autonomy.py`
+- **tests:** `velaris/tests/test_hr_data_traces.py`, `velaris/tests/test_hr_wiring.py`, `velaris/tests/test_onboarding_flow.py`, `velaris/tests/test_onboarding_records.py`

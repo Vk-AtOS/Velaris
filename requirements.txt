@@ -5,14 +5,14 @@ defusedxml>=0.7.1      # velaris.intel.docs (DOCX/XLSX/PPTX are read with zipfil
 psutil>=5.9.0          # velaris.agentkit.infra_metrics
 fastapi>=0.110         # velaris.api (the HTTP API for the AetherOS gateway)
 uvicorn>=0.29          # python -m velaris.api
+pypdf>=5.0           # velaris.intel.docs: PDF resumes and documents (HIRING resume parsing needs it; CI failed without it, KAN-201)
+dnspython>=2.4         # velaris.mail.inbound: SPF/DKIM/DMARC and domain-verify DNS lookups (required: DMARC is enforced, not claimed)
 cryptography>=41.0.0   # velaris.api.auth (Ed25519 identity assertions); test_intel_web_fetch; VIGILIS
 
-# Tests.
-pytest>=7.0
+# Tests and CI tools are in requirements-dev.txt, never in the image.
 
 # Optional: imported only where used; without the package the feature says so and the rest works.
 # Kept out of the install list on purpose (velaris/tests/test_requirements.py checks this file).
-#   pypdf            velaris.intel.docs: PDF text. Without it a PDF is refused with a clear error.
 #   playwright       velaris.intel.web: pages that need a browser to render. Without it the static page is used.
 #   openai-whisper / faster-whisper   CALL_TRANSCRIBER, LYRA_VOICE_ENGINE: speech to text.
 #   sounddevice, pyttsx3              LYRA_VOICE_ENGINE: microphone and speech output.

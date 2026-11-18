@@ -1,0 +1,20 @@
+{
+  "name": "SAGE",
+  "version": "0.1.0",
+  "description": "Alias agent SAGE: fronts STRATEGOS, STRATEGIC_INTEL, CSM_CORE.",
+  "entrypoint": "main.py:SAGEAgent",
+  "harness": {
+    "schema": 1,
+    "purpose": "Alias agent SAGE: fronts STRATEGOS, STRATEGIC_INTEL, CSM_CORE.",
+    "sensitivity": "internal",
+    "task_class": "worker",
+    "eval": "evals/operations/SAGE.json",
+    "wave": "KAN-41",
+    "status": "not_harnessed",
+    "reason_code": "stub",
+    "reason": "the agent is a stub (inventory: not_implemented); a harness around it would claim a capability that is not there",
+    "tools": {},
+    "reviewed": true
+  },
+  "domain": "operations"
+}

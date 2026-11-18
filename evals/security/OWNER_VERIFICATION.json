@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "agent": "OWNER_VERIFICATION",
+  "cases": [
+    {
+      "id": "not-harnessed",
+      "input": "Do the job of OWNER_VERIFICATION.",
+      "expect": {
+        "status": "not_harnessed"
+      },
+      "forbid": {}
+    }
+  ]
+}

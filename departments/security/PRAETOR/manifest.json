@@ -5,5 +5,21 @@
   "description": "Public methods: detect_anomaly (the module has no docstring).",
   "owner": "Velaris Core",
   "entrypoint": "main.py:PraetorAgent",
-  "health_check": "health_check"
+  "health_check": "health_check",
+  "harness": {
+    "schema": 1,
+    "purpose": "Praetor: z-score anomaly detector for a series of numbers.",
+    "sensitivity": "restricted",
+    "task_class": "worker",
+    "eval": "evals/security/PRAETOR.json",
+    "wave": "KAN-40",
+    "status": "deterministic_tool",
+    "tools": {
+      "detect_anomaly": {
+        "kind": "read"
+      }
+    },
+    "excluded": {},
+    "reviewed": true
+  }
 }

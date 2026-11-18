@@ -2,7 +2,7 @@
 
 - **Department:** `sales`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/sales/DOMAIN_ADVISOR/main.py` (81 lines)
+- **Source:** `departments/sales/DOMAIN_ADVISOR/main.py` (83 lines)
 
 ## Purpose
 
@@ -35,5 +35,5 @@ and nothing is acted on: these are prompts for a person.
 ## Called by
 
 - **other agents:** none found
-- **platform modules:** none found
-- **tests:** `velaris/tests/test_dept_sales_stubs.py`, `velaris/tests/test_layer20_adme.py`
+- **platform modules:** `velaris/api/allowlist.py`
+- **tests:** `velaris/tests/test_dept_sales_stubs.py`, `velaris/tests/test_kan94_sales_marketing.py`, `velaris/tests/test_layer20_adme.py`

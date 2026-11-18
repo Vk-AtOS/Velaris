@@ -13,6 +13,7 @@ from velaris.agentkit.results import fail, health, ok
 from velaris.agentkit.state import JsonState
 
 NAME = "CSM_LINKER"
+MAX_LINKS = 5000        # one state document is capped at 1 MiB; a register this size is already past what this is for
 
 
 class CSMLinkerAgent:
@@ -34,9 +35,15 @@ class CSMLinkerAgent:
         def change(data):
             if entry in data["links"]:
                 return False
+            if len(data["links"]) >= MAX_LINKS:
+                raise ValueError(f"the register holds {MAX_LINKS} links; unlink some first")
             data["links"].append(entry)
             return True
-        return ok(linked=True, created=self._state.update(change), a=a, b=b, relation=relation)
+        try:
+            created = self._state.update(change)
+        except ValueError as e:
+            return fail("full", str(e), linked=False, a=a, b=b)
+        return ok(linked=True, created=created, a=a, b=b, relation=relation)
 
     def unlink(self, a, b, relation=None):
         if ident(a) is None or ident(b) is None:
@@ -71,8 +78,10 @@ class CSMLinkerAgent:
                     chain.append(item)
                     item = previous[item]
                 return ok(path=chain[::-1], hops=len(chain) - 1)
-            for n in self.neighbours(item):
-                if n["item"] not in previous:
-                    previous[n["item"]] = item
-                    queue.append(n["item"])
+            for l in links:                       # one pass over the links already loaded (not a state read per hop)
+                if item in (l["a"], l["b"]):
+                    other = l["b"] if l["a"] == item else l["a"]
+                    if other not in previous:
+                        previous[other] = item
+                        queue.append(other)
         return fail("not_found", f"{a} and {b} are not connected", path=None)
