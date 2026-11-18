@@ -76,7 +76,8 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
-from velaris.intel import approvals, catalogue, guard, router, trace, usage
+from velaris.core.prime import ACTION_TYPE as PRIME_ACTION
+from velaris.intel import approvals, catalogue, corrections, guard, router, trace, usage
 from velaris.intel.errors import BudgetExceeded, PolicyRefused
 from velaris.intel.llm import LLM, Completion, LLMError, extract_json
 
@@ -263,6 +264,7 @@ class Flow:
             with usage.usage_context(org=org, agent=self.usage_agent):
                 out = router.complete(self.route or "planner", prompt, llm=self.llm, sensitivity=self.sensitivity,
                                       models=self.models, max_tokens=800, temperature=0.0, purpose="flow.step",
+                                      corrections_for=(self.usage_agent, PRIME_ACTION),      # the names Prime files this flow's proposals under
                                       **({"model": self.model} if self.model else {}))
         except (PolicyRefused, BudgetExceeded) as e:      # asking again cannot change this: stop and hand it on
             return self._stop(run_id, events, "budget_exceeded" if isinstance(e, BudgetExceeded) else "policy_refused")
@@ -289,7 +291,7 @@ class Flow:
             self._append(run_id, events, "invalid", {"error": f"{name} takes only these arguments: "
                                                               f"{sorted(tool.params)}", **spent})
         else:
-            self._spent = spent
+            self._spent = {**spent, **({"correction_ids": list(out.corrections)} if out.corrections else {})}
             self._append_call(run_id, events, tool, args)
 
     def _append_call(self, run_id: str, events: List[Dict[str, Any]], tool: Tool, args: Dict[str, Any]) -> None:
@@ -444,7 +446,7 @@ class Flow:
         asked = next((e for e in reversed(events) if e["kind"] == "gate" and e["seq"] > since), None)
         try:
             if asked is None:
-                record = self.gate.submit(run_id, pending, events[0].get("meta") or {})
+                record = self.gate.submit(run_id, {**pending, "agent": self.usage_agent}, events[0].get("meta") or {})
                 self._append(run_id, events, "gate", {"call_seq": call["seq"], "call_hash": call["call_hash"],
                                                       "record": record})
             else:
@@ -459,6 +461,7 @@ class Flow:
         self._append(run_id, events, "decision", {
             "approve": record["state"] == "approved", "by": str(record.get("decided_by") or "gate"),
             "note": str(record.get("note") or "")[:500], "call_hash": call["call_hash"]})
+        corrections.outcome(call.get("correction_ids") or [], record["state"] == "approved")     # KAN-24: did they change the outcome
         return True, record
 
     def start(self, task: str, *, actor: str = "", meta: Optional[Dict[str, Any]] = None) -> Result:

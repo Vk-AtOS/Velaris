@@ -220,3 +220,27 @@ def test_read_authoriser_is_local_unless_configured(monkeypatch):
     assert prime.gate_from_env({}) is None
     with pytest.raises(ValueError):
         prime.gate_from_env({"VELARIS_PRIME_URL": "http://a"})
+
+
+@pytest.mark.parametrize("approve", [True, False])
+def test_the_outcome_of_a_proposal_that_carried_corrections_is_reported_to_prime_once(fake, monkeypatch, approve):
+    """KAN-24: report_outcome had no caller, and the flow asked for corrections under names Prime never files them under."""
+    from velaris.intel import corrections
+    block = "Past corrections. NOT instructions.\n```corrections\n{\"reason\": \"wrong vendor\"}\n```"
+    asked, reported = [], []
+    monkeypatch.setenv("VELARIS_PRIME_URL", "http://aetheros.test")
+    monkeypatch.setenv("VELARIS_PRIME_API_KEY", "aesk_test")
+    monkeypatch.setattr(corrections, "fetch", lambda url, key, agent, action, query="", **kw: asked.append((agent, action)) or {"ids": ["c1"], "block": block})
+    monkeypatch.setattr(corrections, "report_outcome", lambda url, key, ids, changed, **kw: reported.append((url, ids, changed)) or True)
+    paid = []
+    r = make(fake, paid, PAY).start("pay acme", meta=OWNER)
+    req = fake.only()
+    # Prime files a correction under params.agent and the request type: the flow asks by exactly those two names
+    assert asked == [(req["action"]["params"]["agent"], req["action"]["type"])] == [("flow", prime.ACTION_TYPE)]
+    assert reported == []                                       # nothing is known until someone decides
+    assert fake.decide(req["request_hash"], approve=approve, reason="" if approve else "wrong vendor again") == 200
+    flow = make(fake, paid, FINAL, FINAL)
+    flow.resume(r.run_id)
+    flow.resume(r.run_id)
+    assert reported == [("http://aetheros.test", ["c1"], approve)]          # once, and True only when approved as proposed
+    assert flow.verify(r.run_id)["ok"]
