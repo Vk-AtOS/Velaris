@@ -36,4 +36,4 @@ A model is used when one is passed in or VELARIS_MODEL is set.
 
 - **other agents:** `CRK`
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_aicore_a_crk.py`, `velaris/tests/test_kan106_aicore.py`, `velaris/tests/test_layer12_crk.py`
+- **tests:** `velaris/tests/test_aicore_a_crk.py`, `velaris/tests/test_corrections.py`, `velaris/tests/test_kan106_aicore.py`, `velaris/tests/test_layer12_crk.py`
