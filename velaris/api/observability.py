@@ -51,6 +51,19 @@ def current_request_id() -> str:
     return _request_id.get()
 
 
+def bind_request_id(headers: Any) -> "tuple[str, contextvars.Token[str]]":
+    """Pick this request's id and make it the current one (the caller resets the token). AetherOS sends its trace id as X-Trace-Id
+    so one id follows a request across both systems (KAN-50). Neither header is signed, so one is used only when it has the
+    shape of an id; otherwise a fresh one."""
+    given = next((v for v in (headers.get("x-trace-id", ""), headers.get("x-request-id", "")) if _RID.match(v)), "")
+    rid = given or secrets.token_hex(8)
+    return rid, _request_id.set(rid)
+
+
+def release_request_id(token: "contextvars.Token[str]") -> None:
+    _request_id.reset(token)
+
+
 def mask(text: str) -> str:
     text = _KV.sub(lambda m: f"{m.group(1)}{m.group(2)}***", text)
     return _LONG.sub(lambda m: m.group()[:4] + "***", text)
@@ -201,12 +214,7 @@ def install(app: FastAPI, metrics: Metrics, authed: Callable[..., Any], gauges: 
     """Request-id + in-flight middleware and the signed GET /metrics."""
     @app.middleware("http")
     async def _request_context(request: Request, call_next: Callable[..., Any]) -> Any:
-        # AetherOS sends its trace id as X-Trace-Id so one id follows a request across both systems (KAN-50). It is not
-        # signed, so it is only used when it has the shape of an id; otherwise X-Request-Id, otherwise a fresh one.
-        given = next((v for v in (request.headers.get("x-trace-id", ""), request.headers.get("x-request-id", ""))
-                      if _RID.match(v)), "")
-        rid = given or secrets.token_hex(8)
-        token = _request_id.set(rid)
+        rid, token = bind_request_id(request.headers)
         with metrics._lock:
             metrics.in_flight += 1
         try:

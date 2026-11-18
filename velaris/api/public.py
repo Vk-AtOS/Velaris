@@ -23,7 +23,7 @@ malformed token gets the same 404 whatever the reason.
 
 Limits, per route: a body cap (413), a request rate per token (hash) and per client IP bucket (429), a JSON-only strict body: unknown or
 mistyped fields are refused (400). Errors are {"error": {"code", "message"}} with messages written here or by the agents' own
-refusals, never exception text. Rate counters live in this process's memory (one worker, like velaris.api.auth's replay cache).
+refusals, never exception text. Rate counters live in a shared sqlite file (velaris.core.shared.RateStore), so every worker process counts into the same window.
 
 Deployment
   * A separate process, port and host from the identity-authenticated API:  python3.11 -m velaris.api.public
@@ -65,7 +65,7 @@ from velaris.agentkit import hiring_record_gateway as interview
 from velaris.agentkit import hiring_sched as sched
 from velaris.agents.ESIGN.main import Esign
 from velaris.api import public_pages
-from velaris.api.observability import configure_logging
+from velaris.api.observability import bind_request_id, configure_logging, release_request_id
 from velaris.core.access import acting_as
 from velaris.core.shared import RateStore
 from velaris.intel.paths import data_dir, private_dir
@@ -272,7 +272,12 @@ def create_public_app(settings: Optional[PublicSettings] = None) -> FastAPI:
 
     @app.middleware("http")
     async def _headers(request: Request, call_next: Callable[..., Any]) -> Any:
-        response = await call_next(request)
+        rid, token = bind_request_id(request.headers)             # same id format as the API (KAN-120); in every log line of the request
+        try:
+            response = await call_next(request)
+        finally:
+            release_request_id(token)
+        response.headers["X-Request-Id"] = rid
         response.headers.setdefault("Cache-Control", "no-store")
         response.headers["Content-Security-Policy"] = CSP
         response.headers["X-Frame-Options"] = "DENY"
