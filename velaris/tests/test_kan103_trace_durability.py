@@ -37,7 +37,13 @@ def test_two_processes_cannot_fork_the_chain(tmp_path, monkeypatch):
     code = "from velaris.intel import trace\nfor i in range(25): trace.append('w', 'x', {'i': i})"
     ps = [subprocess.Popen([sys.executable, "-c", code], cwd=root) for _ in range(4)]
     assert [p.wait(timeout=60) for p in ps] == [0, 0, 0, 0]
-    assert trace.verify() == {"ok": True, "entries": 100, "broken_at": None, "reason": ""}
+    # No fork and no lost write: the chain verifies and holds exactly the 100 entries the four processes wrote (25 each). The total
+    # is not asserted: on a slow CI runner a stray entry from another thread of the test process appeared in the same data
+    # directory (101 total), which says nothing about forking.
+    result = trace.verify()
+    assert result["ok"] and result["broken_at"] is None and result["reason"] == ""
+    mine = [e["payload"]["i"] for e in trace.entries() if e["actor"] == "w"]
+    assert len(mine) == 100 and all(mine.count(i) == 4 for i in range(25))
 
 
 def test_trace_failure_does_not_crash_status_agents(monkeypatch):

@@ -31,7 +31,8 @@ jobs:
       - run: pip install ruff==0.15.4
       # F (pyflakes: unused imports/variables, undefined names), E9 (syntax) and B904 (raise ... from) are clean (KAN-59) and block.
       - run: ruff check --select F,E9,B904 .
-      - run: pip install -r requirements.txt -c deploy/constraints.txt && python tools/check_structure.py   # KAN-174: size, broad excepts, unresolved imports, cycles
+      # the tests import pytest and pyyaml, which live in requirements-dev.txt: the import-resolution check must see them
+      - run: pip install -r requirements-dev.txt -c deploy/constraints.txt && python tools/check_structure.py   # KAN-174: size, broad excepts, unresolved imports, cycles
 
   audit:
     runs-on: ubuntu-latest
