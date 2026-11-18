@@ -15,15 +15,14 @@ def test_no_direct_llm_complete_call_remains():
         for n in ast.walk(ast.parse(p.read_text())):
             if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr == "complete":
                 base = n.func.value
-                if not (isinstance(base, ast.Name) and base.id == "router"):
+                if not (isinstance(base, ast.Name) and base.id in ("router", "lang", "biz_language")):     # biz_language.complete routes itself
                     offenders.append(f"{rel}:{n.lineno}")
-    # departments/*/main.py agents are being fixed by another engineer; report them rather than fail on their files
-    assert [o for o in offenders if not o.startswith("departments/")] == [], offenders
+    assert offenders == [], offenders
 
 
 def test_router_calls_carry_a_sensitivity():
     missing = []
-    for p in (ROOT / "velaris").rglob("*.py"):
+    for p in list((ROOT / "velaris").rglob("*.py")) + list((ROOT / "departments").rglob("*.py")):
         rel = str(p.relative_to(ROOT))
         if "/tests/" in rel or rel == "velaris/intel/router.py":
             continue
