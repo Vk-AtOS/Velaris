@@ -5,7 +5,8 @@ get_employee_profile(employee_id, month=None, year=None, caller=None) returns at
 leave, performance summary, payroll (gross, net, statutory) and project delivery for the
 month (default: current); get_team_scorecard(employee_ids, month, year, caller) ranks by
 composite = attendance_pct*0.30 + delivery completion*0.50 + latest appraisal score*20
-(capped at 100)*0.20, using no pay data; get_org_heatmap(...) buckets attendance, delivery
+(capped at 100)*0.20, using no pay data; an employee with a missing, withheld or failed component is listed last as unranked
+(composite_score None, `missing` names the parts), never scored 0; get_org_heatmap(...) buckets attendance, delivery
 and hours (avg, min, max, count under 70), lists the top 3 and composites under 60.
 State: keeps no state; all data is fetched from the connectors on each call.
 Failure: each section is fetched separately; AccessDenied from a connector becomes
@@ -169,24 +170,26 @@ class EmployeeMetricsEngine:
         for eid in employee_ids:
             profile = self._profile(eid, month, year, include_pay=False, caller=caller)      # the score uses no pay
 
-            att_score = profile.get("attendance", {}).get("attendance_pct", 0) * 0.30
             delivery = profile.get("delivery", {})
-            del_score = delivery.get("overall_completion_rate", 0) * 0.50
             perf = profile.get("performance", {})
-            perf_raw = float(perf.get("latest_score", 0) or 0)
-            perf_score = min(perf_raw * 20, 100) * 0.20  # scale 0–5 → 0–100
+            att = profile.get("attendance", {})
+            # a section that was withheld, failed or lacks its figure is MISSING, not zero: scoring it 0 ranked people last because
+            # a connector was down or the caller could not read it
+            parts = {"attendance": att.get("attendance_pct"), "delivery": delivery.get("overall_completion_rate"),
+                     "performance": perf.get("latest_score")}
+            missing = sorted(k for k, v in parts.items() if isinstance(v, bool) or not isinstance(v, (int, float)))
+            row = {"employee_id": eid, "attendance_pct": parts["attendance"] if "attendance" not in missing else None,
+                   "delivery_pct": parts["delivery"] if "delivery" not in missing else None,
+                   "performance_score": parts["performance"] if "performance" not in missing else None,
+                   "hours_logged": delivery.get("total_hours_logged") if isinstance(delivery.get("total_hours_logged"), (int, float)) else None}
+            if missing:
+                scorecards.append({**row, "composite_score": None, "ranked": False, "missing": missing})
+                continue
+            total = round(parts["attendance"] * 0.30 + parts["delivery"] * 0.50 + min(float(parts["performance"]) * 20, 100) * 0.20, 1)
+            scorecards.append({**row, "composite_score": total, "ranked": True, "missing": []})
 
-            total = round(att_score + del_score + perf_score, 1)
-            scorecards.append({
-                "employee_id": eid,
-                "composite_score": total,
-                "attendance_pct": profile.get("attendance", {}).get("attendance_pct", 0),
-                "delivery_pct": delivery.get("overall_completion_rate", 0),
-                "performance_score": perf_raw,
-                "hours_logged": delivery.get("total_hours_logged", 0)
-            })
-
-        return sorted(scorecards, key=lambda x: x["composite_score"], reverse=True)
+        # ranked people by score; people with missing data follow, unranked, in the order given
+        return sorted(scorecards, key=lambda x: (x["composite_score"] is None, -(x["composite_score"] or 0)))
 
     def get_org_heatmap(self, employee_ids: List[str], month: int = None, year: int = None, *,
                         caller: Optional[Caller] = None) -> Dict:
@@ -199,9 +202,9 @@ class EmployeeMetricsEngine:
         year = year or today.year
 
         scorecard = self.get_team_scorecard(employee_ids, month, year, caller=caller)
-        att_values = [s["attendance_pct"] for s in scorecard]
-        del_values = [s["delivery_pct"] for s in scorecard]
-        hrs_values = [s["hours_logged"] for s in scorecard]
+        att_values = [s["attendance_pct"] for s in scorecard if s["attendance_pct"] is not None]
+        del_values = [s["delivery_pct"] for s in scorecard if s["delivery_pct"] is not None]
+        hrs_values = [s["hours_logged"] for s in scorecard if s["hours_logged"] is not None]
 
         def bucket(values: list) -> Dict:
             return {
@@ -217,6 +220,7 @@ class EmployeeMetricsEngine:
             "attendance": bucket(att_values),
             "delivery": bucket(del_values),
             "hours": bucket(hrs_values),
-            "top_performers": scorecard[:3],
-            "at_risk": [s for s in scorecard if s["composite_score"] < 60]
+            "top_performers": [s for s in scorecard if s["ranked"]][:3],
+            "unranked": sum(1 for s in scorecard if not s["ranked"]),        # data missing or withheld: not scored, not "at risk"
+            "at_risk": [s for s in scorecard if s["ranked"] and s["composite_score"] < 60]
         }

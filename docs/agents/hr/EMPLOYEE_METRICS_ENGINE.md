@@ -2,7 +2,7 @@
 
 - **Department:** `hr`
 - **Status (static inventory):** `rule_based`
-- **Source:** `departments/hr/EMPLOYEE_METRICS_ENGINE/main.py` (223 lines)
+- **Source:** `departments/hr/EMPLOYEE_METRICS_ENGINE/main.py` (227 lines)
 
 ## Purpose
 
@@ -13,7 +13,8 @@ get_employee_profile(employee_id, month=None, year=None, caller=None) returns at
 leave, performance summary, payroll (gross, net, statutory) and project delivery for the
 month (default: current); get_team_scorecard(employee_ids, month, year, caller) ranks by
 composite = attendance_pct*0.30 + delivery completion*0.50 + latest appraisal score*20
-(capped at 100)*0.20, using no pay data; get_org_heatmap(...) buckets attendance, delivery
+(capped at 100)*0.20, using no pay data; an employee with a missing, withheld or failed component is listed last as unranked
+(composite_score None, `missing` names the parts), never scored 0; get_org_heatmap(...) buckets attendance, delivery
 and hours (avg, min, max, count under 70), lists the top 3 and composites under 60.
 State: keeps no state; all data is fetched from the connectors on each call.
 Failure: each section is fetched separately; AccessDenied from a connector becomes
