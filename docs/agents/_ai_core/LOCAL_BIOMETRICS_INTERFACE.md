@@ -48,4 +48,4 @@ Velaris Local Biometrics Interface
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_agents_coverage_c.py`, `velaris/tests/test_kan89_aicore.py`
+- **tests:** `velaris/tests/test_agents_coverage_c.py`, `velaris/tests/test_kan88_auth_agents.py`, `velaris/tests/test_kan89_aicore.py`
