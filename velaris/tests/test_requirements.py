@@ -12,7 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 LOCAL = {"velaris", "agents", "live", "departments", "main", "conftest"}
 IMPORT_NAME = {"python-pptx": "pptx", "python-docx": "docx", "pyyaml": "yaml", "beautifulsoup4": "bs4",
-               "openai-whisper": "whisper", "faster-whisper": "faster_whisper"}
+               "openai-whisper": "whisper", "faster-whisper": "faster_whisper", "dnspython": "dns"}
 
 
 def _catches_import_error(node: ast.Try) -> bool:

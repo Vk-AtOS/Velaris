@@ -12,7 +12,8 @@ Run the listener (NOT started by importing this module or by any test):
 
 --bind defaults to 127.0.0.1. Binding a public address, and port 25, is the operator's decision (and port 25
 needs a privileged port, a public IP, reverse DNS and a TLS-terminating front, none of which are done here).
-Without dnspython installed SPF/DKIM/DMARC cannot be checked and every verdict is temperror (nothing passes).
+dnspython is a required runtime dependency (requirements.txt, deploy/constraints.txt): the module does not import without it, so
+the service cannot start up and silently skip the checks. A lookup that fails at run time is temperror (nothing passes).
 """
 from __future__ import annotations
 
@@ -21,6 +22,9 @@ import asyncio
 import logging
 import sqlite3
 from typing import Any, Optional, Tuple
+
+import dns.exception
+import dns.resolver
 
 from velaris.core.access import deployment_org
 from velaris.mail import dkim, dsn, rules, spam
@@ -127,13 +131,7 @@ class InboundPipeline:
 
 
 def dnspython_resolver() -> Any:
-    """A resolver on dnspython when it is installed (optional), else the one that answers temperror to everything."""
-    try:
-        import dns.exception
-        import dns.resolver
-    except ImportError:
-        return UnavailableResolver()
-
+    """The DNS resolver on dnspython, a pinned runtime dependency: DMARC and SPF are enforced for real, never claimed on a stub."""
     class _R:
         def _q(self, name: str, rtype: str) -> list:
             try:
