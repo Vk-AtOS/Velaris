@@ -2,7 +2,7 @@
 
 - **Department:** `legal_compliance`
 - **Status (static inventory):** `real`
-- **Source:** `departments/legal_compliance/GOVERNANCE_ADAPTATION_LOOP/main.py` (123 lines)
+- **Source:** `departments/legal_compliance/GOVERNANCE_ADAPTATION_LOOP/main.py` (122 lines)
 
 ## Purpose
 
