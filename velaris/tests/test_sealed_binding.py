@@ -229,3 +229,41 @@ def test_chat_file_name_moved_to_another_file_is_refused():
     s.store.db.execute("UPDATE files SET name=(SELECT name FROM files WHERE hash=?) WHERE hash=?", (rows[0]["hash"], rows[1]["hash"]))
     with pytest.raises(vault.VaultError):
         file_name(s.store.db.execute("SELECT * FROM files WHERE hash=?", (rows[1]["hash"],)).fetchone())
+
+
+def _chat_file(s, name="a.png", fill=b"A"):
+    return s.upload(__import__("velaris.tests.chat_support", fromlist=["ALICE"]).ALICE, name, None, b"\x89PNG\r\n\x1a\n" + fill * 40)
+
+
+def test_chat_file_metadata_is_mac_bound_and_a_changed_row_is_not_served():
+    """KAN-167: hash, org, size, type and uploader of a file row were clear and unbound; editing the row changed who could
+    download the file, or what size/type it was served as."""
+    from velaris.chat.errors import ChatError
+    from velaris.tests.chat_support import ALICE, BOB, service
+    s = service()
+    up = _chat_file(s)
+    assert s.download(ALICE, up["hash"])[0]["size"] == up["size"]
+    for col, value in (("ctype", "text/html"), ("size", 1), ("org", "other")):
+        s.store.db.execute(f"UPDATE files SET {col}=? WHERE hash=?", (value, up["hash"]))
+        with pytest.raises(ChatError):
+            s.download(ALICE, up["hash"])
+        s.store.db.execute("UPDATE files SET ctype='image/png', size=?, org='acme' WHERE hash=?", (up["size"], up["hash"]))
+        assert s.download(ALICE, up["hash"])[1]                                                  # restored: verifies again
+    s.store.db.execute("UPDATE files SET uploader='bob' WHERE hash=?", (up["hash"],))            # the row moved to another uploader
+    with pytest.raises(ChatError):
+        s.download(BOB, up["hash"])
+    assert s.export_user(__import__("velaris.tests.chat_support", fromlist=["ADMIN"]).ADMIN, "bob")["files"] == []
+
+
+def test_unbound_chat_file_rows_are_refused_outside_the_window_and_bound_inside_it(monkeypatch):
+    from velaris.chat.errors import ChatError
+    from velaris.tests.chat_support import ALICE, service
+    s = service()
+    up = _chat_file(s)
+    s.store.db.execute("UPDATE files SET bind=NULL")                                             # a row written by an older release
+    with pytest.raises(ChatError):
+        s.download(ALICE, up["hash"])
+    monkeypatch.setenv("VELARIS_VAULT_ALLOW_PLAINTEXT", "1")
+    vault.start_plaintext_migration()
+    s.store._bind_files()
+    assert s.download(ALICE, up["hash"])[1]

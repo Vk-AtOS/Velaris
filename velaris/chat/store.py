@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import re
 import sqlite3
@@ -21,10 +22,11 @@ import threading
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Sequence
 
-from velaris.core import fieldseal
+from velaris.core import fieldseal, vault
 from velaris.core.sqlite_util import connect as connect_db
 from velaris.intel.paths import PRIVATE_FILE, agent_dir
 
+logger = logging.getLogger("velaris.chat.store")
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY, org TEXT NOT NULL, display TEXT, first_seen REAL NOT NULL,
   last_seen REAL NOT NULL, erased INTEGER NOT NULL DEFAULT 0);
@@ -54,7 +56,7 @@ CREATE TABLE IF NOT EXISTS pins(channel_id INTEGER NOT NULL, message_id INTEGER 
 CREATE TABLE IF NOT EXISTS drafts(user_id TEXT NOT NULL, channel_id INTEGER NOT NULL, topic TEXT NOT NULL,
   body TEXT NOT NULL, updated REAL NOT NULL, PRIMARY KEY(user_id, channel_id, topic));
 CREATE TABLE IF NOT EXISTS files(hash TEXT NOT NULL, org TEXT NOT NULL, size INTEGER NOT NULL, ctype TEXT NOT NULL,
-  name TEXT NOT NULL, uploader TEXT NOT NULL, created_at REAL NOT NULL, PRIMARY KEY(hash, uploader));
+  name TEXT NOT NULL, uploader TEXT NOT NULL, created_at REAL NOT NULL, bind TEXT, PRIMARY KEY(hash, uploader));
 CREATE TABLE IF NOT EXISTS settings(org TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY(org, key));
 CREATE TABLE IF NOT EXISTS ai_drafts(id TEXT PRIMARY KEY, org TEXT NOT NULL, channel_id INTEGER NOT NULL,
   topic TEXT NOT NULL, requester TEXT NOT NULL, assistant TEXT NOT NULL, body TEXT NOT NULL,
@@ -106,6 +108,7 @@ class Store:
         self._bind_at_rest()
         self._seal_at_rest()
         self._seal_file_names()
+        self._bind_files()
         for suffix in ("-wal", "-shm"):
             side = Path(str(self.path) + suffix)
             if side.exists():
@@ -143,6 +146,37 @@ class Store:
             return
         fieldseal.seal_existing(self.db, "files", ["name"], NAME_SEAL, key=("hash", "uploader"))
         self.db.execute("INSERT OR REPLACE INTO settings VALUES('', 'sealed_files_v1', '1')")
+
+    @staticmethod
+    def file_mac(r: Any) -> str:
+        """Keyed MAC over a file row's clear metadata (hash, org, size, type, uploader): a row edited or copied under another
+        uploader or org by somebody with write access to chat.db no longer verifies. (The name is sealed and bound already.)"""
+        return fieldseal.row_mac(SEAL, "files", r["hash"], r["org"], int(r["size"]), r["ctype"], r["uploader"])
+
+    def file_rows(self, org: str, digest: Optional[str] = None, uploader: Optional[str] = None) -> List[sqlite3.Row]:
+        """The `files` rows of an organisation (optionally one hash / one uploader), oldest first, that verify. A row that does
+        not (tampered, or unbound outside the migration window) is dropped and logged: nobody can vouch for it."""
+        where, args = ["org=?"], [org]
+        for col, v in (("hash", digest), ("uploader", uploader)):
+            if v is not None:
+                where.append(f"{col}=?")
+                args.append(v)
+        good = []
+        for r in self.all(f"SELECT * FROM files WHERE {' AND '.join(where)} ORDER BY created_at", args):
+            if fieldseal.row_mac_ok(r["bind"], SEAL, "files", r["hash"], r["org"], int(r["size"]), r["ctype"], r["uploader"]):
+                good.append(r)
+            else:
+                logger.warning("chat file row %s does not verify: not used", r["hash"][:8])
+        return good
+
+    def _bind_files(self) -> None:
+        """Bind file rows (KAN-167). Rows of older releases are bound only inside the vault migration window; outside it they
+        stay unbound and are not served."""
+        if "bind" not in {r["name"] for r in self.db.execute("PRAGMA table_info(files)")}:
+            self.db.execute("ALTER TABLE files ADD COLUMN bind TEXT")
+        if vault.plaintext_allowed():
+            for r in self.db.execute("SELECT * FROM files WHERE bind IS NULL").fetchall():
+                self.db.execute("UPDATE files SET bind=? WHERE hash=? AND uploader=?", (self.file_mac(r), r["hash"], r["uploader"]))
 
     def _migrate(self) -> None:
         """Idempotent, in place. Proposals made before the two-key rule have no requester confirmation and no

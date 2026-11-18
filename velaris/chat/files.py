@@ -96,8 +96,10 @@ class FilesMixin(ChatCore):
         self._spend(caller, 2)
         digest = hashlib.sha256(data).hexdigest()
         with self._write() as db:
-            db.execute("INSERT OR IGNORE INTO files VALUES(?,?,?,?,?,?,?)",
-                       (digest, caller.org, len(data), found, fieldseal.seal(name, NAME_SEAL, fieldseal.bind_for("files", "name", digest, caller.id)), caller.id, self.clock()))
+            row = {"hash": digest, "org": caller.org, "size": len(data), "ctype": found, "uploader": caller.id}
+            db.execute("INSERT OR IGNORE INTO files VALUES(?,?,?,?,?,?,?,?)",
+                       (digest, caller.org, len(data), found, fieldseal.seal(name, NAME_SEAL, fieldseal.bind_for("files", "name", digest, caller.id)),
+                        caller.id, self.clock(), self.store.file_mac(row)))
             self._audit("file.upload", caller.id, caller.org, file=digest, bytes=len(data), type=found)
             if not self._blob(digest).exists():
                 vault.write_sealed(self._blob(digest), data, _blob_purpose(digest), digest)
@@ -105,10 +107,10 @@ class FilesMixin(ChatCore):
 
     def download(self, caller: Caller, digest: Any) -> Tuple[Dict[str, Any], bytes]:
         caller = self._enter(caller)
-        meta = self.store.one("SELECT * FROM files WHERE hash=? AND org=? ORDER BY created_at LIMIT 1",
-                              (digest, caller.org)) if isinstance(digest, str) and _HASH.match(digest) else None
+        rows = self.store.file_rows(caller.org, digest) if isinstance(digest, str) and _HASH.match(digest) else []      # verified rows only
+        meta = rows[0] if rows else None
         allowed = meta is not None and (
-            self.store.one("SELECT 1 FROM files WHERE hash=? AND org=? AND uploader=?", (digest, caller.org, caller.id)) is not None
+            any(r["uploader"] == caller.id for r in rows)
             or self.store.one(
                 "SELECT 1 FROM messages m JOIN members mb ON mb.channel_id=m.channel_id WHERE mb.user_id=? AND m.org=? "
                 "AND m.deleted_at IS NULL AND m.erased=0 AND m.attachments LIKE ? LIMIT 1",

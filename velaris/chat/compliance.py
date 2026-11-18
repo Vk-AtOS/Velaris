@@ -111,8 +111,8 @@ class ComplianceMixin(ChatCore):
                    "SELECT message_id, emoji FROM reactions WHERE user_id=?", (user_id,))],
                "drafts": [dict(r) for r in self.store.all(
                    "SELECT user_id, channel_id, topic, body, updated FROM drafts WHERE user_id=?", (user_id,))],
-               "files": [{**{k: v for k, v in dict(r).items() if k != "uploader"}, "name": file_name(r)} for r in self.store.all(
-                   "SELECT hash, uploader, name, size, ctype, created_at FROM files WHERE uploader=?", (user_id,))],
+               "files": [{**{k: r[k] for k in ("hash", "name", "size", "ctype", "created_at")}, "name": file_name(r)}
+                         for r in self.store.file_rows(caller.org, uploader=user_id)],
                "exported_at": self.clock()}
         self._audit("user.export", caller.id, caller.org, subject=user_id, messages=len(msgs),
                     export_sha256=hashlib.sha256(json.dumps(out, sort_keys=True, default=str).encode()).hexdigest())

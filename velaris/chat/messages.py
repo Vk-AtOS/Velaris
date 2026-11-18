@@ -120,7 +120,7 @@ class MessagesMixin(ChatCore):
                 or not all(isinstance(h, str) and _HASH.match(h) for h in attachments):
             raise ChatError(400, "bad_attachments", f"at most {self.limits.max_attachments} attachments, each named by its sha256")
         for h in attachments:
-            if not self.store.one("SELECT 1 FROM files WHERE hash=? AND org=? AND uploader=?", (h, caller.org, caller.id)):
+            if not self.store.file_rows(caller.org, h, caller.id):
                 raise ChatError(400, "bad_attachments", "attach only files you uploaded")
         return list(dict.fromkeys(attachments))
 
