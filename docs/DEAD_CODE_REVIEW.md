@@ -63,3 +63,13 @@ for an import of the dotted name, `from <package> import <module>` or a relative
 The AetherOS items of KAN-171 (core/approval, core/sandbox, core/bootstrap, ...) belong to the AetherOS worktree. The independent
 check on the ticket already corrected one claim (core/services/pipeline_service.py is live). The Confluence table the ticket asks
 for needs the Atlassian write tools and the owner's decision on the 201 agents.
+
+## Re-check on main, 22 Nov 2026 (KAN-171 final pass)
+
+Re-derived with an import graph over every tracked `.py` file plus string, config and doc search. Agents under `departments/` are
+loaded by name, so all 346 stay KEEP (documented one page each under `docs/agents/`, candidates for the KAN-4 tool wave). Result:
+
+| Module | Evidence | Decision |
+|---|---|---|
+| `velaris/core/main.py`, `velaris/core/loader.py`, `velaris/core/config.py` | Phase-1 bootstrap stubs: `velaris_start()` only logs, `initialize_core()` only logs, `PROJECT_ROOT` and `VELARIS_CONFIG` have no reader. No importer, no test, no string reference, not in README or deploy docs (only the archived code map calls them stub or dead). | DELETED. `exceptions.py` (used by `access.py`) and `utils.py` (used by VIGILIS) stay. |
+| everything else flagged by the graph under `velaris/agentkit`, `velaris/intel`, `velaris/control`, `tools/` | Imported by agents loaded by name, or by tools and tests. | KEEP (library or tool). |
