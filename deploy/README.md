@@ -64,7 +64,7 @@ the file first makes the commit fail with `SealedConflict`; run one API worker f
   with network access when upgrading; CI runs `pip-audit` on it).
 * **Compose**: `deploy/docker-compose.example.yml` (API on an internal network, public app bound to 127.0.0.1:8731).
 * **systemd** (VPS): `deploy/systemd/*.service` and the two `*.env.example` files. Install under `/opt/velaris`, create user
-  `velaris`, `install -m 600` the env files into `/etc/velaris/`, then `systemctl enable --now velaris-api velaris-public`.
+  `velaris`, `install -m 600` the env files into `/etc/velaris/`, then `systemctl enable --now velaris-api velaris-public`. Optional: `velaris-outbox` (mail worker, KAN-132); without it approved mail is sent only by the dashboard button "Process the outbox now".
 * **Kubernetes**: `deploy/k8s/velaris.yaml` (PVC, two Deployments, ClusterIP Services, NetworkPolicies: the API accepts only the
   AetherOS gateway pods and Prometheus). Create the Secrets from `deploy/k8s/secret.example.yaml`'s shape; never apply that file.
   Replace every `CHANGE_ME`. The data PVC is ReadWriteOnce, so both pods are co-scheduled on one node.

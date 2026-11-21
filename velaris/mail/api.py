@@ -235,7 +235,7 @@ def mount_mail(app: FastAPI, settings: Any, authed: Callable, record: Callable, 
     route("GET", "/domains", "domains", lambda c, b, r: {"domains": st.domains(c)})
     route("POST", "/domains", "domain.claim", lambda c, b, r: st.claim_domain(c, _obj(b).get("domain", "")), status=201)
     route("POST", "/domains/verify", "domain.verify", lambda c, b, r: st.verify_domain(c, _obj(b).get("domain", ""), d.inbound.resolver))
-    route("POST", "/retention/run", "retention", lambda c, b, r: st.retention_run(c))
+    route("POST", "/retention/run", "retention", lambda c, b, r: st.retention_run(c, dry_run=_obj(b).get("dry_run") is True))
 
     def dkim_info(c: Caller, b: Any, r: Request) -> Any:
         who = st._who(c)

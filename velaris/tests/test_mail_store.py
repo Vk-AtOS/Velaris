@@ -338,3 +338,15 @@ def test_attachment_rows_and_search_index_rows_are_bound_to_their_message():
         store.run("UPDATE msg_fts SET subject=?, body=?, people=? WHERE rowid=?", (row["s1"], row["b1"], row["p1"], rid_a))
         hits = [m["id"] for m in store.list_messages(ALICE, mb["id"], q="pizza")["messages"]]
         assert hits == [b]                                                                      # the invoice does not turn up for "pizza"
+
+
+def test_retention_dry_run_counts_and_removes_nothing():
+    store, _, _, clock, _, boxes = make_world(settings={"retention_days": 0, "trash_retention_days": 30})
+    mb = boxes["alice"]
+    m1 = put(store, mb, mid="d1@x")
+    store.delete_message(ALICE, mb["id"], m1)
+    clock.advance(40 * 86400)
+    assert store.retention_run(ADMIN, dry_run=True)["trash"] == 1
+    assert store.one("SELECT COUNT(*) FROM message")[0] == 1                            # still there
+    assert store.retention_run(ADMIN)["trash"] == 1
+    assert store.one("SELECT COUNT(*) FROM message")[0] == 0

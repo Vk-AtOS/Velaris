@@ -260,7 +260,8 @@ class AdminMixin(LegalExportMixin):
         audit("hold.set", who.id, who.org, mailbox=mb["id"], on=on, messages=n)
         return {"legal_hold": on, "messages_changed": n}
 
-    def retention_run(self, caller: Caller) -> Dict[str, int]:
+    def retention_run(self, caller: Caller, dry_run: bool = False) -> Dict[str, int]:
+        """Remove mail past its retention period (never held items). dry_run counts what would go and removes nothing."""
         who = self._who(caller)                                                # type: ignore[attr-defined]
         if not _is_admin(who):
             raise MailError("forbidden", "retention needs the mail_admin role", 403)
@@ -273,8 +274,9 @@ class AdminMixin(LegalExportMixin):
             sets.append(("age", base + "AND m.draft=0 AND m.received_ts<?", (who.org, now - s["retention_days"] * 86400)))
         out = {}
         for name, cond, args in sets:
-            out[name] = self.purge([r["id"] for r in self.q(f"SELECT m.id FROM message m WHERE {cond}", args)])   # type: ignore[attr-defined]
-        audit("retention.run", who.id, who.org, **out)
+            ids = [r["id"] for r in self.q(f"SELECT m.id FROM message m WHERE {cond}", args)]   # type: ignore[attr-defined]
+            out[name] = len(ids) if dry_run else self.purge(ids)               # type: ignore[attr-defined]
+        audit("retention.preview" if dry_run else "retention.run", who.id, who.org, **out)
         return out
 
     # ── DPDP: export and erasure ─────────────────────────────────────────────

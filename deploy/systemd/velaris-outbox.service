@@ -1,0 +1,28 @@
+# /etc/systemd/system/velaris-outbox.service   (KAN-132): systemctl enable --now velaris-outbox.service
+# Nothing else sends approved mail once its undo window has passed except this worker (or the dashboard's
+# "Process the outbox now" button). Install it, or accept that mail waits for that button.
+[Unit]
+Description=Velaris mail outbox worker (hands due mail to the relay)
+After=velaris-api.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=velaris
+Group=velaris
+WorkingDirectory=/opt/velaris
+EnvironmentFile=/etc/velaris/velaris.env
+Environment=VELARIS_VAULT_KEY_FILE=/etc/velaris/vault.key
+Environment=VELARIS_DATA=/var/lib/velaris PYTHONDONTWRITEBYTECODE=1
+ExecStart=/opt/velaris/.venv/bin/python -m velaris.mail.outbound --loop 30
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/velaris
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
