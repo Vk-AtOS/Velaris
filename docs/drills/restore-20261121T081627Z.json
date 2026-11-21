@@ -1,0 +1,30 @@
+{
+  "archive": "velaris-data-20261121T081624Z.tar.gz",
+  "archive_bytes": 9489,
+  "steps": [
+    {
+      "step": "restore archive (checksums verified)",
+      "seconds": 0.01,
+      "ok": true,
+      "detail": "8 files"
+    },
+    {
+      "step": "sqlite integrity",
+      "seconds": 0.0,
+      "ok": true,
+      "detail": "all SQLite files pass integrity_check"
+    },
+    {
+      "step": "trace chain verifies",
+      "seconds": 0.04,
+      "ok": true,
+      "detail": "5 entries"
+    }
+  ],
+  "started_at": "2026-11-21T08:16:27Z",
+  "trace_entries": 5,
+  "total_seconds": 0.05,
+  "passed": true,
+  "note": "AWS testbed: live velaris_data volume, --lock-stores, S3 off-site round trip, sha256 checked"
+}
+
