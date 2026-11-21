@@ -46,6 +46,10 @@ jobs:
 
   secrets:
     runs-on: ubuntu-latest
+    # gitleaks-action lists the PR commits on pull_request events; contents: read alone gives HTTP 403 before any scan.
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
         with: {fetch-depth: 0}
