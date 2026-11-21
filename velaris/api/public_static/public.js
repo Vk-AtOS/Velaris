@@ -231,6 +231,7 @@
 
   // ---- interview participant -----------------------------------------------------------------------------------------------
   function interview() {
+    // The notice sentence below and the pad sentence are engineer-written and PENDING LEGAL REVIEW (KAN-80); keep them until counsel approves wording, then bump NOTICE.
     const NOTICE = "v1";
     const scopes = [["events", "Activity during the session (joining, leaving, switching away from this page)"]];
     const boxes = scopes.map(([v, t], i) => el("label", { class: "check", for: "sc" + i }, el("input", { type: "checkbox", id: "sc" + i, value: v, checked: true }), t));
@@ -240,7 +241,7 @@
     const openPad = el("button", { type: "button", class: "secondary", hidden: true }, "Open the notes pad");
     const padBox = el("div", { hidden: true }, el("label", { for: "pad" }, "Notes pad"),
       el("p", { class: "hint" }, "What you type here is kept in the interview record, with the size (never the content) of anything you paste."), pad);
-    const form = el("form", {}, el("div", { class: "notice" }, "This interview keeps a factual log of the activity ticked below, for a human reviewer. Nothing is scored by software. You can withdraw at any time on this page. Notice " + NOTICE + "."),
+    const form = el("form", {}, el("div", { class: "notice", "data-legal-review": "pending KAN-80" }, "This interview keeps a factual log of the activity ticked below, for a human reviewer. Nothing is scored by software. You can withdraw at any time on this page. Notice " + NOTICE + "."),
       el("fieldset", {}, el("legend", {}, "What may be recorded"), ...boxes), join, withdraw, openPad, padBox, alertBox, live);
     let on = false, sent = "", busy = false, timer = 0;
     const ev = (type, data) => api("POST", "/interview/" + ident + "/events", data ? { type, data } : { type });
