@@ -1,0 +1,29 @@
+{
+  "archive": "velaris-data-20261121T131549Z.tar.gz",
+  "archive_bytes": 11911,
+  "steps": [
+    {
+      "step": "restore archive (checksums verified)",
+      "seconds": 0.01,
+      "ok": true,
+      "detail": "7 files"
+    },
+    {
+      "step": "sqlite integrity",
+      "seconds": 0.0,
+      "ok": true,
+      "detail": "all SQLite files pass integrity_check"
+    },
+    {
+      "step": "trace chain verifies",
+      "seconds": 0.04,
+      "ok": true,
+      "detail": "36 entries"
+    }
+  ],
+  "started_at": "2026-11-21T13:16:41Z",
+  "trace_entries": 36,
+  "total_seconds": 0.05,
+  "passed": true,
+  "note": "AWS testbed: nightly.sh -> age-encrypted -> S3, trace head kept apart; decrypted with the (test) age key, vault key from its separate store"
+}

@@ -1,0 +1,11 @@
+# /etc/systemd/system/velaris-backup.timer   (VEL-32): systemctl enable --now velaris-backup.timer
+[Unit]
+Description=Velaris nightly backup
+
+[Timer]
+OnCalendar=*-*-* 02:30:00
+RandomizedDelaySec=600
+Persistent=true
+
+[Install]
+WantedBy=timers.target

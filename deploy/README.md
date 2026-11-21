@@ -133,5 +133,16 @@ sha256sum velaris-data-X.tar.gz > velaris-data-X.tar.gz.sha256                  
 
 Back up separately and securely the data-encryption key for personal-data stores (it is outside `VELARIS_DATA` and therefore not in
 the archive; an archive without it is unreadable by design) and the AetherOS public key / API secret from your secret manager.
+**Nightly schedule (VEL-32).** `deploy/backup/nightly.sh` does all of the above in one run: `--lock-stores` snapshot, `age`
+encryption to `AGE_RECIPIENT`, off-site copy to `VELARIS_BACKUP_REMOTE`, the signed trace head to `VELARIS_ANCHOR_REMOTE` (a
+different prefix or account, so restoring an old archive cannot also restore an old head unseen), local pruning. It refuses to
+send a plaintext archive. VPS: install `deploy/systemd/velaris-backup.{service,timer}`, put the three settings in
+`/etc/velaris/backup.env` (mode 0600), `systemctl enable --now velaris-backup.timer` (02:30 daily, `Persistent=true` catches
+up after downtime). Compose: run it from the host's cron/timer with `VELARIS_DATA` = the `velaris_data` volume's `_data` path.
+rclone with an S3 remote: set `no_check_bucket = true`, or rclone tries to create the bucket and a least-privilege role fails.
+Run on the AWS testbed on 21 Nov 2026: archive sent encrypted, head copied apart, then downloaded, decrypted and drilled: PASS
+(`docs/drills/restore-20261121T131641Z.json`).
+
 **Restore drill** (quarterly): decrypt, `restore --target /tmp/drill`, start the API against it with `VELARIS_DATA=/tmp/drill`, run
-`python3.11 deploy/smoke.py`-style checks and `GET /trace/verify`. `velaris/tests/test_deploy_backup.py` runs the same drill on temp dirs.
+`python3.11 deploy/smoke.py`-style checks and `GET /trace/verify`. The drill needs `VELARIS_VAULT_KEY_FILE` (from its separate
+store) to verify the trace: without it every entry reads "no vault key". `velaris/tests/test_deploy_backup.py` runs the same drill on temp dirs.
