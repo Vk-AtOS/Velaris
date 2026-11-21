@@ -19,6 +19,7 @@ import httpx
 
 logger = logging.getLogger("velaris.intel.corrections")
 MAX_BLOCK = 4000
+LOOKUP_TIMEOUT_S = 1.0      # the wait for Prime on every model call (router.complete): a slow or down Prime costs at most this
 _FENCE = "```"
 _CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
 
@@ -46,6 +47,10 @@ def fetch(base_url: str, api_key: str, agent: str, action_type: str, query: str 
         block = safe_block(body.get("prompt_block"))
         ids = [x["id"] for x in body.get("corrections", []) if isinstance(x, dict) and isinstance(x.get("id"), str)]
         return {"ids": ids[:k], "block": block} if block else empty
+    except httpx.TimeoutException:
+        logger.warning("corrections for %s/%s: Prime did not answer within %gs, continuing without them",
+                       agent, action_type, timeout)
+        return empty
     except (httpx.HTTPError, ValueError, KeyError, AttributeError, TypeError) as e:
         logger.warning("corrections for %s/%s unavailable: %s", agent, action_type, type(e).__name__)
         return empty
@@ -60,7 +65,7 @@ def for_purpose(purpose: str, query: str = "", key: Optional[Tuple[str, str]] = 
         return {"ids": [], "block": ""}
     agent, _, action = purpose.partition(".")
     agent, action = key or (agent, action or "model")
-    return fetch(url, key_, agent, action, query)
+    return fetch(url, key_, agent, action, query, timeout=LOOKUP_TIMEOUT_S)
 
 
 def with_corrections(prompt: str, block: str) -> str:
