@@ -38,7 +38,8 @@ manager; none is in an image or a manifest. Keys for encrypted stores must live 
 
 ```
 # 1. once: make the master key, keep it OUTSIDE VELARIS_DATA, back it up separately from the data (a restore without it is unreadable by design)
-install -d -m 0700 /etc/velaris && python3.11 -c "from velaris.core import vault; print(vault.new_key())" > /etc/velaris/vault.key && chmod 0600 /etc/velaris/vault.key
+install -d -m 0700 -o velaris -g velaris /etc/velaris && python3.11 -c "from velaris.core import vault; print(vault.new_key())" > /etc/velaris/vault.key && chown velaris:velaris /etc/velaris/vault.key && chmod 0600 /etc/velaris/vault.key
+#    (owned by the service user: both units run as User=velaris and the key must be mode 0600, so a root-owned key is unreadable)
 # 2. both services: VELARIS_VAULT_KEY_FILE=/etc/velaris/vault.key   (optional) VELARIS_TRACE_ANCHOR_FILE=/mnt/anchor/trace.head
 # 3. upgrading an existing deployment (a trace.jsonl without a signed head): stop the services, then
 VELARIS_DATA=/var/lib/velaris VELARIS_VAULT_KEY_FILE=/etc/velaris/vault.key python3.11 -m velaris.intel trace-rebaseline
