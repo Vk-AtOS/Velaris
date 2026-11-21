@@ -101,3 +101,36 @@ def test_interview_page_consents_streams_and_withdraws(base, world, page):
     page.get_by_role("dialog", name="Leave the interview?").get_by_role("button", name="Yes, withdraw and leave").click()
     page.get_by_role("heading", name="Consent withdrawn").wait_for()
     assert not page.problems, page.problems
+
+
+def test_interview_pad_sends_pad_ops_and_paste_sizes_and_a_refusal_is_shown(base, world, page):
+    """KAN-126: pad_op and paste had no producer, and a refused event was swallowed (the page went on as if it were recorded)."""
+    from velaris.agentkit import hiring_record as hr
+    from velaris.agentkit import hiring_record_gateway as gateway
+    page.goto(f"{base}/interview/{world['itok']}")
+    assert page.get_by_role("button", name="Open the notes pad").is_hidden()          # nothing to type into before consent
+    page.get_by_role("button", name="Agree and join").click()
+    page.get_by_text("You have joined").wait_for()
+    page.get_by_role("button", name="Open the notes pad").click()
+    pad = page.get_by_label("Notes pad")
+    pad.type("hello world")
+    page.wait_for_timeout(1200)
+    pad.press("End")
+    for _ in range(5):
+        pad.press("Backspace")
+    pad.type("there 😀")
+    pad.evaluate("""e => { const d = new DataTransfer(); d.setData("text", "abcdefg");
+                           e.dispatchEvent(new ClipboardEvent("paste", { clipboardData: d, bubbles: true })); }""")
+    page.wait_for_timeout(1500)
+    session = next(iter(hr.st().load()["sessions"].values()))
+    events = hr.events_of(session["id"])
+    assert hr.replay_pad(events) == "hello there 😀"
+    assert [e["data"] for e in events if e["type"] == "paste"] == [{"size_chars": 7, "target": "pad"}]
+    assert {e["data"]["op"] for e in events if e["type"] == "pad_op"} == {"insert", "delete"}
+    assert not page.problems, page.problems
+
+    assert gateway.candidate_withdraw(world["itok"])["status"] == "ok"                 # consent ends elsewhere (another tab)
+    pad.type(" more")
+    page.get_by_role("alert").filter(has_text="Recording has stopped, and nothing more on this page is being recorded").wait_for()
+    assert pad.is_disabled()
+    assert len(hr.events_of(session["id"])) == len(events)                           # and indeed nothing was recorded

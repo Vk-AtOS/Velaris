@@ -52,4 +52,4 @@ answer is "not_configured" and aligned is False: no judgement is invented.
 
 - **other agents:** none found
 - **platform modules:** none found
-- **tests:** `velaris/tests/test_dept_legal_compliance_stubs.py`, `velaris/tests/test_layer32_eacpe.py`
+- **tests:** `velaris/tests/test_corrections.py`, `velaris/tests/test_dept_legal_compliance_stubs.py`, `velaris/tests/test_layer32_eacpe.py`

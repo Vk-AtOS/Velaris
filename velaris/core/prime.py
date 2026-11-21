@@ -76,7 +76,10 @@ class PrimeGate:
         resp = self._http.post("/prime/requests", json={
             "type": ACTION_TYPE, "executor": EXECUTOR, "on_behalf_of": who,
             "params": {"run_id": run_id, "call_hash": call_hash, "tool": pending["tool"],
-                       "args": pending["args"], "reason": pending["reason"]}})
+                       "args": pending["args"], "reason": pending["reason"],
+                       # Prime files a correction of this request under this agent (aether_os prime.corrections.agent_of),
+                       # which is the name the flow asks for its corrections by (KAN-24)
+                       **({"agent": pending["agent"]} if pending.get("agent") else {})}})
         if resp.status_code in _REFUSED:
             return self._final(run_id, call_hash, "rejected", f"Prime refused the request (HTTP {resp.status_code})")
         body = _json(resp)
