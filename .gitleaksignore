@@ -1,0 +1,10 @@
+# gitleaks baseline (KAN-203). Fingerprints of findings reviewed on 22 Nov 2026.
+# Owner decision (22 Nov 2026): credentials found in history are test-only; they are NOT rotated and history is NOT rewritten before the sale.
+# Format: <commit>:<file>:<rule>:<line>. Never add a real secret here: remove it instead. See docs/SECURITY_SCANNING.md.
+
+# Test fixtures: invented provider-key strings used as inputs by the provider/redaction tests (not issued by any service)
+3e130ca7f68e2254dee045aa885b9df539e74fa3:velaris/tests/test_llm_gateway.py:generic-api-key:18
+3e130ca7f68e2254dee045aa885b9df539e74fa3:velaris/tests/test_llm_providers.py:generic-api-key:11
+481be646481a43bda9bcf55c8da549ba75ebcccb:velaris/tests/test_kan90_infra.py:generic-api-key:53
+ba26bf04e2abe27caa10cce394300f8ed74fad6f:velaris/tests/test_providers_api.py:generic-api-key:15
+bf40b0b5c1d294c13774f41950f12d30841f0d0d:velaris/tests/test_llm_omniroute.py:generic-api-key:28
