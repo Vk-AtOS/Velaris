@@ -1,5 +1,8 @@
 """KAN-24 (agent side) and KAN-25: corrections in the prompt as quoted data; per-agent eval sets with FakeLLM."""
 import json
+import logging
+import socket
+import time
 
 import httpx
 
@@ -149,3 +152,66 @@ def test_no_prime_or_a_failing_prime_leaves_the_prompt_alone(monkeypatch):
     monkeypatch.setenv("VELARIS_PRIME_API_KEY", "k")
     ask_json(llm, "classify", "some text", purpose="A.b")
     assert len(llm.calls) == 2 and not any("corrections" in c["prompt"] for c in llm.calls)
+
+
+def test_the_lookup_on_a_model_call_waits_one_second_at_most(monkeypatch):
+    """KAN-24: every model call waits for this lookup, so the wait is capped at 1 s (fetch's own default stays 5 s)."""
+    seen = []
+    monkeypatch.setenv("VELARIS_PRIME_URL", "https://prime.test")
+    monkeypatch.setenv("VELARIS_PRIME_API_KEY", "k")
+    monkeypatch.setattr(corrections, "fetch", lambda url, key, agent, action, query="", **kw: seen.append(kw["timeout"]) or {"ids": [], "block": ""})
+    corrections.for_purpose("BRAND_NARRATIVE.write", "a tagline")
+    assert seen == [1.0] == [corrections.LOOKUP_TIMEOUT_S]
+
+
+def test_a_prime_that_never_answers_costs_one_second_and_the_model_call_goes_on(monkeypatch, caplog):
+    """KAN-24: Prime accepts the connection and then says nothing. The call gives up at 1 s, logs a warning, and the
+    model call still runs with the prompt unchanged."""
+    from velaris.intel import router
+    silent = socket.socket()
+    silent.bind(("127.0.0.1", 0))
+    silent.listen(1)                                 # the connection is accepted by the OS; nobody ever answers it
+    try:
+        monkeypatch.setenv("VELARIS_PRIME_URL", f"http://127.0.0.1:{silent.getsockname()[1]}")
+        monkeypatch.setenv("VELARIS_PRIME_API_KEY", "k")
+        fake = _llm()
+        started = time.monotonic()
+        with caplog.at_level(logging.WARNING, logger="velaris.intel.corrections"):
+            out = router.complete("planner", "next step", llm=fake, sensitivity="restricted", purpose="flow.step")
+        elapsed = time.monotonic() - started
+    finally:
+        silent.close()
+    assert out.corrections == () and fake.calls[0]["prompt"] == "next step"
+    assert 0.9 <= elapsed < 3.0, elapsed             # 1 s cap; far from the 5 s the old default allowed
+    assert any("did not answer within 1s" in r.getMessage() for r in caplog.records)
+
+
+def test_other_names_go_out_as_repeated_also_parameters_and_at_most_five_of_them():
+    """KAN-24: Prime (AetherOS GET /prime/corrections/relevant) takes up to 5 `also` proposer names; no `also` when none."""
+    seen = []
+
+    def handler(req):
+        seen.append((req.url.params.get_list("also"), dict(req.url.params)))
+        return httpx.Response(200, json={"corrections": [], "prompt_block": ""})
+    corrections.fetch("https://prime.test", "k", "flow", "velaris.flow.call", "pay", also=["send_mail", "pay"], transport=prime(handler))
+    corrections.fetch("https://prime.test", "k", "flow", "velaris.flow.call", "pay", also=[f"tool_{i}" for i in range(7)],
+                      transport=prime(handler))
+    corrections.fetch("https://prime.test", "k", "flow", "velaris.flow.call", "pay", transport=prime(handler))
+    assert seen[0][0] == ["send_mail", "pay"]
+    assert seen[1][0] == [f"tool_{i}" for i in range(5)]
+    assert seen[2][0] == [] and "also" not in seen[2][1]
+
+
+def test_a_flow_asks_for_corrections_under_up_to_five_of_its_tool_names(monkeypatch):
+    """KAN-24: a correction can be filed under a tool name. The flow sends its own tool names as `also` (sorted, first five)
+    along with the (flow, velaris.flow.call) lookup that PrimeGate's proposals are filed under."""
+    from velaris.intel.flow import Flow, Tool
+    monkeypatch.setenv("VELARIS_PRIME_URL", "https://prime.test")
+    monkeypatch.setenv("VELARIS_PRIME_API_KEY", "k")
+    asked = []
+    monkeypatch.setattr(corrections, "fetch", lambda url, key, agent, action, query="", **kw: asked.append((agent, action, kw["also"])) or {"ids": [], "block": ""})
+    names = ["zeta", "alpha", "beta", "gamma", "delta", "epsilon", "eta"]
+    tools = [Tool(n, lambda: "x", "d", {}) for n in names]
+    flow = Flow(tools, llm=llm.FakeLLM(lambda p, m: '{"final": "done"}'))
+    assert flow.start("do the thing").status == "done"
+    assert asked == [("flow", "velaris.flow.call", ["alpha", "beta", "delta", "epsilon", "eta"])]

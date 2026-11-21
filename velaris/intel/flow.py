@@ -265,6 +265,7 @@ class Flow:
                 out = router.complete(self.route or "planner", prompt, llm=self.llm, sensitivity=self.sensitivity,
                                       models=self.models, max_tokens=800, temperature=0.0, purpose="flow.step",
                                       corrections_for=(self.usage_agent, PRIME_ACTION),      # the names Prime files this flow's proposals under
+                                      corrections_also=sorted(self.tools)[:corrections.ALSO_MAX],   # and its tools: a correction may be filed under a tool name (KAN-24)
                                       **({"model": self.model} if self.model else {}))
         except (PolicyRefused, BudgetExceeded) as e:      # asking again cannot change this: stop and hand it on
             return self._stop(run_id, events, "budget_exceeded" if isinstance(e, BudgetExceeded) else "policy_refused")

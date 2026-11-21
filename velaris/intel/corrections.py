@@ -19,6 +19,8 @@ import httpx
 
 logger = logging.getLogger("velaris.intel.corrections")
 MAX_BLOCK = 4000
+LOOKUP_TIMEOUT_S = 1.0      # the wait for Prime on every model call (router.complete): a slow or down Prime costs at most this
+ALSO_MAX = 5                # other proposer names sent with a lookup (AetherOS GET /prime/corrections/relevant, `also`)
 _FENCE = "```"
 _CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
 
@@ -33,34 +35,46 @@ def safe_block(block: Any) -> str:
 
 
 def fetch(base_url: str, api_key: str, agent: str, action_type: str, query: str = "", *, k: int = 3,
-          timeout: float = 5.0, transport: Optional[httpx.BaseTransport] = None) -> Dict[str, Any]:
-    """{"ids": [...], "block": str}; empty when there is nothing relevant or Prime cannot be asked."""
+          also: Sequence[str] = (), timeout: float = 5.0, transport: Optional[httpx.BaseTransport] = None) -> Dict[str, Any]:
+    """{"ids": [...], "block": str}; empty when there is nothing relevant or Prime cannot be asked.
+
+    `also` are other names the same proposer is filed under (e.g. the tools a flow uses): Prime looks them up too, up to
+    ALSO_MAX of them."""
     empty: Dict[str, Any] = {"ids": [], "block": ""}
+    params: Dict[str, Any] = {"agent": agent, "action_type": action_type, "q": query[:2000], "k": k}
+    names = [str(a)[:128] for a in also if a][:ALSO_MAX]
+    if names:
+        params["also"] = names                                  # repeated query parameter: also=a&also=b
     try:
         with httpx.Client(base_url=base_url.rstrip("/"), headers={"Authorization": f"Bearer {api_key}"},
                           timeout=timeout, transport=transport) as c:
-            r = c.get("/prime/corrections/relevant",
-                      params={"agent": agent, "action_type": action_type, "q": query[:2000], "k": k})
+            r = c.get("/prime/corrections/relevant", params=params)
         r.raise_for_status()
         body = r.json()
         block = safe_block(body.get("prompt_block"))
         ids = [x["id"] for x in body.get("corrections", []) if isinstance(x, dict) and isinstance(x.get("id"), str)]
         return {"ids": ids[:k], "block": block} if block else empty
+    except httpx.TimeoutException:
+        logger.warning("corrections for %s/%s: Prime did not answer within %gs, continuing without them",
+                       agent, action_type, timeout)
+        return empty
     except (httpx.HTTPError, ValueError, KeyError, AttributeError, TypeError) as e:
         logger.warning("corrections for %s/%s unavailable: %s", agent, action_type, type(e).__name__)
         return empty
 
 
-def for_purpose(purpose: str, query: str = "", key: Optional[Tuple[str, str]] = None) -> Dict[str, Any]:
+def for_purpose(purpose: str, query: str = "", key: Optional[Tuple[str, str]] = None,
+                also: Sequence[str] = ()) -> Dict[str, Any]:
     """The corrections for a model call labelled `purpose` ("AGENT.action", or just "agent"); router.complete, the one place
     every model call passes, calls this. `key` is (agent, action_type) when Prime files the caller's proposals under other
-    names than its purpose. Empty when Prime is not configured (VELARIS_PRIME_URL and VELARIS_PRIME_API_KEY) or cannot be asked."""
+    names than its purpose; `also` are further names it may be filed under. Empty when Prime is not configured
+    (VELARIS_PRIME_URL and VELARIS_PRIME_API_KEY) or cannot be asked."""
     url, key_ = os.environ.get("VELARIS_PRIME_URL", ""), os.environ.get("VELARIS_PRIME_API_KEY", "")
     if not (url and key_ and (purpose or key)):
         return {"ids": [], "block": ""}
     agent, _, action = purpose.partition(".")
     agent, action = key or (agent, action or "model")
-    return fetch(url, key_, agent, action, query)
+    return fetch(url, key_, agent, action, query, also=also, timeout=LOOKUP_TIMEOUT_S)
 
 
 def with_corrections(prompt: str, block: str) -> str:

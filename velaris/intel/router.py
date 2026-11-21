@@ -23,7 +23,7 @@ import os
 import threading
 import time
 from dataclasses import dataclass, replace
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, List, Optional, Sequence, Tuple
 
 from velaris.agentkit.state import JsonState
 from velaris.intel import llm as gateway
@@ -104,12 +104,13 @@ DEFAULT_BREAKER = Breaker()
 def complete(task_class: str, prompt: str, *, llm: Optional["gateway.LLM"] = None, sensitivity: Optional[str] = None,
              models: Optional[List[str]] = None, breaker: Optional[Breaker] = None, max_attempts: int = 3,
              max_seconds: float = 60.0, clock: Callable[[], float] = time.monotonic,
-             corrections_for: Optional[Tuple[str, str]] = None, **kw) -> "gateway.Completion":
+             corrections_for: Optional[Tuple[str, str]] = None, corrections_also: Sequence[str] = (), **kw) -> "gateway.Completion":
     """Run `prompt` on the first provider of the task class's chain that may see it and answers.
 
     What the caller's approvers changed before (KAN-24) is appended here, for every caller, as quoted data: looked up by
     the call's `purpose` ("AGENT.action"), or by `corrections_for` = (agent, action_type) when Prime files the caller's
-    proposals under other names. The ids used are on the returned Completion (`corrections`).
+    proposals under other names, and also under `corrections_also` (other names, e.g. tool names; Prime takes up to 5).
+    The ids used are on the returned Completion (`corrections`).
     ponytail: one Prime lookup per model call while Prime is configured; cache per (agent, action) if the latency matters."""
     llm, breaker = llm or gateway.LLM(), breaker or DEFAULT_BREAKER
     pinned = kw.pop("model", None)                       # a caller that names its model keeps it when no chain is configured
@@ -118,7 +119,7 @@ def complete(task_class: str, prompt: str, *, llm: Optional["gateway.LLM"] = Non
     allowed = [m for m in entries if policy.permits(m.split(":")[0], level)]
     if not allowed:
         raise PolicyRefused(f"no provider in the '{task_class}' chain accepts {level} data; the call was not made")
-    past = corrections.for_purpose(kw.get("purpose") or "", prompt[:200], corrections_for)
+    past = corrections.for_purpose(kw.get("purpose") or "", prompt[:200], corrections_for, corrections_also)
     prompt = corrections.with_corrections(prompt, past["block"])
     start, tried, attempts = clock(), [], 0
     for model in allowed:
