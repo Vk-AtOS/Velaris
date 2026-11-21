@@ -1,0 +1,15 @@
+# /etc/systemd/system/velaris-backup.service   (VEL-32) - run nightly by velaris-backup.timer
+# Settings in /etc/velaris/backup.env (mode 0600): AGE_RECIPIENT, VELARIS_BACKUP_REMOTE, VELARIS_ANCHOR_REMOTE (deploy/backup/nightly.sh).
+[Unit]
+Description=Velaris nightly backup
+After=velaris-api.service
+
+[Service]
+Type=oneshot
+User=velaris
+Group=velaris
+EnvironmentFile=-/etc/velaris/backup.env
+Environment=VELARIS_DATA=/var/lib/velaris BACKUP_DIR=/var/backups/velaris
+ExecStart=/opt/velaris/deploy/backup/nightly.sh
+Nice=10
+IOSchedulingClass=idle
