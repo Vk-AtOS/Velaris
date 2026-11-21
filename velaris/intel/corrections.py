@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 import os
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import httpx
 
@@ -51,14 +51,16 @@ def fetch(base_url: str, api_key: str, agent: str, action_type: str, query: str 
         return empty
 
 
-def for_purpose(purpose: str, query: str = "") -> Dict[str, Any]:
-    """The corrections for a model call labelled `purpose` ("AGENT.action", or just "agent"; the shared prompt paths of
-    agentkit call this). Empty when Prime is not configured (VELARIS_PRIME_URL and VELARIS_PRIME_API_KEY) or cannot be asked."""
-    url, key = os.environ.get("VELARIS_PRIME_URL", ""), os.environ.get("VELARIS_PRIME_API_KEY", "")
-    if not (url and key and purpose):
+def for_purpose(purpose: str, query: str = "", key: Optional[Tuple[str, str]] = None) -> Dict[str, Any]:
+    """The corrections for a model call labelled `purpose` ("AGENT.action", or just "agent"); router.complete, the one place
+    every model call passes, calls this. `key` is (agent, action_type) when Prime files the caller's proposals under other
+    names than its purpose. Empty when Prime is not configured (VELARIS_PRIME_URL and VELARIS_PRIME_API_KEY) or cannot be asked."""
+    url, key_ = os.environ.get("VELARIS_PRIME_URL", ""), os.environ.get("VELARIS_PRIME_API_KEY", "")
+    if not (url and key_ and (purpose or key)):
         return {"ids": [], "block": ""}
     agent, _, action = purpose.partition(".")
-    return fetch(url, key, agent, action or "model", query)
+    agent, action = key or (agent, action or "model")
+    return fetch(url, key_, agent, action, query)
 
 
 def with_corrections(prompt: str, block: str) -> str:
@@ -68,7 +70,10 @@ def with_corrections(prompt: str, block: str) -> str:
 
 def report_outcome(base_url: str, api_key: str, ids: List[str], changed: bool, *, timeout: float = 5.0,
                    transport: Optional[httpx.BaseTransport] = None) -> bool:
-    """Tell Prime whether the retrieved corrections changed what the agent proposed. Best effort."""
+    """Tell Prime that these corrections were in the prompt of a proposal, and whether they changed its outcome. Best effort.
+
+    `changed` is what the approver then did with that proposal: True when it was approved as proposed (what was corrected
+    before did not have to be corrected again), False when it was rejected again."""
     if not ids:
         return False
     try:
@@ -79,3 +84,10 @@ def report_outcome(base_url: str, api_key: str, ids: List[str], changed: bool, *
     except httpx.HTTPError as e:
         logger.warning("could not report the correction outcome: %s", type(e).__name__)
         return False
+
+
+def outcome(ids: Sequence[str], changed: bool) -> bool:
+    """report_outcome to the Prime of this deployment (the same environment for_purpose reads). False when there is nothing to
+    report or nowhere to report it. Flow calls this when the proposal that carried `ids` is decided."""
+    url, key = os.environ.get("VELARIS_PRIME_URL", ""), os.environ.get("VELARIS_PRIME_API_KEY", "")
+    return bool(url and key and ids) and report_outcome(url, key, list(ids), changed)

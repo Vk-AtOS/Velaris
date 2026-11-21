@@ -235,18 +235,53 @@
     const scopes = [["events", "Activity during the session (joining, leaving, switching away from this page)"]];
     const boxes = scopes.map(([v, t], i) => el("label", { class: "check", for: "sc" + i }, el("input", { type: "checkbox", id: "sc" + i, value: v, checked: true }), t));
     const join = el("button", { type: "submit" }, "Agree and join"), withdraw = el("button", { type: "button", class: "secondary" }, "Withdraw consent and leave");
+    // The notes pad produces the pad_op and paste events. It is opened by the participant, under a sentence saying what is kept.
+    const MAX_OP = 4000, pad = el("textarea", { id: "pad", rows: 10 });
+    const openPad = el("button", { type: "button", class: "secondary", hidden: true }, "Open the notes pad");
+    const padBox = el("div", { hidden: true }, el("label", { for: "pad" }, "Notes pad"),
+      el("p", { class: "hint" }, "What you type here is kept in the interview record, with the size (never the content) of anything you paste."), pad);
     const form = el("form", {}, el("div", { class: "notice" }, "This interview keeps a factual log of the activity ticked below, for a human reviewer. Nothing is scored by software. You can withdraw at any time on this page. Notice " + NOTICE + "."),
-      el("fieldset", {}, el("legend", {}, "What may be recorded"), ...boxes), join, withdraw, alertBox, live);
-    let on = false;
-    const ev = (type, data) => api("POST", "/interview/" + ident + "/events", data ? { type, data } : { type }).catch(() => null);
+      el("fieldset", {}, el("legend", {}, "What may be recorded"), ...boxes), join, withdraw, openPad, padBox, alertBox, live);
+    let on = false, sent = "", busy = false, timer = 0;
+    const ev = (type, data) => api("POST", "/interview/" + ident + "/events", data ? { type, data } : { type });
+    // The server refused or never received an event: say so, and do not go on as if it had been recorded.
+    function refused(e) {
+      if (e.status === 404) { on = false; return notFound(); }
+      if (e.status === 403 || e.status === 409) { on = false; pad.disabled = true; return fail({ message: "Recording has stopped, and nothing more on this page is being recorded: " + e.message }); }
+      fail({ message: "Your last activity on this page was not recorded: " + e.message });
+    }
+    const pair = (text, i) => i > 0 && i < text.length && /[\uD800-\uDBFF]/.test(text[i - 1]) && /[\uDC00-\uDFFF]/.test(text[i]);   // i would split one character
+    // Send the difference between what the server has (`sent`) and the pad, as delete then insert. `sent` moves only when the server accepted.
+    // ponytail: positions count UTF-16 units and the server replays by code point, so a pad with emoji replays shifted; count code points here if that matters.
+    async function sync() {
+      if (!on || busy) return;
+      busy = true;
+      try {
+        while (on && pad.value !== sent) {
+          const now = pad.value;
+          let a = 0, b = 0;
+          while (a < sent.length && a < now.length && sent[a] === now[a]) a++;
+          if (pair(sent, a) || pair(now, a)) a--;
+          while (b < sent.length - a && b < now.length - a && sent[sent.length - 1 - b] === now[now.length - 1 - b]) b++;
+          if (pair(sent, sent.length - b) || pair(now, now.length - b)) b--;
+          let gone = Math.min(sent.length - a - b, MAX_OP), text = now.slice(a, now.length - b).slice(0, MAX_OP);
+          if (gone) { if (pair(sent, a + gone)) gone--; await ev("pad_op", { op: "delete", pos: a, len: gone }); sent = sent.slice(0, a) + sent.slice(a + gone); continue; }
+          if (text.length > 1 && /[\uD800-\uDBFF]$/.test(text)) text = text.slice(0, -1);      // cut at MAX_OP inside one character
+          await ev("pad_op", { op: "insert", pos: a, text }); sent = sent.slice(0, a) + text + sent.slice(a);
+        }
+      } catch (e) { refused(e); } finally { busy = false; }
+    }
+    pad.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(sync, 600); });
+    pad.addEventListener("paste", (e) => { if (on) ev("paste", { size_chars: ((e.clipboardData && e.clipboardData.getData("text")) || "").length, target: "pad" }).catch(refused); });
+    openPad.addEventListener("click", () => { openPad.hidden = true; padBox.hidden = false; pad.focus(); });
     form.addEventListener("submit", async (e) => {
       e.preventDefault(); const chosen = boxes.map((b) => b.querySelector("input")).filter((i) => i.checked).map((i) => i.value);
       if (!chosen.length) { fail({ message: "Tick at least one item, or choose Withdraw." }); return; }
       join.disabled = true;
-      try { await api("POST", "/interview/" + ident + "/consent", { scopes: chosen, notice_version: NOTICE }); await api("POST", "/interview/" + ident + "/events", { type: "join" }); on = true; say("You have joined. Keep this page open during the interview."); }
+      try { await api("POST", "/interview/" + ident + "/consent", { scopes: chosen, notice_version: NOTICE }); await api("POST", "/interview/" + ident + "/events", { type: "join" }); on = true; openPad.hidden = false; say("You have joined. Keep this page open during the interview."); }
       catch (err) { if (err.status === 404) return notFound(); join.disabled = false; fail(err); }
     });
-    document.addEventListener("visibilitychange", () => { if (on) ev("visibility", { state: document.visibilityState }); });
+    document.addEventListener("visibilitychange", () => { if (on) ev("visibility", { state: document.visibilityState }).catch(refused); });
     addEventListener("pagehide", () => { if (on) fetch("/interview/" + ident + "/events", { method: "POST", keepalive: true, credentials: "omit", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "leave" }) }).catch(() => null); });
     withdraw.addEventListener("click", async () => {
       if (!(await confirmDialog("Leave the interview?", "This withdraws your consent and recording stops.", "Yes, withdraw and leave"))) return;

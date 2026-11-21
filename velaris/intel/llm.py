@@ -68,6 +68,7 @@ class Completion:
     model: str
     seconds: float
     tool_calls: tuple = ()                 # openai_compatible only: the model's tool calls, passed through untouched
+    corrections: tuple = ()                # ids of the approver corrections router.complete put in the prompt (KAN-24)
 
 
 def default_model() -> str:

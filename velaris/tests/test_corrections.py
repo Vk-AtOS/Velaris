@@ -120,6 +120,25 @@ def test_ask_json_and_language_prompts_carry_the_corrections_block(monkeypatch):
     assert all(c["prompt"].endswith(BLOCK) for c in llm.calls)
 
 
+def test_every_model_call_gets_the_block_in_the_router_once_and_the_ids_come_back(monkeypatch):
+    """KAN-24: the block is added in router.complete, the one place every model call passes (CRK_INTENT and EACPE_ALIGNMENT
+    call it directly and got nothing while the lookup lived in ask_json and biz_language)."""
+    from velaris.agentkit.models import ask_json
+    from velaris.intel import router
+    monkeypatch.setenv("VELARIS_PRIME_URL", "https://prime.invalid")
+    monkeypatch.setenv("VELARIS_PRIME_API_KEY", "k")
+    seen = []
+    monkeypatch.setattr(corrections, "fetch", lambda url, key, agent, action, query="", **kw: seen.append((agent, action)) or {"ids": ["c1"], "block": BLOCK})
+    fake = _llm()
+    out = router.complete("classifier", "choose an intent", llm=fake, sensitivity="restricted", purpose="crk_intent")
+    assert fake.calls[0]["prompt"] == "choose an intent\n\n" + BLOCK and out.corrections == ("c1",)
+    router.complete("planner", "next step", llm=fake, sensitivity="restricted", purpose="flow.step", corrections_for=("flow", "velaris.flow.call"))
+    ask_json(fake, "classify", "some text", purpose="A.b")
+    assert seen == [("crk_intent", "model"), ("flow", "velaris.flow.call"), ("A", "b")]
+    assert fake.calls[2]["prompt"].count(BLOCK) == 1                       # not once in the helper and again in the router
+    assert router.complete("worker", "no purpose, nothing to look up", llm=fake, sensitivity="restricted").corrections == ()
+
+
 def test_no_prime_or_a_failing_prime_leaves_the_prompt_alone(monkeypatch):
     from velaris.agentkit.models import ask_json
     monkeypatch.delenv("VELARIS_PRIME_URL", raising=False)
