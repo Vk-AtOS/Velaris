@@ -38,7 +38,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 
 from velaris.api.atlassian_api import mount_atlassian
-from velaris.api.allowlist import ACT, READ, catalog, prepare, rule_for, tool_params
+from velaris.api.allowlist import ACT, READ, build, catalog, prepare, rule_for, tool_params
 from velaris.api.auth import AuthError, Verifier, load_public_key
 from velaris.api import brain_api, providers_api
 from velaris.api.flow_policy import permit_for
@@ -231,9 +231,10 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
         """A flow step: checked again, then run as the person the run is for."""
         if owner.org != settings.org:        # Prime-approved and local steps alike
             raise AccessDenied("the run belongs to another organisation than this deployment")
-        args = prepare(agent, method, method_of(agent, method), kwargs, owner)
+        fn = method_of(agent, method)
+        args = prepare(agent, method, fn, kwargs, owner)
         try:
-            return engine.run(agent, method, args, caller=owner)
+            return engine.run(agent, method, build(agent, method, fn, args), caller=owner)
         except AccessDenied:
             raise
         except Exception as e:  # the model and the API see a plain sentence, not internals
@@ -327,7 +328,7 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
                                            "run": run.to_dict()}), status_code=202)
         record(caller, "agent.call", {**base, "outcome": "started"})
         try:
-            result = await in_thread(partial(engine.run, agent, method, args, caller=caller))
+            result = await in_thread(partial(engine.run, agent, method, build(agent, method, fn, args), caller=caller))
         except AccessDenied as e:
             record(caller, "agent.result", {**base, "outcome": "denied", "reason": e.reason})
             raise ApiError(403, "access_denied", e.reason) from None

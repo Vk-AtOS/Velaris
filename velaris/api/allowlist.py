@@ -15,6 +15,9 @@ A rule may also say:
            employee record, or the caller must hold a role that velaris.core.access lets read
            that category for others. Decided and traced by access.authorize_read().
   roles    roles of which the caller must hold one (velaris.core.access.check_caller, traced).
+  model    the parameter that is a dataclass of the agent (a Ticket): the client sends it as a plain JSON object with exactly
+           the dataclass's fields, prepare() checks the shape and build() turns it into the dataclass just before the call.
+  refuse   parameters a client may not set at all (a timestamp the caller must not choose).
 
 Every check runs again when an approved step finally executes, as the person it runs for.
 Methods that guard sensitive reads themselves (authorize_read inside the agent) need no
@@ -22,14 +25,16 @@ extra rule here; the caller is set by BackendEngine.run.
 """
 from __future__ import annotations
 
+import dataclasses
 import inspect
 import os
+import typing
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any, Dict, FrozenSet, List, Optional, Tuple
 
 from velaris.agents.inventory import inventory
-from velaris.core.access import Caller, AccessDenied, ATLASSIAN_READERS, SECURITY_ADMINS, READ_OTHERS, acting_as, authorize_read, check_caller
+from velaris.core.access import Caller, AccessDenied, ATLASSIAN_READERS, INFRA_ADMINS, SECURITY_ADMINS, READ_OTHERS, acting_as, authorize_read, check_caller
 
 READ, ACT = "read", "act"
 _NEVER_PARAMS = {"self", "caller"}
@@ -42,6 +47,8 @@ class Rule:
     actor: Optional[str] = None
     own: Optional[Tuple[str, str]] = None
     roles: Optional[FrozenSet[str]] = None
+    model: Optional[str] = None
+    refuse: FrozenSet[str] = frozenset()
 
 
 _ATL = ATLASSIAN_READERS
@@ -149,6 +156,11 @@ METHODS: Dict[str, Dict[str, Rule]] = {
     "ITSM_ENGINE": {
         "list_tickets": Rule(READ), "get_ticket": Rule(READ), "sla_status": Rule(READ),
         "transition": Rule(ACT, actor="by"),
+        # VEL-68: `t` is a JSON object with the Ticket's fields (ticket_id, category, priority, impact, urgency, config_item,
+        # history_flags). `now` is refused: a caller must not choose the clock that starts the SLA. Role-gated like the other
+        # ITSM writes (infra_admin / security_admin) although the agent itself would let any signed-in person open a ticket:
+        # fail closed until the owner decides whether members may open tickets over HTTP.
+        "open_ticket": Rule(ACT, actor="by", roles=INFRA_ADMINS, model="t", refuse=frozenset({"now"})),
     },
     # Finance calculators: pure functions of their arguments
     "TREASURIX": {"project_cashflow": Rule(READ), "reserve_ratio": Rule(READ), "runway_months": Rule(READ)},
@@ -381,6 +393,8 @@ def prepare(agent: str, method: str, fn: Any, params: Any, caller: Caller) -> Di
     if not isinstance(params, dict) or not all(isinstance(k, str) for k in params):
         raise ValueError("params must be a JSON object")
     allowed = {p.name for p in http_params(fn)}
+    if rule.refuse & set(params):
+        raise ValueError(f"parameters not settable over HTTP: {sorted(rule.refuse & set(params))}")
     unknown = sorted(set(params) - allowed)
     if unknown:
         raise ValueError(f"unknown parameters: {unknown[:10]}")
@@ -403,11 +417,44 @@ def prepare(agent: str, method: str, fn: Any, params: Any, caller: Caller) -> Di
             _who, refusal = check_caller(agent, method, {"via": "api"}, roles=rule.roles)
         if refusal:
             raise AccessDenied(refusal["reason"][:200])
+    if rule.model and rule.model in args:
+        _check_model(fn, rule.model, args[rule.model])
     try:
         inspect.signature(fn).bind(None, **args)        # None stands for self
     except TypeError as e:
         raise ValueError("the parameters do not fit the method (missing or extra arguments)") from e
     return args
+
+
+def _model_class(fn: Any, name: str) -> Any:
+    cls = typing.get_type_hints(fn).get(name)
+    if not dataclasses.is_dataclass(cls):
+        raise ValueError(f"{name} is not a structured argument")
+    return cls
+
+
+def _check_model(fn: Any, name: str, value: Any) -> None:
+    """The JSON object for a dataclass parameter: a mapping with exactly its fields (the agent validates the values)."""
+    fields = dataclasses.fields(_model_class(fn, name))
+    if not isinstance(value, dict) or not all(isinstance(k, str) for k in value):
+        raise ValueError(f"{name} must be a JSON object")
+    extra = sorted(set(value) - {f.name for f in fields})
+    missing = [f.name for f in fields if f.name not in value and f.default is f.default_factory is dataclasses.MISSING]
+    if extra or missing:
+        raise ValueError(f"{name}: unknown fields {extra[:10]}, missing fields {missing[:10]}")
+
+
+def build(agent: str, method: str, fn: Any, args: Dict[str, Any]) -> Dict[str, Any]:
+    """`args` as returned by prepare(), with the dataclass parameter turned from its JSON object into the dataclass.
+    Call this right before engine.run; prepare() keeps plain JSON so a flow can store and replay the arguments."""
+    rule = rule_for(agent, method)
+    if rule is None or not rule.model or rule.model not in args:
+        return args
+    value = args[rule.model]
+    if isinstance(value, dict):
+        _check_model(fn, rule.model, value)
+        value = _model_class(fn, rule.model)(**value)
+    return {**args, rule.model: value}
 
 
 def _summary(obj: Any) -> str:
