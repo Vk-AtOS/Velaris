@@ -9,9 +9,9 @@ the saved roles later is using authority the person may no longer have. Rules, h
   * effective authority is the saved roles AND the current roles: saved roles are an upper bound, never an grant;
   * no resolver, or a resolver that fails: the identity cannot be verified and the caller is refused (fail closed).
 
-Velaris has no user directory of its own (identities arrive signed from the AetherOS gateway), so until the gateway
-offers a lookup nobody else's identity can be verified: a person can always advance their own runs, other people's
-runs and every delegation use wait.
+Velaris has no user directory of its own (identities arrive signed from the AetherOS gateway). The API installs
+velaris.api.session_identity at startup: it vouches only for the person whose verified signed request is being served,
+so anybody else's identity stays unverifiable (their runs and any delegation use wait) until the gateway offers a lookup.
 """
 from __future__ import annotations
 
@@ -32,6 +32,10 @@ class IdentityUnavailable(RuntimeError):
 def set_resolver(fn: Optional[Resolver]) -> None:
     global _resolver
     _resolver = fn
+
+
+def has_resolver() -> bool:
+    return _resolver is not None
 
 
 def current(org: str, user_id: str) -> Optional[Caller]:

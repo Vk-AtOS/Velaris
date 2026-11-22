@@ -93,6 +93,13 @@ def plaintext_migration(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _identity_resolver_restored(monkeypatch):
+    """create_app() installs the signed-session resolver (VEL-12); it must not outlive the test that built the app."""
+    from velaris.orchestration import identity
+    monkeypatch.setattr(identity, "_resolver", identity._resolver)
+
+
+@pytest.fixture(autouse=True)
 def _llm_floor_reset():
     """authorize_read() raises the model sensitivity floor for the rest of its context; tests share one."""
     from velaris.intel import policy

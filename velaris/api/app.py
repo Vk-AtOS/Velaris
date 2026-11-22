@@ -40,7 +40,7 @@ from fastapi.responses import JSONResponse, Response
 from velaris.api.atlassian_api import mount_atlassian
 from velaris.api.allowlist import ACT, READ, catalog, prepare, rule_for, tool_params
 from velaris.api.auth import AuthError, Verifier, load_public_key
-from velaris.api import brain_api, providers_api
+from velaris.api import autonomy_api, brain_api, providers_api, session_identity
 from velaris.api.flow_policy import permit_for
 from velaris.api.background import interval, lifespan
 from velaris.api.observability import CountingLLM, Metrics, current_request_id, install as install_observability
@@ -143,6 +143,7 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
     if not (isinstance(settings.org, str) and settings.org.strip()):
         raise ValueError("a Velaris deployment belongs to one organisation: set VELARIS_ORG")
     verifier = Verifier(settings.secret, settings.identity_key)
+    session_identity.install()               # VEL-12: without a resolver every delegation fails closed
     metrics = Metrics()
     llm = CountingLLM(settings.llm or LLM(), metrics)      # LLM spend counters for /metrics
     app = FastAPI(title="Velaris", docs_url=None, redoc_url=None, openapi_url=None)
@@ -200,6 +201,7 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
             data = json.loads(body) if body else None
         except ValueError:
             raise ApiError(400, "invalid_json", "the body is not JSON") from None
+        session_identity.bind(caller)        # the identity resolver (VEL-12) vouches for this verified caller, this request only
         return caller, data
 
     def record(caller: Caller, action: str, payload: Dict[str, Any]) -> None:
@@ -443,6 +445,7 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
     brain_api.mount(app, authed=authed, record=record, in_thread=in_thread, api_error=ApiError, llm=llm, engine=engine,
                     gate=settings.gate, flow_path=settings.flow_db)                  # the central brain: /brain (KAN-32)
     providers_api.mount(app, authed=authed, record=record, in_thread=in_thread, api_error=ApiError)   # /providers (KAN-18)
+    autonomy_api.mount(app, authed=authed, record=record, in_thread=in_thread, api_error=ApiError)   # /autonomy (VEL-14)
     mail = mount_mail(app, settings, authed, record, in_thread)    # company email: /mail/... (velaris/mail)
     mount_atlassian(app, authed, record, in_thread)                # per-user Atlassian OAuth: /integrations/atlassian/...
     app.router.lifespan_context = lifespan([       # scheduled work, see velaris.api.background
