@@ -1,7 +1,10 @@
 """Bounded, checkpointed verification of the global trace chain, for GET /trace/verify (KAN-136).
 
-trace.verify() walks the whole file every call (100,000 entries took 10.7 s) and its thread keeps running after the
-request times out. This parses only what was appended since the last verified point and stops after `max_entries`
+trace.verify() walks the whole file every call (100,000 entries took 10.7 s) and its thread kept running after the
+request timed out (VEL-69). Now a `cancel` event is checked between entries (only after the lock is held and the checkpointed prefix
+has been verified, and only once this call has made progress): the endpoint sets it when the request times out, the walk
+stops, keeps the progress made (checkpoint) and answers "ok": null (NOT verified, never true), "cancelled": true,
+"complete": false, with a reason (call again to continue). This parses only what was appended since the last verified point and stops after `max_entries`
 ("complete": false means call again). The checkpoint {offset, prev hash, entries, prefix MAC} is kept in JsonState.
 
 A checkpoint must not let old entries be edited unseen, so before trusting it the bytes [0, offset) are re-read and
@@ -21,6 +24,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import threading
 import time
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -33,6 +37,7 @@ from velaris.intel.paths import data_dir
 GENESIS = "0" * 64
 MAX_ENTRIES = 50_000
 FULL_EVERY_S = 24 * 3600
+CANCELLED_REASON = "verification cancelled at deadline before completion"
 _EMPTY = {"offset": 0, "prev": GENESIS, "entries": 0, "mac": "", "full_at": 0.0, "pass_at": 0.0, "marks": {}}
 
 
@@ -63,7 +68,9 @@ def _last_hash_before(path: Path, offset: int) -> str:
         return ""
 
 
-def verify_incremental(max_entries: int = MAX_ENTRIES, full: bool = False, now: Optional[float] = None) -> Dict[str, Any]:
+def verify_incremental(max_entries: int = MAX_ENTRIES, full: bool = False, now: Optional[float] = None,
+                       cancel: Optional[threading.Event] = None) -> Dict[str, Any]:
+    """One bounded verification pass. `cancel`, when set (the request timed out), stops it before the next entry."""
     path = data_dir() / "trace.jsonl"
     now = time.time() if now is None else now
     cp = JsonState("API", "trace_checkpoint.json", dict(_EMPTY))
@@ -94,10 +101,13 @@ def verify_incremental(max_entries: int = MAX_ENTRIES, full: bool = False, now: 
                         "reason": bad, "complete": True}
             return {"ok": True, "entries": 0, "verified_now": 0, "covered_by_checkpoint": 0, "broken_at": None, "reason": "",
                     "complete": True}
-        done = 0
+        done, cancelled = 0, False
         with open(path, "rb") as f:
             f.seek(offset)
             for raw in f:
+                if cancel is not None and done > 0 and cancel.is_set():   # progress first: waiting for the lock is not held against us
+                    cancelled = True                     # stop here; what was verified so far is still checkpointed below
+                    break
                 if not raw.endswith(b"\n") or done >= max_entries:   # an unfinished write is not part of the chain yet
                     break
                 try:
@@ -122,5 +132,8 @@ def verify_incremental(max_entries: int = MAX_ENTRIES, full: bool = False, now: 
             full_at = pass_at                            # the from-genesis pass finished: restart the 24 h clock
         cp.save({"offset": offset, "prev": prev, "entries": covered + done, "mac": _prefix_mac(path, offset) if offset else "",
                  "full_at": full_at, "pass_at": pass_at, "marks": {str(k): v for k, v in marks.items() if k in wanted}})
-        return {"ok": True, "entries": covered + done, "verified_now": done, "covered_by_checkpoint": covered,
-                "broken_at": None, "reason": "", "complete": complete}
+        out = {"ok": True, "entries": covered + done, "verified_now": done, "covered_by_checkpoint": covered,
+               "broken_at": None, "reason": "", "complete": complete}
+        if cancelled:     # an integrity check that did not finish never says ok: the answer is unknown
+            return {**out, "ok": None, "cancelled": True, "reason": CANCELLED_REASON}
+        return out
