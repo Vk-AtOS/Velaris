@@ -1,0 +1,10 @@
+# /etc/systemd/system/velaris-backup-check.timer   (VEL-32): systemctl enable --now velaris-backup-check.timer
+[Unit]
+Description=Velaris backup freshness check
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+
+[Install]
+WantedBy=timers.target

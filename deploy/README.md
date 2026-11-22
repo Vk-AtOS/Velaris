@@ -146,3 +146,30 @@ Run on the AWS testbed on 21 Nov 2026: archive sent encrypted, head copied apart
 **Restore drill** (quarterly): decrypt, `restore --target /tmp/drill`, start the API against it with `VELARIS_DATA=/tmp/drill`, run
 `python3.11 deploy/smoke.py`-style checks and `GET /trace/verify`. The drill needs `VELARIS_VAULT_KEY_FILE` (from its separate
 store) to verify the trace: without it every entry reads "no vault key". `velaris/tests/test_deploy_backup.py` runs the same drill on temp dirs.
+
+**Backup freshness alert (VEL-32).** `deploy/backup/backup_freshness.py --dir /var/backups/velaris` checks the newest archive and exits
+2 with an `ALERT:` line on stderr when there is no backup, the newest one is not good (missing or wrong `.sha256`, truncated, no valid
+manifest), or the newest good one is over 26 h old (24 h schedule plus the 10 min random delay plus slack). Age is taken from the UTC
+stamp in the archive name. Install `deploy/systemd/velaris-backup-check.{service,timer}` (hourly): a failing check marks the unit
+failed and logs the alert to journald. Velaris has no push-alert hook of its own, so the operator wires the failure to email: add
+`OnFailure=velaris-backup-alert@%n.service` to the check service and make that template unit send the mail (for example
+`ExecStart=/bin/sh -c 'journalctl -u %i -n 20 --no-pager | mail -s "Velaris backup alert" ops@example.com'`), or run the script from
+cron, which mails any stderr output. The check sees only the local `BACKUP_DIR`: it proves the nightly job ran, not that the off-site
+copy arrived (watch the rclone line in the nightly log, or check the remote's newest object, for that). Tests:
+`velaris/tests/test_backup_freshness.py`.
+
+## RPO and RTO (VEL-32)
+
+- **RPO (data you can lose): up to 24 h.** The backup is nightly (02:30 UTC plus up to 10 min), so a failure just before the next run
+  loses everything written since the previous snapshot. The freshness alert fires at 26 h, so a missed night is noticed within the
+  hour after it; two missed nights would mean up to ~48 h of loss. Need less? Run `nightly.sh` more often (change `OnCalendar`);
+  the interval is the RPO. The trace head kept apart is only an integrity anchor, not extra data recovery.
+- **RTO (time to be back): not yet measured at production size.** Drills record only the restore-and-verify step: 0.02 s (synthetic
+  data), 0.05 s (live AWS testbed volume, 9.5 KB archive) and 0.05 s (nightly job output, 11.9 KB, 36 trace entries; see
+  `docs/drills/`). Those archives are tiny, so the numbers show the procedure works, not how long real data takes. Restore time grows
+  roughly with archive size (sha256 + extract + manifest hashes) plus the download and `age` decryption. Until a production-size drill
+  exists, plan the RTO as the sum of the manual steps: provision or reach the host, fetch the archive and its `.sha256` from off-site,
+  decrypt with the offline age key, fetch the vault key from its separate store, restore, start the services, `GET /trace/verify`.
+  Estimate **about 1 h, dominated by human steps (key retrieval, access) rather than copy time**; this is an estimate, not a
+  measurement. To measure it: time the whole drill end to end with a stopwatch from "decision to restore" to a passing `/trace/verify`,
+  on a copy of the real data, and record it in `docs/drills/`.
