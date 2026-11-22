@@ -57,4 +57,4 @@ opened a ticket may also cancel it or reopen it once resolved, nothing else. Fre
 
 - **other agents:** `LYRA_VOICE_ENGINE`
 - **platform modules:** `departments/_connectors/JIRA/atlassian.py`, `velaris/api/allowlist.py`, `velaris/core/backfill_org.py`, `velaris/intel/tools.py`, `velaris/orchestration/autonomy.py`
-- **tests:** `velaris/tests/test_deployment_org.py`, `velaris/tests/test_dept_it_infrastructure_stubs_2.py`, `velaris/tests/test_intel_tools.py`, `velaris/tests/test_kan68_backfill_org.py`, `velaris/tests/test_kan90_infra.py`
+- **tests:** `velaris/tests/test_allowlist_open_ticket.py`, `velaris/tests/test_deployment_org.py`, `velaris/tests/test_dept_it_infrastructure_stubs_2.py`, `velaris/tests/test_intel_tools.py`, `velaris/tests/test_kan68_backfill_org.py`, `velaris/tests/test_kan90_infra.py`

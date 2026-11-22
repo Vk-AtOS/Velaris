@@ -10,7 +10,7 @@ Matching is whole-term and case-insensitive ("java" is not found in "javascript"
 What it deliberately does not do: there is NO score, NO ranking, NO percentage and
 NO hire/reject output. `decision` is always None. A skill with no evidence means
 "not found in what was supplied", which is a question for the interview, not a
-verdict. Education and the cultural flags are not used in matching.
+verdict. Education is not used in matching. (There are no cultural flags: the field was never read and was removed, VEL-55.)
 
 Documents are outside text: each is screened by velaris.intel.guard. A document
 the guard blocks is not read, and hidden characters (a known way to stuff a
@@ -36,7 +36,6 @@ class CandidateProfile:
     experience_years: float
     skills: Dict[str, int]            # skill -> the candidate's own 0-10 rating
     education_level: str
-    cultural_flags: Dict[str, bool]
     role: str
 
 
@@ -54,13 +53,12 @@ class HRTalentEngine:
     SUPPORTED_ROLES = {"developer", "manager", "analyst", "designer", "engineer"}
     MAX_EXP = 60
     MAX_SKILL = 10
-    CULTURE_WEIGHT = {"team_player": 0, "leadership": 0, "adaptability": 0, "communication": 0}   # recognised flags
 
     def health_check(self) -> Dict[str, Any]:
         return kit.health("HR_TALENT_ENGINE")
 
     def validate(self, c: CandidateProfile) -> List[str]:
-        e = kit.dataclass_errors(c, ["experience_years"], ["skills", "cultural_flags"],
+        e = kit.dataclass_errors(c, ["experience_years"], ["skills"],
                                  texts=["education_level", "role"])
         if kit.ident(getattr(c, "candidate_id", None), 64) is None:
             e.append("candidate_id invalid")
@@ -74,7 +72,6 @@ class HRTalentEngine:
             e.append("unsupported role")
         e += [f"invalid skill rating for {k}" for k, v in c.skills.items()
               if not isinstance(k, str) or kit.number(v, 0, self.MAX_SKILL) is None]
-        e += [f"unsupported cultural flag {k}" for k in c.cultural_flags if k not in self.CULTURE_WEIGHT]
         return e
 
     def evaluate(self, c: CandidateProfile, requirements: Optional[Dict[str, Any]] = None,
@@ -131,6 +128,6 @@ class HRTalentEngine:
 
 
 if __name__ == "__main__":
-    sample = CandidateProfile("c-001", 4, {"python": 8}, "bachelor", {}, "developer")
+    sample = CandidateProfile("c-001", 4, {"python": 8}, "bachelor", "developer")
     print(json.dumps(HRTalentEngine().evaluate(
         sample, {"must_have": ["Python", "SQL"]}, {"resume": "Built ETL jobs in Python.\nWrote SQL reports."}), indent=2))

@@ -27,6 +27,7 @@ import logging
 import os
 import re
 import shutil
+import threading
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
@@ -38,7 +39,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 
 from velaris.api.atlassian_api import mount_atlassian
-from velaris.api.allowlist import ACT, READ, catalog, prepare, rule_for, tool_params
+from velaris.api.allowlist import ACT, READ, build, catalog, prepare, rule_for, tool_params
 from velaris.api.auth import AuthError, Verifier, load_public_key
 from velaris.api import autonomy_api, brain_api, providers_api, session_identity
 from velaris.api.flow_policy import permit_for
@@ -71,6 +72,7 @@ def body_limit(method: str, path: str) -> int:
     """The most bytes a request body may have: 64 KiB everywhere, except composing a mail draft with attachments."""
     return MAIL_DRAFT_BODY if method in ("POST", "PUT") and _MAIL_DRAFT_PATH.match(path) else MAX_BODY
 CALL_TIMEOUT_S = 60.0
+TRACE_STOP_GRACE_S = 5.0          # how long /trace/verify waits for a cancelled walk to stop and save its checkpoint
 ADMIN_ROLES = GOVERNANCE_ADMINS | SECURITY_ADMINS     # may verify the global trace
 FLOW_APPROVERS = frozenset({"flow_approver"})     # may decide other people's steps (local mode only)
 
@@ -233,9 +235,10 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
         """A flow step: checked again, then run as the person the run is for."""
         if owner.org != settings.org:        # Prime-approved and local steps alike
             raise AccessDenied("the run belongs to another organisation than this deployment")
-        args = prepare(agent, method, method_of(agent, method), kwargs, owner)
+        fn = method_of(agent, method)
+        args = prepare(agent, method, fn, kwargs, owner)
         try:
-            return engine.run(agent, method, args, caller=owner)
+            return engine.run(agent, method, build(agent, method, fn, args), caller=owner)
         except AccessDenied:
             raise
         except Exception as e:  # the model and the API see a plain sentence, not internals
@@ -329,7 +332,7 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
                                            "run": run.to_dict()}), status_code=202)
         record(caller, "agent.call", {**base, "outcome": "started"})
         try:
-            result = await in_thread(partial(engine.run, agent, method, args, caller=caller))
+            result = await in_thread(partial(engine.run, agent, method, build(agent, method, fn, args), caller=caller))
         except AccessDenied as e:
             record(caller, "agent.result", {**base, "outcome": "denied", "reason": e.reason})
             raise ApiError(403, "access_denied", e.reason) from None
@@ -423,13 +426,28 @@ def create_app(settings: Settings, engine: Any = None) -> FastAPI:
         return flow.verify(run_id)
 
     @app.get("/trace/verify")
-    async def verify_trace(request: Request) -> Dict[str, Any]:
+    async def verify_trace(request: Request) -> Any:
         caller, _ = await authed(request)
         if not caller.roles & ADMIN_ROLES:             # the whole trace covers every user: administrators only
             record(caller, "trace.verify", {"outcome": "denied"})
             raise ApiError(403, "admin_only", "only an administrator may verify the global trace")
         record(caller, "trace.verify", {})
-        return await in_thread(partial(verify_incremental, full=request.query_params.get("full") == "true"))
+        # VEL-69: not in_thread(): a timed-out worker cannot be killed, so hand it a cancel event and make it stop itself
+        cancel = threading.Event()
+        work = asyncio.ensure_future(asyncio.to_thread(
+            partial(verify_incremental, full=request.query_params.get("full") == "true", cancel=cancel)))
+        done, _ = await asyncio.wait({work}, timeout=settings.call_timeout)
+        if done:
+            return work.result()
+        cancel.set()                                    # the walk checks this per entry and exits, keeping its checkpoint
+        done, _ = await asyncio.wait({work}, timeout=TRACE_STOP_GRACE_S)
+        if not done:
+            raise ApiError(504, "timeout", "the verification did not finish in time and has been told to stop")
+        result = work.result()
+        if not result.get("cancelled"):                 # it finished inside the grace window: a break (ok False) or a pass is reported as found
+            return result
+        # stopped early: not verified (ok is null, never true); 504 with the partial counts, call again to continue
+        return JSONResponse({**result, "ok": None, "timed_out": True, "complete": False}, status_code=504)
 
     def gauges() -> Dict[str, float]:
         try:

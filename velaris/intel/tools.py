@@ -41,7 +41,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from velaris.api.allowlist import ACT, READ, http_params, prepare, rule_for
+from velaris.api.allowlist import ACT, READ, build, http_params, prepare, rule_for
 from velaris.core.access import AccessDenied, Caller, org_denied
 from velaris.intel import trace
 from velaris.intel.flow import Tool, Warned
@@ -486,7 +486,7 @@ def runner(engine: Any, tool: ToolSpec, caller: Caller) -> Callable[..., Any]:
         fn = getattr(engine.agent_class(tool.agent), tool.method)
         args = prepare(tool.agent, tool.method, fn, kwargs, caller)
         try:
-            return engine.run(tool.agent, tool.method, args, caller=caller)
+            return engine.run(tool.agent, tool.method, build(tool.agent, tool.method, fn, args), caller=caller)
         except AccessDenied:
             raise
         except Exception as e:

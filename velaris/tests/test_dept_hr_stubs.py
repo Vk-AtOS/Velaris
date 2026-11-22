@@ -13,7 +13,7 @@ def isolated(tmp_path, monkeypatch):
 
 def candidate(**over):
     return CandidateProfile(**{"candidate_id": "c-1", "experience_years": 4, "skills": {"Python": 8},
-                               "education_level": "bachelor", "cultural_flags": {}, "role": "developer", **over})
+                               "education_level": "bachelor", "role": "developer", **over})
 
 
 RESUME = "Priya S\nBuilt ETL jobs in Python and PostgreSQL.\nFrontend work in JavaScript.\nWrote SQL reports."

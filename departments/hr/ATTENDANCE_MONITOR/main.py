@@ -3,8 +3,12 @@
 check_today(employee_ids, date_str, caller=) returns {"present", "absent", "late", "unknown", "date"}: an employee with no
 record is absent, one whose record has IsLate == "true" is late (with check-in), and one whose fetch failed (logged) is
 "unknown", never absent. flag_absence_streaks(ids, from_date, to_date, threshold=3, caller=) flags employees with at least
-threshold records whose Status is not "Present" in the range (the days are counted, not checked for being consecutive);
-failed fetches are skipped. The shift_start_hour config is stored but not used; lateness comes from Zoho's IsLate flag.
+threshold unexplained absences in the range (the days are counted, not checked for being consecutive); failed fetches
+are skipped. Only a Status of "Absent" (or a record with no Status) is an unexplained absence. Approved leave, holidays,
+weekly offs and work-from-home are explained: they are skip-neutral (they neither count towards the threshold nor
+reset anything), so nobody is flagged for a day the organisation expected them away. Any other Status (Present,
+half day, an unknown label) is not counted either: the monitor never flags on a label it does not recognise (VEL-55).
+Lateness comes from Zoho's IsLate flag; there is no shift-start setting.
 AccessDenied from the connector propagates. State: none kept here; data comes from ZohoPeopleConnector.
 """
 import logging
@@ -16,17 +20,23 @@ from velaris.core.access import AccessDenied, Caller
 logger = logging.getLogger("ATTENDANCE_MONITOR")
 
 
+def is_unexplained_absence(record: Dict[str, Any]) -> bool:
+    """True only for an explicit "Absent" (or a record with no Status). Leave, holiday, week-off and WFH are explained
+    and everything unrecognised is not counted (fail towards not flagging a person)."""
+    status = record.get("Status")
+    return status is None or (isinstance(status, str) and status.strip().casefold() in ("", "absent"))
+
+
 class AttendanceMonitorAgent:
     """
     Real-time attendance monitoring.
-    Flags: late arrivals (>15 min after shift start), unplanned absences, streak patterns.
+    Flags: late arrivals (Zoho's IsLate flag), unplanned absences, streak patterns.
     """
 
     def __init__(self, config: Dict[str, Any] = None):
         self.config = config or {}
         from velaris.agents.ZOHO_PEOPLE.main import ZohoPeopleConnector
         self.people = ZohoPeopleConnector(self.config)
-        self.shift_start = self.config.get("shift_start_hour", 9)  # 9 AM default
 
     def health_check(self) -> Dict[str, Any]:
         return {"agent": "ATTENDANCE_MONITOR", "status": "ok"}
@@ -59,7 +69,7 @@ class AttendanceMonitorAgent:
         self, employee_ids: List[str], from_date: str, to_date: str, threshold: int = 3, *,
         caller: Optional[Caller] = None
     ) -> List[Dict]:
-        """Flags employees with consecutive absences >= threshold days."""
+        """Flags employees with >= threshold unexplained absences (see the module docstring for what is explained)."""
         flagged = []
         for eid in employee_ids:
             try:
@@ -69,7 +79,7 @@ class AttendanceMonitorAgent:
             except Exception as e:
                 logger.warning("Absence streak check failed for %s: %s", eid, e)
                 continue
-            absent_days = [r for r in records if r.get("Status") != "Present"]
+            absent_days = [r for r in records if is_unexplained_absence(r)]
             if len(absent_days) >= threshold:
                 flagged.append({
                     "employee_id": eid,
