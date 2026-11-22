@@ -1,0 +1,13 @@
+# /etc/systemd/system/velaris-backup-check.service   (VEL-32) - run hourly by velaris-backup-check.timer
+# Exits non-zero (unit "failed", ALERT line in journald) when the newest good backup is over 26 h old, missing or incomplete.
+# To be told: add OnFailure=velaris-backup-alert@%n.service (your own mail/webhook unit), see deploy/README.md.
+[Unit]
+Description=Velaris backup freshness check
+
+[Service]
+Type=oneshot
+User=velaris
+Group=velaris
+Environment=BACKUP_DIR=/var/backups/velaris
+EnvironmentFile=-/etc/velaris/backup.env
+ExecStart=/opt/velaris/.venv/bin/python /opt/velaris/deploy/backup/backup_freshness.py --dir ${BACKUP_DIR} --max-age-hours 26
