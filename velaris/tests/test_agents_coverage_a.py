@@ -265,6 +265,20 @@ def test_ATTENDANCE_MONITOR_flags_employees_at_or_over_the_absence_threshold():
     assert len(a.flag_absence_streaks(["E2"], "a", "b", threshold=2, caller=HR)) == 1
 
 
+def test_ATTENDANCE_MONITOR_explained_days_do_not_build_an_absence_streak():
+    """VEL-55: leave, holiday, week-off and WFH were counted as absences (anything not 'Present')."""
+    explained = [{"Status": s} for s in ("On Leave", "Holiday", "Weekly Off", "WFH", "Work From Home", "Half Day", "Weird")]
+    a = attendance({"E1": explained, "E2": explained + [{"Status": "Absent"}] * 2, "E3": explained + [{"Status": "absent "}] * 3,
+                    "E4": [{}, {"Status": None}, {"Status": "Absent"}]})
+    got = a.flag_absence_streaks(["E1", "E2", "E3", "E4"], "11-01-2026", "11-14-2026", caller=HR)
+    assert [g["employee_id"] for g in got] == ["E3", "E4"]          # E1, E2: no unexplained streak of 3
+    assert got[0]["absent_days"] == 3 and got[1]["absent_days"] == 3   # explained days neither count nor reduce
+
+
+def test_ATTENDANCE_MONITOR_has_no_unused_shift_start_setting():
+    assert not hasattr(attendance({}), "shift_start")
+
+
 # ── CREATIVE_HOLODECK ────────────────────────────────────────────────────────
 def test_CREATIVE_HOLODECK_composes_scene_and_rejects_each_invalid_part():
     h = cls("CREATIVE_HOLODECK", "CreativeHolodeck")()

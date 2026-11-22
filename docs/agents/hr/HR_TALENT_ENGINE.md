@@ -2,7 +2,7 @@
 
 - **Department:** `hr`
 - **Status (static inventory):** `real`
-- **Source:** `departments/hr/HR_TALENT_ENGINE/main.py` (137 lines)
+- **Source:** `departments/hr/HR_TALENT_ENGINE/main.py` (134 lines)
 
 ## Purpose
 
@@ -18,7 +18,7 @@ Matching is whole-term and case-insensitive ("java" is not found in "javascript"
 What it deliberately does not do: there is NO score, NO ranking, NO percentage and
 NO hire/reject output. `decision` is always None. A skill with no evidence means
 "not found in what was supplied", which is a question for the interview, not a
-verdict. Education and the cultural flags are not used in matching.
+verdict. Education is not used in matching. (There are no cultural flags: the field was never read and was removed, VEL-55.)
 
 Documents are outside text: each is screened by velaris.intel.guard. A document
 the guard blocks is not read, and hidden characters (a known way to stuff a

@@ -4,7 +4,7 @@
   "cases": [
     {
       "id": "select-evaluate",
-      "input": "Use the evaluate operation of HR_TALENT_ENGINE with {\"c\": {\"candidate_id\": \"sample\", \"experience_years\": 1.0, \"skills\": {}, \"education_level\": \"sample\", \"cultural_flags\": {}, \"role\": \"sample\"}}.",
+      "input": "Use the evaluate operation of HR_TALENT_ENGINE with {\"c\": {\"candidate_id\": \"sample\", \"experience_years\": 1.0, \"skills\": {}, \"education_level\": \"sample\", \"role\": \"sample\"}}.",
       "expect": {
         "status": "proposed",
         "calls": [
@@ -16,7 +16,6 @@
                 "experience_years": 1.0,
                 "skills": {},
                 "education_level": "sample",
-                "cultural_flags": {},
                 "role": "sample"
               }
             }
@@ -31,7 +30,7 @@
     },
     {
       "id": "select-validate",
-      "input": "Use the validate operation of HR_TALENT_ENGINE with {\"c\": {\"candidate_id\": \"sample\", \"experience_years\": 1.0, \"skills\": {}, \"education_level\": \"sample\", \"cultural_flags\": {}, \"role\": \"sample\"}}.",
+      "input": "Use the validate operation of HR_TALENT_ENGINE with {\"c\": {\"candidate_id\": \"sample\", \"experience_years\": 1.0, \"skills\": {}, \"education_level\": \"sample\", \"role\": \"sample\"}}.",
       "expect": {
         "status": "proposed",
         "calls": [
@@ -43,7 +42,6 @@
                 "experience_years": 1.0,
                 "skills": {},
                 "education_level": "sample",
-                "cultural_flags": {},
                 "role": "sample"
               }
             }
