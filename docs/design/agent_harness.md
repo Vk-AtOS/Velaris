@@ -1,6 +1,6 @@
 # Agent harness (epic KAN-4, spec KAN-35)
 
-One generic harness turns any of the 346 agents into a model-driven agent. Per agent there is **data, not code**: a `harness`
+One generic harness can turn any of the 346 agents into a model-driven agent (today 23 agents have a harness entry that uses a model, see `tools/count_agents.py`). Per agent there is **data, not code**: a `harness`
 entry in its `manifest.json` and an eval set in `evals/<department>/<AGENT>.json`. The rule of the epic holds everywhere:
 **the model proposes, code disposes.** Money, access, identity, health and legal results are computed by the agent's own
 methods (the tools); the model chooses which tool to call and explains what came back.
