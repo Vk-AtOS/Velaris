@@ -25,8 +25,7 @@ COPY --chown=root:root deploy/healthcheck.py /app/healthcheck.py
 USER velaris:velaris
 VOLUME ["/data"]
 EXPOSE 8730 8731
-# ponytail: one worker per process on purpose. The gateway replay cache (velaris/api/auth.py) and the public rate limiter
-# are per process; several workers would let a replayed request or a burst through a sibling worker. Scale by running
-# separate deployments per organisation (VELARIS_ORG is one organisation per deployment), not --workers.
+# One worker by default (VELARIS_API_WORKERS). Chat event queues live in each process, so keep one worker while chat
+# clients use /chat/events; the replay cache and rate counters are shared SQLite files (see deploy/README.md).
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 CMD ["python", "/app/healthcheck.py", "8730", "/health"]
 CMD ["python", "-m", "velaris.api"]
