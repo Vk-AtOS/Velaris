@@ -71,13 +71,25 @@ class Completion:
     corrections: tuple = ()                # ids of the approver corrections router.complete put in the prompt (KAN-24)
 
 
+NOT_CONFIGURED = (
+    "no language model is configured: set VELARIS_MODEL to 'anthropic:<model>' (with ANTHROPIC_API_KEY), "
+    "'bedrock:<model id>' (with AWS_BEARER_TOKEN_BEDROCK), or '<id>:<model>' for a provider registered in "
+    "velaris/intel/providers.py; a local Ollama needs OLLAMA_MODEL (and OLLAMA_URL if not on 127.0.0.1:11434)")
+
+
 def default_model() -> str:
-    """VELARIS_MODEL, else the first provider that has a credential, else local Ollama."""
+    """VELARIS_MODEL, else Anthropic when its key is set, else Ollama only when OLLAMA_MODEL names a model.
+
+    Nothing defaults to localhost: a server with no model configured gets a configuration error at the
+    first model call (VEL-81), not a connection refused by an Ollama that was never set up.
+    """
     if os.environ.get("VELARIS_MODEL"):
         return os.environ["VELARIS_MODEL"]
     if os.environ.get("ANTHROPIC_API_KEY"):
         return "anthropic:claude-sonnet-4-6"
-    return "ollama:" + os.environ.get("OLLAMA_MODEL", "llama3.1:8b")
+    if os.environ.get("OLLAMA_MODEL"):
+        return "ollama:" + os.environ["OLLAMA_MODEL"]
+    raise LLMError(NOT_CONFIGURED)
 
 
 def _split(model: str) -> tuple[str, str]:
@@ -171,7 +183,8 @@ def _chat(provider: str, name: str, messages: List[Dict[str, Any]], max_tokens: 
                                   timeout=_timeout(), max_tokens=max_tokens, temperature=temperature, tools=tools,
                                   tool_choice=tool_choice, stream=stream, on_delta=on_delta)
     if tools:
-        raise LLMError(f"tool calls need an openai_compatible provider, '{provider}' is not one")
+        raise LLMError(f"tool calls need an openai_compatible provider, '{provider}' is not one: set VELARIS_MODEL "
+                       "to '<id>:<model>' of a provider registered in velaris/intel/providers.py")
     system = next((m["content"] for m in messages if m["role"] == "system"), None)
     prompt = "\n\n".join(str(m["content"]) for m in messages if m["role"] != "system")
     kind = p.kind if p is not None else provider

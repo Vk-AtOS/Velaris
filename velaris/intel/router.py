@@ -101,6 +101,14 @@ class Breaker:
 DEFAULT_BREAKER = Breaker()
 
 
+def _default_entry(llm: "gateway.LLM") -> str:
+    """The model when no chain or pin names one. The scripted FakeLLM names its own model; the real gateway must be
+    configured, so an unconfigured server fails here with the configuration error (VEL-81)."""
+    if isinstance(llm, gateway.FakeLLM):
+        return llm.name
+    return gateway.default_model()
+
+
 def complete(task_class: str, prompt: str, *, llm: Optional["gateway.LLM"] = None, sensitivity: Optional[str] = None,
              models: Optional[List[str]] = None, breaker: Optional[Breaker] = None, max_attempts: int = 3,
              max_seconds: float = 60.0, clock: Callable[[], float] = time.monotonic,
@@ -114,7 +122,7 @@ def complete(task_class: str, prompt: str, *, llm: Optional["gateway.LLM"] = Non
     ponytail: one Prime lookup per model call while Prime is configured; cache per (agent, action) if the latency matters."""
     llm, breaker = llm or gateway.LLM(), breaker or DEFAULT_BREAKER
     pinned = kw.pop("model", None)                       # a caller that names its model keeps it when no chain is configured
-    entries = models or chain(task_class) or [pinned or gateway.default_model()]
+    entries = models or chain(task_class) or [pinned or _default_entry(llm)]
     level = policy.effective(sensitivity)
     allowed = [m for m in entries if policy.permits(m.split(":")[0], level)]
     if not allowed:

@@ -106,3 +106,10 @@ def _llm_floor_reset():
     token = policy.new_scope()
     yield
     policy.end_scope(token)
+
+
+@pytest.fixture(autouse=True)
+def _model_named_for_tests(monkeypatch):
+    """The gateway names no model by default (VEL-81). Tests that inject a FakeLLM still pass through the router's
+    default-model lookup, so the suite names the model it always used. Tests of the unconfigured path clear it."""
+    monkeypatch.setenv("OLLAMA_MODEL", "llama3.1:8b")
