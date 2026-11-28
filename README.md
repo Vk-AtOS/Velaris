@@ -1,6 +1,6 @@
 # Velaris BOS — organisational brain
 
-Velaris is the organisation-side service of the AetherOS platform: a registry of rule-based and model-assisted business agents
+Velaris is the organisation-side service of the AetherOS platform: a registry of business agents (mostly rule-based, a few able to call a model)
 (one folder per agent), an HTTP API the AetherOS gateway calls with signed requests, and a public app for forms and links.
 One deployment serves one organisation (`VELARIS_ORG`). Everything stateful lives under `VELARIS_DATA`.
 
@@ -21,9 +21,9 @@ Every number below can be reproduced with the command next to it. Nothing here i
 | `velaris/backend`, `velaris/memory`, `velaris/security` | the agent engine, an in-process key/value mesh, a deny-by-default security stub | `ls velaris` |
 | `deploy/` | Dockerfile, compose, nginx, Kubernetes, systemd, backup and smoke scripts | `deploy/README.md` |
 | `docs/agents/` | one generated page per agent (purpose, methods, state, dependencies, callers) | `python tools/gen_agent_docs.py` |
-| `tools/` | `gen_agent_docs.py` (agent pages, `--check`, `--against`), `check_structure.py` (CI gate) | `python tools/check_structure.py` |
+| `tools/` | `gen_agent_docs.py` (agent pages, `--check`, `--against`), `check_structure.py` (CI gate), `count_agents.py` (the counts below) | `python tools/count_agents.py` |
 
-## How many agents are real
+## What the 346 agents actually do
 
 `python main.py --inventory` classifies each agent from its source (a static check, not a quality judgement):
 
@@ -31,11 +31,29 @@ Every number below can be reproduced with the command next to it. Nothing here i
 |---|---|---|---|---|
 | all departments | 161 | 173 | 12 | 346 |
 
-"real" means the agent delegates to `velaris.intel` or has logic and touches something outside the process (files, a database, the network,
-the OS); "rule-based" means it has logic that stays in memory; "not implemented" means it says so, or has no logic beyond
-`__init__` and `health_check`. The rules are in the docstring of `velaris/agents/inventory.py`; they are a heuristic and cannot tell
-correct logic from wrong. About half of the agents are real (state kept through `velaris.agentkit.state` counts as touching the outside). The per-department
-counts are in the same command's output and in `docs/agents/INDEX.md`.
+
+Most agents are deterministic code. Only a small number can reach a language model, and no agent has a passing score from a real
+model yet. `python3.11 tools/count_agents.py` computes every figure below from the code and `evals/scores/`
+(`velaris/tests/test_count_agents.py` fails if this table is out of date):
+
+| measure | agents | of |
+|---|---|---|
+| static heuristic: real (file, database, network or persisted state) | 161 | 346 |
+| static heuristic: rule-based (logic kept in memory) | 173 | 346 |
+| static heuristic: not implemented | 12 | 346 |
+| calls a model-gateway method in its own main.py | 7 | 346 |
+| reaches a model call through one velaris module it imports | 23 | 346 |
+| passed an eval with a real model (ready: true) | 0 | 346 |
+
+What each row does and does not show:
+
+- The three static rows are the inventory above (rules in `velaris/agents/inventory.py`). "real" is a heuristic about
+  where an agent's code touches the outside (files, database, network, OS, persisted state). It does not show that the logic is correct,
+  and it counts a file write the same as a business decision.
+- The two model rows are static too: they show which agents can call a model, not that a model is configured or that its answers are good.
+- The eval row is the only quality evidence. `evals/scores/` holds the offline `fake-oracle` run, which proves the harness and the eval
+  format work and marks nothing ready. A real-model run needs an API key or a local Ollama (`docs/model_providers.md`).
+- The per-department counts are in `python main.py --inventory` and `docs/agents/INDEX.md`.
 
 ## Departments (agents per department, from `--inventory`)
 

@@ -54,3 +54,14 @@ def test_templates_hold_placeholders_only():
         assert not re.search(r"-----BEGIN [A-Z ]*KEY-----\s*\S{20,}", text), p
         for m in re.finditer(r"(?:SECRET|PASSWORD|TOKEN)=(\S+)", text):
             assert m.group(1).startswith(("CHANGE_ME", "$", "${")) or m.group(1) == "", (p, m.group(1))
+
+
+def test_deploy_docs_match_the_worker_setting(monkeypatch):
+    """VEL-81: deploy/README.md described the worker count from before the SQLite replay and rate stores."""
+    from velaris.api import __main__ as api_main
+    monkeypatch.delenv("VELARIS_API_WORKERS", raising=False)
+    assert api_main._workers() == 1
+    readme = (DEPLOY / "README.md").read_text(encoding="utf-8")
+    assert "VELARIS_API_WORKERS" in readme and "Do not add" not in readme
+    shipped = [DEPLOY / "docker-compose.example.yml", *(DEPLOY / "systemd").glob("*"), *(DEPLOY / "k8s").glob("*.yaml")]
+    assert not [p for p in shipped if "VELARIS_API_WORKERS" in p.read_text(encoding="utf-8")]

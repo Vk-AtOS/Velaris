@@ -7,9 +7,13 @@ One deployment serves one organisation (`VELARIS_ORG`). Two processes share one 
 | API | `python -m velaris.api` | 8730 | the AetherOS gateway only; never published |
 | public app | `python -m velaris.api.public` | 8731 | the internet, through nginx (`deploy/nginx`) |
 
-Both run **one worker**. The gateway replay cache (`velaris/api/auth.py`) and the public rate counters live in process memory, so a
-second worker would let a replayed signed request or a burst through the sibling. Do not add `--workers`; run one deployment per
-organisation. Raise capacity only after those two stores move to a shared store.
+Both run **one worker** in every shipped config (Dockerfile, compose, k8s, systemd: none sets `VELARIS_API_WORKERS`). The public app
+is fixed at one worker in code (`velaris/api/public.py`). The API reads `VELARIS_API_WORKERS` (default 1, `velaris/api/__main__.py`).
+The gateway replay cache (`nonces.db`, `velaris/core/shared.py`) and the rate counters are SQLite files under `VELARIS_DATA`, so they are
+shared between workers and are not the reason to stay at one. Keep one worker while chat clients use `/chat/events`: those event queues
+live in each process's memory. The internal `/metrics` listener (`VELARIS_METRICS_PORT`) is started only with one worker. Raising
+the worker count is therefore a choice for the chat and metrics owners, not a safety rule; test it with `deploy/smoke.py` first.
+One deployment still serves one organisation (`VELARIS_ORG`).
 
 ## Environment
 
@@ -23,6 +27,7 @@ organisation. Raise capacity only after those two stores move to a shared store.
 | `VELARIS_TRACE_ANCHOR_FILE` | both | optional second copy of the signed trace head on another disk/host (an NFS mount, a small volume, an object-store sync): with it even a rollback of the whole data directory cannot shorten the audit trail unseen |
 | `VELARIS_ADOPT_LEGACY` | both | `0` stops the one-time copy of databases that older releases left in the source tree, working directory or /tmp |
 | `VELARIS_AUDIO_UPLOADS` | public | audio uploads streamed at once per process (default 4; more get 503) |
+| `VELARIS_API_WORKERS` | API | worker processes, default 1 (see "Both run one worker" above) |
 | `VELARIS_API_HOST` / `VELARIS_API_PORT` | API | bind address (default 127.0.0.1:8730; `0.0.0.0` only inside a container whose port is not published) |
 | `VELARIS_PUBLIC_HOST` / `VELARIS_PUBLIC_PORT` | public | default 127.0.0.1:8731 |
 | `VELARIS_PUBLIC_TRUST_PROXY` | public | `1` when exactly one trusted proxy (nginx) sets `X-Forwarded-For`: client IP = its last entry |
